@@ -1,0 +1,111 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1777410039140,
+      "tag": "0000_colorful_meteorite",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1777449067813,
+      "tag": "0001_stormy_marvel_apes",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1777614020103,
+      "tag": "0002_bilingual_recipes",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1777627233983,
+      "tag": "0003_cook_log_rotation",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1777892400000,
+      "tag": "0004_cook_mode_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1778155200000,
+      "tag": "0005_cook_log_bench_sheet_rating",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1783101685861,
+      "tag": "0006_inventory_facets",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1783101726345,
+      "tag": "0007_legacy_taxonomy_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1783120178901,
+      "tag": "0008_oval_warhawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1783497277951,
+      "tag": "0009_meal_sub_recipes",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1783616400000,
+      "tag": "0010_shopping_push_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1783681659238,
+      "tag": "0011_freezer_staple_opt_out",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1783686401136,
+      "tag": "0012_omniscient_daredevil",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1783709461570,
+      "tag": "0013_drop_period_starts",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1783832427185,
+      "tag": "0014_drop_ah_deliveries",
+      "breakpoints": true
+    }
+  ]
+}

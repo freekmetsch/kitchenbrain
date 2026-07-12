@@ -1,0 +1,18 @@
+# Litestream v0.5 config (P1.0): stream /data/v2.db to Cloudflare R2.
+# Values come from Railway service variables; see start.sh for the
+# fail-open gate when the replica credentials are absent.
+snapshot:
+  interval: 12h
+  retention: 168h
+
+dbs:
+  - path: /data/v2.db
+    replica:
+      type: s3
+      bucket: ${LITESTREAM_R2_BUCKET}
+      path: v2
+      endpoint: ${LITESTREAM_R2_ENDPOINT}
+      region: auto
+      access-key-id: ${LITESTREAM_R2_ACCESS_KEY_ID}
+      secret-access-key: ${LITESTREAM_R2_SECRET_ACCESS_KEY}
+      sync-interval: 10s

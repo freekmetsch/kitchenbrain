@@ -1,0 +1,50 @@
+<!--
+	Slide-down AI edit bar. `open` and `value` are bindable because the parent
+	drives both: the ⋯ menu opens the bar, and the roles hint in the freezer
+	panel prefills the ask ("Mark each ingredient as cook-in or serve-fresh").
+	Sending hands off to the chat route with the recipe title as context.
+-->
+<script lang="ts">
+	import { base } from '$app/paths';
+	import { goto } from '$app/navigation';
+	import { slide } from 'svelte/transition';
+
+	let {
+		open = $bindable(false),
+		value = $bindable(''),
+		recipeTitle
+	}: {
+		open?: boolean;
+		value?: string;
+		recipeTitle: string;
+	} = $props();
+
+	function sendEditWithAi() {
+		if (!value.trim()) return;
+		const msg = `[Recipe: ${recipeTitle}]\n${value.trim()}`;
+		goto(`${base}/?msg=${encodeURIComponent(msg)}`);
+	}
+</script>
+
+{#if open}
+	<div class="px-3 py-2 border-b border-base-200 bg-base-200/50 flex gap-2" transition:slide={{ duration: 150 }}>
+		<input
+			type="text"
+			class="input input-bordered input-sm flex-1"
+			placeholder="e.g. make it vegan, halve the amounts…"
+			bind:value
+			onkeydown={(e) => {
+				if (e.key === 'Enter') sendEditWithAi();
+			}}
+		/>
+		<button class="btn btn-sm btn-primary" onclick={sendEditWithAi} disabled={!value.trim()}
+			>→</button
+		>
+		<button
+			type="button"
+			class="btn btn-sm btn-ghost border border-base-300"
+			aria-label="Close AI edit"
+			onclick={() => (open = false)}>✕</button
+		>
+	</div>
+{/if}

@@ -1,0 +1,49 @@
+{
+  "name": "household-brain-v2",
+  "version": "2.0.0",
+  "description": "Self-hosted grocery, meal-plan, recipe, and freezer-inventory PWA with AI chat and Albert Heijn basket push.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/freekmetsch/household-brain"
+  },
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "op run --env-file=.env.template -- vite dev",
+    "build": "op run --env-file=.env.template -- vite build",
+    "preview": "op run --env-file=.env.template -- vite preview",
+    "prepare": "svelte-kit sync",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test:unit": "op run --env-file=.env.template -- vitest run",
+    "db:generate": "op run --env-file=.env.template -- drizzle-kit generate",
+    "db:migrate": "op run --env-file=.env.template -- drizzle-kit migrate",
+    "recipes:backfill:dry": "op run --env-file=.env.template -- tsx scripts/backfill_recipe_translations.ts",
+    "recipes:backfill": "op run --env-file=.env.template -- tsx scripts/backfill_recipe_translations.ts --apply"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-node": "^5.2.0",
+    "@sveltejs/kit": "^2.21.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
+    "drizzle-kit": "^0.31.0",
+    "svelte": "^5.24.0",
+    "svelte-check": "^4.7.2",
+    "tailwindcss": "^4.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.3.0",
+    "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@neodrag/svelte": "^2.3.3",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.11.1",
+    "daisyui": "^5.0.0",
+    "drizzle-orm": "^0.40.0",
+    "zod": "^4.3.6"
+  }
+}

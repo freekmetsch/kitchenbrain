@@ -1,0 +1,14 @@
+node_modules/
+build/
+.svelte-kit/
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.local
+ah_tokens.json
+ah_tokens.json.tmp
+.env.*.local
+.env.production
+data/backups/
+.idea/

@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      ORIGIN: ${ORIGIN:-http://localhost:3000}
+      DATABASE_URL: /data/v2.db
+      RECIPE_IMAGES_DIR: /data/recipe_images
+      AH_TOKEN_FILE: /data/ah_tokens.json
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in .env}
+      HOUSEHOLD_USERS: ${HOUSEHOLD_USERS:?set HOUSEHOLD_USERS in .env, e.g. alice:pw1,bob:pw2}
+      # Optional: streaming SQLite backup to an S3-compatible bucket (e.g. Cloudflare R2).
+      # Omit all three and the app runs fine without it — see start.sh.
+      LITESTREAM_R2_BUCKET: ${LITESTREAM_R2_BUCKET:-}
+      LITESTREAM_R2_ENDPOINT: ${LITESTREAM_R2_ENDPOINT:-}
+      LITESTREAM_R2_ACCESS_KEY_ID: ${LITESTREAM_R2_ACCESS_KEY_ID:-}
+      LITESTREAM_R2_SECRET_ACCESS_KEY: ${LITESTREAM_R2_SECRET_ACCESS_KEY:-}
+    volumes:
+      - data:/data
+    restart: unless-stopped
+
+volumes:
+  data:

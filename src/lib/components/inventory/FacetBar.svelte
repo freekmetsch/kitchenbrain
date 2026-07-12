@@ -1,0 +1,57 @@
+<!--
+	Sticky facet bar (P2.2) — one row, scrolls horizontally on 375px
+	(UX-STOCK-11): section tabs, food-class root chips, needs-review toggle.
+	Filter state is owned by the page and bound two-way.
+-->
+<script lang="ts">
+	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import { FOOD_CLASS_LABEL } from './shared';
+	import type { Section } from './shared';
+
+	let {
+		sectionFilter = $bindable(),
+		classFilter = $bindable(),
+		reviewOnly = $bindable(),
+		needsReviewCount
+	}: {
+		sectionFilter: Section | 'all';
+		classFilter: string | null;
+		reviewOnly: boolean;
+		needsReviewCount: number;
+	} = $props();
+
+	const SECTION_TABS: { value: Section | 'all'; label: string }[] = [
+		{ value: 'all', label: 'All' },
+		{ value: 'freezer', label: 'Freezer' },
+		{ value: 'pantry', label: 'Pantry' }
+	];
+</script>
+
+<div class="sticky top-0 z-20 border-b border-base-300/60 bg-base-100/95 px-4 pb-2 pt-2 backdrop-blur">
+	<div class="flex items-center gap-1.5 overflow-x-auto">
+		<div class="shrink-0">
+			<SegmentedTabs tabs={SECTION_TABS} bind:value={sectionFilter} />
+		</div>
+		{#each FOOD_CLASS_ROOTS as fc (fc)}
+			<button
+				type="button"
+				aria-pressed={classFilter === fc}
+				class={classFilter === fc ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
+				onclick={() => (classFilter = classFilter === fc ? null : fc)}>{FOOD_CLASS_LABEL[fc] ?? fc}</button
+			>
+		{/each}
+		{#if needsReviewCount > 0}
+			<button
+				type="button"
+				aria-pressed={reviewOnly}
+				class="{reviewOnly ? 'ui-chip-active border-warning/50 bg-warning/10 text-warning' : 'ui-chip'} shrink-0"
+				onclick={() => (reviewOnly = !reviewOnly)}
+			>
+				<Icon name="warn" class="h-3 w-3" />
+				{needsReviewCount} review
+			</button>
+		{/if}
+	</div>
+</div>
