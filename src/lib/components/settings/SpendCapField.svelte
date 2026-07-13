@@ -9,6 +9,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { SOURCE_LABEL, type ConfigSource } from '$lib/components/settings/provenance';
 	import { untrack } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	type Category = 'chat' | 'background';
 
@@ -38,12 +39,12 @@
 			});
 			const body = await res.json();
 			if (!res.ok || !body.ok) {
-				toast.error('Could not save cap.');
+				toast.error(m.settingsshell_toast_cap_save_failed());
 				return;
 			}
 			effective = body.effective;
 			capInput = String(body.effective.value);
-			toast.success(`Saved ${label.toLowerCase()} cap`);
+			toast.success(m.settingsshell_toast_cap_saved({ label: label.toLowerCase() }));
 			await invalidateAll();
 		} finally {
 			saving = false;
@@ -61,12 +62,12 @@
 			});
 			const body = await res.json();
 			if (!res.ok || !body.ok) {
-				toast.error('Could not reset.');
+				toast.error(m.settingsshell_toast_reset_failed());
 				return;
 			}
 			effective = body.effective;
 			capInput = String(body.effective.value);
-			toast.success('Reset to default');
+			toast.success(m.settingsshell_reset_to_default());
 			await invalidateAll();
 		} finally {
 			saving = false;
@@ -91,14 +92,14 @@
 			bind:value={capInput}
 			disabled={saving}
 		/>
-		<span class="text-xs text-base-content/50">/day</span>
+		<span class="text-xs text-base-content/50">{m.settingsshell_per_day_suffix()}</span>
 		<button
 			type="button"
 			class="btn btn-xs btn-primary"
 			disabled={saving || !capInput || capInput === String(effective.value)}
 			onclick={save}
 		>
-			Save
+			{m.settingsshell_save_button()}
 		</button>
 		{#if effective.source !== 'default'}
 			<button
@@ -107,7 +108,7 @@
 				disabled={saving}
 				onclick={resetToDefault}
 			>
-				Reset
+				{m.settingsshell_reset_button()}
 			</button>
 		{/if}
 	</div>

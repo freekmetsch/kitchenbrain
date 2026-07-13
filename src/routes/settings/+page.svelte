@@ -2,6 +2,7 @@
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { SORT_LABELS, type SortBy } from '$lib/recipe_sort';
+	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -9,39 +10,49 @@
 	const panels = $derived([
 		{
 			href: 'display',
-			title: 'Display',
-			summary: `${data.theme === 'dark' ? 'Dark' : 'Light'} theme`
+			title: m.settingsshell_panel_display(),
+			summary: m.settingsshell_summary_theme({
+				theme: data.theme === 'dark' ? m.settingsshell_theme_dark() : m.settingsshell_theme_light()
+			})
 		},
 		{
 			href: 'ai',
-			title: 'AI',
-			summary: `${data.chatModel} · ${data.reasoning === 'off' ? 'Fast' : 'Balanced'} · EUR ${data.todaySpendEur.toFixed(3)} / ${data.chatCapEur.toFixed(2)} today`
+			title: m.settingsshell_panel_ai(),
+			summary: m.settingsshell_summary_ai({
+				model: data.chatModel,
+				reasoning: data.reasoning === 'off' ? m.settingsshell_reasoning_fast() : m.settingsshell_reasoning_balanced(),
+				spend: data.todaySpendEur.toFixed(3),
+				cap: data.chatCapEur.toFixed(2)
+			})
 		},
 		{
 			href: 'recipes',
-			title: 'Recipes',
-			summary: `${data.recipeLang === 'nl' ? 'Dutch' : 'English'} · sorted by ${SORT_LABELS[data.defaultSort as SortBy] ?? 'A-Z'}`
+			title: m.settingsshell_panel_recipes(),
+			summary: m.settingsshell_summary_recipes({
+				lang: data.recipeLang === 'nl' ? m.recipes_edit_language_dutch() : m.recipes_edit_language_english(),
+				sort: SORT_LABELS[data.defaultSort as SortBy] ?? m.recipes_sort_az()
+			})
 		},
 		{
 			href: 'connections',
-			title: 'Connections',
-			summary: data.ahConnected ? 'Albert Heijn connected' : 'Albert Heijn not connected'
+			title: m.settingsshell_panel_connections(),
+			summary: data.ahConnected ? m.settingsshell_ah_connected() : m.settingsshell_ah_not_connected()
 		},
-		{ href: 'account', title: 'Account', summary: data.username },
-		{ href: 'data', title: 'Data', summary: 'Export your data as JSON' },
-		{ href: 'advanced', title: 'Advanced', summary: 'Vision & background models, temperature' }
+		{ href: 'account', title: m.settingsshell_panel_account(), summary: data.username },
+		{ href: 'data', title: m.settingsshell_panel_data(), summary: m.settingsshell_data_summary() },
+		{ href: 'advanced', title: m.settingsshell_panel_advanced(), summary: m.settingsshell_advanced_summary() }
 	]);
 </script>
 
 <svelte:head>
-	<title>Settings - Household Brain</title>
+	<title>{m.settingsshell_title()}</title>
 </svelte:head>
 
 <div class="ui-page-shell px-4 pt-4">
 	<header class="mb-5 flex items-center justify-between gap-3">
 		<div>
-			<p class="ui-section-label">Household Brain</p>
-			<h1 class="text-2xl font-bold tracking-tight">Settings</h1>
+			<p class="ui-section-label">{m.settingsshell_brand_label()}</p>
+			<h1 class="text-2xl font-bold tracking-tight">{m.settingsshell_heading()}</h1>
 		</div>
 		<div class="avatar placeholder">
 			<div class="h-10 w-10 rounded-full bg-primary text-primary-content">

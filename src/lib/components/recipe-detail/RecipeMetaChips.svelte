@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import type { Recipe } from './types';
 
 	let {
@@ -28,7 +29,7 @@
 	<section class="mx-3 mt-3 flex flex-col gap-2">
 		<div class="flex flex-wrap items-center gap-1.5">
 			{#if recipe.servings}
-				<span class="ui-chip-muted">{recipe.servings} servings</span>
+				<span class="ui-chip-muted">{m.recipes_meta_servings({ count: recipe.servings })}</span>
 			{/if}
 			{#if recipe.totalTimeMin}
 				<span class="ui-chip-muted"><Icon name="clock" class="h-3 w-3" />{recipe.totalTimeMin} min</span>

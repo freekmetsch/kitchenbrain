@@ -10,6 +10,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { SOURCE_LABEL, type ConfigSource } from '$lib/components/settings/provenance';
 	import { untrack } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	type Role = 'chat' | 'chat_fallback' | 'vision' | 'background';
 
@@ -45,16 +46,16 @@
 			});
 			const body = await res.json();
 			if (!res.ok || !body.ok) {
-				testError = body.error ?? 'Model test failed.';
+				testError = body.error ?? m.settingsshell_toast_model_test_failed();
 				toast.error(testError);
 				return;
 			}
 			effective = body.effective;
 			modelInput = body.effective.value;
-			toast.success(`Saved ${label.toLowerCase()} model`);
+			toast.success(m.settingsshell_toast_model_saved({ label: label.toLowerCase() }));
 			await invalidateAll();
 		} catch {
-			testError = 'Connection error';
+			testError = m.settingsshell_toast_connection_error();
 			toast.error(testError);
 		} finally {
 			saving = false;
@@ -73,12 +74,12 @@
 			});
 			const body = await res.json();
 			if (!res.ok || !body.ok) {
-				toast.error('Could not reset.');
+				toast.error(m.settingsshell_toast_reset_failed());
 				return;
 			}
 			effective = body.effective;
 			modelInput = body.effective.value;
-			toast.success('Reset to default');
+			toast.success(m.settingsshell_reset_to_default());
 			await invalidateAll();
 		} finally {
 			saving = false;
@@ -106,7 +107,7 @@
 			disabled={saving || !modelInput.trim() || modelInput.trim() === effective.value}
 			onclick={save}
 		>
-			{saving ? '...' : 'Save'}
+			{saving ? '...' : m.settingsshell_save_button()}
 		</button>
 	</div>
 	{#if shortcuts.length}
@@ -129,7 +130,7 @@
 			disabled={saving}
 			onclick={resetToDefault}
 		>
-			Reset to default
+			{m.settingsshell_reset_to_default()}
 		</button>
 	{/if}
 	{#if testError}

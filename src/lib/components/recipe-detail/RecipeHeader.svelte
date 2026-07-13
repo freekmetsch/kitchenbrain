@@ -8,6 +8,7 @@
 	import { base } from '$app/paths';
 	import { tick } from 'svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import type { Recipe } from './types';
 
 	let {
@@ -146,13 +147,13 @@
 		<a
 			href="{base}/recipes"
 			class="btn btn-ghost btn-sm h-9 min-h-0 w-9 shrink-0 p-0"
-			aria-label="Back to recipes"><Icon name="chevronLeft" /></a
+			aria-label={m.recipes_header_back_aria()}><Icon name="chevronLeft" /></a
 		>
 		<button
 			type="button"
 			class="shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-base-200 border border-base-200 flex items-center justify-center text-base-content/40 text-sm"
 			onclick={pickPhoto}
-			aria-label={recipe.imageUrl ? 'Replace photo' : 'Add photo'}
+			aria-label={recipe.imageUrl ? m.recipes_header_replace_photo() : m.recipes_header_add_photo()}
 		>
 			{#if recipe.imageUrl}
 				<img src={recipe.imageUrl} alt="" class="w-full h-full object-cover" loading="lazy" />
@@ -167,7 +168,7 @@
 			class="btn btn-sm btn-primary shrink-0"
 			onclick={() => {
 				onAddToPlan();
-			}}>+ Plan</button
+			}}>+ {m.recipes_header_plan_button()}</button
 		>
 		<div class="relative shrink-0" data-recipe-menu>
 			<button
@@ -176,7 +177,7 @@
 				class="btn btn-sm btn-ghost border border-base-300"
 				aria-haspopup="menu"
 				aria-expanded={menuOpen}
-				aria-label="More actions"
+				aria-label={m.recipes_header_more_actions_aria()}
 				onkeydown={handleMenuButtonKeydown}
 				onclick={(e) => {
 					e.stopPropagation();
@@ -196,7 +197,7 @@
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
 							onclick={toggleLanguage}
-							>🌐 {viewLang === 'en' ? 'View in Dutch' : 'View in English'}</button
+							>🌐 {viewLang === 'en' ? m.recipes_header_view_in_dutch() : m.recipes_header_view_in_english()}</button
 						>
 					</li>
 					<li>
@@ -205,7 +206,7 @@
 							role="menuitem"
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={openEditRaw}>✏️ Edit raw recipe</button
+							onclick={openEditRaw}>✏️ {m.recipes_edit_heading()}</button
 						>
 					</li>
 					<li>
@@ -214,7 +215,7 @@
 							role="menuitem"
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={regenerateCookMode}>↻ Regenerate cook mode</button
+							onclick={regenerateCookMode}>↻ {m.recipes_header_regenerate_cook_mode()}</button
 						>
 					</li>
 					{#if viewLang === 'en' && recipe.translationStatus === 'ready'}
@@ -224,7 +225,7 @@
 								role="menuitem"
 								data-recipe-menu-item
 								class="w-full text-left px-3 py-2 hover:bg-base-200"
-								onclick={forceRetranslate}>↻ Re-translate to EN</button
+								onclick={forceRetranslate}>↻ {m.recipes_header_retranslate()}</button
 							>
 						</li>
 					{/if}
@@ -234,7 +235,7 @@
 							role="menuitem"
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={openAiEdit}>✏️ AI edit</button
+							onclick={openAiEdit}>✏️ {m.recipes_header_ai_edit()}</button
 						>
 					</li>
 					<li>
@@ -244,7 +245,7 @@
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
 							onclick={pickPhoto}
-							>{recipe.imageUrl ? '📷 Replace photo' : '📷 Add photo'}</button
+							>{recipe.imageUrl ? `📷 ${m.recipes_header_replace_photo()}` : `📷 ${m.recipes_header_add_photo()}`}</button
 						>
 					</li>
 					{#if recipe.imageUrl}
@@ -254,7 +255,7 @@
 								role="menuitem"
 								data-recipe-menu-item
 								class="w-full text-left px-3 py-2 hover:bg-base-200 text-error"
-								onclick={removePhoto}>🗑 Remove photo</button
+								onclick={removePhoto}>🗑 {m.recipes_header_remove_photo()}</button
 							>
 						</li>
 					{/if}
@@ -265,7 +266,7 @@
 								role="menuitem"
 								data-recipe-menu-item
 								class="w-full text-left px-3 py-2 hover:bg-base-200"
-								onclick={openSource}>↗ Open source</button
+								onclick={openSource}>↗ {m.recipes_header_open_source()}</button
 							>
 						</li>
 					{/if}
@@ -276,7 +277,7 @@
 	{#if viewLang === 'en' && translationLoading}
 		<div class="px-3 pb-2 flex items-center gap-2 text-[11px] text-base-content/60">
 			<span class="loading loading-spinner loading-xs"></span>
-			<span>Translating recipe…</span>
+			<span>{m.recipes_header_translating()}</span>
 		</div>
 	{:else if viewLang === 'en' && translationMessage}
 		<button
@@ -287,7 +288,7 @@
 		<button
 			class="w-full px-3 pb-2 text-left text-[11px] text-warning"
 			onclick={() => onRetryTranslation(true)}
-			>Translation failed — viewing Dutch. Tap to retry.</button
+			>{m.recipes_translation_failed_retry()}</button
 		>
 	{/if}
 	{#if imageUploadError}

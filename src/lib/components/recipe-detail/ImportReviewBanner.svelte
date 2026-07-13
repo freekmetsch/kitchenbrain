@@ -7,6 +7,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		slug,
@@ -35,24 +36,24 @@
 				onDismissed();
 			} else {
 				const body = await res.json().catch(() => ({}));
-				reviewError = body.message ?? `Couldn't dismiss (${res.status})`;
+				reviewError = body.message ?? m.recipes_import_toast_dismiss_failed({ status: res.status });
 				toast.error(reviewError);
 			}
 		} catch {
-			reviewError = 'Connection failed — tap to retry';
-			toast.error('Could not clear the review flag.');
+			reviewError = m.recipes_import_toast_connection_failed();
+			toast.error(m.recipes_import_toast_clear_failed());
 		}
 		reviewDismissing = false;
 	}
 
 	function reviewReason(r: string | null): string {
-		if (!r) return 'Some fields may be incomplete.';
+		if (!r) return m.recipes_import_reason_default();
 		const known: Record<string, string> = {
-			missing_title: 'The title may need a check.',
-			missing_ingredients: 'Ingredients may be incomplete.',
-			missing_directions: 'Directions may be incomplete.',
-			missing_servings: 'Servings may be missing.',
-			flagged_by_ai: 'AI flagged this for a human check.'
+			missing_title: m.recipes_import_reason_title(),
+			missing_ingredients: m.recipes_import_reason_ingredients(),
+			missing_directions: m.recipes_import_reason_directions(),
+			missing_servings: m.recipes_import_reason_servings(),
+			flagged_by_ai: m.recipes_import_reason_ai_flagged()
 		};
 		return known[r] ?? r.replaceAll('_', ' ');
 	}
@@ -62,12 +63,12 @@
 	<div class="flex items-start gap-2">
 		<span class="text-base leading-none mt-0.5" aria-hidden="true">📝</span>
 		<div class="min-w-0 flex-1">
-			<p class="text-[13px] font-medium text-base-content">Imported — worth a quick check</p>
+			<p class="text-[13px] font-medium text-base-content">{m.recipes_import_banner_title()}</p>
 			<p class="text-[12px] text-base-content/70 leading-snug mt-0.5">
 				{reviewReason(reason)}
 			</p>
 			<div class="flex gap-2 mt-2">
-				<button class="btn btn-xs btn-warning" onclick={onEditRaw}>Edit recipe</button>
+				<button class="btn btn-xs btn-warning" onclick={onEditRaw}>{m.recipes_edit_heading()}</button>
 				<button
 					class="btn btn-xs btn-ghost"
 					disabled={reviewDismissing}
@@ -76,7 +77,7 @@
 					{#if reviewDismissing}
 						<span class="loading loading-spinner loading-xs"></span>
 					{/if}
-					Looks good
+					{m.recipes_import_looks_good_button()}
 				</button>
 			</div>
 			{#if reviewError}

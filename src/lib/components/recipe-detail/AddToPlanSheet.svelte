@@ -9,6 +9,7 @@
 	import { untrack } from 'svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import type { Week } from './types';
 
 	let {
@@ -41,20 +42,20 @@
 			});
 			if (res.ok) {
 				open = false;
-				toast.success('Added to meal plan');
+				toast.success(m.recipes_addplan_toast_added());
 				void invalidateAll();
 			} else {
 				const body = await res.json().catch(() => ({}));
-				toast.error(body.message ?? `Could not add to meal plan (${res.status}).`);
+				toast.error(body.message ?? m.recipes_addplan_toast_failed({ status: res.status }));
 			}
 		} catch {
-			toast.error('Could not add to meal plan.');
+			toast.error(m.recipes_addplan_toast_failed_generic());
 		}
 		addToPlanSubmitting = false;
 	}
 </script>
 
-<BottomSheet bind:open title="Add to meal plan">
+<BottomSheet bind:open title={m.recipes_addplan_sheet_title()}>
 	<div class="flex flex-col gap-2 mb-4">
 		{#each weeks as week}
 			<label
@@ -66,7 +67,7 @@
 					bind:group={addToPlanWeek}
 					value={week.weekStartDate}
 				/>
-				<span class="text-sm">{week.label} — Week {week.weekNumber}</span>
+				<span class="text-sm">{week.label} — {m.recipes_addplan_week_label({ number: week.weekNumber })}</span>
 			</label>
 		{/each}
 	</div>
@@ -75,7 +76,7 @@
 			class="btn btn-ghost btn-sm"
 			onclick={() => {
 				open = false;
-			}}>Cancel</button
+			}}>{m.recipes_cancel_button()}</button
 		>
 		<button
 			class="btn btn-primary btn-sm"
@@ -85,7 +86,7 @@
 			{#if addToPlanSubmitting}
 				<span class="loading loading-spinner loading-xs"></span>
 			{/if}
-			Add
+			{m.recipes_addplan_add_button()}
 		</button>
 	</div>
 </BottomSheet>

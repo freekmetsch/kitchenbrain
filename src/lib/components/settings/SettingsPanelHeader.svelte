@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { title }: { title: string } = $props();
 </script>
@@ -10,7 +11,7 @@
 	<a
 		href="{base}/settings"
 		class="btn btn-ghost btn-sm h-9 min-h-0 w-9 shrink-0 p-0"
-		aria-label="Back to settings"><Icon name="chevronLeft" /></a
+		aria-label={m.settingsshell_back_aria()}><Icon name="chevronLeft" /></a
 	>
 	<h1 class="text-xl font-bold tracking-tight">{title}</h1>
 </header>

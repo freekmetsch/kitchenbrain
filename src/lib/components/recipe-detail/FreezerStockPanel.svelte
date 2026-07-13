@@ -12,6 +12,7 @@
 	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import type { Recipe, Week } from './types';
 
 	let {
@@ -55,7 +56,7 @@
 	});
 
 	function weekLabel(weekStartDate: string): string {
-		return weeks.find((w) => w.weekStartDate === weekStartDate)?.label ?? `Week of ${weekStartDate}`;
+		return weeks.find((w) => w.weekStartDate === weekStartDate)?.label ?? m.recipes_freezer_week_of({ date: weekStartDate });
 	}
 	let belowTarget = $derived(
 		recipe.isFreezerStaple &&
@@ -77,13 +78,13 @@
 			});
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({}));
-				stapleError = body.message ?? `Save failed (${res.status})`;
+				stapleError = body.message ?? m.recipes_freezer_toast_save_failed({ status: res.status });
 				toast.error(stapleError);
 			} else {
 				onSaved(payload);
 			}
 		} catch {
-			stapleError = 'Connection failed';
+			stapleError = m.recipes_toast_connection_failed();
 			toast.error(stapleError);
 		}
 		stapleSaving = false;
@@ -127,11 +128,11 @@
 				void invalidateAll();
 			} else {
 				const body = await res.json().catch(() => ({}));
-				serveError = body.message ?? `Failed (${res.status})`;
+				serveError = body.message ?? m.recipes_freezer_toast_generic_failed({ status: res.status });
 				toast.error(serveError);
 			}
 		} catch {
-			serveError = 'Connection failed';
+			serveError = m.recipes_toast_connection_failed();
 			toast.error(serveError);
 		}
 		serveSubmitting = false;
@@ -148,15 +149,17 @@
 			>
 				❄️
 				{#if recipe.isFreezerStaple && recipe.targetPortions}
-					{frozenPortions} / {recipe.targetPortions} portions{belowTarget
-						? ' — below target'
+					{m.recipes_freezer_portions_of_target({ frozen: frozenPortions, target: recipe.targetPortions })}{belowTarget
+						? m.recipes_freezer_below_target_suffix()
 						: ''}
 				{:else}
-					{frozenPortions} {frozenPortions === 1 ? 'portion' : 'portions'} in freezer
+					{frozenPortions === 1
+						? m.recipes_freezer_portion_singular_in_freezer({ count: frozenPortions })
+						: m.recipes_freezer_portions_plural_in_freezer({ count: frozenPortions })}
 				{/if}
 			</span>
 			<label class="flex items-center gap-2 py-1 min-h-8 cursor-pointer shrink-0">
-				<span class="text-xs text-base-content/70">Keep stocked</span>
+				<span class="text-xs text-base-content/70">{m.recipes_freezer_keep_stocked_label()}</span>
 				<input
 					type="checkbox"
 					class="toggle toggle-sm toggle-primary"
@@ -168,7 +171,7 @@
 		</div>
 		{#if recipe.isFreezerStaple}
 			<label class="flex items-center gap-2 min-h-8">
-				<span class="text-xs text-base-content/70">Target portions</span>
+				<span class="text-xs text-base-content/70">{m.recipes_freezer_target_portions_label()}</span>
 				<input
 					type="number"
 					min="1"
@@ -192,7 +195,7 @@
 						aria-expanded={serveOpen}
 						onclick={() => {
 							serveOpen = !serveOpen;
-						}}>🍽️ Serve from freezer</button
+						}}>🍽️ {m.recipes_freezer_serve_button()}</button
 					>
 				</div>
 			{:else}
@@ -201,15 +204,15 @@
 					class="text-left text-[11px] text-base-content/50"
 					onclick={onOpenRolesAiEdit}
 				>
-					🍽️ Serving from the freezer needs ingredient roles —
-					<span class="underline decoration-dotted underline-offset-2">set them with AI</span>
+					🍽️ {m.recipes_freezer_needs_roles_prefix()}
+					<span class="underline decoration-dotted underline-offset-2">{m.recipes_freezer_set_roles_link()}</span>
 				</button>
 			{/if}
 		{/if}
 		{#if serveOpen && hasRoles && frozenPortions > 0}
 			{#if serveFresh.length > 0}
 				<div class="flex flex-col gap-2">
-					<p class="text-xs font-medium text-base-content/70">Fresh items still needed:</p>
+					<p class="text-xs font-medium text-base-content/70">{m.recipes_freezer_fresh_needed_label()}</p>
 					<ul class="text-sm flex flex-col gap-0.5">
 						{#each serveFresh as item}
 							<li class="flex items-baseline gap-2">
@@ -224,18 +227,18 @@
 					</ul>
 					{#if serveAdded}
 						<p class="text-xs text-success">
-							Added to {weekLabel(serveWeek).toLowerCase()}'s shopping list
+							{m.recipes_freezer_added_to_shopping({ week: weekLabel(serveWeek).toLowerCase() })}
 						</p>
 						<a
 							class="btn btn-xs btn-outline self-start gap-1"
 							href="{base}/shopping?week={serveWeek}"
 						>
 							<Icon name="cart" class="h-3.5 w-3.5" />
-							Open shopping list
+							{m.recipes_freezer_open_shopping_link()}
 						</a>
 					{:else}
 						<div>
-							<span class="text-xs text-base-content/70 mb-1 block">Add to week</span>
+							<span class="text-xs text-base-content/70 mb-1 block">{m.recipes_freezer_add_to_week_label()}</span>
 							<SegmentedTabs tabs={serveWeekTabs} value={serveWeek} onchange={(v) => (serveWeek = v)} />
 						</div>
 						<button
@@ -246,7 +249,7 @@
 							{#if serveSubmitting}
 								<span class="loading loading-spinner loading-xs"></span>
 							{/if}
-							Add {serveFresh.length} to shopping list
+							{m.recipes_freezer_add_to_shopping_button({ count: serveFresh.length })}
 						</button>
 					{/if}
 					{#if serveError}
@@ -255,7 +258,7 @@
 				</div>
 			{:else}
 				<p class="text-sm text-base-content/70">
-					Nothing fresh to buy — all serve-fresh items are in stock ✓
+					{m.recipes_freezer_nothing_fresh()}
 				</p>
 			{/if}
 		{/if}

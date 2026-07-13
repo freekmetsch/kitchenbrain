@@ -7,6 +7,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { untrack } from 'svelte';
 	import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
+	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -14,8 +15,8 @@
 	type Theme = 'light' | 'dark';
 
 	const themeTabs = [
-		{ value: 'light', label: 'Light' },
-		{ value: 'dark', label: 'Dark' }
+		{ value: 'light', label: m.settingsshell_theme_light() },
+		{ value: 'dark', label: m.settingsshell_theme_dark() }
 	] satisfies { value: Theme; label: string }[];
 
 	const languageTabs = [
@@ -51,32 +52,32 @@
 				theme = previous;
 				document.documentElement.setAttribute('data-theme', previous);
 			},
-			'Could not save the theme.'
+			m.settingsshell_toast_theme_save_failed()
 		);
 		themeSaving = false;
 		if (ok) {
-			toast.success('Saved theme');
+			toast.success(m.settingsshell_toast_theme_saved());
 			await invalidateAll();
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>Display - Settings</title>
+	<title>{m.settingsshell_panel_display()} - {m.settingsshell_page_suffix()}</title>
 </svelte:head>
 
 <div class="ui-page-shell px-4 pt-4">
-	<SettingsPanelHeader title="Display" />
+	<SettingsPanelHeader title={m.settingsshell_panel_display()} />
 
 	<section class="ui-form-card">
-		<span class="ui-field-label mb-1.5 block" id="theme-label">Theme</span>
+		<span class="ui-field-label mb-1.5 block" id="theme-label">{m.settingsshell_theme_label()}</span>
 		<div class:pointer-events-none={themeSaving} class:opacity-60={themeSaving} aria-labelledby="theme-label">
 			<SegmentedTabs tabs={themeTabs} value={theme} onchange={setTheme} />
 		</div>
 	</section>
 
 	<section class="ui-form-card">
-		<span class="ui-field-label mb-1.5 block" id="language-label">Language</span>
+		<span class="ui-field-label mb-1.5 block" id="language-label">{m.settingsshell_language_label()}</span>
 		<div aria-labelledby="language-label">
 			<SegmentedTabs tabs={languageTabs} value={language} onchange={setLanguage} />
 		</div>

@@ -3,6 +3,7 @@
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { base } from '$app/paths';
 	import type { ToolDisplay } from '$lib/tool_display';
+	import { m } from '$lib/paraglide/messages';
 
 	type ExpiringItem = { id: number; name: string; expiryDate: string | null; section: string };
 
@@ -38,10 +39,10 @@
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		const diff = Math.ceil((new Date(expiryDate).getTime() - today.getTime()) / 86400000);
-		if (diff < 0) return `${Math.abs(diff)}d expired`;
-		if (diff === 0) return 'Today';
-		if (diff === 1) return 'Tomorrow';
-		return `${diff}d`;
+		if (diff < 0) return m.home_expiry_days_expired({ days: Math.abs(diff) });
+		if (diff === 0) return m.home_expiry_today();
+		if (diff === 1) return m.home_expiry_tomorrow();
+		return m.home_expiry_days_left({ days: diff });
 	}
 </script>
 
@@ -51,7 +52,7 @@
 		<div class="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
 			<Icon name="warn" class="h-4 w-4 shrink-0 mt-0.5" />
 			<div class="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-				<span class="font-medium">Expiring soon:</span>
+				<span class="font-medium">{m.home_expiring_soon_label()}</span>
 				{#each data.expiring as item}
 				<a href="{base}/inventory" class="inline-flex items-center gap-1 hover:underline">
 					<span>{item.name}</span>
@@ -61,7 +62,7 @@
 				</a>
 				{/each}
 			</div>
-			<button class="btn btn-xs btn-ghost shrink-0 -mr-1" aria-label="Dismiss" onclick={() => (showExpiring = false)}><Icon name="x" class="h-3.5 w-3.5" /></button>
+			<button class="btn btn-xs btn-ghost shrink-0 -mr-1" aria-label={m.home_dismiss_aria()} onclick={() => (showExpiring = false)}><Icon name="x" class="h-3.5 w-3.5" /></button>
 		</div>
 	</div>
 	{/if}

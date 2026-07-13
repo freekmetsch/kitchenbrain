@@ -13,6 +13,7 @@
 	import AddToPlanSheet from '$lib/components/recipe-detail/AddToPlanSheet.svelte';
 	import type { Recipe, Week } from '$lib/components/recipe-detail/types';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		data
@@ -89,7 +90,7 @@
 	async function uploadImage(file: File) {
 		imageUploadError = '';
 		if (file.size > 5 * 1024 * 1024) {
-			imageUploadError = 'Image larger than 5MB';
+			imageUploadError = m.recipes_toast_image_too_large();
 			return;
 		}
 		imageUploading = true;
@@ -102,14 +103,14 @@
 			});
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({}));
-				imageUploadError = body.message ?? `Upload failed (${res.status})`;
+				imageUploadError = body.message ?? m.recipes_toast_upload_failed({ status: res.status });
 			} else {
 				const body = await res.json();
 				recipe = { ...recipe, imageUrl: body.imageUrl };
 				await invalidateAll();
 			}
 		} catch {
-			imageUploadError = 'Connection failed';
+			imageUploadError = m.recipes_toast_connection_failed();
 			toast.error(imageUploadError);
 		}
 		imageUploading = false;
@@ -124,20 +125,20 @@
 
 	async function deleteImage() {
 		if (!recipe.imageUrl) return;
-		if (!confirm('Remove this photo?')) return;
+		if (!confirm(m.recipes_confirm_remove_photo())) return;
 		imageUploadError = '';
 		imageUploading = true;
 		try {
 			const res = await fetch(`${base}/api/recipes/${recipe.slug}/image`, { method: 'DELETE' });
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({}));
-				imageUploadError = body.message ?? `Delete failed (${res.status})`;
+				imageUploadError = body.message ?? m.recipes_toast_delete_failed({ status: res.status });
 			} else {
 				recipe = { ...recipe, imageUrl: null };
 				await invalidateAll();
 			}
 		} catch {
-			imageUploadError = 'Connection failed';
+			imageUploadError = m.recipes_toast_connection_failed();
 			toast.error(imageUploadError);
 		}
 		imageUploading = false;
@@ -156,14 +157,14 @@
 			if (res.ok && body.recipe) {
 				recipe = body.recipe;
 				if (body.status === 'error')
-					translationMessage = 'Translation failed — viewing Dutch. Tap to retry.';
+					translationMessage = m.recipes_translation_failed_retry();
 			} else if (body.reason === 'daily_cap_exceeded') {
-				translationMessage = 'Translation paused — daily AI budget reached. Try again tomorrow.';
+				translationMessage = m.recipes_translation_paused_budget();
 			} else {
-				translationMessage = body.message ?? 'Translation failed — viewing Dutch. Tap to retry.';
+				translationMessage = body.message ?? m.recipes_translation_failed_retry();
 			}
 		} catch {
-			translationMessage = 'Connection failed — viewing Dutch. Tap to retry.';
+			translationMessage = m.recipes_translation_connection_failed();
 		}
 		translationLoading = false;
 	}
@@ -183,7 +184,7 @@
 	function openEditRaw() {
 		if (
 			benchSheetController.hasActiveTimer &&
-			!confirm('You have an active timer — leave anyway?')
+			!confirm(m.recipes_confirm_leave_timer())
 		) {
 			return;
 		}
@@ -193,7 +194,7 @@
 	// The AI chat's edit_recipe tool is the designed path for setting roles —
 	// prefill the ask so one tap away from the hint does the right thing.
 	function openRolesAiEdit() {
-		editAiInput = 'Mark each ingredient as cook-in or serve-fresh';
+		editAiInput = m.recipes_ai_roles_prefill();
 		editAiOpen = true;
 	}
 
@@ -205,7 +206,7 @@
 </script>
 
 <svelte:head>
-	<title>{displayTitle} · Recipes</title>
+	<title>{displayTitle} · {m.recipes_title_suffix()}</title>
 </svelte:head>
 
 <RecipeHeader

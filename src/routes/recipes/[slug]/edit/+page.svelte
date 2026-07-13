@@ -5,6 +5,7 @@
 	import FixedBottomBar from '$lib/components/ui/FixedBottomBar.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { untrack } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
 	import type { PageData, ActionData } from './$types';
 
 	type Ingredient = {
@@ -88,18 +89,18 @@
 
 	beforeNavigate(({ cancel }) => {
 		if (!dirty || submitting) return;
-		if (!confirm('Discard your unsaved recipe edits?')) cancel();
+		if (!confirm(m.recipes_edit_confirm_discard())) cancel();
 	});
 </script>
 
 <svelte:head>
-	<title>Edit {data.recipe.title} · Recipes</title>
+	<title>{m.recipes_edit_heading()} {data.recipe.title} · {m.recipes_title_suffix()}</title>
 </svelte:head>
 
 <div class="ui-page-shell px-4 py-4">
 	<div class="flex items-center gap-2 mb-4">
-		<a href="{base}/recipes/{data.recipe.slug}" class="btn btn-sm btn-ghost -ml-2">← Cancel</a>
-		<h1 class="text-lg font-bold flex-1">Edit recipe</h1>
+		<a href="{base}/recipes/{data.recipe.slug}" class="btn btn-sm btn-ghost -ml-2">← {m.recipes_cancel_button()}</a>
+		<h1 class="text-lg font-bold flex-1">{m.recipes_edit_heading()}</h1>
 	</div>
 
 	{#if form?.error}
@@ -115,14 +116,14 @@
 				submitting = false;
 				if (result.type === 'failure') {
 					const data = result.data as { error?: string } | undefined;
-					toast.error(data?.error ?? 'Could not save recipe.');
+					toast.error(data?.error ?? m.recipes_edit_toast_save_failed());
 				}
 			};
 		}}
 		class="flex flex-col gap-4"
 	>
 		<label class="ui-form-card flex flex-col gap-1.5">
-			<span class="ui-field-label">Title</span>
+			<span class="ui-field-label">{m.recipes_edit_title_label()}</span>
 			<input
 				type="text"
 				name="title"
@@ -134,14 +135,14 @@
 
 		<div class="grid grid-cols-[1fr_6rem] gap-3">
 			<label class="ui-form-card flex flex-col gap-1.5">
-				<span class="ui-field-label">Language</span>
+				<span class="ui-field-label">{m.recipes_edit_language_label()}</span>
 				<select bind:value={language} name="language" class="select select-bordered select-sm">
-					<option value="nl">Dutch</option>
-					<option value="en">English</option>
+					<option value="nl">{m.recipes_edit_language_dutch()}</option>
+					<option value="en">{m.recipes_edit_language_english()}</option>
 				</select>
 			</label>
 			<label class="ui-form-card flex flex-col gap-1.5">
-				<span class="ui-field-label">Servings</span>
+				<span class="ui-field-label">{m.recipes_edit_servings_label()}</span>
 				<input
 					type="number"
 					name="servings"
@@ -155,9 +156,9 @@
 
 		<section class="ui-form-card">
 			<div class="flex items-baseline gap-2 mb-2">
-				<span class="ui-section-label">Ingredients</span>
+				<span class="ui-section-label">{m.recipes_edit_ingredients_label()}</span>
 				<button type="button" class="btn btn-xs btn-ghost border border-base-300 ml-auto" onclick={addIngredient}
-					>+ Add</button
+					>{m.recipes_edit_add_ingredient_button()}</button
 				>
 			</div>
 			<div class="flex flex-col gap-1.5">
@@ -165,26 +166,26 @@
 					<div class="flex gap-1.5 items-start">
 						<input
 							type="text"
-							placeholder="amount"
+							placeholder={m.recipes_edit_amount_placeholder()}
 							bind:value={ing.amount}
 							class="input input-bordered input-sm w-20 shrink-0"
 						/>
 						<input
 							type="text"
-							placeholder="unit"
+							placeholder={m.recipes_edit_unit_placeholder()}
 							bind:value={ing.unit}
 							class="input input-bordered input-sm w-16 shrink-0"
 						/>
 						<input
 							type="text"
-							placeholder="name"
+							placeholder={m.recipes_edit_name_placeholder()}
 							bind:value={ing.name}
 							class="input input-bordered input-sm flex-1 min-w-0"
 						/>
 						<button
 							type="button"
 							class="btn btn-xs btn-ghost text-error shrink-0"
-							aria-label="Remove ingredient"
+							aria-label={m.recipes_edit_remove_ingredient_aria()}
 							onclick={() => removeIngredient(i)}>✕</button
 						>
 					</div>
@@ -194,10 +195,10 @@
 
 		<section class="ui-form-card">
 			<div class="flex items-baseline gap-2 mb-2">
-				<span class="ui-section-label">Directions</span>
-				<span class="text-[11px] text-base-content/50">A saved edit refreshes cook mode next time.</span>
+				<span class="ui-section-label">{m.recipes_edit_directions_label()}</span>
+				<span class="text-[11px] text-base-content/50">{m.recipes_edit_directions_hint()}</span>
 				<button type="button" class="btn btn-xs btn-ghost border border-base-300 ml-auto" onclick={addDirection}
-					>+ Step</button
+					>{m.recipes_edit_add_step_button()}</button
 				>
 			</div>
 			<div class="flex flex-col gap-2">
@@ -211,27 +212,27 @@
 							bind:value={directions[i]}
 							rows="2"
 							class="textarea textarea-bordered textarea-sm flex-1 min-w-0 leading-snug"
-							placeholder="Direction step…"
+							placeholder={m.recipes_edit_direction_placeholder()}
 						></textarea>
 						<div class="flex flex-col gap-0.5 shrink-0">
 							<button
 								type="button"
 								class="btn btn-xs btn-ghost"
-								aria-label="Move up"
+								aria-label={m.recipes_edit_move_up_aria()}
 								disabled={i === 0}
 								onclick={() => moveDirection(i, -1)}>▴</button
 							>
 							<button
 								type="button"
 								class="btn btn-xs btn-ghost"
-								aria-label="Move down"
+								aria-label={m.recipes_edit_move_down_aria()}
 								disabled={i === directions.length - 1}
 								onclick={() => moveDirection(i, 1)}>▾</button
 							>
 							<button
 								type="button"
 								class="btn btn-xs btn-ghost text-error"
-								aria-label="Remove direction"
+								aria-label={m.recipes_edit_remove_direction_aria()}
 								onclick={() => removeDirection(i)}>✕</button
 							>
 						</div>
@@ -241,13 +242,13 @@
 		</section>
 
 		<label class="ui-form-card flex flex-col gap-1.5">
-			<span class="ui-field-label">Notes</span>
+			<span class="ui-field-label">{m.recipes_edit_notes_label()}</span>
 			<textarea
 				name="notes"
 				bind:value={notes}
 				rows="3"
 				class="textarea textarea-bordered textarea-sm leading-snug"
-				placeholder="Optional notes — substitutions, tips…"
+				placeholder={m.recipes_edit_notes_placeholder()}
 			></textarea>
 		</label>
 
@@ -255,12 +256,12 @@
 		<input type="hidden" name="directions" value={serializedDirections} />
 
 		<FixedBottomBar>
-			<a href="{base}/recipes/{data.recipe.slug}" class="btn btn-sm btn-ghost flex-1">Cancel</a>
+			<a href="{base}/recipes/{data.recipe.slug}" class="btn btn-sm btn-ghost flex-1">{m.recipes_cancel_button()}</a>
 			<button type="submit" class="btn btn-sm btn-primary flex-1" disabled={submitting || !dirty}>
 				{#if submitting}
 					<span class="loading loading-spinner loading-xs"></span>
 				{/if}
-				{dirty ? 'Save' : 'Saved'}
+				{dirty ? m.recipes_edit_save_button() : m.recipes_edit_saved_button()}
 			</button>
 		</FixedBottomBar>
 	</form>

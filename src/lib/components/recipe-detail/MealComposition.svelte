@@ -9,6 +9,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		slug,
@@ -38,13 +39,13 @@
 			});
 			if (!res.ok) {
 				const err = await res.json().catch(() => ({}));
-				mealEditError = err.message ?? `Couldn't update the meal (${res.status})`;
+				mealEditError = err.message ?? m.recipes_meal_toast_update_failed({ status: res.status });
 				toast.error(mealEditError);
 				return;
 			}
 			await invalidateAll();
 		} catch {
-			mealEditError = 'Connection failed.';
+			mealEditError = m.recipes_meal_toast_connection_failed();
 			toast.error(mealEditError);
 		}
 	}
@@ -58,7 +59,7 @@
 			const res = await fetch(`${base}/api/meals`);
 			if (res.ok) addSubCandidates = (await res.json()).candidates ?? [];
 		} catch {
-			mealEditError = 'Could not load recipes.';
+			mealEditError = m.recipes_meal_toast_load_failed();
 			toast.error(mealEditError);
 		}
 		addSubLoading = false;
@@ -80,7 +81,7 @@
 	<section class="mx-3 mt-3 rounded-xl border border-base-200 bg-base-100 px-3 py-2.5">
 		{#if subRecipes.length}
 			<p class="text-[11px] uppercase tracking-wide font-bold text-base-content/50 mb-1.5">
-				Meal recipe · combines
+				{m.recipes_meal_combines_label()}
 			</p>
 			<ul class="flex flex-wrap items-center gap-1.5">
 				{#each subRecipes as sub (sub.slug)}
@@ -91,11 +92,11 @@
 						<button
 							type="button"
 							class="w-8 h-8 rounded-full text-base-content/50 hover:bg-base-300 text-[11px]"
-							aria-label="Remove {subDisplayTitle(sub)} from this meal"
+							aria-label={m.recipes_meal_remove_aria({ title: subDisplayTitle(sub) })}
 							onclick={async () => {
 								await patchMeal({ remove_slug: sub.slug });
 								if (!mealEditError)
-									toast.undo(`Removed ${subDisplayTitle(sub)}`, () => patchMeal({ add_slug: sub.slug }));
+									toast.undo(m.recipes_meal_removed_toast({ title: subDisplayTitle(sub) }), () => patchMeal({ add_slug: sub.slug }));
 							}}>✕</button
 						>
 					</li>
@@ -104,14 +105,14 @@
 					<button
 						type="button"
 						class="btn btn-xs btn-ghost border border-base-300 rounded-full"
-						onclick={openAddSub}>+ add</button
+						onclick={openAddSub}>{m.recipes_meal_add_button()}</button
 					>
 				</li>
 			</ul>
 		{/if}
 		{#if partOfMeals.length}
 			<p class="text-[12px] text-base-content/60 {subRecipes.length ? 'mt-2' : ''}">
-				Part of
+				{m.recipes_meal_part_of_label()}
 				{#each partOfMeals as m, i (m.slug)}
 					<a class="link" href="{base}/recipes/{m.slug}">{subDisplayTitle(m)}</a
 					>{#if i < partOfMeals.length - 1}<span> · </span>{/if}
@@ -124,19 +125,19 @@
 	</section>
 {/if}
 
-<BottomSheet bind:open={addSubOpen} title="Add a recipe to this meal">
+<BottomSheet bind:open={addSubOpen} title={m.recipes_meal_add_sheet_title()}>
 	<div class="flex max-h-[62dvh] flex-col">
 		<input
 			type="search"
 			class="input input-bordered input-sm w-full mb-2"
-			placeholder="Search recipes…"
+			placeholder={m.recipes_meal_search_placeholder()}
 			bind:value={addSubQuery}
 		/>
 		<div class="flex-1 overflow-y-auto min-h-0">
 			{#if addSubLoading}
 				<div class="py-6 text-center"><span class="loading loading-spinner"></span></div>
 			{:else if addSubFiltered.length === 0}
-				<p class="py-6 text-center text-sm text-base-content/50">No matching recipes.</p>
+				<p class="py-6 text-center text-sm text-base-content/50">{m.recipes_meal_no_matching()}</p>
 			{:else}
 				<ul class="divide-y divide-base-200">
 					{#each addSubFiltered as c (c.slug)}
@@ -154,6 +155,6 @@
 				</ul>
 			{/if}
 		</div>
-		<button class="btn btn-ghost btn-sm mt-3" onclick={() => (addSubOpen = false)}>Cancel</button>
+		<button class="btn btn-ghost btn-sm mt-3" onclick={() => (addSubOpen = false)}>{m.recipes_cancel_button()}</button>
 	</div>
 </BottomSheet>

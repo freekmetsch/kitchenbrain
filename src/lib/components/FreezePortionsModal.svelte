@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { base } from '$app/paths';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		open = $bindable(false),
@@ -56,13 +57,13 @@
 				body: JSON.stringify({ portions: n })
 			});
 			if (!res.ok) {
-				errorMsg = 'Could not add the leftover.';
+				errorMsg = m.recipes_freeze_toast_add_failed();
 			} else {
 				onFrozen?.(n);
 				close();
 			}
 		} catch {
-			errorMsg = 'Connection failed.';
+			errorMsg = m.recipes_freeze_toast_connection_failed();
 		}
 		submitting = false;
 	}
@@ -79,16 +80,16 @@
 	>
 		<div class="w-full max-w-xs rounded-2xl bg-base-100 p-5">
 			<div class="mb-1 text-2xl">🧊</div>
-			<h3 class="font-semibold">Freeze leftovers?</h3>
+			<h3 class="font-semibold">{m.recipes_freeze_heading()}</h3>
 			<p class="mt-0.5 mb-4 text-sm text-base-content/60">
-				Add frozen portions of <span class="font-medium text-base-content/80">{title}</span> to the
-				freezer, linked to this recipe.
+				{m.recipes_freeze_desc_prefix()} <span class="font-medium text-base-content/80">{title}</span>
+				{m.recipes_freeze_desc_suffix()}
 			</p>
 
 			{#if targets.length > 1}
 				<div class="mb-4 flex flex-col gap-1.5">
 					<span class="text-[11px] font-semibold uppercase tracking-wide text-base-content/50"
-						>Link the leftover to</span
+						>{m.recipes_freeze_link_label()}</span
 					>
 					{#each targets as t (t.slug)}
 						<label
@@ -113,18 +114,18 @@
 				<button
 					type="button"
 					class="btn btn-circle btn-sm btn-ghost border border-base-300"
-					aria-label="Fewer portions"
+					aria-label={m.recipes_freeze_fewer_aria()}
 					disabled={portions <= 1}
 					onclick={() => (portions = Math.max(1, portions - 1))}>−</button
 				>
 				<div class="text-center tabular-nums">
 					<div class="text-3xl font-bold leading-none">{portions}</div>
-					<div class="text-[11px] text-base-content/50">{portions === 1 ? 'portion' : 'portions'}</div>
+					<div class="text-[11px] text-base-content/50">{portions === 1 ? m.recipes_freeze_unit_singular() : m.recipes_freeze_unit_plural()}</div>
 				</div>
 				<button
 					type="button"
 					class="btn btn-circle btn-sm btn-ghost border border-base-300"
-					aria-label="More portions"
+					aria-label={m.recipes_freeze_more_aria()}
 					onclick={() => (portions = portions + 1)}>+</button
 				>
 			</div>
@@ -134,7 +135,7 @@
 			{/if}
 
 			<div class="flex gap-2">
-				<button type="button" class="btn btn-ghost btn-sm flex-1" onclick={close}>Skip</button>
+				<button type="button" class="btn btn-ghost btn-sm flex-1" onclick={close}>{m.recipes_freeze_skip_button()}</button>
 				<button
 					type="button"
 					class="btn btn-primary btn-sm flex-1"
@@ -142,7 +143,7 @@
 					onclick={freeze}
 				>
 					{#if submitting}<span class="loading loading-spinner loading-xs"></span>{/if}
-					Freeze {portions}
+					{m.recipes_freeze_button({ count: portions })}
 				</button>
 			</div>
 		</div>

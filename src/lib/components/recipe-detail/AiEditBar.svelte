@@ -8,6 +8,7 @@
 	import { base } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		open = $bindable(false),
@@ -31,7 +32,7 @@
 		<input
 			type="text"
 			class="input input-bordered input-sm flex-1"
-			placeholder="e.g. make it vegan, halve the amounts…"
+			placeholder={m.recipes_aiedit_placeholder()}
 			bind:value
 			onkeydown={(e) => {
 				if (e.key === 'Enter') sendEditWithAi();
@@ -43,7 +44,7 @@
 		<button
 			type="button"
 			class="btn btn-sm btn-ghost border border-base-300"
-			aria-label="Close AI edit"
+			aria-label={m.recipes_aiedit_close_aria()}
 			onclick={() => (open = false)}>✕</button
 		>
 	</div>

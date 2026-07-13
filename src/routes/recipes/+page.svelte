@@ -9,6 +9,7 @@
 	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
+	import { m } from '$lib/paraglide/messages';
 
 	type Recipe = {
 		id: number;
@@ -124,14 +125,14 @@
 			});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok) {
-				newMealError = body.message ?? 'Could not create the meal';
+				newMealError = body.message ?? m.recipes_toast_could_not_create_meal();
 				toast.error(newMealError);
 			} else {
 				newMealOpen = false;
 				await goto(`${base}/recipes/${body.slug}`);
 			}
 		} catch {
-			newMealError = 'Connection error';
+			newMealError = m.recipes_toast_connection_error();
 			toast.error(newMealError);
 		}
 		newMealLoading = false;
@@ -241,7 +242,7 @@
 			});
 			const body = await res.json();
 			if (!res.ok) {
-				scrapeError = body.message ?? body.error ?? 'Scraping failed';
+				scrapeError = body.message ?? body.error ?? m.recipes_toast_scraping_failed();
 				toast.error(scrapeError);
 			} else {
 				scrapeOpen = false;
@@ -249,7 +250,7 @@
 				goto(`${base}/recipes/${body.slug}`);
 			}
 		} catch {
-			scrapeError = 'Connection error';
+			scrapeError = m.recipes_toast_connection_error();
 			toast.error(scrapeError);
 		}
 		scrapeLoading = false;
@@ -272,33 +273,35 @@
 	function lastCookedLabel(recipe: Recipe): string | null {
 		if (sortBy !== 'recent' && sortBy !== 'neglected' && sortBy !== 'most-cooked') return null;
 		if (sortBy === 'most-cooked') {
-			return recipe.cookedCount > 0 ? `${recipe.cookedCount}× cooked` : 'never cooked';
+			return recipe.cookedCount > 0
+				? m.recipes_cooked_count_times({ count: recipe.cookedCount })
+				: m.recipes_never_cooked();
 		}
-		if (!recipe.lastCookedAt) return 'never cooked';
+		if (!recipe.lastCookedAt) return m.recipes_never_cooked();
 		const t = recipe.lastCookedAt instanceof Date ? recipe.lastCookedAt.getTime() : new Date(recipe.lastCookedAt).getTime();
 		const days = Math.floor((Date.now() - t) / 86_400_000);
-		if (days <= 0) return 'cooked today';
-		if (days === 1) return 'cooked yesterday';
-		if (days < 14) return `cooked ${days}d ago`;
-		if (days < 60) return `cooked ${Math.floor(days / 7)}w ago`;
-		return `cooked ${Math.floor(days / 30)}mo ago`;
+		if (days <= 0) return m.recipes_cooked_today();
+		if (days === 1) return m.recipes_cooked_yesterday();
+		if (days < 14) return m.recipes_cooked_days_ago({ days });
+		if (days < 60) return m.recipes_cooked_weeks_ago({ weeks: Math.floor(days / 7) });
+		return m.recipes_cooked_months_ago({ months: Math.floor(days / 30) });
 	}
 
 	function coverageLabel(recipe: Recipe): string | null {
 		if (recipe.ingredientTotal <= 0) return null;
-		if (recipe.hasAllIngredients) return 'have all';
-		if (recipe.coverage > 0) return `${recipe.coverage}/${recipe.ingredientTotal} on hand`;
+		if (recipe.hasAllIngredients) return m.recipes_have_all_label();
+		if (recipe.coverage > 0) return m.recipes_coverage_on_hand({ have: recipe.coverage, total: recipe.ingredientTotal });
 		return null;
 	}
 </script>
 
 <svelte:head>
-	<title>Recipes · Household Brain</title>
+	<title>{m.recipes_title()}</title>
 </svelte:head>
 
 <div class="ui-page-shell px-4 py-4">
 	<header class="mb-3 flex items-center justify-between gap-3">
-		<h1 class="min-w-0 text-2xl font-semibold leading-tight">Recipes</h1>
+		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.recipes_heading()}</h1>
 		<div class="flex shrink-0 gap-2">
 			<button
 				class="btn btn-sm btn-ghost border border-base-300"
@@ -308,9 +311,9 @@
 					newMealQuery = '';
 					newMealSlugs = [];
 					newMealError = '';
-				}}>+ Meal</button
+				}}>{m.recipes_new_meal_button()}</button
 			>
-			<button class="btn btn-sm btn-primary" onclick={() => { scrapeOpen = true; }}>Import</button>
+			<button class="btn btn-sm btn-primary" onclick={() => { scrapeOpen = true; }}>{m.recipes_import_button()}</button>
 		</div>
 	</header>
 
@@ -322,17 +325,17 @@
 			<input
 				type="search"
 				class="input input-bordered input-sm flex-1"
-				placeholder="Search by name or ingredient..."
-				aria-label="Search recipes by name or ingredient"
+				placeholder={m.recipes_search_placeholder()}
+				aria-label={m.recipes_search_aria()}
 				bind:value={searchInput}
 				onkeydown={(e) => { if (e.key === 'Enter') search(); }}
 			/>
-			<select class="select select-bordered select-sm w-36 shrink-0" bind:value={sortBy} onchange={search} aria-label="Sort recipes">
-				<option value="title">A-Z</option>
-				<option value="rating">Rating</option>
-				<option value="recent">Recently cooked</option>
-				<option value="neglected">Neglected</option>
-				<option value="most-cooked">Most cooked</option>
+			<select class="select select-bordered select-sm w-36 shrink-0" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
+				<option value="title">{m.recipes_sort_az()}</option>
+				<option value="rating">{m.recipes_sort_rating()}</option>
+				<option value="recent">{m.recipes_sort_recent()}</option>
+				<option value="neglected">{m.recipes_sort_neglected()}</option>
+				<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
 			</select>
 		</div>
 		<div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
@@ -362,32 +365,32 @@
 				class={data.toggles.haveAll ? 'ui-chip-active shrink-0 border-success/40 bg-success/10 text-success' : 'ui-chip shrink-0'}
 				aria-pressed={data.toggles.haveAll}
 				onclick={() => toggle('haveAll')}
-			>Have all</button>
+			>{m.recipes_filter_have_all()}</button>
 			<button
 				type="button"
 				class={data.toggles.freezerOnly ? 'ui-chip-active shrink-0 border-info/40 bg-info/10 text-info' : 'ui-chip shrink-0'}
 				aria-pressed={data.toggles.freezerOnly}
 				onclick={() => toggle('freezerOnly')}
-			>Freezer staple</button>
+			>{m.recipes_filter_freezer_staple()}</button>
 			<button
 				type="button"
 				class={data.toggles.belowTargetOnly ? 'ui-chip-active shrink-0 border-warning/40 bg-warning/10 text-warning' : 'ui-chip shrink-0'}
 				aria-pressed={data.toggles.belowTargetOnly}
 				onclick={() => toggle('belowTargetOnly')}
-			>Below target</button>
+			>{m.recipes_filter_below_target()}</button>
 			<button
 				type="button"
 				class={data.toggles.quickOnly ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
 				aria-pressed={data.toggles.quickOnly}
 				onclick={() => toggle('quickOnly')}
-			>Quick &lt;30m</button>
+			>{m.recipes_filter_quick()}</button>
 		</div>
 	</section>
 
 	{#if ingredientFilter}
 		<div class="mb-3 flex items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-3 py-2 text-sm">
-			<span class="min-w-0 flex-1 truncate">Recipes using <strong>{ingredientFilter}</strong></span>
-			<button class="btn btn-xs btn-ghost" onclick={clearIngredientFilter}>Clear</button>
+			<span class="min-w-0 flex-1 truncate">{m.recipes_using_ingredient_prefix()} <strong>{ingredientFilter}</strong></span>
+			<button class="btn btn-xs btn-ghost" onclick={clearIngredientFilter}>{m.recipes_clear_button()}</button>
 		</div>
 	{/if}
 
@@ -395,14 +398,14 @@
 	{#if data.recipes.length === 0}
 		<EmptyState
 			icon="📖"
-			title={hasActiveFilters ? 'No recipes found' : 'No recipes yet'}
-			description={hasActiveFilters ? 'Try another class, dish type, toggle, or search term.' : 'Import a recipe URL to start the cookbook.'}
+			title={hasActiveFilters ? m.recipes_empty_found_title() : m.recipes_empty_yet_title()}
+			description={hasActiveFilters ? m.recipes_empty_found_desc() : m.recipes_empty_yet_desc()}
 		>
 			{#snippet action()}
 				{#if hasActiveFilters}
-					<button class="btn btn-sm btn-ghost border border-base-300" onclick={clearFilters}>Clear filters</button>
+					<button class="btn btn-sm btn-ghost border border-base-300" onclick={clearFilters}>{m.recipes_clear_filters_button()}</button>
 				{:else}
-					<button class="btn btn-sm btn-primary" onclick={() => (scrapeOpen = true)}>Import recipe</button>
+					<button class="btn btn-sm btn-primary" onclick={() => (scrapeOpen = true)}>{m.recipes_import_recipe_button()}</button>
 				{/if}
 			{/snippet}
 		</EmptyState>
@@ -451,18 +454,18 @@
 						{#if recipe.needsReview || coverage || recipe.belowTarget || recipe.isFreezerStaple || recipe.subCount > 0}
 							<div class="flex flex-wrap gap-1 mt-1">
 								{#if recipe.subCount > 0}
-									<span class="ui-chip-muted px-2 py-0.5">meal · {recipe.subCount}</span>
+									<span class="ui-chip-muted px-2 py-0.5">{m.recipes_meal_badge({ count: recipe.subCount })}</span>
 								{/if}
 								{#if recipe.needsReview}
-									<span class="ui-chip-active border-warning/40 bg-warning/10 px-2 py-0.5 text-warning">review</span>
+									<span class="ui-chip-active border-warning/40 bg-warning/10 px-2 py-0.5 text-warning">{m.recipes_review_badge()}</span>
 								{/if}
 								{#if coverage}
 									<span class={recipe.hasAllIngredients ? 'ui-chip-active border-success/40 bg-success/10 px-2 py-0.5 text-success' : 'ui-chip-muted px-2 py-0.5'}>{coverage}</span>
 								{/if}
 								{#if recipe.belowTarget}
-									<span class="ui-chip-active border-warning/40 bg-warning/10 px-2 py-0.5 text-warning">below target</span>
+									<span class="ui-chip-active border-warning/40 bg-warning/10 px-2 py-0.5 text-warning">{m.recipes_below_target_badge()}</span>
 								{:else if recipe.isFreezerStaple}
-									<span class="ui-chip-muted px-2 py-0.5">freezer</span>
+									<span class="ui-chip-muted px-2 py-0.5">{m.recipes_freezer_badge()}</span>
 								{/if}
 							</div>
 						{/if}
@@ -473,20 +476,20 @@
 	{/if}
 </div>
 
-<BottomSheet bind:open={newMealOpen} title="New meal">
+<BottomSheet bind:open={newMealOpen} title={m.recipes_new_meal_sheet_title()}>
 	<div class="flex max-h-[62dvh] flex-col">
 			<input
 				type="text"
 				class="input input-bordered input-sm w-full mb-2"
-				placeholder="Meal name, e.g. Taco night"
-				aria-label="Meal name"
+				placeholder={m.recipes_meal_name_placeholder()}
+				aria-label={m.recipes_meal_name_aria()}
 				bind:value={newMealTitle}
 			/>
 			<input
 				type="search"
 				class="input input-bordered input-sm w-full mb-2"
-				placeholder="Search recipes to combine…"
-				aria-label="Search recipes to combine"
+				placeholder={m.recipes_search_combine_placeholder()}
+				aria-label={m.recipes_search_combine_aria()}
 				bind:value={newMealQuery}
 			/>
 			<div class="flex-1 overflow-y-auto min-h-0 mb-3">
@@ -507,7 +510,7 @@
 						</li>
 					{:else}
 						<li class="px-1 py-6 text-center text-xs text-base-content/45">
-							{newMealQuery.trim() ? `No recipes match “${newMealQuery.trim()}”` : 'No recipes to combine yet'}
+							{newMealQuery.trim() ? m.recipes_no_match_combine({ query: newMealQuery.trim() }) : m.recipes_no_recipes_to_combine()}
 						</li>
 					{/each}
 				</ul>
@@ -516,26 +519,26 @@
 				<p class="text-xs text-error mb-2">{newMealError}</p>
 			{/if}
 			<div class="flex justify-end gap-2">
-				<button class="btn btn-ghost btn-sm" onclick={() => (newMealOpen = false)}>Cancel</button>
+				<button class="btn btn-ghost btn-sm" onclick={() => (newMealOpen = false)}>{m.recipes_cancel_button()}</button>
 				<button
 					class="btn btn-primary btn-sm"
 					disabled={newMealLoading || newMealSlugs.length < 2 || !newMealTitle.trim()}
 					onclick={createMeal}
 				>
 					{#if newMealLoading}<span class="loading loading-spinner loading-xs"></span>{/if}
-					Combine {newMealSlugs.length >= 2 ? newMealSlugs.length : ''}
+					{m.recipes_combine_button()} {newMealSlugs.length >= 2 ? newMealSlugs.length : ''}
 				</button>
 			</div>
 	</div>
 </BottomSheet>
 
-<BottomSheet bind:open={scrapeOpen} title="Import recipe from URL">
+<BottomSheet bind:open={scrapeOpen} title={m.recipes_import_sheet_title()}>
 			<input
 				type="url"
 				inputmode="url"
 				class="input input-bordered w-full mb-2"
 				placeholder="https://www.ah.nl/allerhande/…"
-				aria-label="Recipe URL"
+				aria-label={m.recipes_url_aria()}
 				bind:value={scrapeUrl}
 				onkeydown={(e) => { if (e.key === 'Enter') scrape(); }}
 			/>
@@ -543,7 +546,7 @@
 				<p class="text-sm text-error mb-2">{scrapeError}</p>
 			{/if}
 			<div class="flex justify-end gap-2 mt-3">
-				<button class="btn btn-ghost" onclick={() => { scrapeOpen = false; }}>Cancel</button>
+				<button class="btn btn-ghost" onclick={() => { scrapeOpen = false; }}>{m.recipes_cancel_button()}</button>
 				<button
 					class="btn btn-primary"
 					onclick={scrape}
@@ -551,10 +554,10 @@
 				>
 					{#if scrapeLoading}
 						<span class="loading loading-spinner loading-sm"></span>
-						Fetching recipe…
+						{m.recipes_fetching_label()}
 					{:else}
 						<Icon name="plus" class="h-4 w-4" />
-						Import
+						{m.recipes_import_button()}
 					{/if}
 				</button>
 			</div>

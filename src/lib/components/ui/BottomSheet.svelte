@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		open = $bindable(false),
@@ -48,7 +49,7 @@
 			<div class="flex items-center justify-between border-b border-base-200 px-4 py-3">
 				<h2 class="text-sm font-semibold">{title}</h2>
 				<button type="button" class="btn btn-ghost btn-sm h-8 min-h-0" onclick={() => (open = false)}
-					>Close</button
+					>{m.ui_bottomsheet_close()}</button
 				>
 			</div>
 		{/if}

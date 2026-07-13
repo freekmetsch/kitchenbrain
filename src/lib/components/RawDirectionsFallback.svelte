@@ -13,6 +13,7 @@
 <script lang="ts">
 	import { scaleAmount as scaleIngredientAmount } from '$lib/recipe_scale';
 	import { extractTimers, formatTimer } from '$lib/timer_extract';
+	import { m } from '$lib/paraglide/messages';
 
 	type Ingredient = { name: string; amount: string; unit?: string };
 
@@ -94,14 +95,14 @@
 		<div class="alert alert-warning text-sm mb-4 flex items-start gap-2">
 			<div class="flex-1">{bannerMessage}</div>
 			{#if onRetry}
-				<button class="btn btn-xs btn-ghost border border-base-content/20" onclick={onRetry}>↻ retry</button>
+				<button class="btn btn-xs btn-ghost border border-base-content/20" onclick={onRetry}>↻ {m.recipes_fallback_retry_button()}</button>
 			{/if}
 		</div>
 	{/if}
 
 	{#if servings}
 		<div class="flex items-center gap-3 mb-4 p-3 bg-base-200 rounded-xl">
-			<span class="text-sm flex-1">Servings</span>
+			<span class="text-sm flex-1">{m.recipes_fallback_servings_label()}</span>
 			<button
 				class="btn btn-xs btn-circle btn-ghost border border-base-300"
 				onclick={() => {
@@ -131,7 +132,7 @@
 					</span>
 					<span class="flex-1">{ing.name}</span>
 					{#if ingredientStock[i]}
-						<span class="badge badge-xs badge-success shrink-0" title="In stock">in stock</span>
+						<span class="badge badge-xs badge-success shrink-0" title={m.recipes_fallback_in_stock_title()}>{m.recipes_fallback_in_stock_badge()}</span>
 					{/if}
 				</li>
 			{/each}
@@ -166,7 +167,7 @@
 												: 'btn-ghost border border-base-300'}"
 										onclick={() => startTimer(timer.key, timer.seconds)}
 									>
-										⏱ {active ? formatTimer(remaining) : done ? 'Done!' : timer.label}
+										⏱ {active ? formatTimer(remaining) : done ? m.recipes_fallback_timer_done() : timer.label}
 									</button>
 								{/each}
 							</div>

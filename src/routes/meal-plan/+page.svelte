@@ -10,6 +10,7 @@
 	import { optimistic } from '$lib/optimistic';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { todayIso, APP_TIME_ZONE } from '$lib/week';
+	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
 	type Meal = PageData['weeks'][number]['meals'][number];
@@ -250,7 +251,7 @@
 				return res;
 			},
 			() => removeMealFromState(tempId),
-			'Could not add the meal.'
+			m.mealplan_toast_could_not_add()
 		);
 
 		setPendingAdd(key, false);
@@ -285,7 +286,7 @@
 				return res;
 			},
 			() => updateMeal(previous),
-			'Could not update the meal.'
+			m.mealplan_toast_could_not_update()
 		);
 		const nextToggles = { ...pendingToggles };
 		delete nextToggles[meal.id];
@@ -332,14 +333,14 @@
 				return res;
 			},
 			() => removeMealFromState(tempId),
-			'Could not restore the meal.'
+			m.mealplan_toast_could_not_restore()
 		);
 
 		setPendingAdd(key, false);
 		if (!ok) return;
 		if (!saved) {
 			removeMealFromState(tempId);
-			toast.error('Could not restore the meal.');
+			toast.error(m.mealplan_toast_could_not_restore());
 			return;
 		}
 		replaceMeal(tempId, saved);
@@ -355,12 +356,12 @@
 			() => {
 				weeks = before;
 			},
-			'Could not remove the meal.'
+			m.mealplan_toast_could_not_remove()
 		);
 		const nextDeletes = { ...pendingDeletes };
 		delete nextDeletes[meal.id];
 		pendingDeletes = nextDeletes;
-		if (ok) toast.undo(`Removed ${meal.dinner}`, () => void restoreMeal(meal));
+		if (ok) toast.undo(m.mealplan_toast_removed({ dinner: meal.dinner }), () => void restoreMeal(meal));
 	}
 
 	async function addMealFromRecipe(recipe: Recipe) {
@@ -425,8 +426,8 @@
 				}
 			}
 		} catch {
-			suggestError = 'Could not fetch suggestions';
-			toast.error('Could not fetch suggestions.');
+			suggestError = m.mealplan_toast_suggestions_failed();
+			toast.error(m.mealplan_toast_suggestions_failed());
 		} finally {
 			suggestLoading = false;
 		}
@@ -455,24 +456,24 @@
 </script>
 
 <svelte:head>
-	<title>Meal plan · Household Brain</title>
+	<title>{m.mealplan_title()}</title>
 </svelte:head>
 
 <div class="ui-page-shell px-4 py-4">
 	<header class="mb-3 flex items-center justify-between gap-3">
-		<h1 class="min-w-0 text-2xl font-semibold leading-tight">Meal plan</h1>
+		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.mealplan_heading()}</h1>
 		<a href="{base}/shopping?week={currentWeekStart}" class="btn btn-outline btn-sm shrink-0 gap-1.5">
 			<Icon name="cart" />
-			Shopping
+			{m.mealplan_shopping_link()}
 		</a>
 	</header>
 
 	{#if data.hasPastWeeks || data.showPastWeeks}
 		<div class="mb-3">
 			{#if data.showPastWeeks}
-				<a class="text-sm text-primary" href="{base}/meal-plan">Hide past weeks</a>
+				<a class="text-sm text-primary" href="{base}/meal-plan">{m.mealplan_hide_past_weeks()}</a>
 			{:else}
-				<a class="text-sm text-primary" href="{base}/meal-plan?past=1">Show past weeks</a>
+				<a class="text-sm text-primary" href="{base}/meal-plan?past=1">{m.mealplan_show_past_weeks()}</a>
 			{/if}
 		</div>
 	{/if}
@@ -487,9 +488,9 @@
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0">
 							<div class="flex items-center gap-2">
-								<h2 class="text-sm font-semibold">Week {week.weekNumber}</h2>
+								<h2 class="text-sm font-semibold">{m.mealplan_week_heading({ number: week.weekNumber })}</h2>
 								{#if week.weekStartDate === currentWeekStart}
-									<span class="ui-chip-active">Now</span>
+									<span class="ui-chip-active">{m.mealplan_now_chip()}</span>
 								{/if}
 							</div>
 							<p class="mt-0.5 text-xs text-base-content/50">{formatWeekRange(week.weekStartDate)}</p>
@@ -498,7 +499,7 @@
 							<a
 								href="{base}/shopping?week={week.weekStartDate}"
 								class="btn btn-outline btn-sm h-9 min-h-0 w-9 px-0"
-								aria-label={`Open shopping list for week ${week.weekNumber}`}
+								aria-label={m.mealplan_open_shopping_aria({ number: week.weekNumber })}
 							>
 								<Icon name="cart" />
 							</a>
@@ -508,13 +509,13 @@
 								onclick={() => startSuggest(week.weekStartDate)}
 								disabled={suggestLoading && suggestActive === week.weekStartDate}
 							>
-								{suggestLoading && suggestActive === week.weekStartDate ? 'Thinking…' : 'Suggest'}
+								{suggestLoading && suggestActive === week.weekStartDate ? m.mealplan_thinking_label() : m.mealplan_suggest_button()}
 							</button>
 							<button
 								type="button"
 								class="btn btn-primary btn-sm h-9 min-h-0 w-9 px-0"
 								onclick={() => openAddDrawer(week.weekStartDate)}
-								aria-label="Add meal"
+								aria-label={m.mealplan_add_meal()}
 							>
 								<Icon name="plus" />
 							</button>
@@ -536,7 +537,7 @@
 										class="checkbox checkbox-md"
 										checked={meal.status === 'cooked'}
 										disabled={!!pendingToggles[meal.id]}
-										aria-label={`Mark ${meal.dinner} cooked`}
+										aria-label={m.mealplan_mark_cooked_aria({ dinner: meal.dinner })}
 										onchange={() => toggleCooked(meal)}
 									/>
 								</label>
@@ -565,7 +566,7 @@
 									class="btn btn-ghost btn-sm h-10 min-h-0 w-10 shrink-0 px-0 text-error"
 									onclick={() => removeMeal(meal)}
 									disabled={!!pendingDeletes[meal.id]}
-									aria-label={`Remove ${meal.dinner}`}
+									aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
 								>
 									<Icon name="trash" />
 								</button>
@@ -574,10 +575,10 @@
 					</ul>
 				{:else}
 					<div class="p-3">
-						<EmptyState mini title="No meals yet">
+						<EmptyState mini title={m.mealplan_no_meals_title()}>
 							{#snippet action()}
 								<button type="button" class="btn btn-primary btn-xs" onclick={() => openAddDrawer(week.weekStartDate)}>
-									Add meal
+									{m.mealplan_add_meal()}
 								</button>
 							{/snippet}
 						</EmptyState>
@@ -587,15 +588,15 @@
 				{#if suggestActive === week.weekStartDate}
 					<div class="border-t border-base-200 bg-base-200/35 px-3 py-3" transition:slide={{ duration: 180 }}>
 						<div class="mb-2 flex items-center justify-between gap-2">
-							<p class="ui-section-label">AI suggestions</p>
+							<p class="ui-section-label">{m.mealplan_ai_suggestions_label()}</p>
 							<button type="button" class="btn btn-ghost btn-xs" onclick={closeSuggest}>
-								Close
+								{m.mealplan_close_suggest_button()}
 							</button>
 						</div>
 						{#if suggestLoading}
 							<div class="flex items-center gap-2 py-2 text-sm text-base-content/60">
 								<span class="loading loading-dots loading-xs"></span>
-								Thinking…
+								{m.mealplan_thinking_label()}
 							</div>
 							{#if suggestText}
 								<div class="mt-2 whitespace-pre-wrap rounded-xl bg-base-100 px-3 py-2 text-sm text-base-content/75">
@@ -607,7 +608,7 @@
 								{suggestError}
 							</div>
 							<button type="button" class="btn btn-outline btn-xs mt-2" onclick={() => startSuggest(week.weekStartDate)}>
-								Retry
+								{m.mealplan_retry_button()}
 							</button>
 						{:else if suggestLines.length > 0}
 							<div class="flex flex-col gap-1.5">
@@ -618,7 +619,7 @@
 										{#if addedSuggestions[key]}
 											<span class="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-success">
 												<Icon name="check" class="h-3.5 w-3.5" />
-												Planned
+												{m.mealplan_planned_chip()}
 											</span>
 										{:else}
 											<button
@@ -627,7 +628,7 @@
 												onclick={() => applySuggestion(suggestion)}
 												disabled={!!applyingSuggestion[key] || !!pendingAdds[key]}
 											>
-												Add
+												{m.mealplan_add_suggestion_button()}
 											</button>
 										{/if}
 									</div>
@@ -645,7 +646,7 @@
 	</div>
 </div>
 
-<BottomSheet bind:open={drawerOpen} title="Add meal">
+<BottomSheet bind:open={drawerOpen} title={m.mealplan_add_meal_sheet_title()}>
 	<form
 		onsubmit={(event) => {
 			// Enter only dismisses the keyboard — planning the typed text as a
@@ -656,8 +657,8 @@
 		<input
 			type="search"
 			class="input input-bordered input-sm w-full"
-			placeholder="Search recipes or type a dinner…"
-			aria-label="Search recipes or type a custom dinner"
+			placeholder={m.mealplan_search_recipes_placeholder()}
+			aria-label={m.mealplan_search_recipes_aria()}
 			autocomplete="off"
 			bind:value={drawerSearch}
 		/>
@@ -684,16 +685,16 @@
 			disabled={drawerSubmitting}
 			transition:slide={{ duration: 150 }}
 		>
-			<span class="min-w-0 flex-1 truncate text-sm">Plan “{drawerSearch.trim()}”</span>
-			<span class="ui-chip-muted shrink-0">custom</span>
+			<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: drawerSearch.trim() })}</span>
+			<span class="ui-chip-muted shrink-0">{m.mealplan_custom_chip()}</span>
 		</button>
 	{/if}
 
 	{#if freezerRecipes.length > 0}
 		<section class="mt-5">
 			<div class="mb-2 flex items-baseline justify-between gap-3">
-				<h3 class="ui-section-label">From your freezer</h3>
-				<span class="ui-chip-muted">{freezerRecipes.length} stocked</span>
+				<h3 class="ui-section-label">{m.mealplan_from_freezer_heading()}</h3>
+				<span class="ui-chip-muted">{m.mealplan_stocked_chip({ count: freezerRecipes.length })}</span>
 			</div>
 			{#if filteredFreezerRecipes.length > 0}
 				<ul class="ui-list-card divide-y divide-base-200">
@@ -710,24 +711,26 @@
 								<span class="min-w-0">
 									<span class="block truncate text-sm font-medium">{title}</span>
 									<span class="text-xs text-base-content/45">
-										{recipe.onHandPortions} portion{recipe.onHandPortions === 1 ? '' : 's'} ready
+										{recipe.onHandPortions === 1
+										? m.mealplan_portion_ready_singular({ count: recipe.onHandPortions })
+										: m.mealplan_portions_ready_plural({ count: recipe.onHandPortions })}
 									</span>
 								</span>
-								<span class="ui-chip-active shrink-0">Plan</span>
+								<span class="ui-chip-active shrink-0">{m.mealplan_plan_chip()}</span>
 							</button>
 						</li>
 					{/each}
 				</ul>
 			{:else}
-				<EmptyState mini title="No freezer matches" description="Clear the search or category filter." />
+				<EmptyState mini title={m.mealplan_no_freezer_matches_title()} description={m.mealplan_no_freezer_matches_desc()} />
 			{/if}
 		</section>
 	{/if}
 
 	<section class="mt-5">
-		<h3 class="ui-section-label mb-2">Recipe library</h3>
+		<h3 class="ui-section-label mb-2">{m.mealplan_recipe_library_heading()}</h3>
 		{#if filteredRecipes.length === 0}
-			<EmptyState mini title="No recipes found" description="Try a different search or category." />
+			<EmptyState mini title={m.mealplan_no_recipes_found_title()} description={m.mealplan_no_recipes_found_desc()} />
 		{:else}
 			<ul class="ui-list-card divide-y divide-base-200">
 				{#each filteredRecipes as recipe}
@@ -748,7 +751,7 @@
 								{/if}
 							</span>
 							{#if recipe.onHandPortions > 0}
-								<span class="ui-chip-active shrink-0">{recipe.onHandPortions} in freezer</span>
+								<span class="ui-chip-active shrink-0">{m.mealplan_in_freezer_chip({ count: recipe.onHandPortions })}</span>
 							{:else}
 								<Icon name="plus" class="h-4 w-4 shrink-0 text-base-content/35" />
 							{/if}
