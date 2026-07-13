@@ -4,7 +4,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { subRecipesOf } from '$lib/server/meal_recipes';
 import { createMessage, checkDailyCap, DailyCapExceeded, logSpend } from '$lib/server/ai/client';
-import { getChatModel } from '$lib/server/ai/config';
+import { getChatModel, DEFAULT_MAX_OUTPUT_TOKENS } from '$lib/server/ai/config';
 import { db } from '$lib/server/db/index';
 import { recipes, type Ingredient } from '$lib/server/db/schema';
 import type { CookModeRecipe } from '$lib/types';
@@ -286,7 +286,7 @@ async function generateCookModeUncached(slug: string, opts: { force?: boolean } 
 			: payloadJson;
 		const msg = await createMessage({
 			model: getChatModel().value,
-			maxTokens: 4096,
+			maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
 			system: prompt,
 			messages: [{ role: 'user', content: userContent }]
 		});

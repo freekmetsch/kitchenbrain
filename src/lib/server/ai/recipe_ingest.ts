@@ -13,7 +13,7 @@ import { join } from 'path';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { createMessage, logSpend, parseModelJson } from '$lib/server/ai/client';
-import { getChatModel } from '$lib/server/ai/config';
+import { getChatModel, DEFAULT_MAX_OUTPUT_TOKENS } from '$lib/server/ai/config';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';
 import { getAutoTranslateOnImport, getCookModePreGeneration } from '$lib/server/recipes/prefs';
@@ -268,7 +268,7 @@ async function scrapeWithClaude(url: string, html: string): Promise<ScrapedRecip
 
 	const msg = await createMessage({
 		model: getChatModel().value,
-		maxTokens: 4096,
+		maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
 		system: prompt,
 		messages: [{ role: 'user', content: `source_url: ${url}\n\nhtml:\n${body}` }]
 	});

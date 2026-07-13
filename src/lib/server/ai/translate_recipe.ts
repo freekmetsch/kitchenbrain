@@ -3,7 +3,7 @@ import { join } from 'path';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { createMessage, checkDailyCap, DailyCapExceeded, logSpend, parseModelJson } from '$lib/server/ai/client';
-import { getBackgroundModel } from '$lib/server/ai/config';
+import { getBackgroundModel, DEFAULT_MAX_OUTPUT_TOKENS } from '$lib/server/ai/config';
 import { db } from '$lib/server/db/index';
 import { recipes, type Ingredient } from '$lib/server/db/schema';
 
@@ -60,7 +60,7 @@ export async function translateRecipe(slug: string, opts: { force?: boolean } = 
 
 		const msg = await createMessage({
 			model: getBackgroundModel().value,
-			maxTokens: 4096,
+			maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
 			system: prompt,
 			messages: [{ role: 'user', content: JSON.stringify(payload) }]
 		});
