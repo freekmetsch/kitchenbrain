@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@inlang/paraglide-js": "^2.21.0",
     "@neodrag/svelte": "^2.3.3",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.11.1",

@@ -1,0 +1,15 @@
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"nav_home": "Home",
+	"nav_stock": "Stock",
+	"nav_meals": "Meals",
+	"nav_shopping": "Shopping",
+	"nav_recipes": "Recipes",
+	"nav_settings": "Settings",
+	"nav_aria_primary": "Primary",
+	"login_title": "Keukenbrein",
+	"login_subtitle": "Sign in to continue",
+	"login_username_label": "Username",
+	"login_password_label": "Password",
+	"login_signin_button": "Sign in"
+}

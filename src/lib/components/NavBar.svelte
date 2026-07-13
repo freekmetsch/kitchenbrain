@@ -13,14 +13,15 @@
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import type { IconName } from '$lib/components/ui/icons/paths';
+	import { m } from '$lib/paraglide/messages';
 
 	const TABS: { path: string; icon: IconName; label: string }[] = [
-		{ path: '/', icon: 'home', label: 'Home' },
-		{ path: '/inventory', icon: 'box', label: 'Stock' },
-		{ path: '/meal-plan', icon: 'calendar', label: 'Meals' },
-		{ path: '/shopping', icon: 'cart', label: 'Shopping' },
-		{ path: '/recipes', icon: 'book', label: 'Recipes' },
-		{ path: '/settings', icon: 'settings', label: 'Settings' }
+		{ path: '/', icon: 'home', label: m.nav_home() },
+		{ path: '/inventory', icon: 'box', label: m.nav_stock() },
+		{ path: '/meal-plan', icon: 'calendar', label: m.nav_meals() },
+		{ path: '/shopping', icon: 'cart', label: m.nav_shopping() },
+		{ path: '/recipes', icon: 'book', label: m.nav_recipes() },
+		{ path: '/settings', icon: 'settings', label: m.nav_settings() }
 	];
 
 	const isActive = (path: string) => {
@@ -31,7 +32,7 @@
 </script>
 
 <nav
-	aria-label="Primary"
+	aria-label={m.nav_aria_primary()}
 	class="ui-z-nav shrink-0 flex bg-base-100 border-t border-base-300"
 	style="padding-bottom: env(safe-area-inset-bottom)"
 >
@@ -45,7 +46,7 @@
 				: 'text-base-content/40 hover:text-base-content/70'}"
 		>
 			<Icon name={tab.icon} class="h-5 w-5 shrink-0" />
-			<span class="text-[10px] font-medium leading-none {tab.label === 'Shopping' ? 'truncate px-1' : ''}"
+			<span class="text-[10px] font-medium leading-none {tab.path === '/shopping' ? 'truncate px-1' : ''}"
 				>{tab.label}</span
 			>
 		</a>

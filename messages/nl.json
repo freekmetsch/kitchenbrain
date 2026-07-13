@@ -1,0 +1,15 @@
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"nav_home": "Home",
+	"nav_stock": "Voorraad",
+	"nav_meals": "Maaltijden",
+	"nav_shopping": "Boodschappen",
+	"nav_recipes": "Recepten",
+	"nav_settings": "Instellingen",
+	"nav_aria_primary": "Hoofdmenu",
+	"login_title": "Keukenbrein",
+	"login_subtitle": "Log in om verder te gaan",
+	"login_username_label": "Gebruikersnaam",
+	"login_password_label": "Wachtwoord",
+	"login_signin_button": "Inloggen"
+}
