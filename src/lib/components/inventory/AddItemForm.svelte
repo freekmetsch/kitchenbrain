@@ -8,6 +8,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { slide } from 'svelte/transition';
+	import { m } from '$lib/paraglide/messages';
 	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import { composeQty, FOOD_CLASS_LABEL } from './shared';
 	import type { Item, Kind, Section } from './shared';
@@ -67,7 +68,7 @@
 				addStaple = false;
 				onAdded(item, savedSection, savedName);
 			} else {
-				flashToast('Could not add item');
+				flashToast(m.inventory_toast_add_item_failed());
 			}
 		} finally {
 			addSubmitting = false;
@@ -79,34 +80,34 @@
 	<form onsubmit={submitAdd} class="ui-form-card mx-4 mt-3" transition:slide={{ duration: 180 }}>
 		<div class="grid grid-cols-2 gap-2.5">
 			<label class="col-span-2 flex flex-col gap-1">
-				<span class="ui-field-label">Name</span>
-				<input class="input input-bordered input-sm w-full" placeholder="e.g. Spinazie" bind:value={addName} required />
+				<span class="ui-field-label">{m.inventory_addform_name_label()}</span>
+				<input class="input input-bordered input-sm w-full" placeholder={m.inventory_addform_name_placeholder()} bind:value={addName} required />
 			</label>
 			<label class="flex flex-col gap-1">
-				<span class="ui-field-label">Kind</span>
+				<span class="ui-field-label">{m.inventory_addform_kind_label()}</span>
 				<select class="select select-bordered select-sm w-full" bind:value={addKind}>
-					<option value="leftover">Meal</option>
-					<option value="ingredient">Ingredient</option>
-					<option value="processed">Ready-made</option>
+					<option value="leftover">{m.inventory_addform_kind_meal()}</option>
+					<option value="ingredient">{m.inventory_addform_kind_ingredient()}</option>
+					<option value="processed">{m.inventory_addform_kind_ready_made()}</option>
 				</select>
 			</label>
 			<label class="flex flex-col gap-1">
-				<span class="ui-field-label">Section</span>
+				<span class="ui-field-label">{m.inventory_addform_section_label()}</span>
 				<select class="select select-bordered select-sm w-full" bind:value={addSection}>
-					<option value="freezer">Freezer</option>
-					<option value="pantry">Pantry</option>
+					<option value="freezer">{m.inventory_section_freezer()}</option>
+					<option value="pantry">{m.inventory_section_pantry()}</option>
 				</select>
 			</label>
 			<label class="flex flex-col gap-1">
-				<span class="ui-field-label">Quantity</span>
+				<span class="ui-field-label">{m.inventory_addform_qty_label()}</span>
 				<input type="number" inputmode="decimal" min="0" step="any" class="input input-bordered input-sm w-full" bind:value={addQty} />
 			</label>
 			<label class="flex flex-col gap-1">
-				<span class="ui-field-label">Unit</span>
-				<input class="input input-bordered input-sm w-full" placeholder={addKind === 'leftover' ? 'portion' : 'g · ml · stuk'} bind:value={addUnit} />
+				<span class="ui-field-label">{m.inventory_addform_unit_label()}</span>
+				<input class="input input-bordered input-sm w-full" placeholder={addKind === 'leftover' ? m.inventory_addform_unit_placeholder_portion() : m.inventory_addform_unit_placeholder_default()} bind:value={addUnit} />
 			</label>
 			<label class="col-span-2 flex flex-col gap-1">
-				<span class="ui-field-label">Food class</span>
+				<span class="ui-field-label">{m.inventory_addform_class_label()}</span>
 				<select class="select select-bordered select-sm w-full" bind:value={addClass}>
 					<option value="">—</option>
 					{#each FOOD_CLASS_ROOTS as fc (fc)}
@@ -117,14 +118,14 @@
 			{#if addKind !== 'leftover'}
 				<label class="col-span-2 flex cursor-pointer items-center gap-2 pt-0.5">
 					<input type="checkbox" class="checkbox checkbox-sm" bind:checked={addStaple} />
-					<span class="text-xs text-base-content/70">Keep on hand — suggest when out</span>
+					<span class="text-xs text-base-content/70">{m.inventory_addform_staple_label()}</span>
 				</label>
 			{/if}
 		</div>
 		<div class="mt-3 flex items-center justify-end gap-1.5">
-			<button type="button" class="btn btn-ghost btn-sm h-8 min-h-0" onclick={() => onCancel()}>Cancel</button>
+			<button type="button" class="btn btn-ghost btn-sm h-8 min-h-0" onclick={() => onCancel()}>{m.inventory_addform_cancel_button()}</button>
 			<button type="submit" class="btn btn-primary btn-sm h-8 min-h-0 px-4" disabled={addSubmitting || !addName.trim()}>
-				{addSubmitting ? 'Saving…' : 'Add to stock'}
+				{addSubmitting ? m.inventory_addform_saving() : m.inventory_addform_submit_button()}
 			</button>
 		</div>
 	</form>

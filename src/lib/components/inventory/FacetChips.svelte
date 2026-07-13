@@ -10,6 +10,7 @@
 	// Static per-component constants + pure helpers live in module scope so they
 	// are allocated once, not once per rendered stock row.
 	import { base } from '$app/paths';
+	import { m } from '$lib/paraglide/messages';
 	import { RULE_REVIEW_CODES, reasonTokens } from '$lib/review_reasons';
 	import type { Item } from './shared';
 
@@ -20,16 +21,19 @@
 	// Humanize machine review-reason slugs for a non-technical reader (P6.5 #5).
 	// Codes are written in inventory_writes.ts / _merge.ts / _guardian.ts; unmapped
 	// ones fall through to a de-slugged form, so coverage need not be exhaustive.
-	const REVIEW_REASON_LABEL: Record<string, string> = {
-		undo_conflict: 'Changed since that action — undo skipped',
-		unclassified: 'Needs a food class',
-		unknown_kind: 'Kind needs checking',
-		unknown_food_class: 'Food class needs checking',
-		non_canonical_unit: 'Unusual unit',
-		leftover_non_portion_unit: 'Not counted in portions',
-		leftover_non_integer_portions: 'Fractional portions',
-		manual_check: 'Flagged for a manual check'
-	};
+	function reviewReasonLabel(key: string): string | undefined {
+		switch (key) {
+			case 'undo_conflict': return m.inventory_review_reason_undo_conflict();
+			case 'unclassified': return m.inventory_review_reason_unclassified();
+			case 'unknown_kind': return m.inventory_review_reason_unknown_kind();
+			case 'unknown_food_class': return m.inventory_review_reason_unknown_food_class();
+			case 'non_canonical_unit': return m.inventory_review_reason_non_canonical_unit();
+			case 'leftover_non_portion_unit': return m.inventory_review_reason_leftover_non_portion_unit();
+			case 'leftover_non_integer_portions': return m.inventory_review_reason_leftover_non_integer_portions();
+			case 'manual_check': return m.inventory_review_reason_manual_check();
+			default: return undefined;
+		}
+	}
 
 	function reviewReasonText(reason: string | null): string {
 		// Reasons can be joined ('a; b') and each may carry a ':param' — map every token,
@@ -37,7 +41,7 @@
 		return reasonTokens(reason)
 			.map((part) => {
 				const key = part.split(':')[0];
-				return REVIEW_REASON_LABEL[key] ?? key.replace(/_/g, ' ');
+				return reviewReasonLabel(key) ?? key.replace(/_/g, ' ');
 			})
 			.join(' · ');
 	}
@@ -52,10 +56,10 @@
 		const diff = Math.ceil((new Date(expiry).getTime() - today.getTime()) / 86400000);
 		const cls = diff < 3 ? 'text-error' : diff < 7 ? 'text-warning' : 'text-base-content/65';
 		let label: string;
-		if (diff < 0) label = `${Math.abs(diff)}d over`;
-		else if (diff === 0) label = 'today';
-		else if (diff === 1) label = 'tomorrow';
-		else if (diff < 8) label = `${diff}d`;
+		if (diff < 0) label = m.inventory_expiry_days_over({ days: Math.abs(diff) });
+		else if (diff === 0) label = m.inventory_expiry_today_label();
+		else if (diff === 1) label = m.inventory_expiry_tomorrow_label();
+		else if (diff < 8) label = m.inventory_expiry_days_left({ days: diff });
 		else label = new Date(expiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 		return { label, cls };
 	}
@@ -131,7 +135,7 @@
 			<!-- Recipe title usually equals the row name — repeating it is noise
 			     (UX-STOCK-5); keep a compact open-recipe affordance instead. -->
 			<a href="{base}/recipes/{link.slug}" class="max-w-40 truncate text-primary/80 hover:text-primary"
-				>↗ {sameName ? 'recipe' : link.title}</a
+				>↗ {sameName ? m.inventory_recipe_link_default() : link.title}</a
 			>
 			{#if link.isFreezerStaple && link.targetPortions != null}
 				<span
@@ -144,17 +148,17 @@
 			<button
 				type="button"
 				class="inline-flex items-center gap-1 text-base-content/60 hover:text-base-content/80"
-				title="Undo — show link options again"
+				title={m.inventory_recipe_planned_undo_title()}
 				onclick={() => onClearRecipeStatus()}
 			>
-				<span class="h-1 w-1 rounded-full bg-info/70"></span> recipe planned ✕
+				<span class="h-1 w-1 rounded-full bg-info/70"></span> {m.inventory_recipe_planned_label()}
 			</button>
 		{:else if item.recipeStatus === 'no_recipe'}
 			<button
 				type="button"
 				class="text-base-content/60 hover:text-base-content/80"
-				title="Undo — show link options again"
-				onclick={() => onClearRecipeStatus()}>no recipe ✕</button
+				title={m.inventory_recipe_planned_undo_title()}
+				onclick={() => onClearRecipeStatus()}>{m.inventory_recipe_no_recipe_label()}</button
 			>
 		{:else}
 			<!-- Unlinked meal: suggestion chips are shortcuts; the picker, Plan to
@@ -171,17 +175,17 @@
 			<button
 				type="button"
 				class="rounded-full border border-primary/40 px-1.5 font-medium text-primary hover:bg-primary/10"
-				onclick={() => onOpenLinkPicker()}>Link recipe…</button
+				onclick={() => onOpenLinkPicker()}>{m.inventory_recipe_link_picker_button()}</button
 			>
 			<button
 				type="button"
 				class="rounded-full border border-base-300 px-1.5 font-medium text-base-content/60 hover:border-base-content/25 hover:text-base-content"
-				onclick={() => onSetRecipeStatus('plan_to_add')}>Plan to add</button
+				onclick={() => onSetRecipeStatus('plan_to_add')}>{m.inventory_recipe_plan_to_add_button()}</button
 			>
 			<button
 				type="button"
 				class="rounded-full border border-base-300 px-1.5 text-base-content/60 hover:border-base-content/25 hover:text-base-content"
-				onclick={() => onSetRecipeStatus('no_recipe')}>No recipe</button
+				onclick={() => onSetRecipeStatus('no_recipe')}>{m.inventory_recipe_no_recipe_button()}</button
 			>
 		{/if}
 	{:else if item.foodClass}
@@ -190,27 +194,27 @@
 
 	{#if item.isStaple}
 		<span class="inline-flex items-center gap-1 text-base-content/60">
-			<span class="h-1 w-1 rounded-full bg-secondary/70"></span> staple
+			<span class="h-1 w-1 rounded-full bg-secondary/70"></span> {m.inventory_staple_label()}
 		</span>
 	{/if}
 
 	{#if item.qtyNum === 0}
 		{#if item.kind === 'leftover' && link?.isFreezerStaple}
-			<span class="rounded-full bg-warning/10 px-1.5 font-medium text-warning">cook again</span>
+			<span class="rounded-full bg-warning/10 px-1.5 font-medium text-warning">{m.inventory_cook_again_badge()}</span>
 		{:else}
-			<span class="rounded-full bg-error/10 px-1.5 font-medium text-error/80">out</span>
+			<span class="rounded-full bg-error/10 px-1.5 font-medium text-error/80">{m.inventory_out_badge()}</span>
 		{/if}
 	{/if}
 
 	{#if exp}
-		<span class="font-medium {exp.cls}">best before {exp.label}</span>
+		<span class="font-medium {exp.cls}">{m.inventory_best_before_label({ label: exp.label })}</span>
 	{/if}
 
 	{#if matches.length > 0}
 		<a
 			href={recipeSearchHref(item.name)}
 			class="rounded-full bg-base-200 px-1.5 font-medium text-base-content/60 hover:bg-base-300 hover:text-base-content"
-		>{matches.length} {matches.length === 1 ? 'recipe' : 'recipes'}</a>
+		>{matches.length === 1 ? m.inventory_matches_singular({ count: matches.length }) : m.inventory_matches_plural({ count: matches.length })}</a>
 	{/if}
 
 	{#if item.needsReview}
@@ -231,21 +235,21 @@
 							if (e.key === 'Enter') onCommitPortionEdit();
 							else if (e.key === 'Escape') onCancelPortionEdit();
 						}}
-						aria-label={`Portion count for ${item.name}`}
+						aria-label={m.inventory_portion_count_aria({ name: item.name })}
 					/>
 					<button
 						type="button"
 						class="shrink-0 font-medium underline decoration-dotted underline-offset-2"
 						onmousedown={(e) => e.preventDefault()}
-						onclick={() => onCommitPortionEdit()}>Save</button
+						onclick={() => onCommitPortionEdit()}>{m.inventory_portion_save_button()}</button
 					>
 				</span>
 			{:else if reviewFix(item) === 'portions'}
-				<button type="button" class="shrink-0 font-medium underline decoration-dotted underline-offset-2" onclick={() => onOpenPortionEdit()}>Set portions</button>
+				<button type="button" class="shrink-0 font-medium underline decoration-dotted underline-offset-2" onclick={() => onOpenPortionEdit()}>{m.inventory_set_portions_button()}</button>
 			{:else if reviewFix(item) === 'edit'}
-				<button type="button" class="shrink-0 font-medium underline decoration-dotted underline-offset-2" onclick={() => onOpenEdit()}>Fix</button>
+				<button type="button" class="shrink-0 font-medium underline decoration-dotted underline-offset-2" onclick={() => onOpenEdit()}>{m.inventory_fix_button()}</button>
 			{:else}
-				<button type="button" class="shrink-0 font-medium underline decoration-dotted underline-offset-2" onclick={() => onResolveReview()}>Resolve</button>
+				<button type="button" class="shrink-0 font-medium underline decoration-dotted underline-offset-2" onclick={() => onResolveReview()}>{m.inventory_resolve_button()}</button>
 			{/if}
 		</span>
 	{/if}

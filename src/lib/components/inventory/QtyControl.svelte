@@ -18,6 +18,7 @@
 
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import { autofocus, type Item } from './shared';
 
 	let {
@@ -56,7 +57,7 @@
 				else if (e.key === 'Escape') onCancel();
 			}}
 			onblur={() => onCommit()}
-			aria-label={`Quantity for ${item.name}`}
+			aria-label={m.inventory_qty_aria({ name: item.name })}
 		/>
 		<span class="pr-0.5 text-xs text-base-content/60">{item.unit ?? ''}</span>
 		<button
@@ -64,21 +65,21 @@
 			class="btn btn-primary btn-xs h-9 min-h-0 w-9 p-0"
 			onmousedown={(e) => e.preventDefault()}
 			onclick={() => onCommit()}
-			aria-label="Save quantity"><Icon name="check" class="h-3.5 w-3.5" /></button
+			aria-label={m.inventory_qty_save_aria()}><Icon name="check" class="h-3.5 w-3.5" /></button
 		>
 	</div>
 {:else if item.qtyNum === null}
 	<button
 		type="button"
 		class="shrink-0 rounded-md px-2 py-1 text-xs text-base-content/60 hover:bg-base-200"
-		onclick={() => onOpenRowEdit()}>{item.qtyText || 'set qty'}</button
+		onclick={() => onOpenRowEdit()}>{item.qtyText || m.inventory_qty_set_placeholder()}</button
 	>
 {:else if isMeasured(item.unit)}
 	<button
 		type="button"
 		class="shrink-0 rounded-lg border border-base-300/70 bg-base-200/50 px-2.5 py-1 text-sm font-medium tabular-nums hover:border-primary/40 hover:bg-base-100"
 		onclick={() => onOpenEdit()}
-		aria-label={`Edit quantity for ${item.name}`}
+		aria-label={m.inventory_qty_edit_aria({ name: item.name })}
 	>
 		{item.qtyNum}<span class="ml-0.5 text-xs font-normal text-base-content/60">{item.unit}</span>
 	</button>
@@ -87,7 +88,7 @@
 		<button
 			type="button"
 			class="btn btn-ghost btn-sm h-9 min-h-0 w-9 p-0"
-			aria-label={`Decrease ${item.name}`}
+			aria-label={m.inventory_qty_decrease_aria({ name: item.name })}
 			disabled={(item.qtyNum ?? 0) <= 0}
 			onclick={() => onStep(-1)}><Icon name="minus" class="h-3.5 w-3.5" /></button
 		>
@@ -95,7 +96,7 @@
 			type="button"
 			class="min-w-8 px-1 text-center text-sm font-medium tabular-nums"
 			onclick={() => onOpenEdit()}
-			aria-label={`Edit quantity for ${item.name}`}
+			aria-label={m.inventory_qty_edit_aria({ name: item.name })}
 		>
 			{item.qtyNum}<span class="text-xs font-normal text-base-content/60"
 				>{item.unit && item.unit !== 'stuk' ? ' ' + item.unit : ''}</span
@@ -104,7 +105,7 @@
 		<button
 			type="button"
 			class="btn btn-ghost btn-sm h-9 min-h-0 w-9 p-0"
-			aria-label={`Increase ${item.name}`}
+			aria-label={m.inventory_qty_increase_aria({ name: item.name })}
 			onclick={() => onStep(1)}><Icon name="plus" class="h-3.5 w-3.5" /></button
 		>
 	</div>

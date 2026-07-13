@@ -9,6 +9,7 @@
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
 	import { slide } from 'svelte/transition';
+	import { m } from '$lib/paraglide/messages';
 	import { patchKeepStocked } from '$lib/keep_stocked';
 	import type { StapleGhost } from './shared';
 
@@ -25,10 +26,10 @@
 		ghostBusy = ghost.slug;
 		try {
 			if (!(await patchKeepStocked(ghost.slug, false))) {
-				flashToast('Could not update');
+				flashToast(m.inventory_toast_update_failed());
 				return;
 			}
-			flashToast(`${ghost.title} is no longer kept stocked`);
+			flashToast(m.inventory_toast_ghost_opt_out({ title: ghost.title }));
 			await invalidateAll();
 		} finally {
 			ghostBusy = null;
@@ -49,19 +50,19 @@
 				<a
 					href="{base}/recipes/{ghost.slug}"
 					class="btn btn-ghost btn-sm h-8 min-h-0 shrink-0 px-2.5 text-xs font-medium text-warning"
-					>Cook again</a
+					>{m.inventory_ghost_cook_again_button()}</a
 				>
 			</div>
 			<div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-base-content/65">
 				<span class="opacity-70">❄️</span>
 				<span class="rounded-full border border-warning/40 bg-warning/10 px-1.5 font-medium tabular-nums text-warning"
-					>0{ghost.target != null ? ` / ${ghost.target}` : ''} portions</span
+					>{ghost.target != null ? m.inventory_ghost_portions_with_target({ target: ghost.target }) : m.inventory_ghost_portions_no_target()}</span
 				>
 				<button
 					type="button"
 					class="text-base-content/50 underline decoration-dotted underline-offset-2 hover:text-base-content/80 disabled:opacity-50"
 					disabled={ghostBusy === ghost.slug}
-					onclick={() => ghostOptOut(ghost)}>Stop keeping stocked</button
+					onclick={() => ghostOptOut(ghost)}>{m.inventory_ghost_stop_button()}</button
 				>
 			</div>
 		</div>

@@ -3,6 +3,7 @@
 	the row editor and by the page-level activity drawer (P2.3).
 -->
 <script lang="ts">
+	import { m } from '$lib/paraglide/messages';
 	import { relativeTime } from '$lib/inventory_history';
 	import type { HistoryEvent } from './shared';
 
@@ -28,7 +29,7 @@
 				<span class="text-base-content/55"> · {ev.actorLabel} · {relativeTime(ev.createdAt, Date.now())}</span>
 			</div>
 			{#if ev.undoable}
-				<button type="button" class="shrink-0 font-medium text-primary/80 hover:text-primary" onclick={() => onUndo(ev)}>Undo</button>
+				<button type="button" class="shrink-0 font-medium text-primary/80 hover:text-primary" onclick={() => onUndo(ev)}>{m.inventory_action_undo()}</button>
 			{/if}
 		</li>
 	{/each}

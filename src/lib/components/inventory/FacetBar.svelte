@@ -4,6 +4,7 @@
 	Filter state is owned by the page and bound two-way.
 -->
 <script lang="ts">
+	import { m } from '$lib/paraglide/messages';
 	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
 	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
@@ -22,11 +23,11 @@
 		needsReviewCount: number;
 	} = $props();
 
-	const SECTION_TABS: { value: Section | 'all'; label: string }[] = [
-		{ value: 'all', label: 'All' },
-		{ value: 'freezer', label: 'Freezer' },
-		{ value: 'pantry', label: 'Pantry' }
-	];
+	const SECTION_TABS = $derived([
+		{ value: 'all' as const, label: m.inventory_facet_all() },
+		{ value: 'freezer' as const, label: m.inventory_section_freezer() },
+		{ value: 'pantry' as const, label: m.inventory_section_pantry() }
+	]);
 </script>
 
 <div class="sticky top-0 z-20 border-b border-base-300/60 bg-base-100/95 px-4 pb-2 pt-2 backdrop-blur">
@@ -50,7 +51,7 @@
 				onclick={() => (reviewOnly = !reviewOnly)}
 			>
 				<Icon name="warn" class="h-3 w-3" />
-				{needsReviewCount} review
+				{m.inventory_facet_review_count({ count: needsReviewCount })}
 			</button>
 		{/if}
 	</div>

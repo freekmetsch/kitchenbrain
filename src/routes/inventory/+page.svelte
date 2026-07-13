@@ -12,6 +12,7 @@
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
 	import { slide } from 'svelte/transition';
+	import { m } from '$lib/paraglide/messages';
 	import ActivitySheet from '$lib/components/inventory/ActivitySheet.svelte';
 	import AddItemForm from '$lib/components/inventory/AddItemForm.svelte';
 	import FacetBar from '$lib/components/inventory/FacetBar.svelte';
@@ -40,13 +41,15 @@
 	const KIND_ORDER = ['leftover', 'ingredient', 'processed', null] as const;
 	// Display-only rename (UX-STOCK-8): the DB kind slug stays `leftover`, but
 	// these are intentionally batch-cooked freezer meals, not scraps.
-	const SHELF_LABEL: Record<string, string> = {
-		leftover: 'Meals',
-		ingredient: 'Ingredients',
-		processed: 'Ready-made',
-		null: 'Unsorted'
-	};
-	const SHELF_HINT: Record<string, string> = { null: 'needs a kind' };
+	function shelfLabel(kind: string): string {
+		if (kind === 'leftover') return m.inventory_shelf_meals();
+		if (kind === 'ingredient') return m.inventory_shelf_ingredients();
+		if (kind === 'processed') return m.inventory_shelf_ready_made();
+		return m.inventory_shelf_unsorted();
+	}
+	function shelfHint(kind: string): string {
+		return kind === 'null' ? m.inventory_shelf_hint_unsorted() : '';
+	}
 
 	// ── state ──────────────────────────────────────────────────────────────────
 	let items = $state<Item[]>(data.items.map((i) => ({ ...i })));
@@ -113,8 +116,8 @@
 	const shelves = $derived(
 		KIND_ORDER.map((kind) => ({
 			kind,
-			hint: SHELF_HINT[String(kind)] ?? '',
-			label: SHELF_LABEL[String(kind)],
+			hint: shelfHint(String(kind)),
+			label: shelfLabel(String(kind)),
 			items: filtered
 				.filter((i) => bucket(i) === kind)
 				.sort((a, b) =>
@@ -165,8 +168,14 @@
 		}
 	}
 
-	function flashToast(msg: string, action?: { label: string; run: () => void }) {
-		toast.show(msg, { variant: msg.startsWith('Could not') ? 'error' : 'success', action });
+	// `error` used to be inferred from `msg.startsWith('Could not')` — that broke
+	// the moment messages became translated (a Dutch string never starts with
+	// "Could not"), so the variant is now passed explicitly.
+	function flashToast(
+		msg: string,
+		opts?: { error?: boolean; action?: { label: string; run: () => void } }
+	) {
+		toast.show(msg, { variant: opts?.error ? 'error' : 'success', action: opts?.action });
 	}
 
 	function linkFor(item: Item) {
@@ -178,13 +187,13 @@
 	// staple goes on the shopping list; anything else offers one-tap Remove.
 	function onReachedZero(item: Item) {
 		if (item.kind === 'leftover' && linkFor(item)?.isFreezerStaple) {
-			flashToast(`${item.name} is out — kept as a cook-again cue`);
+			flashToast(m.inventory_toast_out_cook_again({ name: item.name }));
 			return;
 		}
 		const action = item.isStaple
-			? { label: 'Add to list', run: () => stapleOut(item) }
-			: { label: 'Remove', run: () => deleteItem(item) };
-		flashToast(`${item.name} is out`, action);
+			? { label: m.inventory_action_add_to_list(), run: () => stapleOut(item) }
+			: { label: m.inventory_action_remove(), run: () => deleteItem(item) };
+		flashToast(m.inventory_toast_out({ name: item.name }), { action });
 	}
 
 	// ── quantity ──────────────────────────────────────────────────────────────────
@@ -198,7 +207,7 @@
 			// Reverse just this step's delta (not restore an absolute `prev`) so an older
 			// failed request can't clobber a newer successful one on rapid taps.
 			item.qtyNum = Math.max(0, Math.round(((item.qtyNum ?? 0) - delta) * 100) / 100);
-			flashToast('Could not update quantity');
+			flashToast(m.inventory_toast_qty_update_failed(), { error: true });
 		} else if (next === 0 && prev > 0) {
 			onReachedZero(item);
 		}
@@ -214,7 +223,7 @@
 		qtyEditId = null;
 		const n = parseFloat(qtyEditVal);
 		if (!Number.isFinite(n) || n < 0) {
-			if (qtyEditVal.trim() !== '') flashToast('Enter a valid quantity');
+			if (qtyEditVal.trim() !== '') flashToast(m.inventory_toast_invalid_qty());
 			return;
 		}
 		if (n === item.qtyNum) return;
@@ -224,7 +233,7 @@
 		if (!ok) {
 			const local = items.find((i) => i.id === id);
 			if (local) local.qtyNum = prev;
-			flashToast('Could not update quantity');
+			flashToast(m.inventory_toast_qty_update_failed(), { error: true });
 		} else if (n === 0 && (prev ?? 0) > 0) {
 			onReachedZero(item);
 		}
@@ -243,14 +252,14 @@
 			item.needsReview = prevFlag;
 			item.reviewReason = prevReason;
 			reviewOnly = prevReviewOnly;
-			flashToast('Could not resolve');
+			flashToast(m.inventory_toast_resolve_failed(), { error: true });
 		}
 	}
 
 	// ── recipe status resolver (P4.2 G10) ─────────────────────────────────────────
 	async function setRecipeStatus(item: Item, status: 'plan_to_add' | 'no_recipe') {
 		const ok = await patch(item, { recipe_status: status });
-		if (!ok) flashToast('Could not update');
+		if (!ok) flashToast(m.inventory_toast_update_failed(), { error: true });
 	}
 
 	// P6.1: link an unlinked leftover to a suggested recipe IN PLACE. The old UI
@@ -261,10 +270,10 @@
 	async function linkRecipe(item: Item, suggestion: { id: number; slug: string; title: string }) {
 		const ok = await patch(item, { made_from_recipe_id: suggestion.id, recipe_status: 'linked' });
 		if (!ok) {
-			flashToast('Could not link recipe');
+			flashToast(m.inventory_toast_link_failed(), { error: true });
 			return;
 		}
-		flashToast(`Linked to ${suggestion.title}`);
+		flashToast(m.inventory_toast_linked({ title: suggestion.title }));
 		await invalidateAll();
 	}
 
@@ -274,7 +283,7 @@
 	async function clearRecipeStatus(item: Item) {
 		const ok = await patch(item, { recipe_status: null });
 		if (!ok) {
-			flashToast('Could not update');
+			flashToast(m.inventory_toast_update_failed(), { error: true });
 			return;
 		}
 		await invalidateAll();
@@ -306,12 +315,12 @@
 		const n = parseInt(portionEditVal, 10);
 		portionEditId = null;
 		if (!Number.isFinite(n) || n < 0) {
-			if (portionEditVal.trim() !== '') flashToast('Enter a valid number');
+			if (portionEditVal.trim() !== '') flashToast(m.inventory_toast_invalid_number());
 			return;
 		}
 		// Writing unit=portion + an integer count clears the rule flag server-side.
 		const ok = await patch(item, { unit: 'portion', qty_num: n, qty_text: composeQty(n, 'portion') });
-		if (!ok) flashToast('Could not set portions');
+		if (!ok) flashToast(m.inventory_toast_set_portions_failed(), { error: true });
 	}
 
 	// ── pantry staples → shopping push (P4.4) ─────────────────────────────────────
@@ -331,10 +340,10 @@
 			});
 			if (res.ok) {
 				if (!stapleAdded.includes(item.id)) stapleAdded = [...stapleAdded, item.id];
-				flashToast(`Added ${item.name} to this week's shopping list`);
-			} else flashToast('Could not add to shopping list');
+				flashToast(m.inventory_toast_added_to_shopping({ name: item.name }));
+			} else flashToast(m.inventory_toast_add_shopping_failed(), { error: true });
 		} catch {
-			flashToast('Could not add to shopping list');
+			flashToast(m.inventory_toast_add_shopping_failed(), { error: true });
 		} finally {
 			stapleOutBusy = null;
 		}
@@ -401,8 +410,8 @@
 		editSaving = false;
 		if (okItem && okStaple) {
 			editingId = null;
-			if (hadChanges) flashToast('Saved changes');
-		} else flashToast('Could not save changes');
+			if (hadChanges) flashToast(m.inventory_toast_saved_changes());
+		} else flashToast(m.inventory_toast_save_changes_failed(), { error: true });
 	}
 
 	// ── delete + undo ──────────────────────────────────────────────────────────────
@@ -420,10 +429,12 @@
 		}
 		if (!ok) {
 			items = [...items.slice(0, idx), snapshot, ...items.slice(idx)];
-			flashToast('Could not remove');
+			flashToast(m.inventory_toast_remove_failed(), { error: true });
 			return;
 		}
-		flashToast(`Removed ${item.name}`, { label: 'Undo', run: () => undoDelete(item.id) });
+		flashToast(m.inventory_toast_removed({ name: item.name }), {
+			action: { label: m.inventory_action_undo(), run: () => undoDelete(item.id) }
+		});
 	}
 
 	async function undoDelete(itemId: number) {
@@ -434,7 +445,7 @@
 			body: JSON.stringify({ item_id: itemId })
 		});
 		if (!res.ok) {
-			flashToast('Could not undo');
+			flashToast(m.inventory_toast_undo_failed(), { error: true });
 			return;
 		}
 		const { item } = await res.json();
@@ -478,9 +489,9 @@
 					local.reviewReason = 'undo_conflict';
 				}
 			}
-			flashToast('Item changed since then — flagged for review instead');
+			flashToast(m.inventory_toast_undo_conflict());
 		} else if (!res.ok) {
-			flashToast('Could not undo');
+			flashToast(m.inventory_toast_undo_failed(), { error: true });
 		} else {
 			const { item } = await res.json();
 			reconcileItem(item);
@@ -498,7 +509,7 @@
 		sectionFilter = section;
 		classFilter = null;
 		reviewOnly = false;
-		flashToast(`Added ${name}`);
+		flashToast(m.inventory_toast_added({ name }));
 	}
 
 	function clearFilters() {
@@ -508,17 +519,17 @@
 	}
 </script>
 
-<svelte:head><title>Stock · Household Brain</title></svelte:head>
+<svelte:head><title>{m.inventory_title()}</title></svelte:head>
 
 <!-- ── page ─────────────────────────────────────────────────────────────────────── -->
 <div class="ui-page-shell">
 	<!-- header -->
 	<div class="flex items-center justify-between gap-3 px-4 pb-1 pt-4">
-		<h1 class="min-w-0 text-2xl font-semibold leading-tight">Stock</h1>
+		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.inventory_heading()}</h1>
 		<div class="flex items-center gap-1.5">
-			<button type="button" class="btn btn-ghost btn-sm h-9 w-9 p-0" aria-label="Recent activity" onclick={openActivity}><Icon name="clock" class="h-4 w-4" /></button>
+			<button type="button" class="btn btn-ghost btn-sm h-9 w-9 p-0" aria-label={m.inventory_activity_aria()} onclick={openActivity}><Icon name="clock" class="h-4 w-4" /></button>
 			<button type="button" class="btn btn-primary btn-sm h-9 gap-1.5 rounded-lg px-3.5" aria-expanded={showAddForm} onclick={() => (showAddForm = !showAddForm)}>
-				<Icon name="plus" class="h-3.5 w-3.5" /> Add
+				<Icon name="plus" class="h-3.5 w-3.5" /> {m.inventory_add_button()}
 			</button>
 		</div>
 	</div>
@@ -588,17 +599,17 @@
 
 		{#if filtered.length === 0}
 			{#if items.length === 0}
-				<EmptyState icon="📦" title="Stock is empty">
+				<EmptyState icon="📦" title={m.inventory_empty_title()}>
 					{#snippet action()}
 						<button type="button" class="btn btn-primary btn-sm" onclick={() => (showAddForm = true)}>
-							Add the first item
+							{m.inventory_empty_add_first_button()}
 						</button>
 					{/snippet}
 				</EmptyState>
 			{:else}
-				<EmptyState title="Nothing matches these filters.">
+				<EmptyState title={m.inventory_empty_filtered_title()}>
 					{#snippet action()}
-						<button type="button" class="btn btn-ghost btn-sm h-8 min-h-0 text-primary" onclick={clearFilters}>Clear filters</button>
+						<button type="button" class="btn btn-ghost btn-sm h-8 min-h-0 text-primary" onclick={clearFilters}>{m.inventory_clear_filters_button()}</button>
 					{/snippet}
 				</EmptyState>
 			{/if}

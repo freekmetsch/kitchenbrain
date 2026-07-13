@@ -5,6 +5,7 @@
 	every open, exactly as before.
 -->
 <script lang="ts">
+	import { m } from '$lib/paraglide/messages';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import type { Item, RecipeOption } from './shared';
 
@@ -28,15 +29,15 @@
 	});
 </script>
 
-<BottomSheet bind:open title={item ? `Link a recipe to ${item.name}` : 'Link a recipe'}>
+<BottomSheet bind:open title={item ? m.inventory_link_sheet_title({ name: item.name }) : m.inventory_link_sheet_title_default()}>
 	<input
 		type="search"
 		class="input input-bordered input-sm mb-2 w-full"
-		placeholder="Search recipes…"
+		placeholder={m.inventory_link_search_placeholder()}
 		bind:value={search}
 	/>
 	{#if linkOptions.length === 0}
-		<p class="py-6 text-center text-sm text-base-content/60">No recipes match "{search}".</p>
+		<p class="py-6 text-center text-sm text-base-content/60">{m.inventory_link_no_match({ query: search })}</p>
 	{:else}
 		<ul class="divide-y divide-base-200">
 			{#each linkOptions as option (option.slug)}

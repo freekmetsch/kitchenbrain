@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
 	import { swipe } from '$lib/actions/swipe';
+	import { m } from '$lib/paraglide/messages';
 	import FacetChips from './FacetChips.svelte';
 	import ItemEditor from './ItemEditor.svelte';
 	import QtyControl from './QtyControl.svelte';
@@ -85,13 +86,13 @@
 	<div class="min-w-0 flex-1">
 		<div class="flex items-center gap-2">
 			{#if item.needsReview}
-				<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" title="Needs review"></span>
+				<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" title={m.inventory_row_needs_review_title()}></span>
 			{/if}
 			<button
 				type="button"
 				class="min-w-0 flex-1 truncate text-left text-sm font-medium leading-snug"
 				onclick={() => onOpenEdit()}
-				aria-label={`Edit ${item.name}`}>{item.name}</button
+				aria-label={m.inventory_row_edit_aria({ name: item.name })}>{item.name}</button
 			>
 			<QtyControl
 				{item}
