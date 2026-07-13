@@ -1,6 +1,6 @@
-# Household Brain
+# Keukenbrein
 
-A self-hosted grocery, meal-plan, recipe, and freezer-inventory app with an AI chat assistant and a direct push to Albert Heijn's (Dutch supermarket) online basket.
+Dutch for "kitchen brain." A self-hosted grocery, meal-plan, recipe, and freezer-inventory app with an AI chat assistant and a direct push to Albert Heijn's (Dutch supermarket) online basket.
 
 **Note:** the Albert Heijn integration is unofficial and reverse-engineered — there's more on what that means and why it's still worth using further down.
 
@@ -23,8 +23,8 @@ I thought about turning this into a hosted product. I didn't, for one blocking r
 ## Quick start (Docker)
 
 ```
-git clone https://github.com/freekmetsch/household-brain
-cd household-brain
+git clone https://github.com/freekmetsch/kitchenbrain
+cd kitchenbrain
 cp .env.example .env
 # edit .env: at minimum set OPENROUTER_API_KEY and HOUSEHOLD_USERS
 docker compose up -d
@@ -37,8 +37,8 @@ Open `http://localhost:3000` and log in with one of the users from `HOUSEHOLD_US
 ## Local development
 
 ```
-git clone https://github.com/freekmetsch/household-brain
-cd household-brain
+git clone https://github.com/freekmetsch/kitchenbrain
+cd kitchenbrain
 cp .env.example .env
 npm install
 npm run dev

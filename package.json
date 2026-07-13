@@ -1,11 +1,11 @@
 {
-  "name": "household-brain",
+  "name": "kitchenbrain",
   "version": "2.0.0",
   "description": "Self-hosted grocery, meal-plan, recipe, and freezer-inventory PWA with AI chat and Albert Heijn basket push.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/freekmetsch/household-brain"
+    "url": "https://github.com/freekmetsch/kitchenbrain"
   },
   "private": true,
   "type": "module",

@@ -1,4 +1,4 @@
-# Project Instructions — Household Brain
+# Project Instructions — Keukenbrein
 
 Self-hosted grocery, meal-plan, recipe, and freezer-inventory PWA with an AI chat assistant and an Albert Heijn (Dutch supermarket) basket-push integration. Single-household app: no multi-tenancy, no SaaS layer, no signup flow — users are seeded from an env var.
 

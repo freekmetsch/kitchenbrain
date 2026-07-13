@@ -1,6 +1,6 @@
 {
-  "name": "Household Brain",
-  "short_name": "HB",
+  "name": "Keukenbrein",
+  "short_name": "Keukenbrein",
   "description": "Grocery, meal-plan, recipe, and freezer-inventory PWA with AI chat and Albert Heijn basket push",
   "start_url": "/",
   "scope": "/",
