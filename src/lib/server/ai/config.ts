@@ -13,19 +13,6 @@ import { categoryForModel, capForCategory, type SpendCategory } from '$lib/serve
 export type ConfigSource = 'ui' | 'env' | 'default';
 export type ResolvedConfig<T> = { value: T; source: ConfigSource };
 
-/**
- * Standard per-call output ceiling for content-generating AI jobs (recipe
- * translate/ingest, cook-mode sheets, AH product pick). This is a CAP, not a
- * target: a call only ever bills for the tokens it actually generates, so a
- * generous ceiling costs nothing on normal outputs — it just removes the
- * truncation cliff where a reasoning-heavy or long-recipe call runs out of room
- * mid-JSON and the whole result is dropped (an 18-ingredient translation
- * already needs ~3700 tokens; the old 4096 cap left ~10% margin). 8192 clears
- * every GLM provider's completion limit (min observed 16384), so it never
- * shrinks the provider routing pool. The chat loop sets its own budget (it has
- * bespoke truncation recovery); one-shot helpers use this.
- */
-export const DEFAULT_MAX_OUTPUT_TOKENS = 8192;
 
 /**
  * DB pref wins (a stored value deliberately overrides an env var), else env,

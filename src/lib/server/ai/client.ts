@@ -287,12 +287,23 @@ export type AgentTurnResult = {
 	droppedToolCalls: number;
 };
 
+// Anthropic's Messages API requires max_tokens, so the (dormant, env-flip
+// rollback) Anthropic path needs a value even when we otherwise let the provider
+// decide. High enough that no real reply hits it; the OpenRouter path omits the
+// field entirely instead.
+const ANTHROPIC_MAX_TOKENS_FALLBACK = 32000;
+
 export type AgentTurnOpts = {
 	model: string;
 	system: string;
 	messages: Anthropic.MessageParam[];
 	tools: Anthropic.Tool[];
-	maxTokens: number;
+	/**
+	 * Per-call output ceiling. Omit to let the provider use its own natural
+	 * maximum — no artificial truncation cliff. Cost stays bounded by the daily
+	 * EUR cap and (for the agent loop) MAX_ITERATIONS, not by this.
+	 */
+	maxTokens?: number;
 	signal: AbortSignal;
 	/** Called with each streamed text delta so the route can forward SSE to the client. */
 	onText: (delta: string) => void;
@@ -317,7 +328,9 @@ async function streamOpenRouterTurn(opts: AgentTurnOpts): Promise<AgentTurnResul
 			messages: toOpenAiMessages(opts.system, opts.messages),
 			tools: toOpenAiTools(opts.tools),
 			tool_choice: 'auto',
-			max_tokens: opts.maxTokens,
+			// Omit max_tokens unless a caller pins one — the provider's own limit is
+			// the ceiling, so no reply is severed by an artificial cap.
+			...(opts.maxTokens != null ? { max_tokens: opts.maxTokens } : {}),
 			stream: true,
 			...buildChatTuningPayload()
 		})
@@ -418,7 +431,7 @@ async function streamOpenRouterTurn(opts: AgentTurnOpts): Promise<AgentTurnResul
 async function streamAnthropicTurn(opts: AgentTurnOpts): Promise<AgentTurnResult> {
 	const stream = anthropic.messages.stream({
 		model: opts.model,
-		max_tokens: opts.maxTokens,
+		max_tokens: opts.maxTokens ?? ANTHROPIC_MAX_TOKENS_FALLBACK,
 		system: [{ type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } }],
 		tools: opts.tools,
 		messages: opts.messages
@@ -480,12 +493,13 @@ export async function createMessage(opts: {
 	model: string;
 	system: string;
 	messages: Array<{ role: 'user' | 'assistant'; content: string | CreateMessagePart[] }>;
-	maxTokens: number;
+	/** Optional output ceiling; omit to let the provider use its natural max. */
+	maxTokens?: number;
 }): Promise<CreateMessageResult> {
 	if (backendFor(opts.model) === 'anthropic') {
 		const msg = await anthropic.messages.create({
 			model: opts.model,
-			max_tokens: opts.maxTokens,
+			max_tokens: opts.maxTokens ?? ANTHROPIC_MAX_TOKENS_FALLBACK,
 			system: opts.system,
 			messages: opts.messages.map((m) => ({
 				role: m.role,
@@ -524,7 +538,7 @@ export async function createMessage(opts: {
 								)
 				}))
 			],
-			max_tokens: opts.maxTokens
+			...(opts.maxTokens != null ? { max_tokens: opts.maxTokens } : {})
 		})
 	});
 	if (!res.ok) throw new Error(openRouterErrorMessage(res.status, await res.text()));

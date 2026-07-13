@@ -9,7 +9,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { z } from 'zod';
 import { createMessage, checkDailyCap, logSpend, parseModelJson } from '$lib/server/ai/client';
-import { getBackgroundModel, DEFAULT_MAX_OUTPUT_TOKENS } from '$lib/server/ai/config';
+import { getBackgroundModel } from '$lib/server/ai/config';
 import type { PreviewItem } from '$lib/shopping_ah';
 
 const CANDIDATES_SHOWN = 8;
@@ -58,7 +58,6 @@ export async function aiArchetypePicks(items: PreviewItem[]): Promise<Map<string
 		// goes unlogged; acceptable for a flash-tier call).
 		const call = createMessage({
 			model: getBackgroundModel().value,
-			maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
 			system: loadPickPrompt(),
 			messages: [{ role: 'user', content: JSON.stringify(payload) }]
 		});
