@@ -6,7 +6,7 @@
 	import { optimistic } from '$lib/optimistic';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
-	import { SORT_OPTIONS, type SortBy } from '$lib/recipe_sort';
+	import { sortOptions, type SortBy } from '$lib/recipe_sort';
 	import { untrack } from 'svelte';
 	import type { PageData } from './$types';
 
@@ -116,7 +116,7 @@
 						aria-labelledby="default-sort-label"
 					>
 						<SegmentedTabs
-							tabs={[...SORT_OPTIONS]}
+							tabs={sortOptions()}
 							value={defaultSort}
 							onchange={(v) => saveRecipePrefs({ defaultSort: v })}
 							cols={2}

@@ -6,6 +6,7 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import { APP_TIME_ZONE } from '$lib/week';
 
 	// Row types derive from the shopping route's server load (via the generated
@@ -21,7 +22,7 @@
 	let { pushHistory }: Props = $props();
 
 	function formatPushTime(value: string | Date): string {
-		return new Date(value).toLocaleString('en-GB', {
+		return new Date(value).toLocaleString(getLocale() === 'nl' ? 'nl-NL' : 'en-GB', {
 			day: 'numeric',
 			month: 'short',
 			hour: '2-digit',

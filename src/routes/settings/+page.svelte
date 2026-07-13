@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
-	import { SORT_LABELS, type SortBy } from '$lib/recipe_sort';
+	import { sortLabel, type SortBy } from '$lib/recipe_sort';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
@@ -30,7 +30,7 @@
 			title: m.settingsshell_panel_recipes(),
 			summary: m.settingsshell_summary_recipes({
 				lang: data.recipeLang === 'nl' ? m.recipes_edit_language_dutch() : m.recipes_edit_language_english(),
-				sort: SORT_LABELS[data.defaultSort as SortBy] ?? m.recipes_sort_az()
+				sort: sortLabel(data.defaultSort as SortBy)
 			})
 		},
 		{

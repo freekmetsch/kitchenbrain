@@ -7,6 +7,7 @@
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import { APP_TIME_ZONE } from '$lib/week';
 
 	type Props = {
@@ -19,7 +20,11 @@
 
 	function weekLabel(iso: string): string {
 		const d = new Date(iso + 'T00:00:00');
-		return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: APP_TIME_ZONE });
+		return d.toLocaleDateString(getLocale() === 'nl' ? 'nl-NL' : 'en-GB', {
+			day: 'numeric',
+			month: 'long',
+			timeZone: APP_TIME_ZONE
+		});
 	}
 </script>
 

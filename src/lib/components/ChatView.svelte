@@ -4,6 +4,7 @@
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import type { IconName } from '$lib/components/ui/icons/paths';
 	import type { ToolDisplay } from '$lib/tool_display';
 	import { looksLikeJsonArtifact, ARTIFACT_FALLBACK } from '$lib/chat_sanitize';
@@ -227,7 +228,11 @@
 		const diff = Math.round((today.getTime() - day.getTime()) / 86400000);
 		if (diff <= 0) return m.chat_day_today();
 		if (diff === 1) return m.chat_day_yesterday();
-		return day.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+		return day.toLocaleDateString(getLocale() === 'nl' ? 'nl-NL' : 'en-GB', {
+			weekday: 'long',
+			day: 'numeric',
+			month: 'long'
+		});
 	}
 
 	function isNewDay(i: number): boolean {
