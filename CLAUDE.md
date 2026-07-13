@@ -25,6 +25,8 @@ npm run dev
 
 Run all three before opening a PR.
 
+This repo is the canonical dev repo for the app — it's what Railway (or any other deploy target) builds from directly, at the repo root.
+
 ## Architecture invariants
 
 **AH push always sources from Dutch fields.** Recipes store ingredients in Dutch (`recipes.ingredients[].name`) alongside an English display/cache translation. Albert Heijn's product search, basket API, and shopping-list derivation must only ever read the Dutch fields — English fields are display data and are not valid AH lookup keys. If you're touching anything under `src/lib/server/ah/` or shopping-list generation, keep this seam intact.
