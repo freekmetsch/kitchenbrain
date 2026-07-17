@@ -119,7 +119,7 @@ def print_payload(pair: dict) -> None:
     log()
     if copied:
         log("  Copied to your clipboard. Open the app, go to Settings -> Albert Heijn,")
-        log("  and paste it there to connect. That's the last step.")
+        log("  click Connect, then tap 'Paste token & connect'. That's the last step.")
     else:
         log("  Paste the line below into the app, at Settings -> Albert Heijn, to connect:")
     log()

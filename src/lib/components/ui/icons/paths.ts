@@ -33,6 +33,24 @@ export const ICONS = {
 	},
 	chevronLeft: { viewBox: '0 0 16 16', sw: 1.75, paths: ['M10 4l-4 4 4 4'] },
 	chevronRight: { viewBox: '0 0 16 16', sw: 1.75, paths: ['M6 4l4 4-4 4'] },
+	// Clipboard with a top clip — the "paste token" action.
+	clipboard: {
+		viewBox: '0 0 16 16',
+		sw: 1.5,
+		paths: [
+			'M6 3.25H4.5a1 1 0 0 0-1 1v8.5a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-8.5a1 1 0 0 0-1-1H10',
+			'M6 3.25a2 2 0 0 1 4 0V4H6v-.75Z'
+		]
+	},
+	// Two stacked sheets — the "copy command" action.
+	copy: {
+		viewBox: '0 0 16 16',
+		sw: 1.5,
+		paths: [
+			'M6.5 6.5h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1Z',
+			'M3.5 10V3.5a1 1 0 0 1 1-1H10'
+		]
+	},
 	// Albert Heijn shopping cart — native 24×24 heroicons outline cart.
 	cart: {
 		viewBox: '0 0 24 24',

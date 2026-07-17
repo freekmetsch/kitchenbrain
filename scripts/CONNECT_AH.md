@@ -27,9 +27,11 @@ playwright install chromium
    `python scripts/ah_local_login.py --app-url https://jouw-app-adres`
 2. Er opent een browservenster op de inlogpagina van Albert Heijn. **Log in** zoals je normaal zou doen; hier gebeuren de captcha en de gemailde of getexte code. Het venster sluit zichzelf zodra je erdoorheen bent.
 3. Het script kopieert een kort token naar je klembord en meldt dat.
-4. **Open** de app, **ga** naar **Instellingen → Albert Heijn**, en **plak** het token in het vak. De app controleert het token en toont "Connected as \<jouw naam\>". Dat is de laatste stap.
+4. **Open** de app, **ga** naar **Instellingen → Albert Heijn**, klik **Albert Heijn verbinden**, en tik dan op **Token plakken & verbinden**. De app leest de token van je klembord, controleert hem en toont "Connected as \<jouw naam\>". Dat is de laatste stap — je hoeft niets zelf te selecteren of te plakken.
 
-Er wordt nooit een wachtwoord in de terminal getypt. Plakken in de app is de hele afronding.
+Lukt het lezen van het klembord niet (sommige browsers blokkeren dat), klik dan op **Plak hem handmatig** en plak de hele regel — inclusief de `{` en `}` — in het vak.
+
+Er wordt nooit een wachtwoord in de terminal getypt. Eén tik in de app is de hele afronding.
 
 ## Automatisch koppelen (optioneel)
 
@@ -95,9 +97,11 @@ playwright install chromium
    `python scripts/ah_local_login.py --app-url https://your-app-url`
 2. A browser window opens on the Albert Heijn login page. **Log in** the way you normally would; this is where the captcha and the emailed or texted code happen. The window closes itself once you are through.
 3. The script copies a short token to your clipboard and says so.
-4. **Open** the app, **go to** Settings → Albert Heijn, and **paste** the token into the box. It checks the token and shows "Connected as \<your name\>." That is the last step.
+4. **Open** the app, **go to** Settings → Albert Heijn, click **Connect Albert Heijn**, then tap **Paste token & connect**. The app reads the token from your clipboard, checks it, and shows "Connected as \<your name\>." That is the last step — nothing to select or paste by hand.
 
-No password is ever typed into the terminal. Pasting into the app is the whole finish.
+If the browser won't let the app read the clipboard (some do block it), click **Paste it manually instead** and paste the whole line — including the `{` and `}` — into the box.
+
+No password is ever typed into the terminal. One tap in the app is the whole finish.
 
 ## Connect it automatically (optional)
 
