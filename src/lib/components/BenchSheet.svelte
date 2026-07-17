@@ -22,7 +22,7 @@
 	import MergeCard from './cook-mode/MergeCard.svelte';
 	import TimerStack from './cook-mode/TimerStack.svelte';
 	import FixedBottomBar from './ui/FixedBottomBar.svelte';
-	import { paletteFor, streamPalette, type BeatPalette } from './cook-mode/palette';
+	import { fmtClock, paletteFor, streamPalette, type BeatPalette } from './cook-mode/palette';
 	import { isStaleCookMode } from './cook-mode/staleness';
 	import RawDirectionsFallback from './RawDirectionsFallback.svelte';
 	import TimerWorker from '$lib/timer/worker?worker';
@@ -91,10 +91,6 @@
 		}, 1000);
 		return () => clearInterval(id);
 	});
-
-	function formatElapsed(s: number): string {
-		return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-	}
 
 	function adoptCookMode(cm: CookModeRecipe) {
 		cookMode = cm;
@@ -722,7 +718,7 @@
 			<div class="min-w-0 flex-1">
 				<p class="text-[13px] font-medium">
 					{regenerating ? m.benchsheet_refreshing_label() : m.benchsheet_writing_label()}
-					<span class="tabular-nums text-base-content/50">{formatElapsed(genElapsedSec)}</span>
+					<span class="tabular-nums text-base-content/50">{fmtClock(genElapsedSec)}</span>
 				</p>
 				<p class="text-[11px] text-base-content/60 leading-snug">
 					{m.benchsheet_writing_hint_with_raw()}
@@ -744,7 +740,7 @@
 		<Spinner size="lg" />
 		<p class="text-sm text-base-content/70">
 			{regenerating ? m.benchsheet_refreshing_label() : m.benchsheet_writing_label()}
-			<span class="tabular-nums">{formatElapsed(genElapsedSec)}</span>
+			<span class="tabular-nums">{fmtClock(genElapsedSec)}</span>
 		</p>
 		<p class="text-xs text-base-content/50">{m.benchsheet_writing_hint_simple()}</p>
 	</div>

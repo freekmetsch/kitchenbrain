@@ -61,11 +61,6 @@ export function agingBar(item: Item): string {
 	const a = aging(item);
 	return a === 'old' ? 'bg-error' : a === 'soon' ? 'bg-warning' : 'bg-base-content/15';
 }
-export function qtyLabel(item: Item): string {
-	if (item.qtyNum === null || item.qtyNum === undefined) return item.qtyText ?? '';
-	if (item.unit === 'portion') return `${item.qtyNum} ${item.qtyNum === 1 ? 'portion' : 'portions'}`;
-	return `${item.qtyNum}${item.unit ? ' ' + item.unit : ''}`;
-}
 export function foodClassText(slug: string | null): string {
 	return foodCategoryLabel(slug) ?? 'Unclassified';
 }

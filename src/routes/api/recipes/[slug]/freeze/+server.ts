@@ -9,6 +9,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { recipes } from '$lib/server/db/schema';
 import { addInventory } from '$lib/server/inventory_writes';
+import { readJsonBody } from '$lib/server/api_body';
 
 const FreezeSchema = z.object({
 	portions: z.number().int().positive().max(99)
@@ -17,14 +18,7 @@ const FreezeSchema = z.object({
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
-	let body: unknown;
-	try {
-		body = await request.json();
-	} catch {
-		throw error(400, 'Invalid JSON');
-	}
-	const parsed = FreezeSchema.safeParse(body);
-	if (!parsed.success) throw error(400, parsed.error.message);
+	const body = await readJsonBody(request, FreezeSchema);
 
 	const recipe = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
 	if (!recipe) throw error(404, 'Recipe not found');
@@ -37,7 +31,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			name: recipe.title,
 			section: 'freezer',
 			kind: 'leftover',
-			qtyNum: parsed.data.portions,
+			qtyNum: body.portions,
 			unit: 'portion',
 			madeFromRecipeId: recipe.id,
 			recipeStatus: 'linked'

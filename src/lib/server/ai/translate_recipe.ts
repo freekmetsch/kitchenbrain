@@ -1,8 +1,13 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { createMessage, checkDailyCap, DailyCapExceeded, logSpend, parseModelJson } from '$lib/server/ai/client';
+import {
+	createMessage,
+	checkDailyCap,
+	DailyCapExceeded,
+	loadPrompt,
+	logSpend,
+	parseModelJson
+} from '$lib/server/ai/client';
 import { getBackgroundModel } from '$lib/server/ai/config';
 import { db } from '$lib/server/db/index';
 import { recipes, type Ingredient } from '$lib/server/db/schema';
@@ -16,22 +21,8 @@ const TranslationSchema = z.object({
 	directions_en: z.array(z.string())
 });
 
-let translatePrompt: string | null = null;
-
-function loadTranslatePrompt(): string {
-	if (!translatePrompt) {
-		translatePrompt = readFileSync(
-			join(process.cwd(), 'src/lib/server/ai/prompts/recipe_translate.md'),
-			'utf-8'
-		);
-	}
-	return translatePrompt;
-}
-
 function fallbackRecipe(slug: string) {
-	const recipe = db.select().from(recipes).where(eq(recipes.slug, slug)).get();
-	if (!recipe) return null;
-	return recipe;
+	return db.select().from(recipes).where(eq(recipes.slug, slug)).get() ?? null;
 }
 
 export async function translateRecipe(slug: string, opts: { force?: boolean } = {}) {
@@ -48,7 +39,7 @@ export async function translateRecipe(slug: string, opts: { force?: boolean } = 
 	}
 
 	try {
-		const prompt = loadTranslatePrompt();
+		const prompt = loadPrompt('recipe_translate');
 		const payload = {
 			title: recipe.title,
 			category: recipe.category,

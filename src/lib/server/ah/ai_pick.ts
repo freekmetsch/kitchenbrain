@@ -5,10 +5,8 @@
 // plain bag, not à la crème. One batched flash call per preview; any failure
 // (cap, timeout, bad JSON) degrades to the deterministic order.
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { z } from 'zod';
-import { createMessage, checkDailyCap, logSpend, parseModelJson } from '$lib/server/ai/client';
+import { createMessage, checkDailyCap, loadPrompt, logSpend, parseModelJson } from '$lib/server/ai/client';
 import { getBackgroundModel } from '$lib/server/ai/config';
 import type { PreviewItem } from '$lib/shopping_ah';
 
@@ -18,15 +16,6 @@ const AI_TIMEOUT_MS = 12_000;
 const PicksSchema = z.object({
 	picks: z.array(z.object({ ref: z.string(), index: z.number().int().min(0) }))
 });
-
-let pickPrompt: string | null = null;
-
-function loadPickPrompt(): string {
-	if (!pickPrompt) {
-		pickPrompt = readFileSync(join(process.cwd(), 'src/lib/server/ai/prompts/ah_pick.md'), 'utf-8');
-	}
-	return pickPrompt;
-}
 
 /**
  * One batched call over all product-status items without a pinned favorite.
@@ -58,7 +47,7 @@ export async function aiArchetypePicks(items: PreviewItem[]): Promise<Map<string
 		// goes unlogged; acceptable for a flash-tier call).
 		const call = createMessage({
 			model: getBackgroundModel().value,
-			system: loadPickPrompt(),
+			system: loadPrompt('ah_pick'),
 			messages: [{ role: 'user', content: JSON.stringify(payload) }]
 		});
 		call.catch(() => {}); // a post-timeout rejection must not surface as unhandled

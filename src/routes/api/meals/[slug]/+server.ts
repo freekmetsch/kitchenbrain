@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { recipes } from '$lib/server/db/schema';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
+import { readJsonBody } from '$lib/server/api_body';
 import {
 	addSubRecipe,
 	removeSubRecipe,
@@ -29,21 +30,14 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const meal = db.select({ id: recipes.id }).from(recipes).where(eq(recipes.slug, params.slug)).get();
 	if (!meal) throw error(404, 'Recipe not found');
 
-	let body: unknown;
-	try {
-		body = await request.json();
-	} catch {
-		throw error(400, 'Invalid JSON');
-	}
-	const parsed = PatchSchema.safeParse(body);
-	if (!parsed.success) throw error(400, parsed.error.message);
+	const body = await readJsonBody(request, PatchSchema);
 
-	const targetSlug = parsed.data.add_slug ?? parsed.data.remove_slug!;
+	const targetSlug = body.add_slug ?? body.remove_slug!;
 	const target = db.select({ id: recipes.id }).from(recipes).where(eq(recipes.slug, targetSlug)).get();
 	if (!target) throw error(404, 'Sub-recipe not found');
 
 	try {
-		if (parsed.data.add_slug) addSubRecipe(db, meal.id, target.id);
+		if (body.add_slug) addSubRecipe(db, meal.id, target.id);
 		else removeSubRecipe(db, meal.id, target.id);
 	} catch (e) {
 		if (e instanceof MealCompositionError) throw error(422, e.message);

@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { db } from '$lib/server/db/index';
 import { spending } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -144,6 +146,21 @@ export function parseModelJson(text: string): unknown {
 		if (first !== -1 && last > first) return JSON.parse(candidate.slice(first, last + 1));
 		throw new Error('No JSON found in model reply');
 	}
+}
+
+// Lazy, per-process cache for the markdown system prompts in
+// src/lib/server/ai/prompts/. One implementation shared by the background/helper
+// jobs (cook_mode, translate, scrape, ah_pick) instead of each hand-rolling the
+// same readFileSync memoization.
+const promptCache = new Map<string, string>();
+
+export function loadPrompt(name: string): string {
+	let text = promptCache.get(name);
+	if (text === undefined) {
+		text = readFileSync(join(process.cwd(), 'src/lib/server/ai/prompts', `${name}.md`), 'utf-8');
+		promptCache.set(name, text);
+	}
+	return text;
 }
 
 function openRouterKey(): string {

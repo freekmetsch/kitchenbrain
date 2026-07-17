@@ -6,13 +6,11 @@
 // them here; English display fields are produced lazily by translate_recipe.ts.
 import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { readFileSync } from 'fs';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import { join } from 'path';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
-import { createMessage, logSpend, parseModelJson } from '$lib/server/ai/client';
+import { createMessage, loadPrompt, logSpend, parseModelJson } from '$lib/server/ai/client';
 import { getChatModel } from '$lib/server/ai/config';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';
@@ -163,17 +161,6 @@ async function assertPublicHttpUrl(rawUrl: string): Promise<void> {
 	}
 }
 
-let scrapePrompt: string | null = null;
-function loadScrapePrompt(): string {
-	if (!scrapePrompt) {
-		scrapePrompt = readFileSync(
-			join(process.cwd(), 'src/lib/server/ai/prompts/recipe_scrape.md'),
-			'utf-8'
-		);
-	}
-	return scrapePrompt;
-}
-
 export function slugify(title: string): string {
 	return title
 		.toLowerCase()
@@ -260,7 +247,7 @@ function parseJsonLd(ld: any, url: string): ScrapedRecipe {
 }
 
 async function scrapeWithClaude(url: string, html: string): Promise<ScrapedRecipe> {
-	const prompt = loadScrapePrompt();
+	const prompt = loadPrompt('recipe_scrape');
 	const body = html
 		.replace(/<script[\s\S]*?<\/script>/gi, '')
 		.replace(/<style[\s\S]*?<\/style>/gi, '')

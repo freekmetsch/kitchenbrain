@@ -21,7 +21,7 @@
 	drag position component-local.
 
 	On release we snap horizontally to the nearer viewport edge with a smooth
-	transform transition. Vertical position persists where the user dropped it.
+	translate transition. Vertical position persists where the user dropped it.
 -->
 <script lang="ts">
 	import { draggable, type DragEventData, type DragOptions } from '@neodrag/svelte';
@@ -111,15 +111,23 @@
 </script>
 
 {#if endsAt != null}
+	<!--
+		style: directives only — never a dynamic `style` attribute on this node.
+		neodrag positions the pill by writing the element's inline `translate`
+		property imperatively; re-rendering a style attribute replaces the whole
+		inline style and wipes that translate, snapping the pill back to its
+		anchor the moment `dragging` flips. The transition likewise targets
+		`translate` — that's the property neodrag moves, not `transform`.
+	-->
 	<div
 		use:draggable={dragOpts}
 		data-timer-id={id}
 		class="fixed z-[75] flex items-stretch rounded-2xl bg-amber-500 text-white shadow-2xl select-none touch-none {dragging
 			? 'ring-4 ring-white/40'
 			: ''} {done ? 'animate-pulse ring-4 ring-white/60' : ''}"
-		style="bottom: {bottomCss}; right: 0.75rem; transition: transform {dragging
-			? '0ms'
-			: '220ms cubic-bezier(0.16, 1, 0.3, 1)'};"
+		style:bottom={bottomCss}
+		style:right="0.75rem"
+		style:transition={dragging ? 'none' : 'translate 220ms cubic-bezier(0.16, 1, 0.3, 1)'}
 		role="status"
 		aria-live="polite"
 	>

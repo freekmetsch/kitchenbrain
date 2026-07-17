@@ -12,7 +12,8 @@
 -->
 <script lang="ts">
 	import { scaleAmount as scaleIngredientAmount } from '$lib/recipe_scale';
-	import { extractTimers, formatTimer } from '$lib/timer_extract';
+	import { extractTimers } from '$lib/timer_extract';
+	import { fmtClock } from './cook-mode/palette';
 	import { m } from '$lib/paraglide/messages';
 
 	type Ingredient = { name: string; amount: string; unit?: string };
@@ -167,7 +168,7 @@
 												: 'btn-ghost border border-base-300'}"
 										onclick={() => startTimer(timer.key, timer.seconds)}
 									>
-										⏱ {active ? formatTimer(remaining) : done ? m.recipes_fallback_timer_done() : timer.label}
+										⏱ {active ? fmtClock(remaining) : done ? m.recipes_fallback_timer_done() : timer.label}
 									</button>
 								{/each}
 							</div>

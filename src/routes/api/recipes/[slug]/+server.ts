@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { recipes } from '$lib/server/db/schema';
 import { setFreezerStaple } from '$lib/server/freezer_staple';
+import { readJsonBody } from '$lib/server/api_body';
 
 const PatchSchema = z.object({
 	is_freezer_staple: z.boolean().optional(),
@@ -19,15 +20,7 @@ const PatchSchema = z.object({
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
-	let body: unknown;
-	try {
-		body = await request.json();
-	} catch {
-		throw error(400, 'Invalid JSON');
-	}
-	const parsed = PatchSchema.safeParse(body);
-	if (!parsed.success) throw error(400, parsed.error.message);
-	const input = parsed.data;
+	const input = await readJsonBody(request, PatchSchema);
 
 	const recipe = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
 	if (!recipe) throw error(404, 'Recipe not found');

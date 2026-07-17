@@ -11,13 +11,7 @@ import { miscExecutors } from './misc';
 
 const domainMaps = [inventoryExecutors, mealPlanExecutors, recipeExecutors, shoppingExecutors, miscExecutors];
 
-const executors: Record<string, ExecutorFn> = {
-	...inventoryExecutors,
-	...mealPlanExecutors,
-	...recipeExecutors,
-	...shoppingExecutors,
-	...miscExecutors
-};
+const executors: Record<string, ExecutorFn> = Object.assign({}, ...domainMaps);
 
 // Spread-merging silently shadows on a duplicate key (the old monolith made it
 // a TS error) — fail loudly at module load instead.
