@@ -599,7 +599,7 @@
 
 		{#if filtered.length === 0}
 			{#if items.length === 0}
-				<EmptyState icon="📦" title={m.inventory_empty_title()}>
+				<EmptyState iconName="jar" title={m.inventory_empty_title()}>
 					{#snippet action()}
 						<button type="button" class="btn btn-primary btn-sm" onclick={() => (showAddForm = true)}>
 							{m.inventory_empty_add_first_button()}

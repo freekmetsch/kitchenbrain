@@ -318,7 +318,7 @@
 	{#if ahLoading}
 		<div class="space-y-2 py-1" aria-label={m.shopping_ah_matching_products_aria()} role="status">
 			{#each Array(3) as _}
-				<div class="animate-pulse rounded-2xl border border-base-300/60 p-3">
+				<div class="animate-pulse motion-reduce:animate-none rounded-2xl border border-base-300/60 p-3">
 					<div class="h-4 w-1/3 rounded bg-base-200"></div>
 					<div class="mt-3 flex items-center gap-2">
 						<div class="h-10 w-10 shrink-0 rounded-lg bg-base-200"></div>

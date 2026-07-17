@@ -9,6 +9,7 @@
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { optimistic } from '$lib/optimistic';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { addDays, dateOfWeekday, todayIso, APP_TIME_ZONE } from '$lib/week';
@@ -796,7 +797,7 @@
 						</div>
 						{#if suggestLoading}
 							<div class="flex items-center gap-2 py-2 text-sm text-base-content/60">
-								<span class="loading loading-dots loading-xs"></span>
+								<Spinner variant="simmer" size="xs" />
 								{m.mealplan_thinking_label()}
 							</div>
 							{#if suggestText}

@@ -208,7 +208,7 @@
 	{/if}
 
 	{#if !items.length}
-		<EmptyState icon="🛒" title={emptyCopy.title} description={emptyCopy.description}>
+		<EmptyState iconName="basket" title={emptyCopy.title} description={emptyCopy.description}>
 			{#snippet action()}
 				{#if data.emptyState === 'no_meals'}
 					<a href="{base}/meal-plan?week={data.weekStart}" class="btn btn-primary btn-sm">{m.shopping_plan_meals_button()}</a>

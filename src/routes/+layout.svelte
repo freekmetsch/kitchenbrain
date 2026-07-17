@@ -32,8 +32,41 @@
 </script>
 
 {#if $navigating}
-	<div class="fixed top-0 left-0 right-0 h-0.5 bg-primary z-[100] animate-pulse"></div>
+	<!-- Route-change progress: a shimmer sweeping along a faint primary track.
+	     Reduced motion: the sweep stops, leaving a steady bar. -->
+	<div class="nav-progress fixed top-0 left-0 right-0 h-0.5 z-[100]"></div>
 {/if}
+
+<style>
+	.nav-progress {
+		background:
+			linear-gradient(
+					90deg,
+					transparent 0%,
+					var(--color-primary) 40%,
+					var(--color-primary) 60%,
+					transparent 100%
+				)
+				no-repeat,
+			color-mix(in oklab, var(--color-primary) 25%, transparent);
+		background-size: 40% 100%;
+		animation: nav-progress-sweep 1.1s ease-in-out infinite;
+	}
+	@keyframes nav-progress-sweep {
+		0% {
+			background-position: -40% 0;
+		}
+		100% {
+			background-position: 140% 0;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.nav-progress {
+			animation: none;
+			background: var(--color-primary);
+		}
+	}
+</style>
 
 {#if data.user}
 	<div class="h-dvh flex flex-col overflow-hidden">
