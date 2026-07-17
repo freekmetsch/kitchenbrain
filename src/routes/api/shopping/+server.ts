@@ -29,6 +29,11 @@ const DeleteQuerySchema = z.object({
 	name: z.string().min(1).max(256)
 });
 
+// Overrides are keyed by (week, name) — the same filter drives both POST
+// actions' upsert lookup and DELETE.
+const overrideFilter = (weekStart: string, name: string) =>
+	and(eq(shoppingListOverrides.weekStartDate, weekStart), eq(shoppingListOverrides.name, name));
+
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 
@@ -36,20 +41,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const { weekStart, name } = body;
 
 	const now = new Date();
+	const existing = db.select().from(shoppingListOverrides).where(overrideFilter(weekStart, name)).get();
 
 	if (body.action === 'toggle_bought') {
 		const bought = body.bought;
-		const existing = db
-			.select()
-			.from(shoppingListOverrides)
-			.where(
-				and(
-					eq(shoppingListOverrides.weekStartDate, weekStart),
-					eq(shoppingListOverrides.name, name)
-				)
-			)
-			.get();
-
 		if (existing) {
 			db.update(shoppingListOverrides)
 				.set({ bought })
@@ -67,17 +62,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// AH-INVARIANT: manual shopping override names are AH-coupled and should stay Dutch.
 		const amount = body.amount ?? null;
 		const unit = body.unit ?? null;
-		const existing = db
-			.select()
-			.from(shoppingListOverrides)
-			.where(
-				and(
-					eq(shoppingListOverrides.weekStartDate, weekStart),
-					eq(shoppingListOverrides.name, name)
-				)
-			)
-			.get();
-
 		if (existing) {
 			db.update(shoppingListOverrides)
 				.set({ manual: true, amount, unit })
@@ -104,14 +88,7 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
 	if (!parsed.success) error(400, parsed.error.message);
 	const { week: weekStart, name } = parsed.data;
 
-	db.delete(shoppingListOverrides)
-		.where(
-			and(
-				eq(shoppingListOverrides.weekStartDate, weekStart),
-				eq(shoppingListOverrides.name, name)
-			)
-		)
-		.run();
+	db.delete(shoppingListOverrides).where(overrideFilter(weekStart, name)).run();
 
 	return json({ ok: true });
 };

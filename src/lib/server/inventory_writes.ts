@@ -684,11 +684,10 @@ export function setReviewFlag(
 	reason: string | null,
 	ctx: WriteCtx
 ): ReviewFlagResult {
-	const result = updateInventory(
+	return updateInventory(
 		db,
 		itemId,
 		reason === null ? { needsReview: false, reviewReason: null } : { needsReview: true, reviewReason: reason },
 		ctx
 	);
-	return result;
 }

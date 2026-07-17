@@ -9,6 +9,7 @@ import { db } from '$lib/server/db/index';
 import { mealSubRecipes, recipes } from '$lib/server/db/schema';
 import { createMealRecipe, MealCompositionError } from '$lib/server/meal_recipes';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
+import { readJsonBody } from '$lib/server/api_body';
 
 // Sub-recipe candidates for the add/create pickers: every recipe that is not
 // itself a meal (one-level invariant). Being a sub of another meal is fine —
@@ -36,27 +37,20 @@ const CreateMealSchema = z.object({
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
-	let body: unknown;
-	try {
-		body = await request.json();
-	} catch {
-		throw error(400, 'Invalid JSON');
-	}
-	const parsed = CreateMealSchema.safeParse(body);
-	if (!parsed.success) throw error(400, parsed.error.message);
+	const body = await readJsonBody(request, CreateMealSchema);
 
 	const subs = db
 		.select({ id: recipes.id, slug: recipes.slug })
 		.from(recipes)
-		.where(inArray(recipes.slug, parsed.data.sub_recipe_slugs))
+		.where(inArray(recipes.slug, body.sub_recipe_slugs))
 		.all();
-	if (subs.length !== new Set(parsed.data.sub_recipe_slugs).size) {
+	if (subs.length !== new Set(body.sub_recipe_slugs).size) {
 		throw error(404, 'One of the selected recipes was not found');
 	}
 
 	try {
 		const meal = createMealRecipe(db, {
-			title: parsed.data.title,
+			title: body.title,
 			subRecipeIds: subs.map((s) => s.id)
 		});
 		// Pre-generate the combined bench sheet so the meal's first open is instant.

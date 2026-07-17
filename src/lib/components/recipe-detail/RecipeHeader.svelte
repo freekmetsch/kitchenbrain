@@ -50,8 +50,12 @@
 
 	let menuOpen = $state(false);
 
-	function closeMenu() {
-		menuOpen = false;
+	// Every menu item closes the menu, then delegates to its page-level callback.
+	function menuAction(fn: () => void) {
+		return () => {
+			menuOpen = false;
+			fn();
+		};
 	}
 
 	let menuButton: HTMLButtonElement | null = $state(null);
@@ -91,45 +95,11 @@
 		if (!menuOpen) void toggleMenu();
 	}
 
-	function openEditRaw() {
-		closeMenu();
-		onEditRaw();
-	}
+	const pickPhoto = menuAction(() => onPickPhoto());
 
-	function regenerateCookMode() {
-		closeMenu();
-		onRegenerateCookMode();
-	}
-
-	function toggleLanguage() {
-		closeMenu();
-		onToggleLanguage();
-	}
-
-	function forceRetranslate() {
-		closeMenu();
-		onForceRetranslate();
-	}
-
-	function openAiEdit() {
-		closeMenu();
-		onAiEdit();
-	}
-
-	function pickPhoto() {
-		closeMenu();
-		onPickPhoto();
-	}
-
-	function removePhoto() {
-		closeMenu();
-		onRemovePhoto();
-	}
-
-	function openSource() {
-		closeMenu();
+	const openSource = menuAction(() => {
 		if (recipe.sourceUrl) window.open(recipe.sourceUrl, '_blank', 'noopener,noreferrer');
-	}
+	});
 </script>
 
 <svelte:window
@@ -197,7 +167,7 @@
 							role="menuitem"
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={toggleLanguage}
+							onclick={menuAction(onToggleLanguage)}
 							>🌐 {viewLang === 'en' ? m.recipes_header_view_in_dutch() : m.recipes_header_view_in_english()}</button
 						>
 					</li>
@@ -207,7 +177,7 @@
 							role="menuitem"
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={openEditRaw}>✏️ {m.recipes_edit_heading()}</button
+							onclick={menuAction(onEditRaw)}>✏️ {m.recipes_edit_heading()}</button
 						>
 					</li>
 					<li>
@@ -216,7 +186,7 @@
 							role="menuitem"
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={regenerateCookMode}>↻ {m.recipes_header_regenerate_cook_mode()}</button
+							onclick={menuAction(onRegenerateCookMode)}>↻ {m.recipes_header_regenerate_cook_mode()}</button
 						>
 					</li>
 					{#if viewLang === 'en' && recipe.translationStatus === 'ready'}
@@ -226,7 +196,7 @@
 								role="menuitem"
 								data-recipe-menu-item
 								class="w-full text-left px-3 py-2 hover:bg-base-200"
-								onclick={forceRetranslate}>↻ {m.recipes_header_retranslate()}</button
+								onclick={menuAction(onForceRetranslate)}>↻ {m.recipes_header_retranslate()}</button
 							>
 						</li>
 					{/if}
@@ -236,7 +206,7 @@
 							role="menuitem"
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={openAiEdit}>✏️ {m.recipes_header_ai_edit()}</button
+							onclick={menuAction(onAiEdit)}>✏️ {m.recipes_header_ai_edit()}</button
 						>
 					</li>
 					<li>
@@ -256,7 +226,7 @@
 								role="menuitem"
 								data-recipe-menu-item
 								class="w-full text-left px-3 py-2 hover:bg-base-200 text-error"
-								onclick={removePhoto}>🗑 {m.recipes_header_remove_photo()}</button
+								onclick={menuAction(onRemovePhoto)}>🗑 {m.recipes_header_remove_photo()}</button
 							>
 						</li>
 					{/if}

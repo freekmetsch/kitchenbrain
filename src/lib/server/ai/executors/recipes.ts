@@ -32,6 +32,15 @@ function kickTranslateIfAppDb(db: DB, slug: string) {
 	if (db === appDb) kickTranslateOnImport(slug);
 }
 
+// Shared by add_recipe and edit_recipe — one definition of what an ingredient
+// entry looks like on the wire.
+const IngredientSchema = z.object({
+	name: z.string(),
+	amount: z.string(),
+	unit: z.string().optional(),
+	role: z.enum(['cook_in', 'serve_fresh']).optional()
+});
+
 export const recipeExecutors: Record<string, ExecutorFn> = {
 	async get_recipe(raw, db) {
 		const input = z
@@ -121,12 +130,6 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 	},
 
 	async add_recipe(raw, db) {
-		const IngredientSchema = z.object({
-			name: z.string(),
-			amount: z.string(),
-			unit: z.string().optional(),
-			role: z.enum(['cook_in', 'serve_fresh']).optional()
-		});
 		const input = z
 			.object({
 				title: z.string(),
@@ -201,12 +204,6 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 	},
 
 	async edit_recipe(raw, db) {
-		const IngredientSchema = z.object({
-			name: z.string(),
-			amount: z.string(),
-			unit: z.string().optional(),
-			role: z.enum(['cook_in', 'serve_fresh']).optional()
-		});
 		const input = z
 			.object({
 				slug: z.string(),

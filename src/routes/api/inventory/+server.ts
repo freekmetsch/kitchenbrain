@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db } from '$lib/server/db/index';
 import { addInventory } from '$lib/server/inventory_writes';
 import { parseDateOnly } from '$lib/inventory_dates';
+import { readJsonBody } from '$lib/server/api_body';
 
 const AddSchema = z.object({
 	name: z.string().min(1),
@@ -25,16 +26,7 @@ const AddSchema = z.object({
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
-	let body: unknown;
-	try {
-		body = await request.json();
-	} catch {
-		throw error(400, 'Invalid JSON');
-	}
-
-	const parsed = AddSchema.safeParse(body);
-	if (!parsed.success) throw error(400, parsed.error.message);
-	const input = parsed.data;
+	const input = await readJsonBody(request, AddSchema);
 
 	const result = addInventory(
 		db,

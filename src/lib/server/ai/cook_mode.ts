@@ -1,9 +1,14 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { subRecipesOf } from '$lib/server/meal_recipes';
-import { createMessage, checkDailyCap, DailyCapExceeded, logSpend } from '$lib/server/ai/client';
+import {
+	createMessage,
+	checkDailyCap,
+	DailyCapExceeded,
+	loadPrompt,
+	logSpend,
+	parseModelJson
+} from '$lib/server/ai/client';
 import { getChatModel } from '$lib/server/ai/config';
 import { db } from '$lib/server/db/index';
 import { recipes, type Ingredient } from '$lib/server/db/schema';
@@ -169,24 +174,6 @@ const buildCookModeSchema = (maxSteps: number): z.ZodType<CookModeRecipe> =>
 		});
 	});
 
-let cookModePrompt: string | null = null;
-
-function loadPrompt(): string {
-	if (!cookModePrompt) {
-		cookModePrompt = readFileSync(
-			join(process.cwd(), 'src/lib/server/ai/prompts/cook_mode.md'),
-			'utf-8'
-		);
-	}
-	return cookModePrompt;
-}
-
-function parseJsonResponse(text: string) {
-	const trimmed = text.trim();
-	const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-	return JSON.parse(fenced ? fenced[1] : trimmed);
-}
-
 type GenerateResult = Awaited<ReturnType<typeof generateCookModeUncached>>;
 
 // One generation per slug at a time. A cook who opens the recipe, leaves, and
@@ -258,7 +245,7 @@ async function generateCookModeUncached(slug: string, opts: { force?: boolean } 
 	const cap = checkDailyCap();
 	if (cap.exceeded) throw new DailyCapExceeded();
 
-	const prompt = loadPrompt();
+	const prompt = loadPrompt('cook_mode');
 	const payload = {
 		title: recipe.title,
 		ingredients: recipe.ingredients as Ingredient[],
@@ -292,7 +279,7 @@ async function generateCookModeUncached(slug: string, opts: { force?: boolean } 
 		logSpend(msg.model, msg.usage, msg.costUsd);
 		const text = msg.text;
 		try {
-			const parsed = CookModeSchema.safeParse(parseJsonResponse(text));
+			const parsed = CookModeSchema.safeParse(parseModelJson(text));
 			if (parsed.success) {
 				cookMode = parsed.data;
 				break;
