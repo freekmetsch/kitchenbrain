@@ -1,11 +1,12 @@
 <!--
 	Timer chip — shared right-column affordance for ComponentCard sub-rows and
 	MergeCard. Three states: idle (start button with minute count), active
-	(live countdown, tap to cancel), done (success badge with reset). Stops
-	click propagation so the surrounding row tap-target doesn't fire on chip
-	taps. All states keep a ≥ 40 px touch target — the chip sits inside the
-	whole-row toggle button, so an undersized chip turns "start the timer"
-	mistaps into "step done" toggles.
+	(live countdown, tap to cancel), done (success badge with reset). Rendered
+	as a SIBLING of the row's toggle button, never inside it — nesting a
+	<button> in a <button> is invalid HTML the browser repairs at parse time,
+	which breaks SSR hydration. All states keep a ≥ 40 px touch target — the
+	chip sits flush against the whole-row toggle button, so an undersized chip
+	turns "start the timer" mistaps into "step done" toggles.
 -->
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
@@ -30,10 +31,7 @@
 			<button
 				type="button"
 				class="inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-full bg-success/20 text-success text-[12px] font-semibold active:scale-95"
-				onclick={(e) => {
-					e.stopPropagation();
-					onReset();
-				}}
+				onclick={onReset}
 				aria-label={m.cookmode_timerchip_reset_aria()}
 			>
 				<span>{m.cookmode_timerchip_done_label()}</span>
@@ -43,20 +41,14 @@
 			<button
 				type="button"
 				class="inline-flex items-center min-h-10 px-3.5 py-1.5 rounded-full bg-amber-500 text-white text-[13px] font-semibold active:scale-95"
-				onclick={(e) => {
-					e.stopPropagation();
-					onStart();
-				}}
+				onclick={onStart}
 				aria-label={m.cookmode_timerchip_start_aria({ minutes: Math.ceil(seconds / 60) })}>⏱ {Math.ceil(seconds / 60)}m</button
 			>
 		{:else}
 			<button
 				type="button"
 				class="inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-full border-2 border-amber-500 text-amber-600 text-[13px] font-mono font-semibold tabular-nums active:scale-95"
-				onclick={(e) => {
-					e.stopPropagation();
-					onReset();
-				}}
+				onclick={onReset}
 				aria-label={m.cookmode_cancel_timer_aria()}
 			>
 				<span>{remaining != null ? fmtClock(remaining) : '⏱'}</span>
