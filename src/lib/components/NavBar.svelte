@@ -15,12 +15,14 @@
 	import type { IconName } from '$lib/components/ui/icons/paths';
 	import { m } from '$lib/paraglide/messages';
 
+	// Food-themed destination icons from the shared registry: jar = pantry/freezer
+	// stock, cutlery = meals, basket = shopping, chef hat = recipes.
 	const TABS: { path: string; icon: IconName; label: string }[] = [
 		{ path: '/', icon: 'home', label: m.nav_home() },
-		{ path: '/inventory', icon: 'box', label: m.nav_stock() },
-		{ path: '/meal-plan', icon: 'calendar', label: m.nav_meals() },
-		{ path: '/shopping', icon: 'cart', label: m.nav_shopping() },
-		{ path: '/recipes', icon: 'book', label: m.nav_recipes() },
+		{ path: '/inventory', icon: 'jar', label: m.nav_stock() },
+		{ path: '/meal-plan', icon: 'cutlery', label: m.nav_meals() },
+		{ path: '/shopping', icon: 'basket', label: m.nav_shopping() },
+		{ path: '/recipes', icon: 'chefHat', label: m.nav_recipes() },
 		{ path: '/settings', icon: 'settings', label: m.nav_settings() }
 	];
 

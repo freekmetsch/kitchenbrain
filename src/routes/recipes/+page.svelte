@@ -399,7 +399,7 @@
 	<!-- Grid -->
 	{#if data.recipes.length === 0}
 		<EmptyState
-			icon="📖"
+			iconName="chefHat"
 			title={hasActiveFilters ? m.recipes_empty_found_title() : m.recipes_empty_yet_title()}
 			description={hasActiveFilters ? m.recipes_empty_found_desc() : m.recipes_empty_yet_desc()}
 		>
