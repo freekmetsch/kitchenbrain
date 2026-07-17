@@ -157,6 +157,9 @@ export const mealPlanMeals = sqliteTable('meal_plan_meals', {
 	recipeSlug: text('recipe_slug'),
 	status: text('status').notNull().default('planned').$type<'planned' | 'cooked'>(),
 	cookedDate: text('cooked_date'),
+	// Day-to-day planning (Settings → Meal planning, off by default): the ISO
+	// date within the week this meal is pinned to; null = unpinned pool meal.
+	plannedDate: text('planned_date'),
 	note: text('note'),
 	sortOrder: integer('sort_order').notNull().default(0),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()

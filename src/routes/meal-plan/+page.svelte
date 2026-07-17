@@ -9,7 +9,8 @@
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { optimistic } from '$lib/optimistic';
 	import { toast } from '$lib/stores/toast.svelte';
-	import { todayIso, APP_TIME_ZONE } from '$lib/week';
+	import { addDays, dateOfWeekday, todayIso, APP_TIME_ZONE } from '$lib/week';
+	import { weekdayName } from '$lib/weekday';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
@@ -40,6 +41,9 @@
 	let drawerSearch = $state('');
 	let drawerCategory = $state('');
 	let drawerSubmitting = $state(false);
+
+	const prefs = untrack(() => data.mealPlanPrefs);
+	const dayPlanning = prefs.dayPlanning;
 
 	let suggestActive = $state<string | null>(null);
 	let suggestText = $state('');
@@ -127,6 +131,34 @@
 		});
 	}
 
+	function deliveryLabel(iso: string): string {
+		return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
+			timeZone: APP_TIME_ZONE
+		});
+	}
+
+	// Day-to-day planning: the seven dates of a week, offered by the per-meal
+	// day picker. Day-planned meals sort to their day; pool meals sink below.
+	function weekDayOptions(weekStartDate: string): { date: string; label: string }[] {
+		return Array.from({ length: 7 }, (_, i) => {
+			const date = addDays(weekStartDate, i);
+			return { date, label: weekdayName((prefs.weekStartDay + i) % 7, 'short') };
+		});
+	}
+
+	function displayMeals(week: Week): Meal[] {
+		if (!dayPlanning) return week.meals;
+		return [...week.meals].sort(
+			(a, b) =>
+				(a.plannedDate ?? '9999-99-99').localeCompare(b.plannedDate ?? '9999-99-99') ||
+				a.sortOrder - b.sortOrder ||
+				a.id - b.id
+		);
+	}
+
 	function addKey(weekStartDate: string, dinner: string, recipeSlug: string | null = null): string {
 		return `${weekStartDate}:${recipeSlug ?? dinner.trim().toLowerCase()}`;
 	}
@@ -197,7 +229,13 @@
 		}
 		weeks = [
 			...weeks,
-			{ weekStartDate: meal.weekStartDate, weekNumber: meal.weekNumber, meals: [meal] }
+			{
+				weekStartDate: meal.weekStartDate,
+				weekNumber: meal.weekNumber,
+				deliveryDate:
+					prefs.groceryDay == null ? null : dateOfWeekday(meal.weekStartDate, prefs.groceryDay, prefs.weekStartDay),
+				meals: [meal]
+			}
 		].sort((a, b) => a.weekStartDate.localeCompare(b.weekStartDate));
 	}
 
@@ -229,6 +267,7 @@
 			recipeSlug: input.recipeSlug ?? null,
 			status: 'planned',
 			cookedDate: null,
+			plannedDate: null,
 			note: null,
 			sortOrder: week.meals.length,
 			createdAt: new Date()
@@ -303,6 +342,32 @@
 		}
 	}
 
+	async function setPlannedDate(meal: Meal, plannedDate: string | null) {
+		if (pendingToggles[meal.id]) return;
+		const previous = { ...meal };
+		pendingToggles = { ...pendingToggles, [meal.id]: true };
+		updateMeal({ ...meal, plannedDate });
+
+		let saved: Meal | null = null;
+		const ok = await optimistic(
+			async () => {
+				const res = await fetch(`${base}/api/meal-plan/${meal.id}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ plannedDate })
+				});
+				if (res.ok) saved = await res.json();
+				return res;
+			},
+			() => updateMeal(previous),
+			m.mealplan_toast_could_not_update()
+		);
+		const nextToggles = { ...pendingToggles };
+		delete nextToggles[meal.id];
+		pendingToggles = nextToggles;
+		if (ok && saved) updateMeal(saved);
+	}
+
 	async function restoreMeal(meal: Meal) {
 		const key = addKey(meal.weekStartDate, meal.dinner, meal.recipeSlug);
 		if (pendingAdds[key]) return;
@@ -326,7 +391,8 @@
 					body: JSON.stringify({
 						weekStartDate: meal.weekStartDate,
 						dinner: meal.dinner,
-						recipeSlug: meal.recipeSlug
+						recipeSlug: meal.recipeSlug,
+						plannedDate: meal.plannedDate
 					})
 				});
 				if (res.ok) saved = await res.json();
@@ -390,13 +456,19 @@
 		const freezerContext = data.freezerPromptSummary
 			? `Freezer stock available: ${data.freezerPromptSummary}.`
 			: 'No linked freezer meals are currently available.';
+		// Rotation cycle (Settings → Meal planning): recently cooked meals are
+		// off the table for this round.
+		const rotationContext =
+			prefs.repeatCycleDays > 0 && data.recentlyCookedSummary
+				? ` Do NOT suggest these meals — they were cooked within the last ${prefs.repeatCycleDays} days: ${data.recentlyCookedSummary}.`
+				: '';
 
 		try {
 			const res = await fetch(`${base}/api/chat`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					message: `Suggest 5 meals for the week of ${weekStartDate}. Use this household context when useful: ${freezerContext} Recipe library: ${recipeLibrary}. Prefer meals that use available freezer portions or known recipes. Reply in English with only a numbered list of meal names, no explanation.`
+					message: `Suggest ${prefs.suggestCount} meals for the week of ${weekStartDate}. Use this household context when useful: ${freezerContext} Recipe library: ${recipeLibrary}. Prefer meals that use available freezer portions or known recipes.${rotationContext} Reply in English with only a numbered list of meal names, no explanation.`
 				})
 			});
 			if (!res.ok || !res.body) throw new Error('no stream');
@@ -462,10 +534,19 @@
 <div class="ui-page-shell px-4 py-4">
 	<header class="mb-3 flex items-center justify-between gap-3">
 		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.mealplan_heading()}</h1>
-		<a href="{base}/shopping?week={currentWeekStart}" class="btn btn-outline btn-sm shrink-0 gap-1.5">
-			<Icon name="cart" />
-			{m.mealplan_shopping_link()}
-		</a>
+		<div class="flex shrink-0 items-center gap-1.5">
+			<a href="{base}/shopping?week={currentWeekStart}" class="btn btn-outline btn-sm gap-1.5">
+				<Icon name="cart" />
+				{m.mealplan_shopping_link()}
+			</a>
+			<a
+				href="{base}/settings/meal-plan"
+				class="btn btn-ghost btn-sm h-9 min-h-0 w-9 px-0"
+				aria-label={m.mealplan_settings_aria()}
+			>
+				<Icon name="settings" class="h-4 w-4" />
+			</a>
+		</div>
 	</header>
 
 	{#if data.hasPastWeeks || data.showPastWeeks}
@@ -494,6 +575,12 @@
 								{/if}
 							</div>
 							<p class="mt-0.5 text-xs text-base-content/50">{formatWeekRange(week.weekStartDate)}</p>
+							{#if week.deliveryDate}
+								<p class="mt-0.5 inline-flex items-center gap-1 text-xs text-base-content/50">
+									<Icon name="cart" class="h-3 w-3" />
+									{m.mealplan_delivery_label({ date: deliveryLabel(week.deliveryDate) })}
+								</p>
+							{/if}
 						</div>
 						<div class="flex shrink-0 gap-1.5">
 							<a
@@ -525,7 +612,7 @@
 
 				{#if week.meals.length > 0}
 					<ul class="divide-y divide-base-200">
-						{#each week.meals as meal (meal.id)}
+						{#each displayMeals(week) as meal (meal.id)}
 							<li
 								class="flex min-h-14 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-base-200/60"
 								transition:slide={{ duration: 150 }}
@@ -561,6 +648,20 @@
 										</span>
 									{/if}
 								</div>
+								{#if dayPlanning && meal.status !== 'cooked'}
+									<select
+										class="select select-bordered select-xs w-20 shrink-0 {meal.plannedDate ? '' : 'text-base-content/40'}"
+										value={meal.plannedDate ?? ''}
+										disabled={!!pendingToggles[meal.id] || meal.id < 0}
+										aria-label={m.mealplan_day_picker_aria({ dinner: meal.dinner })}
+										onchange={(e) => setPlannedDate(meal, e.currentTarget.value || null)}
+									>
+										<option value="">{m.mealplan_day_unplanned()}</option>
+										{#each weekDayOptions(week.weekStartDate) as day (day.date)}
+											<option value={day.date}>{day.label}</option>
+										{/each}
+									</select>
+								{/if}
 								<button
 									type="button"
 									class="btn btn-ghost btn-sm h-10 min-h-0 w-10 shrink-0 px-0 text-error"

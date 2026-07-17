@@ -11,7 +11,7 @@
 	import AiEditBar from '$lib/components/recipe-detail/AiEditBar.svelte';
 	import FreezerStockPanel from '$lib/components/recipe-detail/FreezerStockPanel.svelte';
 	import AddToPlanSheet from '$lib/components/recipe-detail/AddToPlanSheet.svelte';
-	import type { Recipe, Week } from '$lib/components/recipe-detail/types';
+	import { labelWeeks, type Recipe } from '$lib/components/recipe-detail/types';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { m } from '$lib/paraglide/messages';
 
@@ -20,7 +20,7 @@
 	}: {
 		data: {
 			recipe: Recipe;
-			weeks: Week[];
+			weeks: { weekStartDate: string; weekNumber: number }[];
 			recipeLang: 'en' | 'nl';
 			ingredientStock: boolean[];
 			frozenPortions: number;
@@ -33,6 +33,13 @@
 	} = $props();
 
 	let recipe = $state(untrack(() => data.recipe));
+	let weeks = $derived(
+		labelWeeks(data.weeks, {
+			thisWeek: m.recipes_week_this(),
+			nextWeek: m.recipes_week_next(),
+			weekOf: (date) => m.recipes_freezer_week_of({ date })
+		})
+	);
 
 	let viewLang = $state<'en' | 'nl'>(untrack(() => data.recipeLang));
 	let translationLoading = $state(false);
@@ -263,9 +270,11 @@
 	onchange={onImagePicked}
 />
 
+<!-- Serve-week tabs are a segmented control — keep it to the two nearest
+     weeks; the full planning window lives in the Add-to-plan sheet below. -->
 <FreezerStockPanel
 	{recipe}
-	weeks={data.weeks}
+	weeks={weeks.slice(0, 2)}
 	currentWeekStart={data.currentWeekStart}
 	frozenPortions={data.frozenPortions}
 	hasRoles={data.hasRoles}
@@ -294,7 +303,7 @@
 
 <AddToPlanSheet
 	bind:open={addToPlanOpen}
-	weeks={data.weeks}
+	weeks={weeks}
 	recipeSlug={recipe.slug}
 	dinnerTitle={displayTitle}
 />

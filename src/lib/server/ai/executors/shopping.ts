@@ -1,20 +1,29 @@
 import { z } from 'zod';
-import { eq, isNull, inArray } from 'drizzle-orm';
+import { and, gte, isNull, inArray, lt } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { normalizeNameKey } from '$lib/match';
-import { isoWeekStart } from '$lib/week';
+import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import { todayIso, weekKeyRange, weekStartFor } from '$lib/week';
 import type { ExecutorFn } from './shared';
 
 export const shoppingExecutors: Record<string, ExecutorFn> = {
 	async generate_shopping_list(raw, db) {
 		const input = z.object({ week_start_date: z.string().optional() }).parse(raw);
-		const weekStart = input.week_start_date ?? isoWeekStart();
+		// Household planning-week boundary + range query, mirroring the shopping
+		// page load: meals keyed under an older week-start convention still count.
+		const weekStart = weekStartFor(input.week_start_date ?? todayIso(), getWeekStartDay(db));
+		const keyRange = weekKeyRange(weekStart);
 
 		const meals = db
 			.select()
 			.from(schema.mealPlanMeals)
-			.where(eq(schema.mealPlanMeals.weekStartDate, weekStart))
+			.where(
+				and(
+					gte(schema.mealPlanMeals.weekStartDate, keyRange.from),
+					lt(schema.mealPlanMeals.weekStartDate, keyRange.to)
+				)
+			)
 			.all();
 
 		const slugs = meals.filter((m) => m.recipeSlug).map((m) => m.recipeSlug!);

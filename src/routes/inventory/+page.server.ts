@@ -12,7 +12,8 @@ import {
 	stapleGhostRows,
 	type RecipeSuggestion
 } from '$lib/server/recipe_links';
-import { isoWeekStart } from '$lib/week';
+import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import { todayIso, weekStartFor } from '$lib/week';
 
 export type RecipeMatch = { slug: string; title: string; coverage: number; total: number };
 export type RecipeLink = {
@@ -150,6 +151,6 @@ export const load: PageServerLoad = async () => {
 		leftoverSuggestions,
 		recipeOptions,
 		stapleGhosts,
-		currentWeekStart: isoWeekStart()
+		currentWeekStart: weekStartFor(todayIso(), getWeekStartDay())
 	};
 };

@@ -35,15 +35,56 @@ export function todayIso(): string {
 }
 
 export function isoWeekStart(date: Date | string = new Date()): string {
+	return weekStartFor(date, 0);
+}
+
+/**
+ * Start of the planning week containing `date`, for a configurable start day.
+ * `startDay` counts from Monday: 0 = Monday … 6 = Sunday (the household's
+ * "plan from delivery to delivery" boundary). `weekStartFor(date, 0)` is the
+ * classic ISO Monday week start.
+ */
+export function weekStartFor(date: Date | string = new Date(), startDay: number): string {
 	const iso = typeof date === 'string' ? date : isoDateInAppTimeZone(date);
 	const d = utcDateFromIso(iso);
-	const day = d.getUTCDay();
-	const diff = day === 0 ? -6 : 1 - day;
-	return addDays(iso, diff);
+	// getUTCDay is Sunday-based; shift so 0 = Monday, then back up to the most
+	// recent occurrence of startDay (0 when the date already is that weekday).
+	const dayFromMonday = (d.getUTCDay() + 6) % 7;
+	const diff = (dayFromMonday - startDay + 7) % 7;
+	return addDays(iso, -diff);
 }
 
 export function offsetIsoWeek(weekStart: string, offset: number): string {
 	return addDays(isoWeekStart(weekStart), offset * 7);
+}
+
+/**
+ * ISO date of a weekday within the planning week starting at `weekStart`.
+ * `dayFromMonday` is 0 = Monday … 6 = Sunday regardless of where the planning
+ * week starts; used to place the grocery-delivery day inside a shown week.
+ */
+export function dateOfWeekday(weekStart: string, dayFromMonday: number, weekStartDay: number): string {
+	return addDays(weekStart, (dayFromMonday - weekStartDay + 7) % 7);
+}
+
+/**
+ * Bucket a stored meal-plan week key into the current planning-week convention.
+ * Keys written before a week-start-day change no longer equal any bucket start;
+ * assigning by the key's midpoint (+3 days) puts the old 7-day span in the new
+ * week it overlaps most, so "this week's" meals stay in this week after the
+ * boundary moves. A key that already is a bucket start maps to itself.
+ */
+export function nearestWeekBucket(weekKey: string, startDay: number): string {
+	return weekStartFor(addDays(weekKey, 3), startDay);
+}
+
+/**
+ * SQL-friendly half-open key range [from, to) matching nearestWeekBucket: a
+ * stored week key buckets into `weekStart` exactly when key+3 lands inside
+ * [weekStart, weekStart+7), i.e. key ∈ [weekStart−3, weekStart+4).
+ */
+export function weekKeyRange(weekStart: string): { from: string; to: string } {
+	return { from: addDays(weekStart, -3), to: addDays(weekStart, 4) };
 }
 
 export function isoWeekNumber(date: string): number {

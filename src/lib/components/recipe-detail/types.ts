@@ -36,3 +36,18 @@ export type Recipe = {
 	reviewReason: string | null;
 };
 export type Week = { weekStartDate: string; weekNumber: number; label: string };
+
+/**
+ * Locale-aware labels for the plan-week pickers. The server load sends bare
+ * `{ weekStartDate, weekNumber }` rows; this attaches "This week" / "Next
+ * week" / "Week of …" client-side so the strings translate with the UI.
+ */
+export function labelWeeks(
+	weeks: { weekStartDate: string; weekNumber: number }[],
+	labels: { thisWeek: string; nextWeek: string; weekOf: (date: string) => string }
+): Week[] {
+	return weeks.map((week, i) => ({
+		...week,
+		label: i === 0 ? labels.thisWeek : i === 1 ? labels.nextWeek : labels.weekOf(week.weekStartDate)
+	}));
+}

@@ -1,12 +1,13 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { desc, eq, isNull, inArray } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, inArray, lt } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import * as schema from '$lib/server/db/schema';
 import { namesMatch, normalizeNameKey } from '$lib/match';
 import { expandMealIngredients } from '$lib/server/meal_recipes';
 import { getAHStatus } from '$lib/server/ah/client';
-import { isoWeekStart, offsetIsoWeek } from '$lib/week';
+import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
+import { addDays, dateOfWeekday, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
 
 export type ShoppingItem = {
 	name: string;
@@ -21,13 +22,23 @@ export type ShoppingItem = {
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(302, '/login');
 
+	const prefs = getMealPlanPrefs();
 	const weekParam = url.searchParams.get('week');
-	const weekStart = weekParam ? isoWeekStart(weekParam) : isoWeekStart();
+	const weekStart = weekStartFor(weekParam ?? todayIso(), prefs.weekStartDay);
 
+	// Range query, not equality: meals created before a week-start-day change
+	// keep their old week key. weekKeyRange matches every key whose week
+	// overlaps this planning week the most (same rule as the meal plan page).
+	const keyRange = weekKeyRange(weekStart);
 	const meals = db
 		.select()
 		.from(schema.mealPlanMeals)
-		.where(eq(schema.mealPlanMeals.weekStartDate, weekStart))
+		.where(
+			and(
+				gte(schema.mealPlanMeals.weekStartDate, keyRange.from),
+				lt(schema.mealPlanMeals.weekStartDate, keyRange.to)
+			)
+		)
 		.all();
 
 	const slugs = meals.filter((m) => m.recipeSlug).map((m) => m.recipeSlug!);
@@ -131,9 +142,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	return {
 		weekStart,
-		prevWeek: offsetIsoWeek(weekStart, -1),
-		nextWeek: offsetIsoWeek(weekStart, 1),
-		isCurrentWeek: weekStart === isoWeekStart(),
+		prevWeek: addDays(weekStart, -7),
+		nextWeek: addDays(weekStart, 7),
+		isCurrentWeek: weekStart === weekStartFor(todayIso(), prefs.weekStartDay),
+		deliveryDate:
+			prefs.groceryDay == null ? null : dateOfWeekday(weekStart, prefs.groceryDay, prefs.weekStartDay),
 		emptyState: meals.length === 0 ? 'no_meals' : 'nothing_needed',
 		// Connection status drives the "not connected" banner — the AH push in the
 		// sheet fails closed anyway, but surfacing it up front spares the user the

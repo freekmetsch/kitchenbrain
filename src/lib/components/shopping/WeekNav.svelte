@@ -15,14 +15,26 @@
 		prevWeek: string;
 		nextWeek: string;
 		isCurrentWeek: boolean;
+		/** Grocery-delivery date within the shown week (Settings → Meal planning); null hides the line. */
+		deliveryDate?: string | null;
 	};
-	let { weekStart, prevWeek, nextWeek, isCurrentWeek }: Props = $props();
+	let { weekStart, prevWeek, nextWeek, isCurrentWeek, deliveryDate = null }: Props = $props();
 
 	function weekLabel(iso: string): string {
 		const d = new Date(iso + 'T00:00:00');
 		return d.toLocaleDateString(getLocale() === 'nl' ? 'nl-NL' : 'en-GB', {
 			day: 'numeric',
 			month: 'long',
+			timeZone: APP_TIME_ZONE
+		});
+	}
+
+	function deliveryLabel(iso: string): string {
+		const d = new Date(iso + 'T00:00:00');
+		return d.toLocaleDateString(getLocale() === 'nl' ? 'nl-NL' : 'en-GB', {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
 			timeZone: APP_TIME_ZONE
 		});
 	}
@@ -37,6 +49,9 @@
 			<div class="text-sm font-semibold">
 				{isCurrentWeek ? m.shopping_this_week_label() : m.shopping_week_of_label()} {weekLabel(weekStart)}
 			</div>
+			{#if deliveryDate}
+				<div class="text-xs text-base-content/50">{m.shopping_delivery_label({ date: deliveryLabel(deliveryDate) })}</div>
+			{/if}
 			{#if !isCurrentWeek}
 				<a href="{base}/shopping" class="text-xs text-primary">{m.shopping_back_to_week_button()}</a>
 			{/if}

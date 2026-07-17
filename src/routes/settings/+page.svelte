@@ -2,6 +2,7 @@
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { sortLabel, type SortBy } from '$lib/recipe_sort';
+	import { weekdayName } from '$lib/weekday';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
@@ -24,6 +25,17 @@
 				spend: data.todaySpendEur.toFixed(3),
 				cap: data.chatCapEur.toFixed(2)
 			})
+		},
+		{
+			href: 'meal-plan',
+			title: m.settingsshell_panel_mealplan(),
+			summary:
+				data.mealPlanPrefs.groceryDay == null
+					? m.settingsshell_summary_mealplan({ weekStart: weekdayName(data.mealPlanPrefs.weekStartDay) })
+					: m.settingsshell_summary_mealplan_delivery({
+							weekStart: weekdayName(data.mealPlanPrefs.weekStartDay),
+							delivery: weekdayName(data.mealPlanPrefs.groceryDay)
+						})
 		},
 		{
 			href: 'recipes',

@@ -10,7 +10,8 @@ import { readJsonBody } from '$lib/server/api_body';
 
 const UpdateSchema = z.object({
 	status: z.enum(['planned', 'cooked']).nullable().optional(),
-	cookedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional()
+	cookedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+	plannedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional()
 });
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
@@ -18,6 +19,19 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	const id = parseInt(params.id);
 	if (isNaN(id)) throw error(400, 'Invalid id');
 	const body = await readJsonBody(request, UpdateSchema);
+
+	// Day-planning-only update: assigning/unassigning a day must not touch the
+	// cooked status (the legacy contract below defaults a bare PUT to 'cooked').
+	if (body.plannedDate !== undefined && body.status === undefined && body.cookedDate === undefined) {
+		const meal = db
+			.update(mealPlanMeals)
+			.set({ plannedDate: body.plannedDate })
+			.where(eq(mealPlanMeals.id, id))
+			.returning()
+			.get();
+		if (!meal) throw error(404, 'Meal not found');
+		return json(meal);
+	}
 
 	const newStatus: 'planned' | 'cooked' = body.status ?? 'cooked';
 	const cookedDate = newStatus === 'planned' ? null : (body.cookedDate ?? todayIso());

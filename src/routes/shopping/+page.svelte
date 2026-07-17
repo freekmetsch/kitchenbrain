@@ -147,7 +147,13 @@
 		</button>
 	</header>
 
-	<WeekNav weekStart={data.weekStart} prevWeek={data.prevWeek} nextWeek={data.nextWeek} isCurrentWeek={data.isCurrentWeek} />
+	<WeekNav
+		weekStart={data.weekStart}
+		prevWeek={data.prevWeek}
+		nextWeek={data.nextWeek}
+		isCurrentWeek={data.isCurrentWeek}
+		deliveryDate={data.deliveryDate}
+	/>
 
 	{#if !data.ah.connected && items.length}
 		<div class="mb-3 rounded-2xl border border-warning/25 bg-warning/10 px-3 py-2 text-sm" role="status">

@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { getUserPref } from '$lib/server/db/user_prefs';
 import { getChatModel, getCap } from '$lib/server/ai/config';
 import { getChatTuning } from '$lib/server/ai/tuning';
+import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
 import { getAHStatus } from '$lib/server/ah/client';
 import { todayIso } from '$lib/week';
 import type { PageServerLoad } from './$types';
@@ -33,6 +34,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		reasoning: getChatTuning().reasoning,
 		todaySpendEur,
 		chatCapEur: getCap('chat').value,
-		defaultSort
+		defaultSort,
+		mealPlanPrefs: getMealPlanPrefs()
 	};
 };

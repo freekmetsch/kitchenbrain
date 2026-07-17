@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { eq, isNull, desc } from 'drizzle-orm';
+import { and, eq, gte, isNull, lt, desc } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { namesMatch } from '$lib/match';
 import { recordCook } from '$lib/server/cook_log';
 import { dateInputValue, daysSinceDate } from '$lib/inventory_dates';
-import { isoWeekStart, isoWeekNumber, offsetIsoWeek, todayIso } from '$lib/week';
+import { getMealPlanPrefs, getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import { addDays, isoWeekNumber, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
 import type { ExecutorFn } from './shared';
 
 export const mealPlanExecutors: Record<string, ExecutorFn> = {
@@ -17,28 +18,37 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			})
 			.parse(raw);
 
-		if (input.week_start_date) {
-			const meals = db
+		const weekStartDay = getWeekStartDay(db);
+		// weekKeyRange instead of key equality: meals keyed under an older
+		// week-start convention still land in the week they overlap most.
+		const mealsForWeek = (weekStart: string) => {
+			const keyRange = weekKeyRange(weekStart);
+			return db
 				.select()
 				.from(schema.mealPlanMeals)
-				.where(eq(schema.mealPlanMeals.weekStartDate, input.week_start_date))
+				.where(
+					and(
+						gte(schema.mealPlanMeals.weekStartDate, keyRange.from),
+						lt(schema.mealPlanMeals.weekStartDate, keyRange.to)
+					)
+				)
 				.orderBy(schema.mealPlanMeals.sortOrder)
 				.all();
-			return { weeks: [{ week_start: input.week_start_date, meals }] };
+		};
+
+		if (input.week_start_date) {
+			// Snap to the household's planning-week boundary so a mid-week date
+			// still returns the whole week it belongs to.
+			const weekStart = weekStartFor(input.week_start_date, weekStartDay);
+			return { weeks: [{ week_start: weekStart, meals: mealsForWeek(weekStart) }] };
 		}
 
-		const currentWeekStart = isoWeekStart();
+		const currentWeekStart = weekStartFor(todayIso(), weekStartDay);
 		const numWeeks = input.weeks ?? 2;
 		const weeks = [];
 		for (let i = 0; i < numWeeks; i++) {
-			const weekStart = offsetIsoWeek(currentWeekStart, i);
-			const meals = db
-				.select()
-				.from(schema.mealPlanMeals)
-				.where(eq(schema.mealPlanMeals.weekStartDate, weekStart))
-				.orderBy(schema.mealPlanMeals.sortOrder)
-				.all();
-			weeks.push({ week_start: weekStart, week_number: isoWeekNumber(weekStart), meals });
+			const weekStart = addDays(currentWeekStart, i * 7);
+			weeks.push({ week_start: weekStart, week_number: isoWeekNumber(weekStart), meals: mealsForWeek(weekStart) });
 		}
 		return { weeks };
 	},
@@ -53,10 +63,14 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			})
 			.parse(raw);
 
+		// Same normalization as POST /api/meal-plan: any date inside the week
+		// files the meal under the household's planning-week start.
+		const weekStartDate = weekStartFor(input.week_start_date, getWeekStartDay(db));
+
 		const existing = db
 			.select({ sortOrder: schema.mealPlanMeals.sortOrder })
 			.from(schema.mealPlanMeals)
-			.where(eq(schema.mealPlanMeals.weekStartDate, input.week_start_date))
+			.where(eq(schema.mealPlanMeals.weekStartDate, weekStartDate))
 			.orderBy(desc(schema.mealPlanMeals.sortOrder))
 			.get();
 		const nextOrder = (existing?.sortOrder ?? -1) + 1;
@@ -64,8 +78,8 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 		const meal = db
 			.insert(schema.mealPlanMeals)
 			.values({
-				weekNumber: isoWeekNumber(input.week_start_date),
-				weekStartDate: input.week_start_date,
+				weekNumber: isoWeekNumber(weekStartDate),
+				weekStartDate,
 				dinner: input.dinner,
 				recipeSlug: input.recipe_slug ?? null,
 				note: input.note ?? null,
@@ -74,7 +88,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			})
 			.returning()
 			.get();
-		return { ok: true, id: meal.id, week: input.week_start_date, dinner: meal.dinner };
+		return { ok: true, id: meal.id, week: weekStartDate, dinner: meal.dinner };
 	},
 
 	async remove_meal(raw, db) {
@@ -184,13 +198,26 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			};
 		});
 
+		// Household rotation prefs (Settings → Meal planning): the repeat-cycle
+		// window plus an explicit avoid list so the model doesn't have to derive
+		// it from days_since_cooked itself.
+		const prefs = getMealPlanPrefs(db);
+		const avoidRepeats =
+			prefs.repeatCycleDays > 0
+				? recipesWithOverlap
+						.filter((r) => r.days_since_cooked != null && r.days_since_cooked < prefs.repeatCycleDays)
+						.map((r) => r.title)
+				: [];
+
 		return {
 			inventory: inventoryWithAge,
 			stale_inventory: staleInventory,
 			recent_meals: recentMeals,
 			recipes: recipesWithOverlap,
-			requested_count: input.count ?? 5,
-			target_week: input.week_start_date ?? isoWeekStart()
+			requested_count: input.count ?? prefs.suggestCount,
+			repeat_cycle_days: prefs.repeatCycleDays,
+			avoid_recipes_cooked_recently: avoidRepeats,
+			target_week: input.week_start_date ?? weekStartFor(todayIso(), prefs.weekStartDay)
 		};
 	},
 

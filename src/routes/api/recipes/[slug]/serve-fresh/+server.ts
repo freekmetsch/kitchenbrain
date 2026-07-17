@@ -12,7 +12,8 @@ import { eq, isNull } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { recipes, inventoryItems, shoppingListOverrides } from '$lib/server/db/schema';
 import { serveFreshForRecipe } from '$lib/server/recipe_links';
-import { isoWeekStart } from '$lib/week';
+import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import { todayIso, weekStartFor } from '$lib/week';
 
 const BodySchema = z.object({
 	weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
@@ -29,8 +30,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	}
 	const parsed = BodySchema.safeParse(body);
 	if (!parsed.success) throw error(400, parsed.error.message);
-	// isoWeekStart() also normalizes an off-Monday date to that week's Monday.
-	const weekStart = isoWeekStart(parsed.data.weekStart);
+	// weekStartFor() also normalizes a mid-week date to the household's
+	// planning-week start (Settings → Meal planning).
+	const weekStart = weekStartFor(parsed.data.weekStart ?? todayIso(), getWeekStartDay());
 
 	const recipe = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
 	if (!recipe) throw error(404, 'Recipe not found');

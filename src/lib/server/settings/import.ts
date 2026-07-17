@@ -103,6 +103,8 @@ const MealPlanMealImport = z.object({
 	recipeSlug: z.string().nullable(),
 	status: z.enum(['planned', 'cooked']),
 	cookedDate: z.string().nullable(),
+	// default(null) keeps pre-day-planning export files importable.
+	plannedDate: z.string().nullable().default(null),
 	note: z.string().nullable(),
 	sortOrder: z.number().int(),
 	createdAt: zTimestamp

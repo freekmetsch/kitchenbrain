@@ -1,0 +1,1 @@
+ALTER TABLE `meal_plan_meals` ADD `planned_date` text;
