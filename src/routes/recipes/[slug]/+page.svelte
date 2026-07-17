@@ -306,6 +306,7 @@
 	weeks={weeks}
 	recipeSlug={recipe.slug}
 	dinnerTitle={displayTitle}
+	frozenPortions={data.frozenPortions}
 />
 
 <FreezePortionsModal

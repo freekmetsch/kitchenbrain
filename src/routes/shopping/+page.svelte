@@ -176,11 +176,42 @@
 		</div>
 	{/if}
 
+	{#if data.freezerMeals.length}
+		<div class="mb-3 rounded-2xl border border-info/20 bg-info/10 px-3 py-2 text-sm text-base-content/70" role="status">
+			<div class="flex gap-2">
+				<span class="mt-0.5 shrink-0">❄️</span>
+				<span>
+					{m.shopping_freezer_meals_banner({
+						names: data.freezerMeals.map((f) => f.dinner).join(', ')
+					})}
+				</span>
+			</div>
+		</div>
+	{/if}
+
+	{#if data.freezerMealsMissingFreshInfo.length}
+		<!-- Blind-spot surfacing: a freezer meal whose recipe has no
+		     cook_in/serve_fresh roles contributes nothing to this list, so say so
+		     and point at the recipe instead of silently under-shopping. -->
+		<div class="mb-3 rounded-2xl border border-warning/25 bg-warning/10 px-3 py-2 text-sm" role="status">
+			<div class="flex items-start gap-2">
+				<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+				<span class="text-base-content/70">
+					{m.shopping_freezer_missing_roles_banner()}
+					{#each data.freezerMealsMissingFreshInfo as f, i}
+						{#if i > 0}<span>, </span>{/if}
+						<a href="{base}/recipes/{f.recipeSlug}" class="font-medium text-primary underline-offset-2 hover:underline">{f.dinner}</a>
+					{/each}
+				</span>
+			</div>
+		</div>
+	{/if}
+
 	{#if !items.length}
 		<EmptyState icon="🛒" title={emptyCopy.title} description={emptyCopy.description}>
 			{#snippet action()}
 				{#if data.emptyState === 'no_meals'}
-					<a href="{base}/meal-plan" class="btn btn-primary btn-sm">{m.shopping_plan_meals_button()}</a>
+					<a href="{base}/meal-plan?week={data.weekStart}" class="btn btn-primary btn-sm">{m.shopping_plan_meals_button()}</a>
 				{:else}
 					<a href="{base}/inventory" class="btn btn-outline btn-sm">{m.shopping_view_stock_button()}</a>
 				{/if}

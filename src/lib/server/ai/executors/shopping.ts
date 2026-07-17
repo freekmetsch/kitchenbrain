@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { and, gte, isNull, inArray, lt } from 'drizzle-orm';
+import { and, gte, isNull, lt } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
-import type { Ingredient } from '$lib/server/db/schema';
 import { normalizeNameKey } from '$lib/match';
+import { deriveWeekNeeds } from '$lib/server/shopping_needs';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { todayIso, weekKeyRange, weekStartFor } from '$lib/week';
 import type { ExecutorFn } from './shared';
@@ -26,22 +26,10 @@ export const shoppingExecutors: Record<string, ExecutorFn> = {
 			)
 			.all();
 
-		const slugs = meals.filter((m) => m.recipeSlug).map((m) => m.recipeSlug!);
-		const recipeList =
-			slugs.length > 0
-				? db
-						.select({ slug: schema.recipes.slug, ingredients: schema.recipes.ingredients })
-						.from(schema.recipes)
-						.where(inArray(schema.recipes.slug, slugs))
-						.all()
-				: [];
-
-		const needed = new Map<string, { amount: string; unit?: string }>();
-		for (const recipe of recipeList) {
-			for (const ing of recipe.ingredients as Ingredient[]) {
-				needed.set(ing.name.toLowerCase(), { amount: ing.amount, unit: ing.unit });
-			}
-		}
+		// Shared freezer-aware derivation (same seam as the shopping page): fresh
+		// meals need everything, freezer-served meals only their serve_fresh
+		// sides, and role-less freezer recipes are reported instead of guessed.
+		const needs = deriveWeekNeeds(db, meals);
 
 		const inventory = db
 			.select({ name: schema.inventoryItems.name })
@@ -53,17 +41,27 @@ export const shoppingExecutors: Record<string, ExecutorFn> = {
 		// (not fuzzy substring — avoids "rijst" masking "rijstazijn"). Pantry staples
 		// live in inventory, so this drops them too.
 		const stockKeys = new Set(inventory.map((inv) => normalizeNameKey(inv.name)));
-		const missing = [...needed.entries()]
-			.filter(([name]) => !stockKeys.has(normalizeNameKey(name)))
-			.map(([name, { amount, unit }]) => ({ name, amount, unit: unit ?? null }));
+		const missing = needs.needed
+			.filter(({ name }) => !stockKeys.has(normalizeNameKey(name)))
+			.map(({ name, amount, unit, forMeals, freshSideOnly }) => ({
+				name,
+				amount,
+				unit: unit ?? null,
+				for_meals: forMeals,
+				fresh_side_for_freezer_meal: freshSideOnly
+			}));
 
-		const noRecipeMeals = meals.filter((m) => !m.recipeSlug).map((m) => m.dinner);
+		const freezerNote = needs.freezerMealsMissingFreshInfo.length
+			? ` ${needs.freezerMealsMissingFreshInfo.length} freezer meal(s) lack cook_in/serve_fresh ingredient roles, so their fresh sides are unknown — offer to set roles on those recipes.`
+			: '';
 
 		return {
 			week: weekStart,
 			shopping_list: missing,
-			meals_without_recipe: noRecipeMeals,
-			note: `${meals.length} meals planned. ${missing.length} ingredients needed.`
+			meals_without_recipe: needs.mealsWithoutRecipe,
+			freezer_meals: needs.freezerMeals,
+			freezer_meals_missing_fresh_info: needs.freezerMealsMissingFreshInfo,
+			note: `${meals.length} meals planned. ${missing.length} ingredients needed.${freezerNote}`
 		};
 	}
 };

@@ -4,6 +4,7 @@ import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { namesMatch } from '$lib/match';
 import { recordCook } from '$lib/server/cook_log';
+import { frozenPortionsByRecipe } from '$lib/server/recipe_links';
 import { dateInputValue, daysSinceDate } from '$lib/inventory_dates';
 import { getMealPlanPrefs, getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { addDays, isoWeekNumber, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
@@ -59,9 +60,16 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 				week_start_date: z.string(),
 				dinner: z.string(),
 				recipe_slug: z.string().optional(),
+				source: z.enum(['fresh', 'freezer']).optional(),
 				note: z.string().optional()
 			})
 			.parse(raw);
+
+		// Same rule as POST /api/meal-plan: freezer service needs a recipe link
+		// to resolve the frozen portions and the serve_fresh sides.
+		if (input.source === 'freezer' && !input.recipe_slug) {
+			return { ok: false, error: 'source=freezer requires recipe_slug (frozen portions are linked through the recipe)' };
+		}
 
 		// Same normalization as POST /api/meal-plan: any date inside the week
 		// files the meal under the household's planning-week start.
@@ -82,13 +90,14 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 				weekStartDate,
 				dinner: input.dinner,
 				recipeSlug: input.recipe_slug ?? null,
+				source: input.source ?? 'fresh',
 				note: input.note ?? null,
 				sortOrder: nextOrder,
 				createdAt: new Date()
 			})
 			.returning()
 			.get();
-		return { ok: true, id: meal.id, week: weekStartDate, dinner: meal.dinner };
+		return { ok: true, id: meal.id, week: weekStartDate, dinner: meal.dinner, source: meal.source };
 	},
 
 	async remove_meal(raw, db) {
@@ -121,6 +130,15 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			source: 'plan',
 			mealPlanMealId: meal.id
 		});
+		if (meal.source === 'freezer' && meal.recipeSlug) {
+			// Keep the freezer honest: this meal was served from stocked portions.
+			return {
+				ok: true,
+				meal: meal.dinner,
+				cooked_date: cookedDate,
+				note: `This meal was served from the freezer. Ask how many portions were eaten and deduct them from the leftover linked to recipe '${meal.recipeSlug}' (update_inventory_item, or remove_from_inventory when none are left).`
+			};
+		}
 		return { ok: true, meal: meal.dinner, cooked_date: cookedDate };
 	},
 
@@ -160,6 +178,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 
 		const recipeList = db
 			.select({
+				id: schema.recipes.id,
 				slug: schema.recipes.slug,
 				title: schema.recipes.title,
 				category: schema.recipes.category,
@@ -173,6 +192,11 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			.limit(60)
 			.all();
 
+		// Freezer awareness: frozen portions on hand per recipe, so suggestions
+		// can plan "serve from freezer" meals (source=freezer in plan_meal) that
+		// only need fresh sides bought.
+		const frozenPortions = frozenPortionsByRecipe(db);
+
 		const now = Date.now();
 		const DAY_MS = 86_400_000;
 
@@ -184,6 +208,9 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			const matched = ings.filter((ing) => inventory.some((inv) => namesMatch(ing.name, inv.name)));
 			const lastCookedMs = r.lastCookedAt instanceof Date ? r.lastCookedAt.getTime() : null;
 			const daysSinceCooked = lastCookedMs ? Math.floor((now - lastCookedMs) / DAY_MS) : null;
+			const roles = ings.filter((ing) => ing.role === 'serve_fresh');
+			const hasRoles = ings.some((ing) => ing.role === 'cook_in' || ing.role === 'serve_fresh');
+			const frozen = frozenPortions.get(r.id) ?? 0;
 			return {
 				slug: r.slug,
 				title: r.title,
@@ -192,6 +219,10 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 				ingredient_count: ings.length,
 				inventory_overlap: matched.length,
 				on_hand: matched.map((m) => m.name),
+				frozen_portions_on_hand: frozen,
+				// What still needs making/buying fresh if served from the freezer;
+				// null = the recipe has no roles yet, so the fresh sides are unknown.
+				fresh_sides_if_from_freezer: frozen > 0 ? (hasRoles ? roles.map((ing) => ing.name) : null) : undefined,
 				cooked_count: r.cookedCount ?? 0,
 				days_since_cooked: daysSinceCooked,
 				last_cooked_date: lastCookedMs ? new Date(lastCookedMs).toISOString().slice(0, 10) : null

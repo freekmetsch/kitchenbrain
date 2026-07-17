@@ -52,9 +52,15 @@
 			{#if deliveryDate}
 				<div class="text-xs text-base-content/50">{m.shopping_delivery_label({ date: deliveryLabel(deliveryDate) })}</div>
 			{/if}
-			{#if !isCurrentWeek}
-				<a href="{base}/shopping" class="text-xs text-primary">{m.shopping_back_to_week_button()}</a>
-			{/if}
+			<div class="flex items-center justify-center gap-2 text-xs">
+				<!-- Same-week jump into the plan: shopping and meal plan stay glued
+				     together per week instead of only linking plan → shopping. -->
+				<a href="{base}/meal-plan?week={weekStart}" class="text-primary">{m.shopping_view_meal_plan_link()}</a>
+				{#if !isCurrentWeek}
+					<span class="text-base-content/30">·</span>
+					<a href="{base}/shopping" class="text-primary">{m.shopping_back_to_week_button()}</a>
+				{/if}
+			</div>
 		</div>
 		<a href="{base}/shopping?week={nextWeek}" class="btn btn-ghost btn-sm h-10 min-h-0 w-10 px-0" aria-label={m.shopping_next_week_aria()}>
 			<Icon name="chevronRight" />
