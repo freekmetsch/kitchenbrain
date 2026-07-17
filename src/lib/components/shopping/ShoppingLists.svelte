@@ -95,6 +95,12 @@
 							{#if item.staple}
 								<span class="ui-chip-muted text-warning">{m.shopping_staple_badge()}</span>
 							{/if}
+							{#if item.freshSide}
+								<span class="ui-chip-muted">❄️ {m.shopping_fresh_side_badge()}</span>
+							{/if}
+							{#if item.forMeals?.length}
+								<span class="text-xs text-base-content/40">{m.shopping_for_meals({ meals: item.forMeals.join(', ') })}</span>
+							{/if}
 						</span>
 					</label>
 					{#if item.manual}

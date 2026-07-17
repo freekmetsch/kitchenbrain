@@ -12,7 +12,8 @@ const CreateSchema = z.object({
 	weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 	dinner: z.string().min(1).max(500),
 	recipeSlug: z.string().nullable().optional(),
-	plannedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional()
+	plannedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+	source: z.enum(['fresh', 'freezer']).optional()
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -40,6 +41,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			dinner: body.dinner,
 			recipeSlug: body.recipeSlug ?? null,
 			plannedDate: body.plannedDate ?? null,
+			// A meal can only be served from the freezer when there's a recipe to
+			// link the frozen portions through.
+			source: body.source === 'freezer' && body.recipeSlug ? 'freezer' : 'fresh',
 			sortOrder: nextOrder,
 			createdAt: new Date()
 		})

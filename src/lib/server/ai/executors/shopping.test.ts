@@ -69,9 +69,11 @@ describe('generate_shopping_list', () => {
 		)) as ShoppingResult;
 
 		expect(res.week).toBe(WEEK);
-		// Names come back lowercased (the executor's dedup key doubles as the
-		// output name) — current behavior, asserted as-is.
-		expect(res.shopping_list).toEqual([{ name: 'rijst', amount: '200', unit: 'g' }]);
+		// Canonical Dutch recipe casing is preserved (AH-INVARIANT: these names
+		// feed AH lookups downstream).
+		expect(res.shopping_list.map(({ name, amount, unit }) => ({ name, amount, unit }))).toEqual([
+			{ name: 'Rijst', amount: '200', unit: 'g' }
+		]);
 		expect(res.meals_without_recipe).toEqual([]);
 		expect(res.note).toBe('1 meals planned. 1 ingredients needed.');
 	});
@@ -90,7 +92,7 @@ describe('generate_shopping_list', () => {
 			turnCtx()
 		)) as ShoppingResult;
 
-		expect(res.shopping_list.map((i) => i.name)).toEqual(['rijst']);
+		expect(res.shopping_list.map((i) => i.name)).toEqual(['Rijst']);
 	});
 
 	it('deduplicates an ingredient shared by several planned recipes', async () => {
@@ -108,9 +110,35 @@ describe('generate_shopping_list', () => {
 			turnCtx()
 		)) as ShoppingResult;
 
-		// One entry, not two. Note: amounts are NOT summed — the last recipe's
-		// amount wins (current behavior; see Map overwrite in shopping.ts).
-		expect(res.shopping_list.map((i) => i.name)).toEqual(['rijst']);
+		// One entry, not two. Note: amounts are NOT summed — the first recipe's
+		// amount wins (deriveWeekNeeds keeps the first contribution).
+		expect(res.shopping_list.map((i) => i.name)).toEqual(['Rijst']);
+	});
+
+	it('freezer-planned meals only contribute their serve_fresh sides', async () => {
+		const db = createTestDb();
+		seedRecipe(db, 'curry', [
+			{ name: 'Kipdijfilet', amount: '500', unit: 'g', role: 'cook_in' },
+			{ name: 'Naan', amount: '4', role: 'serve_fresh' }
+		]);
+		await executeToolCall(
+			'plan_meal',
+			{ week_start_date: WEEK, dinner: 'Curry', recipe_slug: 'curry', source: 'freezer' },
+			db,
+			1,
+			turnCtx()
+		);
+
+		const res = (await executeToolCall(
+			'generate_shopping_list',
+			{ week_start_date: WEEK },
+			db,
+			1,
+			turnCtx()
+		)) as ShoppingResult & { freezer_meals: { dinner: string; recipeSlug: string }[] };
+
+		expect(res.shopping_list.map((i) => i.name)).toEqual(['Naan']);
+		expect(res.freezer_meals).toEqual([{ dinner: 'Curry', recipeSlug: 'curry' }]);
 	});
 
 	it('reports meals without a recipe separately', async () => {

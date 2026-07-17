@@ -11,7 +11,8 @@ import { readJsonBody } from '$lib/server/api_body';
 const UpdateSchema = z.object({
 	status: z.enum(['planned', 'cooked']).nullable().optional(),
 	cookedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-	plannedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional()
+	plannedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+	source: z.enum(['fresh', 'freezer']).optional()
 });
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
@@ -20,12 +21,26 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	if (isNaN(id)) throw error(400, 'Invalid id');
 	const body = await readJsonBody(request, UpdateSchema);
 
-	// Day-planning-only update: assigning/unassigning a day must not touch the
-	// cooked status (the legacy contract below defaults a bare PUT to 'cooked').
-	if (body.plannedDate !== undefined && body.status === undefined && body.cookedDate === undefined) {
+	// Metadata-only update (day pin and/or fresh↔freezer source): must not touch
+	// the cooked status (the legacy contract below defaults a bare PUT to 'cooked').
+	if (
+		(body.plannedDate !== undefined || body.source !== undefined) &&
+		body.status === undefined &&
+		body.cookedDate === undefined
+	) {
+		const updates: Partial<{ plannedDate: string | null; source: 'fresh' | 'freezer' }> = {};
+		if (body.plannedDate !== undefined) updates.plannedDate = body.plannedDate;
+		if (body.source !== undefined) {
+			const current = db.select().from(mealPlanMeals).where(eq(mealPlanMeals.id, id)).get();
+			if (!current) throw error(404, 'Meal not found');
+			// Freezer service needs a recipe link to resolve frozen portions.
+			if (body.source === 'freezer' && !current.recipeSlug)
+				throw error(400, 'Only meals linked to a recipe can be served from the freezer');
+			updates.source = body.source;
+		}
 		const meal = db
 			.update(mealPlanMeals)
-			.set({ plannedDate: body.plannedDate })
+			.set(updates)
 			.where(eq(mealPlanMeals.id, id))
 			.returning()
 			.get();

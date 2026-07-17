@@ -184,13 +184,20 @@ export const tools: Anthropic.Tool[] = [
 	},
 	{
 		name: 'plan_meal',
-		description: 'Add a dinner to a specific week in the meal plan.',
+		description:
+			'Add a dinner to a specific week in the meal plan. When frozen portions of the recipe are on hand and the user wants to use them, set source to freezer — the shopping list then only includes the recipe\'s serve_fresh sides for that meal.',
 		input_schema: {
 			type: 'object',
 			properties: {
 				week_start_date: { type: 'string', description: 'ISO Monday date of the target week' },
 				dinner: { type: 'string' },
 				recipe_slug: { type: 'string', description: 'Optional: link to a recipe by slug' },
+				source: {
+					type: 'string',
+					enum: ['fresh', 'freezer'],
+					description:
+						'fresh (default) = cook the recipe that week; freezer = serve stocked frozen portions (requires recipe_slug; only serve_fresh sides get shopped)'
+				},
 				note: { type: 'string' }
 			},
 			required: ['week_start_date', 'dinner']
@@ -209,7 +216,8 @@ export const tools: Anthropic.Tool[] = [
 	},
 	{
 		name: 'mark_meal_cooked',
-		description: 'Mark a planned meal as cooked and record the date.',
+		description:
+			'Mark a planned meal as cooked and record the date. For a meal planned with source=freezer the result reminds you to deduct the eaten portions from the linked freezer leftover (use update_inventory_item / remove_from_inventory after confirming how many portions were eaten).',
 		input_schema: {
 			type: 'object',
 			properties: {
@@ -279,7 +287,8 @@ export const tools: Anthropic.Tool[] = [
 	},
 	{
 		name: 'generate_shopping_list',
-		description: 'Generate a shopping list: planned meal ingredients minus current inventory.',
+		description:
+			'Generate a shopping list: planned meal ingredients minus current inventory. Freezer-planned meals contribute only their serve_fresh sides; freezer meals whose recipe lacks ingredient roles are reported so you can offer to set them.',
 		input_schema: {
 			type: 'object',
 			properties: {

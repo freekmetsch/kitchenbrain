@@ -4,7 +4,7 @@ import { and, desc, eq, gte, isNull, inArray, lt } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import * as schema from '$lib/server/db/schema';
 import { namesMatch, normalizeNameKey } from '$lib/match';
-import { expandMealIngredients } from '$lib/server/meal_recipes';
+import { deriveWeekNeeds } from '$lib/server/shopping_needs';
 import { getAHStatus } from '$lib/server/ah/client';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
 import { addDays, dateOfWeekday, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
@@ -17,6 +17,10 @@ export type ShoppingItem = {
 	manual: boolean;
 	covered?: boolean;
 	staple?: boolean;
+	/** Planned dinners this item is needed for (derived rows only). */
+	forMeals?: string[];
+	/** Needed only as a fresh side next to freezer-served meal(s). */
+	freshSide?: boolean;
 };
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -41,26 +45,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		)
 		.all();
 
-	const slugs = meals.filter((m) => m.recipeSlug).map((m) => m.recipeSlug!);
-	const recipeList =
-		slugs.length > 0
-			? db
-					.select({ id: schema.recipes.id, slug: schema.recipes.slug, ingredients: schema.recipes.ingredients })
-					.from(schema.recipes)
-					.where(inArray(schema.recipes.slug, slugs))
-					.all()
-			: [];
-
-	const needed = new Map<string, { name: string; amount: string; unit?: string }>();
-	for (const recipe of recipeList) {
-		// A planned Meal Recipe expands to its sub-recipes' ingredients plus its
-		// own (ADR 0003) BEFORE the existing week-level dedup below.
-		// AH-INVARIANT: shopping derivation uses canonical Dutch recipe ingredient names.
-		for (const ing of expandMealIngredients(db, recipe)) {
-			if (!needed.has(ing.name.toLowerCase()))
-				needed.set(ing.name.toLowerCase(), { name: ing.name, amount: ing.amount, unit: ing.unit });
-		}
-	}
+	// Freezer-aware derivation (shared with the chat executor): fresh meals need
+	// their full expanded ingredient list, freezer-served meals only their
+	// serve_fresh sides; role-less freezer recipes get surfaced instead of
+	// guessed at. AH-INVARIANT: names are canonical Dutch recipe ingredients.
+	const needs = deriveWeekNeeds(db, meals);
 
 	const inventory = db
 		.select({ name: schema.inventoryItems.name, isStaple: schema.inventoryItems.isStaple })
@@ -76,14 +65,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const stapleKeys = new Set(inventory.filter((inv) => inv.isStaple).map((s) => normalizeNameKey(s.name)));
 	const isStapleName = (name: string) => stapleKeys.has(normalizeNameKey(name));
 
-	const derived: ShoppingItem[] = [...needed.values()].map(({ name, amount, unit }) => ({
+	const derived: ShoppingItem[] = needs.needed.map(({ name, amount, unit, forMeals, freshSideOnly }) => ({
 		name,
 		amount: amount ?? null,
 		unit: unit ?? null,
 		bought: false,
 		manual: false,
 		covered: inventory.some((inv) => namesMatch(name, inv.name)),
-		staple: isStapleName(name)
+		staple: isStapleName(name),
+		forMeals,
+		freshSide: freshSideOnly
 	}));
 
 	const overrides = db
@@ -153,7 +144,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// dead-end round-trip into the modal.
 		ah: getAHStatus(),
 		items,
-		mealsWithoutRecipe: meals.filter((m) => !m.recipeSlug).map((m) => m.dinner),
+		mealsWithoutRecipe: needs.mealsWithoutRecipe,
+		freezerMeals: needs.freezerMeals,
+		freezerMealsMissingFreshInfo: needs.freezerMealsMissingFreshInfo,
 		pushHistory: pushRows.map((row) => ({
 			...row,
 			items: pushItemsById.get(row.id) ?? []

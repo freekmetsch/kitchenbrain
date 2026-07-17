@@ -3,6 +3,7 @@ import type { BenchSheetRating, CookModeRecipe } from '$lib/types';
 import type { MachineActor } from '$lib/actors';
 
 export type IngredientRole = 'cook_in' | 'serve_fresh';
+export type MealSource = 'fresh' | 'freezer';
 export type Ingredient = { name: string; amount: string; unit?: string; role?: IngredientRole };
 export type TranslatedIngredient = { name: string };
 export type TranslationStatus = 'pending' | 'ready' | 'error';
@@ -156,6 +157,10 @@ export const mealPlanMeals = sqliteTable('meal_plan_meals', {
 	dinner: text('dinner').notNull(),
 	recipeSlug: text('recipe_slug'),
 	status: text('status').notNull().default('planned').$type<'planned' | 'cooked'>(),
+	// How the meal will be made: cooked fresh from the recipe, or served from
+	// frozen leftover portions ('freezer' — only serve_fresh ingredients need
+	// buying that week; cooking it consumes linked freezer portions).
+	source: text('source').notNull().default('fresh').$type<MealSource>(),
 	cookedDate: text('cooked_date'),
 	// Day-to-day planning (Settings → Meal planning, off by default): the ISO
 	// date within the week this meal is pinned to; null = unpinned pool meal.

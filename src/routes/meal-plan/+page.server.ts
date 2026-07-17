@@ -11,6 +11,14 @@ export const load: PageServerLoad = async ({ url }) => {
 	const currentWeekStart = weekStartFor(todayIso(), prefs.weekStartDay);
 	const showPastWeeks = url.searchParams.get('past') === '1';
 
+	// ?week=... deep link (shopping page, per-week nav): focus that week's card.
+	// The focused week always gets a card — even a past one outside the normal
+	// window — so the link can never land on a page without its target.
+	const weekParam = url.searchParams.get('week');
+	const focusWeek = /^\d{4}-\d{2}-\d{2}$/.test(weekParam ?? '')
+		? weekStartFor(weekParam!, prefs.weekStartDay)
+		: null;
+
 	// Meals are keyed by the week-start date they were created under; after the
 	// household changes its week-start day, old keys no longer equal the new
 	// bucket starts. Group by nearestWeekBucket (most-overlap week) so legacy
@@ -27,7 +35,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const bucket = nearestWeekBucket(meal.weekStartDate, prefs.weekStartDay);
 		if (bucket < currentWeekStart) {
 			hasPastWeeks = true;
-			if (!showPastWeeks) continue;
+			if (!showPastWeeks && bucket !== focusWeek) continue;
 		}
 		if (!weekMap.has(bucket)) weekMap.set(bucket, []);
 		weekMap.get(bucket)!.push(meal);
@@ -37,6 +45,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const weekStart = addDays(currentWeekStart, i * 7);
 		if (!weekMap.has(weekStart)) weekMap.set(weekStart, []);
 	}
+	if (focusWeek && !weekMap.has(focusWeek)) weekMap.set(focusWeek, []);
 
 	const weeks = [...weekMap.entries()]
 		.sort(([a], [b]) => a.localeCompare(b))
@@ -94,6 +103,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	return {
 		weeks,
 		currentWeekStart,
+		focusWeek,
 		recipeList,
 		showPastWeeks,
 		hasPastWeeks: hasPastWeeks && !showPastWeeks,

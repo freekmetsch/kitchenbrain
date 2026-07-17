@@ -17,16 +17,26 @@
 		open = $bindable(false),
 		weeks,
 		recipeSlug,
-		dinnerTitle
+		dinnerTitle,
+		frozenPortions = 0
 	}: {
 		open?: boolean;
 		weeks: Week[];
 		recipeSlug: string;
 		dinnerTitle: string;
+		/** Frozen portions on hand — offers the cook-fresh vs from-freezer choice when > 0. */
+		frozenPortions?: number;
 	} = $props();
 
 	let addToPlanWeek = $state(untrack(() => weeks[0]?.weekStartDate ?? ''));
+	let addToPlanSource = $state<'fresh' | 'freezer'>('fresh');
 	let addToPlanSubmitting = $state(false);
+
+	// Freezer portions on hand default the plan to serving from the freezer —
+	// that's why the household stocked them. Re-evaluated each time the sheet opens.
+	$effect(() => {
+		if (open) addToPlanSource = frozenPortions > 0 ? 'freezer' : 'fresh';
+	});
 
 	async function addToPlan() {
 		if (addToPlanSubmitting) return;
@@ -38,7 +48,8 @@
 				body: JSON.stringify({
 					weekStartDate: addToPlanWeek,
 					dinner: dinnerTitle,
-					recipeSlug
+					recipeSlug,
+					source: addToPlanSource
 				})
 			});
 			if (res.ok) {
@@ -57,6 +68,29 @@
 </script>
 
 <BottomSheet bind:open title={m.recipes_addplan_sheet_title()}>
+	{#if frozenPortions > 0}
+		<div class="mb-4 flex flex-col gap-1.5">
+			<span class="text-[11px] font-semibold uppercase tracking-wide text-base-content/50"
+				>{m.recipes_addplan_source_label()}</span
+			>
+			<label
+				class="flex items-center gap-2.5 rounded-xl border px-3 py-2 cursor-pointer {addToPlanSource === 'freezer'
+					? 'border-primary bg-primary/5'
+					: 'border-base-300'}"
+			>
+				<input type="radio" class="radio radio-xs radio-primary" bind:group={addToPlanSource} value="freezer" />
+				<span class="text-sm">❄️ {m.recipes_addplan_source_freezer({ count: frozenPortions })}</span>
+			</label>
+			<label
+				class="flex items-center gap-2.5 rounded-xl border px-3 py-2 cursor-pointer {addToPlanSource === 'fresh'
+					? 'border-primary bg-primary/5'
+					: 'border-base-300'}"
+			>
+				<input type="radio" class="radio radio-xs radio-primary" bind:group={addToPlanSource} value="fresh" />
+				<span class="text-sm">🍳 {m.recipes_addplan_source_fresh()}</span>
+			</label>
+		</div>
+	{/if}
 	<div class="flex flex-col gap-2 mb-4">
 		{#each weeks as week}
 			<label

@@ -3,6 +3,8 @@
 	import { onMount, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { slide } from 'svelte/transition';
+	import { invalidateAll } from '$app/navigation';
+	import ConsumePortionsModal from '$lib/components/ConsumePortionsModal.svelte';
 	import FreezePortionsModal from '$lib/components/FreezePortionsModal.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
@@ -63,6 +65,13 @@
 	let freezeTitle = $state('');
 	let freezeDefault = $state(2);
 
+	let consumeOpen = $state(false);
+	let consumeSlug = $state('');
+	let consumeTitle = $state('');
+	let consumeDefault = $state(2);
+	let consumeMax = $state(99);
+	let pendingSourceToggles = $state<Record<number, boolean>>({});
+
 	const DRAWER_CATEGORIES = ['meat', 'vegetarian', 'vegan', 'fish', 'pasta', 'soup', 'dessert'];
 
 	let freezerRecipes = $derived(
@@ -94,6 +103,15 @@
 
 	function recipeDisplayTitle(recipe: Recipe): string {
 		return recipe.titleEn ?? recipe.title;
+	}
+
+	function recipeForMeal(meal: Meal): Recipe | undefined {
+		return meal.recipeSlug ? data.recipeList.find((r) => r.slug === meal.recipeSlug) : undefined;
+	}
+
+	/** Frozen portions on hand for the meal's linked recipe (0 when unlinked). */
+	function frozenPortionsFor(meal: Meal): number {
+		return recipeForMeal(meal)?.onHandPortions ?? 0;
 	}
 
 	function recipeDisplayCategory(recipe: Recipe): string | null {
@@ -248,7 +266,10 @@
 
 	// No success toast: the new row appearing in the week list IS the confirmation
 	// (same contract as /shopping); errors still toast via optimistic().
-	async function addMealOptimistic(input: { weekStartDate: string; dinner: string; recipeSlug?: string | null }, closeDrawer = true): Promise<boolean> {
+	async function addMealOptimistic(
+		input: { weekStartDate: string; dinner: string; recipeSlug?: string | null; source?: 'fresh' | 'freezer' },
+		closeDrawer = true
+	): Promise<boolean> {
 		const dinner = input.dinner.trim();
 		if (!dinner) return false;
 		const week = weekFor(input.weekStartDate);
@@ -266,6 +287,7 @@
 			dinner,
 			recipeSlug: input.recipeSlug ?? null,
 			status: 'planned',
+			source: input.source ?? 'fresh',
 			cookedDate: null,
 			plannedDate: null,
 			note: null,
@@ -283,7 +305,8 @@
 					body: JSON.stringify({
 						weekStartDate: input.weekStartDate,
 						dinner,
-						recipeSlug: input.recipeSlug ?? null
+						recipeSlug: input.recipeSlug ?? null,
+						source: input.source ?? 'fresh'
 					})
 				});
 				if (res.ok) saved = await res.json();
@@ -334,12 +357,56 @@
 		if (!ok || !saved) return;
 		updateMeal(saved);
 		if (newStatus === 'cooked' && meal.recipeSlug) {
-			const recipe = data.recipeList.find((r) => r.slug === meal.recipeSlug);
-			freezeSlug = meal.recipeSlug;
-			freezeTitle = meal.dinner;
-			freezeDefault = recipe?.targetPortions ?? recipe?.servings ?? 2;
-			freezeOpen = true;
+			const recipe = recipeForMeal(meal);
+			if (meal.source === 'freezer') {
+				// Served from the freezer: take the portions OUT of stock instead of
+				// prompting to freeze more of what was just defrosted.
+				const onHand = recipe?.onHandPortions ?? 0;
+				if (onHand > 0) {
+					consumeSlug = meal.recipeSlug;
+					consumeTitle = meal.dinner;
+					consumeMax = onHand;
+					consumeDefault = Math.min(onHand, recipe?.servings ?? 2);
+					consumeOpen = true;
+				} else {
+					toast.error(m.mealplan_toast_no_frozen_portions({ dinner: meal.dinner }));
+				}
+			} else {
+				freezeSlug = meal.recipeSlug;
+				freezeTitle = meal.dinner;
+				freezeDefault = recipe?.targetPortions ?? recipe?.servings ?? 2;
+				freezeOpen = true;
+			}
 		}
+	}
+
+	// Fresh ↔ freezer service toggle on a planned meal. Server rejects freezer
+	// for recipe-less meals; the chip only renders for linked ones anyway.
+	async function toggleSource(meal: Meal) {
+		if (pendingSourceToggles[meal.id] || meal.id < 0) return;
+		const newSource = meal.source === 'freezer' ? 'fresh' : 'freezer';
+		const previous = { ...meal };
+		pendingSourceToggles = { ...pendingSourceToggles, [meal.id]: true };
+		updateMeal({ ...meal, source: newSource });
+
+		let saved: Meal | null = null;
+		const ok = await optimistic(
+			async () => {
+				const res = await fetch(`${base}/api/meal-plan/${meal.id}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ source: newSource })
+				});
+				if (res.ok) saved = await res.json();
+				return res;
+			},
+			() => updateMeal(previous),
+			m.mealplan_toast_could_not_update()
+		);
+		const next = { ...pendingSourceToggles };
+		delete next[meal.id];
+		pendingSourceToggles = next;
+		if (ok && saved) updateMeal(saved);
 	}
 
 	async function setPlannedDate(meal: Meal, plannedDate: string | null) {
@@ -392,7 +459,8 @@
 						weekStartDate: meal.weekStartDate,
 						dinner: meal.dinner,
 						recipeSlug: meal.recipeSlug,
-						plannedDate: meal.plannedDate
+						plannedDate: meal.plannedDate,
+						source: meal.source
 					})
 				});
 				if (res.ok) saved = await res.json();
@@ -430,8 +498,13 @@
 		if (ok) toast.undo(m.mealplan_toast_removed({ dinner: meal.dinner }), () => void restoreMeal(meal));
 	}
 
-	async function addMealFromRecipe(recipe: Recipe) {
-		await addMealOptimistic({ weekStartDate: drawerWeek, dinner: recipeDisplayTitle(recipe), recipeSlug: recipe.slug });
+	async function addMealFromRecipe(recipe: Recipe, source: 'fresh' | 'freezer' = 'fresh') {
+		await addMealOptimistic({
+			weekStartDate: drawerWeek,
+			dinner: recipeDisplayTitle(recipe),
+			recipeSlug: recipe.slug,
+			source
+		});
 	}
 
 	// One input serves both jobs: it filters the recipe lists live, and the
@@ -454,7 +527,7 @@
 			.map((recipe) => recipeDisplayTitle(recipe))
 			.join(', ');
 		const freezerContext = data.freezerPromptSummary
-			? `Freezer stock available: ${data.freezerPromptSummary}.`
+			? `Freezer stock available: ${data.freezerPromptSummary}. Meals served from the freezer only need their fresh sides bought that week (bread, rice, fresh garnishes), so they are cheap low-effort picks.`
 			: 'No linked freezer meals are currently available.';
 		// Rotation cycle (Settings → Meal planning): recently cooked meals are
 		// off the table for this round.
@@ -522,7 +595,9 @@
 	}
 
 	onMount(() => {
-		const el = document.getElementById(`week-${currentWeekStart}`);
+		// A ?week= deep link (e.g. from the shopping page) outranks the default
+		// scroll-to-current-week behavior.
+		const el = document.getElementById(`week-${data.focusWeek ?? currentWeekStart}`);
 		el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	});
 </script>
@@ -646,6 +721,31 @@
 											<Icon name="check" class="h-3 w-3" />
 											{cookedDateLabel(meal.cookedDate)}
 										</span>
+									{/if}
+									{#if meal.status !== 'cooked' && meal.recipeSlug && (meal.source === 'freezer' || frozenPortionsFor(meal) > 0)}
+										{@const onHand = frozenPortionsFor(meal)}
+										<!-- Fresh ↔ freezer service toggle: only rendered when the choice
+										     exists (portions on hand, or already set to freezer). -->
+										<button
+											type="button"
+											class="mt-1 {meal.source === 'freezer'
+												? onHand > 0
+													? 'ui-chip-active'
+													: 'ui-chip border-warning/50 bg-warning/10 text-warning'
+												: 'ui-chip'}"
+											disabled={!!pendingSourceToggles[meal.id] || meal.id < 0}
+											aria-pressed={meal.source === 'freezer'}
+											aria-label={m.mealplan_source_toggle_aria({ dinner: meal.dinner })}
+											onclick={() => toggleSource(meal)}
+										>
+											{#if meal.source === 'freezer'}
+												{onHand > 0
+													? `❄️ ${m.mealplan_source_freezer_chip({ count: onHand })}`
+													: `❄️ ${m.mealplan_source_freezer_empty_chip()}`}
+											{:else}
+												🍳 {m.mealplan_source_fresh_chip({ count: onHand })}
+											{/if}
+										</button>
 									{/if}
 								</div>
 								{#if dayPlanning && meal.status !== 'cooked'}
@@ -806,7 +906,7 @@
 							<button
 								type="button"
 								class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-base-200/60 disabled:opacity-50"
-								onclick={() => addMealFromRecipe(recipe)}
+								onclick={() => addMealFromRecipe(recipe, 'freezer')}
 								disabled={drawerSubmitting || !!pendingAdds[key]}
 							>
 								<span class="min-w-0">
@@ -817,7 +917,7 @@
 										: m.mealplan_portions_ready_plural({ count: recipe.onHandPortions })}
 									</span>
 								</span>
-								<span class="ui-chip-active shrink-0">{m.mealplan_plan_chip()}</span>
+								<span class="ui-chip-active shrink-0">❄️ {m.mealplan_plan_from_freezer_chip()}</span>
 							</button>
 						</li>
 					{/each}
@@ -864,4 +964,27 @@
 	</section>
 </BottomSheet>
 
-<FreezePortionsModal bind:open={freezeOpen} slug={freezeSlug} title={freezeTitle} defaultPortions={freezeDefault} />
+<FreezePortionsModal
+	bind:open={freezeOpen}
+	slug={freezeSlug}
+	title={freezeTitle}
+	defaultPortions={freezeDefault}
+	onFrozen={() => void invalidateAll()}
+/>
+
+<ConsumePortionsModal
+	bind:open={consumeOpen}
+	slug={consumeSlug}
+	title={consumeTitle}
+	defaultPortions={consumeDefault}
+	maxPortions={consumeMax}
+	onConsumed={(consumed, remaining) => {
+		toast.success(
+			remaining > 0
+				? m.mealplan_toast_consumed_remaining({ count: consumed, remaining })
+				: m.mealplan_toast_consumed_last({ count: consumed })
+		);
+		// Refresh onHandPortions so freezer chips and the drawer stay honest.
+		void invalidateAll();
+	}}
+/>
