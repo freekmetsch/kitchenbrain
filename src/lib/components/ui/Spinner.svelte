@@ -58,13 +58,14 @@
 				<path
 					d={pd.d}
 					fill={pd.fill ? 'currentColor' : 'none'}
+					fill-rule="evenodd"
 					stroke={pd.fill ? 'none' : 'currentColor'}
 					stroke-width={pd.sw}
 					opacity={pd.opacity}
 				/>
 			{/each}
-			<path class="steam" d={steamPaths[0].d} stroke="currentColor" />
-			<path class="steam steam-2" d={steamPaths[1].d} stroke="currentColor" />
+			<path class="steam" d={steamPaths[0].d} stroke="currentColor" stroke-width={steamPaths[0].sw} />
+			<path class="steam steam-2" d={steamPaths[1].d} stroke="currentColor" stroke-width={steamPaths[1].sw} />
 		</svg>
 	</span>
 {/if}

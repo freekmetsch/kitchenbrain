@@ -2,7 +2,7 @@
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"nav_home": "Home",
 	"nav_stock": "Voorraad",
-	"nav_meals": "Maaltijden",
+	"nav_meals": "Planning",
 	"nav_shopping": "Boodschappen",
 	"nav_recipes": "Recepten",
 	"nav_settings": "Instellingen",
