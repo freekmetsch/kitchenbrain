@@ -5,7 +5,11 @@ import { db } from '$lib/server/db/index';
 import { recipes, inventoryItems } from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { namesMatch } from '$lib/match';
-import { frozenPortionsByRecipe, serveFreshForRecipe } from '$lib/server/recipe_links';
+import {
+	expandedIngredientRoleCoverage,
+	frozenPortionsByRecipe,
+	serveFreshForRecipe
+} from '$lib/server/recipe_links';
 import { mealsContaining, subRecipesOf } from '$lib/server/meal_recipes';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
 import { addDays, isoWeekNumber, todayIso, weekStartFor } from '$lib/week';
@@ -47,7 +51,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 	// hand + the deterministic serve-fresh completion list (fresh − stock, Dutch).
 	const frozenPortions = frozenPortionsByRecipe(db).get(recipe.id) ?? 0;
 	const serveFresh = serveFreshForRecipe(db, recipe, stockNames, subRecipes);
-	const hasRoles = ings.some((i) => i.role === 'serve_fresh' || i.role === 'cook_in');
+	const roleCoverage = expandedIngredientRoleCoverage(db, recipe, subRecipes);
 
 	return {
 		recipe,
@@ -56,7 +60,8 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		ingredientStock,
 		frozenPortions,
 		serveFresh,
-		hasRoles,
+		hasRoles: roleCoverage.complete,
+		roleCoverage,
 		currentWeekStart,
 		subRecipes,
 		partOfMeals

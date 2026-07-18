@@ -1,8 +1,9 @@
 import type { PageServerLoad } from './$types';
-import { eq, desc, and, isNull, isNotNull, lte } from 'drizzle-orm';
+import { and, isNull, isNotNull, lte } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
-import { chatMessages, inventoryItems } from '$lib/server/db/schema';
+import { inventoryItems } from '$lib/server/db/schema';
 import { checkDailyCap } from '$lib/server/ai/client';
+import { recentChatMessages } from '$lib/server/ai/recent_chat';
 import { isoDateInAppTimeZone } from '$lib/week';
 
 function plusDaysIso(days: number): string {
@@ -11,21 +12,8 @@ function plusDaysIso(days: number): string {
 	return isoDateInAppTimeZone(d);
 }
 
-export const load: PageServerLoad = async ({ locals, url }) => {
-	const messages = db
-		.select({
-			id: chatMessages.id,
-			role: chatMessages.role,
-			content: chatMessages.content,
-			toolCalls: chatMessages.toolCalls,
-			createdAt: chatMessages.createdAt
-		})
-		.from(chatMessages)
-		.where(eq(chatMessages.userId, locals.user!.id))
-		.orderBy(desc(chatMessages.createdAt))
-		.limit(20)
-		.all()
-		.reverse();
+export const load: PageServerLoad = async ({ locals }) => {
+	const messages = recentChatMessages(db, locals.user!.id);
 
 	const expiring = db
 		.select({
@@ -46,8 +34,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.limit(5)
 		.all();
 
-	const prefillMessage = url.searchParams.get('msg');
 	const { exceeded: capExceeded } = checkDailyCap();
 
-	return { messages, expiring, prefillMessage, capExceeded };
+	return { messages, expiring, capExceeded };
 };

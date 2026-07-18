@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kitchenbrain full-app UI audit</title>
+  <style>
+    :root{--ink:#271b16;--muted:#796a62;--paper:#fffdf8;--wash:#f5efe7;--line:#e6dbcf;--brand:#c8512c;--p1:#a62626;--p1bg:#fff0ec;--p2:#9b5b00;--p2bg:#fff6df;--ok:#267056;--shadow:0 14px 38px #5b382016}
+    *{box-sizing:border-box}html{background:#efe8de;color:var(--ink);font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}body{margin:0}main{width:min(1160px,calc(100% - 28px));margin:28px auto 72px}.hero{position:relative;overflow:hidden;padding:clamp(26px,6vw,64px);border:1px solid #ead5c8;border-radius:28px;background:radial-gradient(circle at 90% 10%,#f7c4aa 0 13%,transparent 13.5%),linear-gradient(135deg,#fffaf3,#fff);box-shadow:var(--shadow)}.eyebrow{margin:0 0 10px;color:var(--brand);font-size:.75rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}h1{max-width:780px;margin:0;font:800 clamp(2rem,6vw,4.8rem)/.98 ui-serif,Georgia,serif;letter-spacing:-.04em}.lede{max-width:730px;margin:20px 0 0;color:#66544a;font-size:clamp(1rem,2vw,1.24rem)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.metric{padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--paper)}.metric b{display:block;font-size:1.8rem;line-height:1}.metric span{color:var(--muted);font-size:.82rem}.section{margin-top:22px;padding:24px;border:1px solid var(--line);border-radius:22px;background:var(--paper);box-shadow:0 8px 24px #5b38200b}.section h2{margin:0 0 16px;font:750 1.35rem/1.2 ui-serif,Georgia,serif}.top3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.top3 article{padding:18px;border-radius:16px;background:var(--wash)}.top3 strong{display:block;margin-bottom:6px}.top3 p{margin:0;color:var(--muted);font-size:.92rem}.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.filters button,.copy{min-height:40px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:white;color:var(--ink);font:inherit;font-weight:700;cursor:pointer}.filters button[aria-pressed="true"]{border-color:var(--brand);background:var(--brand);color:white}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:16px}table{width:100%;min-width:830px;border-collapse:collapse}th,td{padding:12px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);font-size:.88rem}th{position:sticky;top:0;background:#f8f2eb;color:#65544b;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}tr:last-child td{border-bottom:0}.badge{display:inline-flex;min-width:36px;justify-content:center;padding:3px 7px;border-radius:999px;font-size:.72rem;font-weight:850}.p1{color:var(--p1);background:var(--p1bg)}.p2{color:var(--p2);background:var(--p2bg)}code{padding:.12em .35em;border-radius:5px;background:#f2ece5;font-size:.82em}.phases{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.phase{padding:16px;border-top:4px solid var(--brand);border-radius:14px;background:var(--wash)}.phase small{color:var(--brand);font-weight:800}.phase h3{margin:4px 0 8px;font-size:1rem}.phase p{margin:0;color:var(--muted);font-size:.85rem}.prompt{margin-top:18px;padding:18px;border-radius:16px;background:#2d211c;color:#fff}.prompt header{display:flex;align-items:center;justify-content:space-between;gap:12px}.prompt h2{margin:0;font:700 1.1rem ui-serif,Georgia,serif}.copy{border-color:#ffffff35;background:#fff;color:#2d211c}.prompt pre{white-space:pre-wrap;margin:14px 0 0;color:#f9eadd;font-size:.84rem}.prompt textarea{position:absolute;left:-9999px;width:1px;height:1px}.foot{margin-top:18px;color:var(--muted);font-size:.8rem;text-align:center}a{color:var(--brand)}
+    @media(max-width:820px){main{margin-top:14px}.metrics{grid-template-columns:repeat(2,1fr)}.top3,.phases{grid-template-columns:1fr}.section{padding:17px}.hero{border-radius:20px}.metric b{font-size:1.45rem}}
+  </style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <p class="eyebrow">Kitchenbrain · UI audit · 18 July 2026</p>
+    <h1>The polish gap lives at the seams.</h1>
+    <p class="lede">The visual language is coherent. The breakage comes from independent scroll containers, fixed overlays, async reconciliation, and incomplete server-derived UI states. Fix those before adding motion or delight.</p>
+  </section>
+
+  <section class="metrics" aria-label="Audit metrics">
+    <div class="metric"><b>18</b><span>ranked findings</span></div>
+    <div class="metric"><b>9</b><span>P1 blockers, one conditional</span></div>
+    <div class="metric"><b>72</b><span>route/viewport captures</span></div>
+    <div class="metric"><b>4,824 px</b><span>reproduced chat scroller</span></div>
+  </section>
+
+  <section class="section">
+    <h2>Highest-leverage sequence</h2>
+    <div class="top3">
+      <article><strong>1. Restore spatial correctness</strong><p>Reset/restore the custom page scroller, reserve fixed-bar space, and coordinate toast/nav/safe-area offsets.</p></article>
+      <article><strong>2. Restore state correctness</strong><p>Make inventory Undo reconcile visibly and make ingredient-role coverage exact across expanded recipes.</p></article>
+      <article><strong>3. Make chat and editing resilient</strong><p>Contain long content now; replace scattered AI edit bars through the separate contextual-agent plan.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Ranked findings</h2>
+    <div class="filters" aria-label="Filter findings">
+      <button type="button" aria-pressed="true" data-filter="all">All 18</button>
+      <button type="button" aria-pressed="false" data-filter="P1">P1 only</button>
+      <button type="button" aria-pressed="false" data-filter="P2">P2 only</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Priority</th><th>Area</th><th>Finding</th><th>Evidence</th><th>Direction</th></tr></thead>
+        <tbody>
+          <tr data-priority="P1"><td><span class="badge p1">P1</span></td><td>Navigation</td><td>Custom main scroller survives route changes; the next H1 can be entirely above the viewport.</td><td><code>+layout.svelte:71</code>; browser measured H1 top −47 px.</td><td>Custom-container forward reset plus back/forward restoration.</td></tr>
+          <tr data-priority="P1"><td><span class="badge p1">P1</span></td><td>Recipe edit</td><td>Notes is covered by the fixed Saved bar.</td><td>21.25 px intersection; computed bottom padding 16 px.</td><td>Shared nav + bar + safe-area offset contract.</td></tr>
+          <tr data-priority="P1"><td><span class="badge p1">P1</span></td><td>Home chat</td><td>Long tokens and tool values create a nested horizontal scrollbar.</td><td><code>ChatView.svelte:543–639</code>; reproduced width 4,824 px.</td><td><code>min-w-0</code>, x containment, arbitrary-word wrapping.</td></tr>
+          <tr data-priority="P1"><td><span class="badge p1">P1</span></td><td>Stock Undo</td><td>DB restore can succeed while the row remains absent until refresh.</td><td><code>inventory/+page.svelte:473–505</code>; combined remove/Undo repro.</td><td>Optimistic snapshot reinsertion, server reconciliation, rollback.</td></tr>
+          <tr data-priority="P1"><td><span class="badge p1">P1</span></td><td>Ingredient roles</td><td><code>some(role)</code> treats partial coverage as complete and may omit fresh ingredients from shopping.</td><td>Recipe detail load, <code>recipe_links.ts</code>, <code>shopping_needs.ts</code>.</td><td>Expanded coverage with total/classified/unknown names.</td></tr>
+          <tr data-priority="P1"><td><span class="badge p1">P1</span></td><td>Recipe AI</td><td>Faint 11 px CTA opens above itself, then navigates to a clipped Home composer.</td><td>Paired browser captures; <code>AiEditBar.svelte</code>.</td><td>Contextual full agent; no auto-send or route change.</td></tr>
+          <tr data-priority="P1"><td><span class="badge p1">P1</span></td><td>Overlays</td><td>Toast and fixed bottom action bars occupy the same band.</td><td><code>Toast.svelte:19–35</code>; <code>FixedBottomBar.svelte:19–30</code>.</td><td>Layout-owned overlay offsets.</td></tr>
+          <tr data-priority="P1"><td><span class="badge p1">P1</span></td><td>Accessibility</td><td>Cook timer’s polite live region changes every second.</td><td><code>Timer.svelte:122–149</code>.</td><td>Announce meaningful timer events only.</td></tr>
+          <tr data-priority="P1"><td><span class="badge p1">P1</span></td><td>Installed PWA</td><td>Most pages do not clear the top safe area with <code>viewport-fit=cover</code>.</td><td><code>app.html:9</code>; layout lacks top inset.</td><td>Central safe-area ownership; portrait/landscape verification.</td></tr>
+          <tr data-priority="P2"><td><span class="badge p2">P2</span></td><td>Stock copy</td><td>Canonical unit renders raw as “2 portion”.</td><td>375 px browser repro; QtyControl raw unit.</td><td>Localized display quantity helper.</td></tr>
+          <tr data-priority="P2"><td><span class="badge p2">P2</span></td><td>Recipe editing</td><td>Edit paths are hidden/ambiguous; dense repeated fields lack persistent labels and role controls.</td><td><code>RecipeHeader.svelte:189–225</code>; edit form.</td><td>Direct Edit, section editing, labels, role controls, draft recovery.</td></tr>
+          <tr data-priority="P2"><td><span class="badge p2">P2</span></td><td>Localization</td><td>Dutch UI leaks Meat/Fish/Veggie/Other and English status/date strings.</td><td>NL browser capture plus shared formatter sources.</td><td>Locale-aware labels and sentinel tests.</td></tr>
+          <tr data-priority="P2"><td><span class="badge p2">P2</span></td><td>Touch</td><td>Several critical compact actions are below 24 px high.</td><td>Automated bounding-box scan.</td><td>Shared compact-action primitive; 36–44 px mobile target.</td></tr>
+          <tr data-priority="P2"><td><span class="badge p2">P2</span></td><td>Bottom nav</td><td>Six equal destinations force tiny labels and fragile Dutch Shopping copy.</td><td><code>NavBar.svelte:20–53</code>.</td><td>Short labels or five-plus-More responsive IA.</td></tr>
+          <tr data-priority="P2"><td><span class="badge p2">P2</span></td><td>Motion</td><td>Durations/easings are hard-coded across sheets, chat, lists, and swipe.</td><td>App CSS, BottomSheet, ChatView, swipe helper.</td><td>Micro/content/large tokens; preserve reduced motion.</td></tr>
+          <tr data-priority="P2"><td><span class="badge p2">P2</span></td><td>Settings</td><td>Username initial is not centered inside its avatar at mobile or desktop widths.</td><td>375/1280 captures; <code>settings/+page.svelte:69–72</code>.</td><td>Explicit grid/flex centering.</td></tr>
+          <tr data-priority="P2"><td><span class="badge p2">P2</span></td><td>Page title</td><td>Home has no title and can inherit “Bolognese · Recipes” after SPA navigation.</td><td>Browser role-handoff repro.</td><td>Localized Home head title plus route assertions.</td></tr>
+          <tr data-priority="P2"><td><span class="badge p2">P2</span></td><td>Filter rails</td><td>Intentional horizontal chip rails have no cue that more choices exist.</td><td>Stock/Recipes 375 px captures.</td><td>Edge fade and focus/selection visibility.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Execution shape</h2>
+    <div class="phases">
+      <article class="phase"><small>Phase 1 · R1/R2</small><h3>Visible breakage</h3><p>Scroll, fixed surfaces, chat width, Undo, role coverage.</p></article>
+      <article class="phase"><small>Phase 2 · R2</small><h3>Recipe and AI friction</h3><p>Contextual agent, editing IA, complete role component.</p></article>
+      <article class="phase"><small>Phase 3 · R1/R2</small><h3>Access and language</h3><p>Timer, localization, targets, nav, title, avatar.</p></article>
+      <article class="phase"><small>Phase 4 · R1</small><h3>Unified feel</h3><p>Motion tokens, scroll affordances, regression captures.</p></article>
+    </div>
+  </section>
+
+  <section class="prompt">
+    <header><h2>Execution handoff</h2><button class="copy" type="button" onclick="copyPrompt(this)">Copy prompt</button></header>
+    <pre id="prompt-text"></pre>
+    <textarea id="prompt-fallback" readonly onclick="this.select()"></textarea>
+  </section>
+  <p class="foot">Backing plan: <a href="../archive/2026-07/FEATURE_LIST_UI_FULL_APP.md">FEATURE_LIST_UI_FULL_APP.md</a>. Browser evidence remains local under <code>output/playwright/</code>.</p>
+</main>
+<script>
+(function(){
+  const source='docs/archive/2026-07/FEATURE_LIST_UI_FULL_APP.md';
+  function build(){const text=['Continue: Execute Phase 1 of the full-app UI plan. Load '+source+', then /run.','State: 18 findings (9 P1, 9 P2); begin with scroll restoration and fixed-surface obstruction before async state and role correctness.'].join('\n');document.getElementById('prompt-text').textContent=text;document.getElementById('prompt-fallback').value=text;}
+  document.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{const value=button.dataset.filter;document.querySelectorAll('[data-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));document.querySelectorAll('tbody tr').forEach(row=>row.hidden=value!=='all'&&row.dataset.priority!==value);}));
+  window.copyPrompt=function(button){const text=document.getElementById('prompt-text').textContent;navigator.clipboard.writeText(text).then(()=>{button.textContent='Copied';setTimeout(()=>button.textContent='Copy prompt',1600)}).catch(()=>{button.textContent='Select and copy';document.getElementById('prompt-fallback').select();setTimeout(()=>button.textContent='Copy prompt',2200)});};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);else build();
+})();
+</script>
+</body>
+</html>

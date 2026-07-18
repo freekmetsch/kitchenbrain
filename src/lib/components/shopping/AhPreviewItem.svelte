@@ -11,6 +11,7 @@
 	import PendingButton from '$lib/components/ui/PendingButton.svelte';
 	import { formatPrice, itemLabel } from './format';
 	import type { Decision } from './types';
+	import { MOTION_MICRO_MS } from '$lib/motion';
 
 	type Props = {
 		item: PreviewItem;
@@ -148,7 +149,7 @@
 			<button type="button" class="py-1.5 text-base-content/50" onclick={() => onDemoteToText()}>{m.shopping_ah_send_as_text()}</button>
 		</div>
 		{#if expanded}
-			<ul class="mt-2 max-h-64 space-y-1 overflow-y-auto border-t border-base-200 pt-2" transition:slide={{ duration: 150 }}>
+			<ul class="mt-2 max-h-64 space-y-1 overflow-y-auto border-t border-base-200 pt-2" transition:slide={{ duration: MOTION_MICRO_MS }}>
 				{#each item.candidates as cand, idx (cand.id)}
 					<li class="flex items-center gap-1">
 						<button

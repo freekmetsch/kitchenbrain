@@ -19,7 +19,7 @@
 	--color-base-200: oklch(96.5% 0.008 85);
 	--color-base-300: oklch(92% 0.012 85);
 	--color-base-content: oklch(24% 0.015 60);
-	--color-primary: oklch(58% 0.15 40);
+	--color-primary: oklch(50% 0.15 40);
 	--color-primary-content: oklch(98% 0.01 40);
 	--color-secondary: oklch(55% 0.09 150);
 	--color-secondary-content: oklch(98% 0.01 150);
@@ -44,6 +44,51 @@
 	--border: 1px;
 	--depth: 1;
 	--noise: 0;
+}
+
+:root {
+	--ui-safe-top: env(safe-area-inset-top, 0px);
+	--ui-safe-bottom: env(safe-area-inset-bottom, 0px);
+	--ui-nav-height: 3.5rem;
+	--ui-nav-offset: calc(var(--ui-nav-height) + var(--ui-safe-bottom));
+	--ui-fixed-bar-height: 0px;
+	--ui-overlay-gap: 0.75rem;
+	--ui-overlay-bottom: calc(
+		var(--ui-nav-offset) + var(--ui-fixed-bar-height) + var(--ui-overlay-gap)
+	);
+	--motion-micro: 150ms;
+	--motion-content: 240ms;
+	--motion-large: 380ms;
+	--ease-standard: cubic-bezier(0.2, 0, 0, 1);
+	--ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.app-shell {
+	padding-top: var(--ui-safe-top);
+}
+
+.app-main {
+	scroll-padding-block: 1rem calc(var(--ui-fixed-bar-height) + 1rem);
+}
+
+/* Secondary copy still has to meet normal-text contrast. Tailwind opacity
+   utilities below 70% were repeatedly failing axe on the warm paper base, so
+   they share one accessible floor while typography/weight preserve hierarchy. */
+:is(
+	.text-base-content\/30,
+	.text-base-content\/35,
+	.text-base-content\/40,
+	.text-base-content\/45,
+	.text-base-content\/50,
+	.text-base-content\/55,
+	.text-base-content\/60,
+	.text-base-content\/65
+) {
+	color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
+}
+
+.text-primary\/80 {
+	color: var(--color-primary);
 }
 
 @plugin "daisyui/theme" {
@@ -91,7 +136,8 @@
 
 /* Page container: centered column with bottom-nav clearance. */
 @utility ui-page-shell {
-	@apply mx-auto max-w-2xl pb-28;
+	@apply mx-auto max-w-2xl;
+	padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 }
 
 /* Grouped list / card surface (rows go inside; add `divide-y divide-base-200`). */
@@ -116,13 +162,42 @@
 
 /* Chip / pill — pick exactly one variant (they are self-contained, not additive). */
 @utility ui-chip {
-	@apply inline-flex items-center gap-1.5 rounded-full border border-base-300 px-2.5 py-[3px] text-[11px] font-medium text-base-content/60 transition-colors hover:border-base-content/25 active:bg-base-content/5;
+	@apply inline-flex min-h-9 items-center gap-1.5 rounded-full border border-base-300 px-2.5 py-[3px] text-[11px] font-medium text-base-content/60 transition-colors hover:border-base-content/25 active:bg-base-content/5;
 }
 @utility ui-chip-active {
-	@apply inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-[3px] text-[11px] font-medium text-primary transition-colors active:bg-primary/20;
+	@apply inline-flex min-h-9 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-[3px] text-[11px] font-medium text-primary transition-colors active:bg-primary/20;
 }
 @utility ui-chip-muted {
-	@apply inline-flex items-center gap-1.5 rounded-full border border-base-300/70 bg-base-200/60 px-2.5 py-[3px] text-[11px] font-medium text-base-content/50 transition-colors active:bg-base-content/5;
+	@apply inline-flex min-h-9 items-center gap-1.5 rounded-full border border-base-300/70 bg-base-200/60 px-2.5 py-[3px] text-[11px] font-medium text-base-content/50 transition-colors active:bg-base-content/5;
+}
+
+@utility ui-compact-action {
+	@apply inline-flex min-h-9 min-w-9 items-center justify-center;
+}
+
+/* `xs` is a visual-density choice, not a smaller hit target. */
+.btn.btn-xs,
+.select.select-xs {
+	min-height: 2.25rem;
+}
+.btn.btn-circle.btn-xs {
+	width: 2.25rem;
+	min-width: 2.25rem;
+}
+
+/* Horizontal filter rails: edge fades signal continuation, while scroll
+   padding keeps keyboard-focused chips clear of the fade. */
+@utility ui-scroll-rail {
+	@apply overflow-x-auto;
+	scroll-padding-inline: 0.75rem;
+	scrollbar-width: thin;
+	mask-image: linear-gradient(
+		to right,
+		transparent,
+		black 0.75rem,
+		black calc(100% - 0.75rem),
+		transparent
+	);
 }
 
 /* ── z-scale (documented tokens) ───────────────────────────────────────────────
@@ -132,14 +207,15 @@
 @utility ui-z-nav { z-index: 50; }
 @utility ui-z-scrim { z-index: 55; }
 @utility ui-z-sheet { z-index: 60; }
-@utility ui-z-toast { z-index: 70; }
+@utility ui-z-agent { z-index: 80; }
+@utility ui-z-toast { z-index: 90; }
 
 /* View transitions — slide between pages */
 ::view-transition-old(root) {
-	animation: vt-out 0.15s ease both;
+	animation: vt-out var(--motion-micro) var(--ease-standard) both;
 }
 ::view-transition-new(root) {
-	animation: vt-in 0.15s ease both;
+	animation: vt-in var(--motion-micro) var(--ease-standard) both;
 }
 @keyframes vt-out {
 	to { opacity: 0; transform: translateX(-6px); }
@@ -150,7 +226,7 @@
 
 /* Tool-call disclosure accordion expand */
 details[open] > :not(summary) {
-	animation: details-expand 0.15s ease;
+	animation: details-expand var(--motion-micro) var(--ease-standard);
 }
 @keyframes details-expand {
 	from { opacity: 0; transform: translateY(-4px); }

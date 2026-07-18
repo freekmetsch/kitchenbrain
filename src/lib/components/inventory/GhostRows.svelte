@@ -12,6 +12,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { patchKeepStocked } from '$lib/keep_stocked';
 	import type { StapleGhost } from './shared';
+	import { MOTION_MICRO_MS } from '$lib/motion';
 
 	let {
 		ghosts,
@@ -38,7 +39,7 @@
 </script>
 
 {#each ghosts as ghost (ghost.slug)}
-	<li class="flex gap-2.5 bg-base-100 px-3 py-2" transition:slide={{ duration: 150 }}>
+	<li class="flex gap-2.5 bg-base-100 px-3 py-2" transition:slide={{ duration: MOTION_MICRO_MS }}>
 		<span class="my-0.5 w-1 shrink-0 rounded-full bg-warning/50" aria-hidden="true"></span>
 		<div class="min-w-0 flex-1">
 			<div class="flex items-center gap-2">

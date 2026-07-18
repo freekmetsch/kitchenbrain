@@ -51,6 +51,35 @@ export function frozenPortionsByRecipe(db: DB): Map<number, number> {
 
 export type FreshItem = { name: string; amount: string | null; unit: string | null };
 
+export type IngredientRoleCoverage = {
+	total: number;
+	classified: number;
+	unknownNames: string[];
+	complete: boolean;
+};
+
+/** Exact role coverage for the expanded Dutch ingredient list. */
+export function ingredientRoleCoverage(ingredients: Ingredient[]): IngredientRoleCoverage {
+	const relevant = ingredients.filter((ingredient) => ingredient.name.trim().length > 0);
+	const unknownNames = relevant
+		.filter((ingredient) => ingredient.role !== 'cook_in' && ingredient.role !== 'serve_fresh')
+		.map((ingredient) => ingredient.name);
+	return {
+		total: relevant.length,
+		classified: relevant.length - unknownNames.length,
+		unknownNames,
+		complete: relevant.length > 0 && unknownNames.length === 0
+	};
+}
+
+export function expandedIngredientRoleCoverage(
+	db: DB,
+	recipe: { id: number; ingredients: unknown },
+	subRecipes?: SubRecipeRef[]
+): IngredientRoleCoverage {
+	return ingredientRoleCoverage(expandMealIngredients(db, recipe, subRecipes));
+}
+
 /**
  * Deterministic serve-fresh completion list (G8): the recipe's `serve_fresh`
  * ingredients minus what's already in stock. Names stay Dutch for AH.

@@ -7,6 +7,7 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	let usernameInitial = $derived(data.username.trim().charAt(0).toLocaleUpperCase() || 'K');
 
 	const panels = $derived([
 		{
@@ -66,9 +67,9 @@
 			<p class="ui-section-label">{m.settingsshell_brand_label()}</p>
 			<h1 class="text-2xl font-bold tracking-tight">{m.settingsshell_heading()}</h1>
 		</div>
-		<div class="avatar placeholder">
-			<div class="h-10 w-10 rounded-full bg-primary text-primary-content">
-				<span class="text-sm font-semibold">{data.username[0].toUpperCase()}</span>
+		<div class="avatar placeholder" aria-hidden="true">
+			<div class="grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-content">
+				<span class="text-sm font-semibold">{usernameInitial}</span>
 			</div>
 		</div>
 	</header>

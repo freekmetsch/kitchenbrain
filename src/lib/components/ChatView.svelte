@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick, untrack, onDestroy } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { fly } from 'svelte/transition';
 	import { base } from '$app/paths';
@@ -7,155 +7,48 @@
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import type { IconName } from '$lib/components/ui/icons/paths';
-	import type { ToolDisplay } from '$lib/tool_display';
 	import { looksLikeJsonArtifact, ARTIFACT_FALLBACK } from '$lib/chat_sanitize';
 	import { displayName } from '$lib/actors';
+	import { useChatAgent } from '$lib/chat/agent_context';
+	import type {
+		ChatAgentController,
+		ChatMessage as Message,
+		ChatToolCall as ToolCall
+	} from '$lib/stores/chat-agent.svelte';
+	import { MOTION_MICRO_MS } from '$lib/motion';
 
-	type UndoState = 'undoing' | 'done' | 'conflict' | 'error';
-	type ConfirmState = 'approving' | 'done' | 'expired' | 'conflict' | 'cancelled' | 'error';
-	type ToolCall = {
-		id?: string;
-		name: string;
-		input?: unknown;
-		result: unknown;
-		display?: ToolDisplay | null;
-		pending?: boolean;
-		undo?: UndoState;
-		confirmState?: ConfirmState;
-	};
-	type Message = {
-		role: 'user' | 'assistant';
-		content: string;
-		toolCalls?: ToolCall[] | null;
-		streaming?: boolean;
-		/** True for turns loaded from history — their Approve cards are inert. */
-		hydrated?: boolean;
-		/** Object URLs of photos attached to a user turn (display only, this session). */
-		images?: string[];
-		/** Transient status line on a streaming assistant turn, e.g. "Reading the photo…". */
-		status?: string;
-		/** When this turn was created — drives the day separators. */
-		at?: Date;
-		/** Friendly failure line rendered below the content; empty content + error offers Retry. */
-		error?: string;
-	};
-
-	let { initialMessages = [], initialInput = '', initialCapExceeded = false, username = '' }: { initialMessages: Message[]; initialInput?: string; initialCapExceeded?: boolean; username?: string } = $props();
-
-	let messages = $state<Message[]>(untrack(() => initialMessages.map((m) => ({ ...m, hydrated: true }))));
-	let input = $state(untrack(() => initialInput));
-	let isStreaming = $state(false);
-	let capExceeded = $state(untrack(() => initialCapExceeded));
-	let abortController: AbortController | null = null;
-	let messageListEl: HTMLElement;
-	let textareaEl: HTMLTextAreaElement;
+	let { controller: suppliedController }: { controller?: ChatAgentController } = $props();
+	const controller = untrack(() => suppliedController ?? useChatAgent());
+	let messages = $derived(controller.messages);
+	let input = $derived(controller.input);
+	let isStreaming = $derived(controller.isStreaming);
+	let capExceeded = $derived(controller.capExceeded);
+	let attachments = $derived(controller.attachments);
+	let attachError = $derived(controller.attachError);
+	const username = controller.username;
+	let messageListEl = $state<HTMLElement>();
+	let textareaEl = $state<HTMLTextAreaElement>();
 
 	// Entry motion for new turns only — history renders instantly (Svelte plays no
 	// intro on initial mount) and reduced-motion users get none at all.
 	const motionMs =
 		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 			? 0
-			: 180;
+			: MOTION_MICRO_MS;
 
-	// Photo attachments (Stage 4b / P5.4). The client downscales each image to
-	// ≤1568px and re-encodes to JPEG before upload, so the wire payload stays small
-	// and EXIF is stripped. Caps mirror the server (see /api/chat/+server.ts).
-	type Attachment = { id: number; blob: Blob; url: string; name: string };
 	const MAX_IMAGES = 2;
-	const MAX_DIM = 1568;
-	const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-	const MAX_INPUT_BYTES = 20 * 1024 * 1024; // pre-downscale sanity (phone photos)
-	const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024; // post-downscale, matches server per-image cap
-	let attachments = $state<Attachment[]>([]);
-	let attachError = $state('');
-	let attachId = 0;
-	let fileInput: HTMLInputElement;
-
-	function loadImage(file: File): Promise<HTMLImageElement> {
-		return new Promise((resolve, reject) => {
-			const url = URL.createObjectURL(file);
-			const img = new Image();
-			img.onload = () => {
-				URL.revokeObjectURL(url);
-				resolve(img);
-			};
-			img.onerror = () => {
-				URL.revokeObjectURL(url);
-				reject(new Error('decode failed'));
-			};
-			img.src = url;
-		});
-	}
-
-	// Downscale to ≤MAX_DIM on the longest edge and re-encode as JPEG. Recipe cards
-	// and screenshots stay legible at 1568px; the smaller payload keeps us well under
-	// the body-size limit and the daily-cost cap.
-	async function downscaleToJpeg(file: File): Promise<Blob> {
-		const img = await loadImage(file);
-		let w = img.naturalWidth || img.width;
-		let h = img.naturalHeight || img.height;
-		const longest = Math.max(w, h);
-		if (longest > MAX_DIM) {
-			const scale = MAX_DIM / longest;
-			w = Math.round(w * scale);
-			h = Math.round(h * scale);
-		}
-		const canvas = document.createElement('canvas');
-		canvas.width = w;
-		canvas.height = h;
-		const ctx = canvas.getContext('2d');
-		if (!ctx) throw new Error('canvas unavailable');
-		ctx.drawImage(img, 0, 0, w, h);
-		const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.82));
-		if (!blob) throw new Error('encode failed');
-		return blob;
-	}
+	let fileInput = $state<HTMLInputElement>();
 
 	async function onFilesSelected(e: Event) {
 		const el = e.currentTarget as HTMLInputElement;
 		const files = Array.from(el.files ?? []);
 		el.value = ''; // reset so the same file can be re-picked after removal
-		attachError = '';
-		for (const file of files) {
-			if (attachments.length >= MAX_IMAGES) {
-				attachError = m.chat_attach_max_photos({ max: MAX_IMAGES });
-				break;
-			}
-			if (!ALLOWED_MIME.has(file.type)) {
-				attachError = m.chat_attach_invalid_type();
-				continue;
-			}
-			if (file.size > MAX_INPUT_BYTES) {
-				attachError = m.chat_attach_too_large();
-				continue;
-			}
-			try {
-				const blob = await downscaleToJpeg(file);
-				if (blob.size > MAX_UPLOAD_BYTES) {
-					attachError = m.chat_attach_too_large();
-					continue;
-				}
-				attachments.push({ id: attachId++, blob, url: URL.createObjectURL(blob), name: file.name });
-			} catch {
-				attachError = m.chat_attach_read_failed();
-			}
-		}
+		await controller.addFiles(files);
 	}
 
 	function removeAttachment(id: number) {
-		const idx = attachments.findIndex((a) => a.id === id);
-		if (idx >= 0) {
-			URL.revokeObjectURL(attachments[idx].url);
-			attachments.splice(idx, 1);
-		}
+		controller.removeAttachment(id);
 	}
-
-	// Reclaim any object URLs still alive (pending composer photos + sent-bubble
-	// thumbnails) when the chat view unmounts, so blobs don't linger past the view.
-	onDestroy(() => {
-		for (const a of attachments) URL.revokeObjectURL(a.url);
-		for (const m of messages) m.images?.forEach((u) => URL.revokeObjectURL(u));
-	});
 
 	// Nav chips deep-link straight to the destination page — no AI round trip, no
 	// daily-cap risk. AI chips stay chat sends because they need a model turn
@@ -271,282 +164,60 @@
 	}
 
 	async function undo(tool: ToolCall, opId: number) {
-		if (tool.undo === 'undoing' || tool.undo === 'done') return;
-		tool.undo = 'undoing';
-		try {
-			const res = await fetch(`${base}/api/inventory/undo`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ op_id: opId })
-			});
-			if (res.ok) tool.undo = 'done';
-			else if (res.status === 409) tool.undo = 'conflict';
-			else tool.undo = 'error';
-		} catch {
-			tool.undo = 'error';
-		}
+		await controller.undo(tool, opId);
 	}
 
-	// Approve a deferred action (P5.3). Server-side claim is single-use, so this
-	// double-click guard is belt-and-suspenders. On success the confirm card
-	// morphs into the executed write card (display swapped → kind becomes 'write',
-	// inline Undo appears).
 	async function approveConfirm(tool: ToolCall, confirmationId: string) {
-		if (tool.confirmState) return;
-		tool.confirmState = 'approving';
-		try {
-			const res = await fetch(`${base}/api/chat/confirm`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ confirmation_id: confirmationId })
-			});
-			if (res.ok) {
-				const data = await res.json();
-				if (data.display) tool.display = data.display;
-				tool.confirmState = 'done';
-			} else if (res.status === 409) {
-				tool.confirmState = 'conflict';
-			} else if (res.status === 410) {
-				tool.confirmState = 'expired';
-			} else {
-				tool.confirmState = 'error';
-			}
-		} catch {
-			tool.confirmState = 'error';
-		}
+		await controller.approveConfirm(tool, confirmationId);
 	}
 
 	function cancelConfirm(tool: ToolCall) {
-		if (tool.confirmState) return;
-		tool.confirmState = 'cancelled';
+		controller.cancelConfirm(tool);
 	}
 
 	async function send(text: string, isRetry = false) {
-		const outgoing = attachments;
-		const hasAttachments = outgoing.length > 0;
-		if (isStreaming || (!text.trim() && !hasAttachments)) return;
-
-		// Detach the pending photos from the composer for this send. The object URLs
-		// stay alive for the sent bubble's thumbnails (revoked on page unload).
-		attachments = [];
-		attachError = '';
-
-		messages.push({
-			role: 'user',
-			content: text,
-			at: new Date(),
-			images: hasAttachments ? outgoing.map((a) => a.url) : undefined
-		});
-		messages.push({
-			role: 'assistant',
-			content: '',
-			toolCalls: [],
-			at: new Date(),
-			streaming: true,
-			// Text turns show "Thinking…" until the first text/tool/error event clears it —
-			// GLM-5 reasons before its first token, so this fills the pre-stream pause.
-			status: hasAttachments ? 'Reading the photo…' : 'Thinking…'
-		});
-		input = '';
+		const request = controller.send(text, isRetry);
+		await tick();
 		if (textareaEl) {
 			textareaEl.style.height = 'auto';
 			textareaEl.focus();
 		}
-		isStreaming = true;
-		abortController = new AbortController();
-		scrollToBottom(true);
-
-		try {
-			let body: BodyInit;
-			const headers: Record<string, string> = {};
-			if (hasAttachments) {
-				const form = new FormData();
-				form.append('message', text);
-				outgoing.forEach((a, i) => form.append('images', a.blob, `photo-${i + 1}.jpg`));
-				body = form; // multipart — the browser sets the boundary Content-Type
-			} else {
-				headers['Content-Type'] = 'application/json';
-				// retry tells the server the user row already exists (the failed turn
-				// persisted it) so it doesn't insert a duplicate.
-				body = JSON.stringify({ message: text, retry: isRetry });
-			}
-			const res = await fetch(`${base}/api/chat`, {
-				method: 'POST',
-				headers,
-				body,
-				signal: abortController.signal
-			});
-
-			if (!res.ok || !res.body) {
-				const last = messages.at(-1)!;
-				last.error = m.chat_error_generic();
-				last.streaming = false;
-				return;
-			}
-
-			const reader = res.body.getReader();
-			const decoder = new TextDecoder();
-			let buffer = '';
-
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split('\n');
-				buffer = lines.pop()!;
-
-				for (const line of lines) {
-					if (!line.startsWith('data: ')) continue;
-					const data = line.slice(6).trim();
-					if (data === '[DONE]') break;
-
-					let event: {
-						type: string;
-						text?: string;
-						name?: string;
-						result?: unknown;
-						code?: string;
-						message?: string;
-						id?: string;
-						summary?: string;
-						display?: ToolDisplay | null;
-					};
-					try {
-						event = JSON.parse(data);
-					} catch {
-						continue;
-					}
-
-					const last = messages.at(-1)!;
-					// First event back from the model — drop the "Reading the photo…" cue.
-					if (last.status) last.status = undefined;
-					if (event.type === 'text' && event.text) {
-						last.content += event.text;
-					} else if (event.type === 'tool_start' && event.id) {
-						// Provisional "doing" line; the matching `tool` event fills it in.
-						last.toolCalls ??= [];
-						last.toolCalls.push({
-							id: event.id,
-							name: event.name ?? '',
-							result: null,
-							display: event.summary ? { kind: 'read', summary: event.summary } : null,
-							pending: true
-						});
-					} else if (event.type === 'tool') {
-						last.toolCalls ??= [];
-						const entry = event.id
-							? last.toolCalls.find((t) => t.id === event.id && t.pending)
-							: undefined;
-						if (entry) {
-							entry.result = event.result ?? null;
-							entry.display = event.display ?? null;
-							entry.pending = false;
-						} else {
-							last.toolCalls.push({
-								id: event.id,
-								name: event.name ?? '',
-								result: event.result ?? null,
-								display: event.display ?? null
-							});
-						}
-					} else if (event.type === 'error') {
-						if (event.code === 'cap_exceeded') {
-							capExceeded = true;
-							last.error = m.chat_cap_error();
-						} else if (event.code === 'turn_too_large') {
-							last.error = m.chat_error_too_large();
-						} else {
-							last.error = event.message ?? m.chat_error_generic_short();
-						}
-					}
-				}
-			}
-		} catch (err) {
-			const last = messages.at(-1);
-			if ((err as Error).name === 'AbortError') {
-				// User pressed Stop before anything arrived — mark it so the bubble
-				// isn't just blank (Retry picks it up from here).
-				if (last && !last.content && !last.toolCalls?.length) last.error = m.chat_error_stopped();
-			} else if (last && !last.error) {
-				last.error = m.chat_error_connection_lost();
-			}
-		} finally {
-			isStreaming = false;
-			abortController = null;
-			const last = messages.at(-1);
-			if (last) {
-				last.streaming = false;
-				last.status = undefined;
-				// A clean [DONE] with nothing to show — GLM can return an empty "stub"
-				// completion (no text, no tool call), which would otherwise render as a
-				// blank bubble ("No response?"). Land it as a retryable error instead;
-				// canRetry() picks it up from here. Tool-only turns are excluded — they
-				// still have a tool line to show.
-				if (
-					last.role === 'assistant' &&
-					!last.error &&
-					!last.content.trim() &&
-					!last.toolCalls?.length
-				) {
-					last.error = m.chat_error_empty_reply();
-				}
-				// A tool that never got its result event would spin forever — the stream
-				// is done, so land it honestly.
-				for (const t of last.toolCalls ?? []) {
-					if (t.pending) {
-						t.pending = false;
-						t.display = {
-							kind: 'error',
-							summary: m.chat_tool_interrupted({
-								summary: (t.display?.summary ?? m.chat_tool_working_fallback()).replace(/…$/, '')
-							})
-						};
-					}
-				}
-			}
-		}
+		await scrollToBottom(true);
+		await request;
 	}
 
 	function abort() {
-		abortController?.abort();
+		controller.abort();
 	}
 
-	// Retry re-sends the user text of a turn that failed with nothing to show.
-	// Only the trailing turn qualifies; never a photo turn (the image blobs were
-	// transient and are gone) and never one whose tools already ran — a blind
-	// re-send could commit those writes twice.
-	function canRetry(msg: Message, i: number): boolean {
-		if (msg.role !== 'assistant' || !msg.error || msg.content || msg.toolCalls?.length)
-			return false;
-		if (i !== messages.length - 1 || isStreaming || capExceeded) return false;
-		const prev = messages[i - 1];
-		return !!prev && prev.role === 'user' && !prev.images?.length && !!prev.content.trim();
+	function canRetry(message: Message, index: number): boolean {
+		return controller.canRetry(message, index);
 	}
 
 	async function retry() {
-		const prev = messages[messages.length - 2];
-		if (!prev) return;
-		messages.pop(); // failed assistant bubble
-		messages.pop(); // user bubble — send() re-pushes it
-		await send(prev.content, true);
+		await controller.retry();
 	}
+
+	$effect(() => {
+		if (controller.focusRequest < 1) return;
+		void tick().then(() => textareaEl?.focus());
+	});
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			send(input);
+			void send(controller.input);
 		}
 	}
 </script>
 
-<div class="flex flex-col h-full">
+<div class="flex h-full min-w-0 flex-col overflow-x-hidden">
 	<!-- Message list -->
-	<div class="relative flex-1 min-h-0">
+	<div class="relative min-h-0 min-w-0 flex-1 overflow-x-hidden">
 		<div
 			bind:this={messageListEl}
 			onscroll={onListScroll}
-			class="h-full overflow-y-auto px-3 py-4 space-y-1"
+			class="h-full min-w-0 overflow-x-hidden overflow-y-auto px-3 py-4 space-y-1"
 		>
 		{#if messages.length === 0}
 			<div class="flex flex-col items-center justify-center h-full text-center pt-16 pb-8 gap-1.5">
@@ -564,11 +235,11 @@
 				</div>
 			{/if}
 			{@const shown = displayText(msg)}
-			<div class="chat {msg.role === 'user' ? 'chat-end' : 'chat-start'}" in:fly={{ y: 10, duration: motionMs }}>
+			<div class="chat min-w-0 {msg.role === 'user' ? 'chat-end' : 'chat-start'}" in:fly={{ y: 10, duration: motionMs }}>
 				<div
 					class="chat-bubble {msg.role === 'user'
 						? 'chat-bubble-primary'
-						: 'bg-base-200 text-base-content'} max-w-[85%] text-sm leading-relaxed whitespace-pre-wrap"
+						: 'bg-base-200 text-base-content'} min-w-0 max-w-[85%] whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]"
 				>
 					{#if msg.images && msg.images.length > 0}
 						<div class="mb-2 flex flex-wrap gap-1.5">
@@ -584,15 +255,15 @@
 						</div>
 					{/if}
 					{#if msg.toolCalls && msg.toolCalls.length > 0}
-						<div class="mb-2 flex flex-col gap-1.5">
+						<div class="mb-2 flex min-w-0 flex-col gap-1.5">
 							{#each msg.toolCalls as tool, ti}
 								{#if tool.display && tool.display.kind === 'plan' && tool.display.steps}
 									{@const d = tool.display}
 									{@const done = planStepsDone(msg.toolCalls, ti)}
-									<div class="flex flex-col gap-1.5 rounded-md bg-base-100/50 px-2 py-1.5">
+									<div class="flex min-w-0 flex-col gap-1.5 rounded-md bg-base-100/50 px-2 py-1.5">
 										<div class="flex items-center gap-1.5">
 											<svg class="h-3.5 w-3.5 shrink-0 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-											<span class="text-xs font-medium text-base-content/80 leading-tight">{d.summary}</span>
+											<span class="min-w-0 break-words text-xs font-medium leading-tight text-base-content/80 [overflow-wrap:anywhere]">{d.summary}</span>
 										</div>
 										<ol class="flex flex-col gap-1 pl-5">
 											{#each d.steps as step, si}
@@ -610,7 +281,7 @@
 								{:else if tool.display}
 									{@const d = tool.display}
 									{@const opId = firstUndoableOp(tool)}
-									<div class="flex flex-col gap-1 rounded-md bg-base-100/50 px-2 py-1.5">
+									<div class="flex min-w-0 flex-col gap-1 rounded-md bg-base-100/50 px-2 py-1.5">
 										<div class="flex items-center gap-1.5">
 											{#if tool.pending}
 												<Spinner size="xs" class="opacity-60" />
@@ -623,13 +294,13 @@
 											{:else}
 												<svg class="h-3.5 w-3.5 shrink-0 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" /></svg>
 											{/if}
-											<span class="text-xs {d.kind === 'error' ? 'text-warning' : d.kind === 'confirm' ? 'text-base-content' : 'text-base-content/70'} leading-tight">{d.summary}</span>
+											<span class="min-w-0 break-words text-xs {d.kind === 'error' ? 'text-warning' : d.kind === 'confirm' ? 'text-base-content' : 'text-base-content/70'} leading-tight [overflow-wrap:anywhere]">{d.summary}</span>
 										</div>
 
 										{#if d.diff && d.diff.length > 0}
 											<div class="flex flex-wrap gap-1 pl-5">
 												{#each d.diff as chip}
-													<span class="badge badge-ghost badge-sm gap-1 text-[0.68rem]">
+												<span class="badge badge-ghost badge-sm h-auto max-w-full gap-1 whitespace-normal break-all py-1 text-[0.68rem]">
 														<span class="opacity-60">{chip.label}</span>
 														<span class="line-through opacity-50">{chip.before ?? '—'}</span>
 														<span aria-hidden="true">→</span>
@@ -642,7 +313,7 @@
 										{#if opId !== null}
 											<div class="pl-5">
 												{#if !tool.undo}
-													<button class="btn btn-ghost btn-xs h-6 min-h-6 px-1.5 text-xs opacity-70 hover:opacity-100" onclick={() => undo(tool, opId)}>
+											<button class="btn btn-ghost btn-xs min-h-9 px-2 text-xs opacity-70 hover:opacity-100" onclick={() => undo(tool, opId)}>
 														<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 015 5v1M3 10l4-4M3 10l4 4" /></svg>
 														{m.chat_tool_undo_button()}
 													</button>
@@ -673,11 +344,11 @@
 												{:else}
 													<div class="flex gap-1.5">
 														<button
-															class="btn btn-primary btn-xs h-6 min-h-6"
+															class="btn btn-primary btn-xs min-h-9"
 															disabled={!d.confirmationId}
 															onclick={() => d.confirmationId && approveConfirm(tool, d.confirmationId)}
 														>{m.chat_confirm_approve_button()}</button>
-														<button class="btn btn-ghost btn-xs h-6 min-h-6 opacity-70" onclick={() => cancelConfirm(tool)}>{m.chat_confirm_cancel_button()}</button>
+														<button class="btn btn-ghost btn-xs min-h-9 opacity-70" onclick={() => cancelConfirm(tool)}>{m.chat_confirm_cancel_button()}</button>
 													</div>
 												{/if}
 											</div>
@@ -687,7 +358,7 @@
 									<!-- Legacy tool call (pre-P5.1, no display) -->
 									<details class="opacity-60">
 										<summary class="cursor-pointer text-xs font-mono select-none">⚙ {tool.name}</summary>
-										<pre class="text-xs mt-1 overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(tool.result, null, 2)}</pre>
+									<pre class="mt-1 max-w-full overflow-x-auto whitespace-pre text-xs">{JSON.stringify(tool.result, null, 2)}</pre>
 									</details>
 								{/if}
 							{/each}
@@ -700,7 +371,7 @@
 							<span>{msg.error}</span>
 						</div>
 						{#if canRetry(msg, mi)}
-							<button class="btn btn-xs btn-outline btn-warning mt-2 h-6 min-h-6 gap-1" onclick={retry}>
+							<button class="btn btn-xs btn-outline btn-warning mt-2 min-h-9 gap-1" onclick={retry}>
 								<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
 								{m.mealplan_retry_button()}
 							</button>
@@ -764,7 +435,7 @@
 					<div class="relative">
 						<img src={att.url} alt={att.name} class="h-16 w-16 rounded-md border border-base-300 object-cover" />
 						<button
-							class="btn btn-circle btn-xs btn-neutral absolute -right-1.5 -top-1.5 h-5 min-h-5 w-5 shadow"
+							class="btn btn-circle btn-xs btn-neutral absolute -right-3 -top-3 h-9 min-h-9 w-9 shadow"
 							onclick={() => removeAttachment(att.id)}
 							title={m.recipes_header_remove_photo()}
 							aria-label={m.recipes_header_remove_photo()}
@@ -788,7 +459,7 @@
 			onchange={onFilesSelected}
 		/>
 
-		<div class="flex gap-2 items-end">
+		<div class="flex min-w-0 items-end gap-2">
 			<button
 				class="btn btn-square btn-ghost btn-sm h-10 min-h-0 w-10"
 				disabled={isStreaming || capExceeded || attachments.length >= MAX_IMAGES}
@@ -803,11 +474,11 @@
 
 			<textarea
 				bind:this={textareaEl}
-				class="textarea textarea-bordered flex-1 resize-none text-sm min-h-[2.5rem] max-h-32 leading-snug"
+				class="textarea textarea-bordered min-h-[2.5rem] min-w-0 flex-1 resize-none text-sm leading-snug max-h-32"
 				placeholder={m.chat_composer_placeholder()}
 				rows="1"
 				disabled={isStreaming || capExceeded}
-				bind:value={input}
+				bind:value={controller.input}
 				onkeydown={handleKeydown}
 				oninput={(e) => {
 					const el = e.currentTarget as HTMLTextAreaElement;

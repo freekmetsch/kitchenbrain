@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
+	import { registerFixedSurface } from '$lib/fixed_surfaces';
 
 	let {
 		children,
@@ -18,12 +20,16 @@
 	// where a z-30 in-flow bar painted behind the z-50 nav.
 	const style = $derived(
 		clearNav
-			? 'bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px))'
+			? 'bottom: var(--ui-nav-offset)'
 			: 'bottom: 0; padding-bottom: env(safe-area-inset-bottom, 0px)'
 	);
+
+	let barEl: HTMLElement;
+	onMount(() => registerFixedSurface(barEl));
 </script>
 
 <div
+	bind:this={barEl}
 	class="ui-z-sheet fixed inset-x-0 border-t border-base-300 bg-base-100/95 backdrop-blur"
 	{style}
 >

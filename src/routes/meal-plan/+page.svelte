@@ -16,15 +16,33 @@
 	import { weekdayName } from '$lib/weekday';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
+	import { useChatAgent } from '$lib/chat/agent_context';
+	import { formatDate } from '$lib/i18n';
+	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 
 	type Meal = PageData['weeks'][number]['meals'][number];
 	type Week = PageData['weeks'][number];
 	type Recipe = PageData['recipeList'][number];
 
 	let { data }: { data: PageData } = $props();
+	const chatAgent = useChatAgent();
 
 	let weeks = $state<Week[]>(untrack(() => data.weeks.map((w) => ({ ...w, meals: w.meals.map((m) => ({ ...m })) }))));
 	const currentWeekStart = untrack(() => data.currentWeekStart);
+
+	$effect(() =>
+		chatAgent.publishScreen({
+			v: 1,
+			routeId: '/meal-plan',
+			label: m.mealplan_heading(),
+			entity: { kind: 'meal-plan', id: currentWeekStart, label: currentWeekStart },
+			facts: [
+				{ key: 'currentWeekStart', value: currentWeekStart },
+				{ key: 'weeksVisible', value: weeks.length },
+				{ key: 'plannedMeals', value: weeks.reduce((total, week) => total + week.meals.length, 0) }
+			]
+		})
+	);
 
 	// "Show past weeks" / "Hide past weeks" (?past=1) is a same-route navigation
 	// -- load reruns and data.weeks gets a fresh identity, but local `weeks`
@@ -138,12 +156,12 @@
 		const end = new Date(weekStartDate + 'T00:00:00');
 		end.setDate(end.getDate() + 6);
 		const fmt = (d: Date) =>
-			d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: APP_TIME_ZONE });
+			formatDate(d, { weekday: 'short', day: 'numeric', month: 'short', timeZone: APP_TIME_ZONE });
 		return `${fmt(start)} - ${fmt(end)}`;
 	}
 
 	function cookedDateLabel(iso: string): string {
-		return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {
+		return formatDate(iso + 'T00:00:00', {
 			day: 'numeric',
 			month: 'short',
 			timeZone: APP_TIME_ZONE
@@ -151,7 +169,7 @@
 	}
 
 	function deliveryLabel(iso: string): string {
-		return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {
+		return formatDate(iso + 'T00:00:00', {
 			weekday: 'short',
 			day: 'numeric',
 			month: 'short',
@@ -691,8 +709,8 @@
 						{#each displayMeals(week) as meal (meal.id)}
 							<li
 								class="flex min-h-14 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-base-200/60"
-								transition:slide={{ duration: 150 }}
-								animate:flip={{ duration: 200 }}
+								transition:slide={{ duration: MOTION_MICRO_MS }}
+								animate:flip={{ duration: MOTION_CONTENT_MS }}
 							>
 								<label class="-m-2 flex shrink-0 cursor-pointer items-center p-2">
 									<input
@@ -788,7 +806,7 @@
 				{/if}
 
 				{#if suggestActive === week.weekStartDate}
-					<div class="border-t border-base-200 bg-base-200/35 px-3 py-3" transition:slide={{ duration: 180 }}>
+					<div class="border-t border-base-200 bg-base-200/35 px-3 py-3" transition:slide={{ duration: MOTION_CONTENT_MS }}>
 						<div class="mb-2 flex items-center justify-between gap-2">
 							<p class="ui-section-label">{m.mealplan_ai_suggestions_label()}</p>
 							<button type="button" class="btn btn-ghost btn-xs" onclick={closeSuggest}>
@@ -885,7 +903,7 @@
 			class="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-base-300 px-3 py-2.5 text-left transition-colors hover:bg-base-200/60 disabled:opacity-50"
 			onclick={addCustomFromSearch}
 			disabled={drawerSubmitting}
-			transition:slide={{ duration: 150 }}
+			transition:slide={{ duration: MOTION_MICRO_MS }}
 		>
 			<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: drawerSearch.trim() })}</span>
 			<span class="ui-chip-muted shrink-0">{m.mealplan_custom_chip()}</span>

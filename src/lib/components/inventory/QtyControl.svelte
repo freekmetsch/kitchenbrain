@@ -19,7 +19,7 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { autofocus, type Item } from './shared';
+	import { autofocus, displayQuantity, type Item } from './shared';
 
 	let {
 		item,
@@ -84,7 +84,7 @@
 		onclick={() => onOpenEdit()}
 		aria-label={m.inventory_qty_edit_aria({ name: item.name })}
 	>
-		{item.qtyNum}<span class="ml-0.5 text-xs font-normal text-base-content/60">{item.unit}</span>
+		{displayQuantity(item.qtyNum, item.unit)}
 	</button>
 {:else}
 	<div
@@ -105,10 +105,11 @@
 			onclick={() => onOpenEdit()}
 			aria-label={m.inventory_qty_edit_aria({ name: item.name })}
 		>
-			{item.qtyNum}{#if target != null}<span class="text-xs font-normal text-base-content/50">/{target}</span>{:else}<span
-					class="text-xs font-normal text-base-content/60"
-					>{item.unit && item.unit !== 'stuk' ? ' ' + item.unit : ''}</span
-				>{/if}
+			{#if target != null}
+				{item.qtyNum}<span class="text-xs font-normal text-base-content/50">/{target}</span>
+			{:else}
+				{displayQuantity(item.qtyNum, item.unit)}
+			{/if}
 		</button>
 		<button
 			type="button"

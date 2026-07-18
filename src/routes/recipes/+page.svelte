@@ -12,6 +12,9 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
+	import { useChatAgent } from '$lib/chat/agent_context';
+	import { scrollRail } from '$lib/actions/scroll_rail';
+	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 
 	type Recipe = {
 		id: number;
@@ -59,12 +62,29 @@
 			recipeLang: 'en' | 'nl';
 		};
 	} = $props();
+	const chatAgent = useChatAgent();
 
 	let searchInput = $state(untrack(() => data.query));
 	let sortBy = $state(untrack(() => data.sortBy));
 	let classFilter = $state(untrack(() => data.classFilter));
 	let dishFilter = $state(untrack(() => data.dishFilter));
 	let ingredientFilter = $state(untrack(() => data.ingredientFilter));
+
+	$effect(() =>
+		chatAgent.publishScreen({
+			v: 1,
+			routeId: '/recipes',
+			label: m.recipes_heading(),
+			entity: { kind: 'recipe' },
+			facts: [
+				{ key: 'visibleRecipes', value: data.recipes.length },
+				{ key: 'search', value: searchInput.slice(0, 120) },
+				{ key: 'foodClassFilter', value: classFilter || 'all' },
+				{ key: 'dishFilter', value: dishFilter || 'all' },
+				{ key: 'ingredientFilter', value: ingredientFilter || 'all' }
+			]
+		})
+	);
 
 	// Filters round-trip through the URL (goto/load). Browser back/forward
 	// re-runs load and updates `data` without touching these locals, so without
@@ -360,14 +380,14 @@
 				<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
 			</select>
 		</div>
-		<div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+		<div class="ui-scroll-rail flex items-center gap-1.5 pb-0.5" use:scrollRail>
 			{#each CORE_FOOD_TYPE_OPTIONS as option}
 				<button
 					type="button"
 					class={classFilter === option.value ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
 					aria-pressed={classFilter === option.value}
 					onclick={() => setClass(option.value)}
-				>{option.label}</button>
+				>{foodCategoryLabel(option.value)}</button>
 			{/each}
 			{#if data.dishTypes.length}
 				<span class="h-4 w-px shrink-0 bg-base-300" aria-hidden="true"></span>
@@ -381,7 +401,7 @@
 				>{foodCategoryLabel(dishType) ?? dishType}</button>
 			{/each}
 		</div>
-		<div class="mt-1.5 flex items-center gap-1.5 overflow-x-auto pb-0.5">
+		<div class="ui-scroll-rail mt-1.5 flex items-center gap-1.5 pb-0.5" use:scrollRail>
 			<button
 				type="button"
 				class={data.toggles.haveAll ? 'ui-chip-active shrink-0 border-success/40 bg-success/10 text-success' : 'ui-chip shrink-0'}
@@ -441,8 +461,8 @@
 				<a
 					href="{base}/recipes/{recipe.slug}"
 					class="ui-list-card block hover:border-primary transition-colors"
-					animate:flip={{ duration: 200 }}
-					in:fade={{ duration: 150 }}
+					animate:flip={{ duration: MOTION_CONTENT_MS }}
+					in:fade={{ duration: MOTION_MICRO_MS }}
 				>
 					{#if recipe.imageUrl}
 						<figure class="h-28 overflow-hidden">

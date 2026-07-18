@@ -72,10 +72,10 @@
 		opacity: 0;
 		translate: 0 1.25rem;
 		transition:
-			opacity 0.2s ease,
-			translate 0.25s cubic-bezier(0.32, 0.72, 0, 1),
-			overlay 0.25s ease allow-discrete,
-			display 0.25s ease allow-discrete;
+			opacity var(--motion-content) var(--ease-standard),
+			translate var(--motion-content) var(--ease-emphasized),
+			overlay var(--motion-content) var(--ease-standard) allow-discrete,
+			display var(--motion-content) var(--ease-standard) allow-discrete;
 	}
 	dialog[open] {
 		opacity: 1;
@@ -90,9 +90,9 @@
 	dialog::backdrop {
 		background-color: rgb(0 0 0 / 0);
 		transition:
-			background-color 0.25s ease,
-			overlay 0.25s ease allow-discrete,
-			display 0.25s ease allow-discrete;
+			background-color var(--motion-content) var(--ease-standard),
+			overlay var(--motion-content) var(--ease-standard) allow-discrete,
+			display var(--motion-content) var(--ease-standard) allow-discrete;
 	}
 	dialog[open]::backdrop {
 		background-color: rgb(0 0 0 / 0.3);

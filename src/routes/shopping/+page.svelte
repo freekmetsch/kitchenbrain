@@ -12,10 +12,12 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { untrack } from 'svelte';
 	import type { PageData } from './$types';
+	import { useChatAgent } from '$lib/chat/agent_context';
 
 	type Item = PageData['items'][number];
 
 	let { data }: { data: PageData } = $props();
+	const chatAgent = useChatAgent();
 
 	let items = $state<Item[]>(untrack(() => data.items.map((i) => ({ ...i }))));
 
@@ -42,6 +44,21 @@
 	let covered = $derived(items.filter((i) => !i.bought && i.covered));
 	let done = $derived(items.filter((i) => i.bought));
 	let visibleToBuyCount = $derived(pending.filter((i) => !i.covered).length);
+
+	$effect(() =>
+		chatAgent.publishScreen({
+			v: 1,
+			routeId: '/shopping',
+			label: m.shopping_heading(),
+			entity: { kind: 'shopping', id: data.weekStart, label: data.weekStart },
+			facts: [
+				{ key: 'weekStart', value: data.weekStart },
+				{ key: 'toBuy', value: visibleToBuyCount },
+				{ key: 'covered', value: covered.length },
+				{ key: 'done', value: done.length }
+			]
+		})
+	);
 
 	let emptyCopy = $derived(
 		data.emptyState === 'no_meals'

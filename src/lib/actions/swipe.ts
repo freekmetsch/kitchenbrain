@@ -1,4 +1,5 @@
 import type { Action } from 'svelte/action';
+import { MOTION_CONTENT_MS } from '$lib/motion';
 
 interface SwipeOptions {
 	onSwipeLeft?: () => void;
@@ -39,10 +40,10 @@ export const swipe: Action<HTMLElement, SwipeOptions> = (node, initialOptions) =
 		if (!tracking) return;
 		tracking = false;
 		const threshold = options?.threshold ?? 80;
-		node.style.transition = 'transform 0.2s ease';
+		node.style.transition = `transform ${MOTION_CONTENT_MS}ms var(--ease-standard)`;
 		if (Math.abs(dx) >= threshold) {
 			node.style.transform = 'translateX(-100%)';
-			setTimeout(() => options?.onSwipeLeft?.(), 200);
+			setTimeout(() => options?.onSwipeLeft?.(), MOTION_CONTENT_MS);
 		} else {
 			dx = 0;
 			node.style.transform = '';

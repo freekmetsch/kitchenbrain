@@ -7,6 +7,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { fade } from 'svelte/transition';
 	import type { AhPushOutcome } from './types';
+	import { MOTION_MICRO_MS } from '$lib/motion';
 
 	type Props = {
 		result: AhPushOutcome;
@@ -18,7 +19,7 @@
 <div
 	class="rounded-2xl border {result.failed.length ? 'border-warning/30 bg-warning/10' : 'border-success/30 bg-success/10'} px-3 py-2"
 	role="status"
-	in:fade={{ duration: 150 }}
+	in:fade={{ duration: MOTION_MICRO_MS }}
 >
 	<div class="flex gap-2">
 		<Icon

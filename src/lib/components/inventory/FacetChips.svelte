@@ -13,6 +13,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { RULE_REVIEW_CODES, reasonTokens } from '$lib/review_reasons';
 	import type { Item } from './shared';
+	import { formatDate } from '$lib/i18n';
 
 	const FOOD_CLASS_EMOJI: Record<string, string> = {
 		meat: '🥩', chicken: '🍗', beef: '🥩', pork: '🥓', lamb: '🍖',
@@ -60,7 +61,7 @@
 		else if (diff === 0) label = m.inventory_expiry_today_label();
 		else if (diff === 1) label = m.inventory_expiry_tomorrow_label();
 		else if (diff < 8) label = m.inventory_expiry_days_left({ days: diff });
-		else label = new Date(expiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+		else label = formatDate(expiry, { day: 'numeric', month: 'short' });
 		return { label, cls };
 	}
 
@@ -206,7 +207,7 @@
 		{#if item.isStaple}
 			<button
 				type="button"
-				class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-base-200 px-1.5 text-primary disabled:opacity-50"
+				class="inline-flex h-9 min-w-9 items-center justify-center rounded-full bg-base-200 px-1.5 text-primary disabled:opacity-50"
 				disabled={stapleBusy || stapleAdded}
 				aria-label={stapleAdded
 					? m.inventory_staples_on_list()

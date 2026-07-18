@@ -28,7 +28,42 @@
 	const VISIBLE_CAP = 3;
 	let visibleIds = $derived(ids.slice(0, VISIBLE_CAP));
 	let overflowCount = $derived(Math.max(0, ids.length - VISIBLE_CAP));
+	let announcement = $state('');
+	const announcedComplete = new Set<number>();
+
+	function purposeFor(id: number): string {
+		const step = steps[id];
+		return step?.timer_purpose ?? step?.goal ?? step?.title ?? '';
+	}
+
+	function announce(text: string) {
+		announcement = '';
+		queueMicrotask(() => (announcement = text));
+	}
+
+	function dismiss(id: number) {
+		if ((timerEnds[id] ?? 0) > now) {
+			announce(m.cookmode_timer_cancelled_announcement({ purpose: purposeFor(id) }));
+		}
+		onDismiss(id);
+	}
+
+	$effect(() => {
+		const currentIds = new Set(ids);
+		for (const id of announcedComplete) {
+			if (!currentIds.has(id)) announcedComplete.delete(id);
+		}
+		for (const id of ids) {
+			const endsAt = timerEnds[id];
+			if (endsAt != null && endsAt <= now && !announcedComplete.has(id)) {
+				announcedComplete.add(id);
+				announce(m.cookmode_timer_complete_announcement({ purpose: purposeFor(id) }));
+			}
+		}
+	});
 </script>
+
+<span class="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</span>
 
 {#each visibleIds as id, index (id)}
 	{@const step = steps[id]}
@@ -42,7 +77,7 @@
 			purpose={step.timer_purpose ?? step.goal}
 			action={step.timer_action}
 			location={step.timer_location}
-			onDismiss={() => onDismiss(id)}
+			onDismiss={() => dismiss(id)}
 		/>
 	{/if}
 {/each}

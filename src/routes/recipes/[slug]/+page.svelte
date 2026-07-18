@@ -8,12 +8,14 @@
 	import ImportReviewBanner from '$lib/components/recipe-detail/ImportReviewBanner.svelte';
 	import RecipeMetaChips from '$lib/components/recipe-detail/RecipeMetaChips.svelte';
 	import MealComposition from '$lib/components/recipe-detail/MealComposition.svelte';
-	import AiEditBar from '$lib/components/recipe-detail/AiEditBar.svelte';
 	import FreezerStockPanel from '$lib/components/recipe-detail/FreezerStockPanel.svelte';
+	import RoleCoverage from '$lib/components/recipe-detail/RoleCoverage.svelte';
 	import AddToPlanSheet from '$lib/components/recipe-detail/AddToPlanSheet.svelte';
 	import { labelWeeks, type Recipe } from '$lib/components/recipe-detail/types';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { useChatAgent } from '$lib/chat/agent_context';
+	import type { IngredientRoleCoverage } from '$lib/server/recipe_links';
 
 	let {
 		data
@@ -26,11 +28,13 @@
 			frozenPortions: number;
 			serveFresh: Array<{ name: string; amount: string | null; unit: string | null }>;
 			hasRoles: boolean;
+			roleCoverage: IngredientRoleCoverage;
 			currentWeekStart: string;
 			subRecipes: Array<{ id: number; slug: string; title: string; titleEn: string | null; sortOrder: number }>;
 			partOfMeals: Array<{ id: number; slug: string; title: string; titleEn: string | null }>;
 		};
 	} = $props();
+	const chatAgent = useChatAgent();
 
 	let recipe = $state(untrack(() => data.recipe));
 	let weeks = $derived(
@@ -64,9 +68,6 @@
 	);
 
 	let addToPlanOpen = $state(false);
-
-	let editAiOpen = $state(false);
-	let editAiInput = $state('');
 
 	function subDisplayTitle(s: { title: string; titleEn: string | null }): string {
 		return viewLang === 'en' ? (s.titleEn ?? s.title) : s.title;
@@ -203,9 +204,28 @@
 	// The AI chat's edit_recipe tool is the designed path for setting roles —
 	// prefill the ask so one tap away from the hint does the right thing.
 	function openRolesAiEdit() {
-		editAiInput = m.recipes_ai_roles_prefill();
-		editAiOpen = true;
+		chatAgent.open({ draft: m.recipes_ai_roles_prefill() });
 	}
+
+	function openRecipeAiEdit() {
+		chatAgent.open({ draft: m.recipes_agent_edit_prefill({ title: displayTitle }) });
+	}
+
+	$effect(() =>
+		chatAgent.publishScreen({
+			v: 1,
+			routeId: '/recipes/[slug]',
+			label: m.recipes_agent_context_label({ title: displayTitle }),
+			entity: { kind: 'recipe', id: recipe.slug, label: displayTitle },
+			facts: [
+				{ key: 'roleCoverage', value: `${data.roleCoverage.classified}/${data.roleCoverage.total}` },
+				{ key: 'unknownRoleIngredients', value: data.roleCoverage.unknownNames.join(', ').slice(0, 256) },
+				{ key: 'frozenPortions', value: data.frozenPortions },
+				{ key: 'viewLanguage', value: viewLang }
+			],
+			interaction: { mode: 'view', dirty: false }
+		})
+	);
 
 	function resetCookProgress() {
 		if (!confirm(m.recipes_confirm_reset_cook_progress())) return;
@@ -240,9 +260,7 @@
 	onResetCookProgress={resetCookProgress}
 	onRegenerateCookMode={() => benchSheetController.regenerate()}
 	onForceRetranslate={() => void requestTranslation(true)}
-	onAiEdit={() => {
-		editAiOpen = true;
-	}}
+	onAiEdit={openRecipeAiEdit}
 	onPickPhoto={() => imageFileInput?.click()}
 	onRemovePhoto={() => void deleteImage()}
 	onRetryTranslation={(force) => void requestTranslation(force)}
@@ -268,7 +286,7 @@
 	{subDisplayTitle}
 />
 
-<AiEditBar bind:open={editAiOpen} bind:value={editAiInput} recipeTitle={displayTitle} />
+<RoleCoverage slug={recipe.slug} coverage={data.roleCoverage} onAskAi={openRolesAiEdit} />
 
 <input
 	bind:this={imageFileInput}
@@ -295,7 +313,6 @@
 			targetPortions: payload.target_portions ?? recipe.targetPortions
 		};
 	}}
-	onOpenRolesAiEdit={openRolesAiEdit}
 />
 
 <BenchSheet

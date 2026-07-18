@@ -12,13 +12,14 @@
 	import { crossfade, fade, slide } from 'svelte/transition';
 	import { itemLabel } from './format';
 	import type { ShoppingListItem } from './types';
+	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 
 	// Check-off flies the row between "To buy" and "In basket"; adds/removes
 	// without a counterpart fall back to a slide. Keyed by item name (unique
 	// within a week's list).
 	const [send, receive] = crossfade({
-		duration: 200,
-		fallback: (node) => slide(node, { duration: 150 })
+		duration: MOTION_CONTENT_MS,
+		fallback: (node) => slide(node, { duration: MOTION_MICRO_MS })
 	});
 
 	type Props = {
@@ -70,7 +71,7 @@
 					class="flex min-h-14 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-base-200/60 {item.covered ? 'bg-base-200/30 text-base-content/55' : ''}"
 					in:receive={{ key: item.name }}
 					out:send={{ key: item.name }}
-					animate:flip={{ duration: 200 }}
+					animate:flip={{ duration: MOTION_CONTENT_MS }}
 				>
 					<input
 						id={rowId}
@@ -117,7 +118,7 @@
 			{/each}
 		</ul>
 	{:else}
-		<div in:fade={{ duration: 150 }}>
+		<div in:fade={{ duration: MOTION_MICRO_MS }}>
 			<EmptyState mini title={done.length ? m.shopping_empty_all_bought() : m.shopping_empty_stock_covers()} />
 		</div>
 	{/if}
@@ -133,7 +134,7 @@
 					class="flex min-h-14 items-center gap-3 px-3 py-2.5 text-base-content/45"
 					in:receive={{ key: item.name }}
 					out:send={{ key: item.name }}
-					animate:flip={{ duration: 200 }}
+					animate:flip={{ duration: MOTION_CONTENT_MS }}
 				>
 					<input
 						id={rowId}

@@ -1,9 +1,10 @@
 <script lang="ts">
 	import ChatView from '$lib/components/ChatView.svelte';
+	import { useChatAgent } from '$lib/chat/agent_context';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { base } from '$app/paths';
-	import type { ToolDisplay } from '$lib/tool_display';
 	import { m } from '$lib/paraglide/messages';
+	import { untrack } from 'svelte';
 
 	type ExpiringItem = { id: number; name: string; expiryDate: string | null; section: string };
 
@@ -19,12 +20,17 @@
 				createdAt: Date;
 			}[];
 			expiring: ExpiringItem[];
-			prefillMessage: string | null;
 			capExceeded: boolean;
 		};
 	} = $props();
 
 	let showExpiring = $state(true);
+	const chatAgent = useChatAgent();
+	untrack(() =>
+		chatAgent.hydrateOnce(data.messages, {
+			capExceeded: data.capExceeded
+		})
+	);
 
 	function expiryChipClass(expiryDate: string): string {
 		const today = new Date();
@@ -46,6 +52,8 @@
 	}
 </script>
 
+<svelte:head><title>{m.nav_home()}</title></svelte:head>
+
 <div class="flex flex-col h-full">
 	{#if showExpiring && data.expiring && data.expiring.length > 0}
 	<div class="px-3 pt-3 shrink-0">
@@ -62,16 +70,11 @@
 				</a>
 				{/each}
 			</div>
-			<button class="btn btn-xs btn-ghost shrink-0 -mr-1" aria-label={m.home_dismiss_aria()} onclick={() => (showExpiring = false)}><Icon name="x" class="h-3.5 w-3.5" /></button>
+			<button class="btn btn-xs btn-ghost h-9 min-h-9 w-9 shrink-0 p-0 -mr-1" aria-label={m.home_dismiss_aria()} onclick={() => (showExpiring = false)}><Icon name="x" class="h-3.5 w-3.5" /></button>
 		</div>
 	</div>
 	{/if}
-	<div class="flex-1 min-h-0">
-		<ChatView username={data.user.username} initialCapExceeded={data.capExceeded} initialInput={data.prefillMessage ?? ''} initialMessages={data.messages.map((m) => ({
-			role: m.role,
-			content: m.content,
-			at: m.createdAt,
-			toolCalls: m.toolCalls as { id?: string; name: string; input: unknown; result: unknown; display?: ToolDisplay | null }[] | null
-		}))} />
+	<div id="home-chat" class="flex-1 min-h-0">
+		<ChatView controller={chatAgent} />
 	</div>
 </div>

@@ -42,7 +42,7 @@
 				type="button"
 				class="inline-flex items-center min-h-10 px-3.5 py-1.5 rounded-full bg-amber-500 text-white text-[13px] font-semibold active:scale-95"
 				onclick={onStart}
-				aria-label={m.cookmode_timerchip_start_aria({ minutes: Math.ceil(seconds / 60) })}>⏱ {Math.ceil(seconds / 60)}m</button
+				aria-label={m.cookmode_timerchip_start_exact_aria({ duration: fmtClock(seconds) })}>⏱ {fmtClock(seconds)}</button
 			>
 		{:else}
 			<button

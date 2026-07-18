@@ -12,6 +12,7 @@
 	import { isoDateInAppTimeZone, APP_TIME_ZONE } from '$lib/week';
 	import { untrack } from 'svelte';
 	import type { PageData } from './$types';
+	import { formatDate } from '$lib/i18n';
 
 	let { data }: { data: PageData } = $props();
 
@@ -90,7 +91,7 @@
 		const iso = isoDateInAppTimeZone(d);
 		return {
 			iso,
-			label: d.toLocaleDateString('en-GB', { weekday: 'short', timeZone: APP_TIME_ZONE }),
+			label: formatDate(d, { weekday: 'short', timeZone: APP_TIME_ZONE }),
 			eur: data.dailySpend[iso] ?? 0
 		};
 	});

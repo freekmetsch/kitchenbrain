@@ -4,6 +4,10 @@
 import type { PageData } from '../../../routes/inventory/$types';
 import { foodCategoryLabel } from '$lib/food_categories';
 import { daysSinceDate } from '$lib/inventory_dates';
+import { normalizeUnit } from '$lib/food_class';
+import { formatNumber, type AppLocale } from '$lib/i18n';
+import { getLocale } from '$lib/paraglide/runtime';
+import { m } from '$lib/paraglide/messages';
 
 export type Item = PageData['items'][number];
 export type RecipeLink = PageData['recipeLinks'][number];
@@ -42,10 +46,6 @@ export type EditDraft = {
 	target: number | null;
 };
 
-export const FOOD_CLASS_LABEL: Record<string, string> = {
-	meat: 'Meat', fish: 'Fish', vegetarian: 'Veggie', other: 'Other'
-};
-
 // ── display helpers ──────────────────────────────────────────────────────────
 export function daysOld(item: Item): number {
 	return daysSinceDate(item.createdAt) ?? 0;
@@ -62,10 +62,26 @@ export function agingBar(item: Item): string {
 	return a === 'old' ? 'bg-error' : a === 'soon' ? 'bg-warning' : 'bg-base-content/15';
 }
 export function foodClassText(slug: string | null): string {
-	return foodCategoryLabel(slug) ?? 'Unclassified';
+	return foodCategoryLabel(slug) ?? m.food_category_unclassified();
 }
 export function composeQty(n: number, unit: string | null): string {
 	return `${n}${unit ? ' ' + unit : ''}`;
+}
+
+export function displayQuantity(
+	n: number,
+	unit: string | null,
+	locale: AppLocale = getLocale()
+): string {
+	const count = formatNumber(n, locale);
+	const normalizedUnit = unit ? normalizeUnit(unit) : '';
+	if (normalizedUnit === 'portion') {
+		return n === 1
+			? m.inventory_quantity_portion_one({ count }, { locale })
+			: m.inventory_quantity_portion_many({ count }, { locale });
+	}
+	if (!unit || normalizedUnit === 'stuk') return count;
+	return `${count} ${unit}`;
 }
 
 export function autofocus(node: HTMLInputElement) {

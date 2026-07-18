@@ -11,8 +11,9 @@
 	import { m } from '$lib/paraglide/messages';
 	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import PendingButton from '$lib/components/ui/PendingButton.svelte';
-	import { composeQty, FOOD_CLASS_LABEL } from './shared';
+	import { composeQty, foodClassText } from './shared';
 	import type { Item, Kind, Section } from './shared';
+	import { MOTION_CONTENT_MS } from '$lib/motion';
 
 	let {
 		open,
@@ -78,7 +79,7 @@
 </script>
 
 {#if open}
-	<form onsubmit={submitAdd} class="ui-form-card mx-4 mt-3" transition:slide={{ duration: 180 }}>
+	<form onsubmit={submitAdd} class="ui-form-card mx-4 mt-3" transition:slide={{ duration: MOTION_CONTENT_MS }}>
 		<div class="grid grid-cols-2 gap-2.5">
 			<label class="col-span-2 flex flex-col gap-1">
 				<span class="ui-field-label">{m.inventory_addform_name_label()}</span>
@@ -112,7 +113,7 @@
 				<select class="select select-bordered select-sm w-full" bind:value={addClass}>
 					<option value="">—</option>
 					{#each FOOD_CLASS_ROOTS as fc (fc)}
-						<option value={fc}>{FOOD_CLASS_LABEL[fc] ?? fc}</option>
+						<option value={fc}>{foodClassText(fc)}</option>
 					{/each}
 				</select>
 			</label>

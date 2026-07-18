@@ -3,6 +3,7 @@ import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { db } from '$lib/server/db/index';
 import { removeInventory, updateInventory } from '$lib/server/inventory_writes';
+import { readInventoryItem } from '$lib/server/inventory_merge';
 import { parseDateOnly } from '$lib/inventory_dates';
 import { readJsonBody, readPositiveIntParam } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
@@ -25,6 +26,13 @@ const PatchSchema = z.object({
 	review_reason: z.string().nullable().optional(),
 	tags: z.array(z.string()).optional()
 }).refine((input) => Object.values(input).some((value) => value !== undefined), 'No fields to update');
+
+export const GET: RequestHandler = async ({ params, locals }) => {
+	if (!locals.user) throw error(401, 'Unauthorized');
+	const item = readInventoryItem(db, readPositiveIntParam(params.id));
+	if (!item) throw error(404, 'Not found');
+	return json({ item });
+};
 
 export const PATCH: RequestHandler = async ({ request, params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');

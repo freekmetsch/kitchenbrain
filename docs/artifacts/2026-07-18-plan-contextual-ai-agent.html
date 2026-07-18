@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kitchenbrain contextual AI agent plan</title>
+  <style>
+    :root{--night:#17211d;--ink:#24312b;--muted:#6d7d74;--paper:#fbfdf9;--mint:#dff0e6;--lime:#b8dc78;--orange:#d16037;--line:#d9e4dc;--shadow:0 18px 50px #15241d20}*{box-sizing:border-box}html{background:#e7eee8;color:var(--ink);font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}body{margin:0}main{width:min(1120px,calc(100% - 28px));margin:20px auto 70px}.hero{display:grid;grid-template-columns:1.2fr .8fr;gap:26px;align-items:center;padding:clamp(26px,6vw,66px);border-radius:30px;background:var(--night);color:white;box-shadow:var(--shadow)}.tag{color:var(--lime);font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-size:.74rem}h1{margin:10px 0 16px;font:800 clamp(2.2rem,6vw,5rem)/.95 ui-serif,Georgia,serif;letter-spacing:-.045em}.hero p{max-width:650px;color:#d6e3db}.bubble{position:relative;display:grid;place-items:center;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 32% 28%,#f7d1a8,#d16037 55%,#8d2f1e);box-shadow:inset 0 0 0 12px #ffffff12,0 24px 55px #0008}.bubble:after{content:"AI";display:grid;place-items:center;width:45%;aspect-ratio:1;border-radius:50%;background:#fff;color:var(--night);font:900 1.5rem ui-serif,Georgia,serif}.section{margin-top:18px;padding:24px;border:1px solid var(--line);border-radius:22px;background:var(--paper);box-shadow:0 9px 30px #1730220c}.section h2{margin:0 0 14px;font:750 1.45rem ui-serif,Georgia,serif}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:stretch}.node{position:relative;padding:15px;border-radius:15px;background:var(--mint);font-size:.86rem;font-weight:700}.node:not(:last-child):after{content:"→";position:absolute;right:-11px;top:50%;z-index:2;color:var(--orange);font-weight:900;transform:translateY(-50%)}.options{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.option{padding:18px;border:1px solid var(--line);border-radius:16px}.option.chosen{border:2px solid #2c7d56;background:#f2fbf5}.option small{font-weight:850;color:var(--orange)}.option h3{margin:5px 0 8px;font-size:1rem}.option p{margin:0;color:var(--muted);font-size:.87rem}.contract{display:grid;grid-template-columns:1fr 1fr;gap:14px}.contract article{padding:17px;border-radius:16px;background:#f0f5f0}.contract h3{margin:0 0 8px}.contract ul{margin:0;padding-left:18px;color:#596a60;font-size:.88rem}.phases{counter-reset:phase;display:grid;gap:12px}.phase{display:grid;grid-template-columns:56px 1fr;gap:15px;padding:17px;border:1px solid var(--line);border-radius:16px}.phase:before{counter-increment:phase;content:counter(phase);display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:var(--night);color:var(--lime);font:850 1.15rem ui-serif,Georgia,serif}.phase h3{margin:0}.phase p{margin:4px 0 0;color:var(--muted);font-size:.9rem}.risk-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.risk{padding:14px;border-left:4px solid var(--orange);border-radius:10px;background:#f7f2ed}.risk strong{display:block}.risk span{color:var(--muted);font-size:.85rem}.prompt{margin-top:18px;padding:18px;border-radius:18px;background:var(--night);color:white}.prompt header{display:flex;justify-content:space-between;align-items:center;gap:12px}.prompt h2{margin:0;font:700 1.1rem ui-serif,Georgia,serif}.prompt button{min-height:40px;padding:8px 14px;border:0;border-radius:999px;background:var(--lime);color:var(--night);font:inherit;font-weight:800;cursor:pointer}.prompt pre{white-space:pre-wrap;margin:14px 0 0;color:#dceadf;font-size:.84rem}.prompt textarea{position:absolute;left:-9999px;width:1px;height:1px}.foot{text-align:center;color:var(--muted);font-size:.8rem}a{color:#256a49}
+    @media(max-width:780px){.hero{grid-template-columns:1fr}.bubble{width:140px;justify-self:end}.flow{grid-template-columns:1fr}.node:not(:last-child):after{content:"↓";right:auto;left:22px;top:auto;bottom:-15px}.options,.contract,.risk-grid{grid-template-columns:1fr}.section{padding:17px}.phase{grid-template-columns:44px 1fr}.phase:before{width:38px;height:38px}}
+  </style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div><div class="tag">Architecture plan · R2 · four phases</div><h1>One agent. Every screen. Explicit context.</h1><p>A root-owned conversation opened from a draggable edge bubble. Pages publish small semantic facts; the server validates and injects them for one model turn. No DOM scraping, context persistence, new dependency, or authorization shortcut.</p></div>
+    <div class="bubble" aria-label="Conceptual draggable AI bubble"></div>
+  </section>
+
+  <section class="section">
+    <h2>Authority and data flow</h2>
+    <div class="flow" aria-label="Agent data flow">
+      <div class="node">Page publishes whitelisted ScreenContextV1</div>
+      <div class="node">Root controller snapshots context on Send</div>
+      <div class="node">Chat API validates shape and size</div>
+      <div class="node">Model sees ephemeral untrusted context</div>
+      <div class="node">Existing tools re-read SQLite and enforce confirmations</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Options considered</h2>
+    <div class="options">
+      <article class="option"><small>Rejected</small><h3>Wrap current ChatView globally</h3><p>Looks small, but duplicates local state, persists machine context visibly, and cements an 839-line mixed controller/view component.</p></article>
+      <article class="option chosen"><small>Chosen</small><h3>Root controller + typed context</h3><p>One transcript across Home and the agent panel, explicit privacy boundary, existing tools and drag package retained.</p></article>
+      <article class="option"><small>Later, selectively</small><h3>Server route/entity resolver</h3><p>Strong authority but duplicates existing tool reads and cannot express transient filters or dirty edit mode without a resolver per route.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Two contracts make it safe</h2>
+    <div class="contract">
+      <article><h3>ScreenContextV1</h3><ul><li>Route label, entity identity, at most 12 simple facts.</li><li>Approximately 4 KiB hard limit; unknown fields rejected.</li><li>No DOM text, secrets, settings values, notes, or draft contents.</li><li>Dirty edit state blocks writes to the entity.</li><li>Never persisted to chat history.</li></ul></article>
+      <article><h3>ChatAgentController</h3><ul><li>One layout-instantiated controller; never an SSR module singleton.</li><li>Owns transcript, draft, stream, attachments, confirmations, Undo.</li><li>Home and floating panel are renderers, not separate chats.</li><li>Snapshot on Send prevents navigation from mutating an active turn.</li><li>Lazy history hydration runs once.</li></ul></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Execution phases</h2>
+    <div class="phases">
+      <article class="phase"><div><h3>Extract without changing behavior</h3><p>Characterize current chat, extract a root-safe controller, and hydrate lazily. Do not build the bubble first.</p></div></article>
+      <article class="phase"><div><h3>Add the ephemeral context seam</h3><p>Strict schema, JSON/multipart parsing, model-only injection, system rule, and malformed/forged request tests.</p></div></article>
+      <article class="phase"><div><h3>Mount the bubble and full chat</h3><p>Draggable edge bubble; anchored desktop panel; full-viewport mobile dialog; horizontal containment; coordinated layers and focus.</p></div></article>
+      <article class="phase"><div><h3>Publish route context and replace recipe handoffs</h3><p>Rich context on core routes, safe label fallback elsewhere, in-place role prompt, batched page invalidation, English/Dutch copy.</p></div></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Failure modes designed out</h2>
+    <div class="risk-grid">
+      <div class="risk"><strong>SSR user leakage</strong><span>Layout instance, never module singleton; concurrent SSR test.</span></div>
+      <div class="risk"><strong>Duplicate transcripts</strong><span>One controller and idempotent hydrateOnce.</span></div>
+      <div class="risk"><strong>Prompt injection / secrets</strong><span>Typed facts, no scraping, bounded size, untrusted marker, authoritative tool rereads.</span></div>
+      <div class="risk"><strong>Unsaved-form races</strong><span>Dirty state publishes identity only and blocks entity writes.</span></div>
+      <div class="risk"><strong>Navigation kills stream/files</strong><span>Controller owns abort and object-URL lifecycle until root destruction.</span></div>
+      <div class="risk"><strong>Overlay and drag traps</strong><span>Agent layer token, modal mobile surface, click/keyboard alternatives, Escape and return focus.</span></div>
+      <div class="risk"><strong>Refresh storms</strong><span>Batch one invalidate after tool stream; immediate only for Undo/approval.</span></div>
+      <div class="risk"><strong>Token/cost creep</strong><span>4 KiB/12-fact cap and existing spend accounting.</span></div>
+    </div>
+  </section>
+
+  <section class="prompt">
+    <header><h2>Phase-one handoff</h2><button type="button" onclick="copyPrompt(this)">Copy prompt</button></header>
+    <pre id="prompt-text"></pre>
+    <textarea id="prompt-fallback" readonly onclick="this.select()"></textarea>
+  </section>
+  <p class="foot">Backing plan: <a href="../archive/2026-07/FEATURE_LIST_CONTEXTUAL_AI_AGENT.md">FEATURE_LIST_CONTEXTUAL_AI_AGENT.md</a>. Critique result: GO.</p>
+</main>
+<script>
+(function(){
+  const source='docs/archive/2026-07/FEATURE_LIST_CONTEXTUAL_AI_AGENT.md';
+  function build(){const text=['Continue: Execute Phase 1 of the contextual floating AI agent plan. Load '+source+', then /run.','State: GO; R2 four-phase plan. Extract and prove one root-safe controller before adding screen context or the global bubble.'].join('\n');document.getElementById('prompt-text').textContent=text;document.getElementById('prompt-fallback').value=text;}
+  window.copyPrompt=function(button){const text=document.getElementById('prompt-text').textContent;navigator.clipboard.writeText(text).then(()=>{button.textContent='Copied';setTimeout(()=>button.textContent='Copy prompt',1600)}).catch(()=>{button.textContent='Select and copy';document.getElementById('prompt-fallback').select();setTimeout(()=>button.textContent='Copy prompt',2200)});};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);else build();
+})();
+</script>
+</body>
+</html>

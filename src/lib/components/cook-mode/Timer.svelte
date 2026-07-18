@@ -127,9 +127,7 @@
 			: ''} {done ? 'animate-pulse ring-4 ring-white/60' : ''}"
 		style:bottom={bottomCss}
 		style:right="0.75rem"
-		style:transition={dragging ? 'none' : 'translate 220ms cubic-bezier(0.16, 1, 0.3, 1)'}
-		role="status"
-		aria-live="polite"
+		style:transition={dragging ? 'none' : 'translate var(--motion-content) var(--ease-emphasized)'}
 	>
 		<!-- Grip glyph — visual draggability affordance only; the whole pill drags. -->
 		<span

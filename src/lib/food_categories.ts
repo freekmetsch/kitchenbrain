@@ -1,22 +1,26 @@
+import { getLocale } from '$lib/paraglide/runtime';
+import { m } from '$lib/paraglide/messages';
+import type { AppLocale } from '$lib/i18n';
+
 export const CORE_FOOD_TYPE_OPTIONS = [
-	{ value: 'meat', label: 'Meat' },
-	{ value: 'fish', label: 'Fish' },
-	{ value: 'vegetarian', label: 'Veggie' },
-	{ value: 'vegan', label: 'Vegan' }
+	{ value: 'meat' },
+	{ value: 'fish' },
+	{ value: 'vegetarian' },
+	{ value: 'vegan' }
 ] as const;
 
 const RECIPE_TYPE_OPTIONS = [
 	...CORE_FOOD_TYPE_OPTIONS,
-	{ value: 'soup', label: 'Soup' },
-	{ value: 'salad', label: 'Salad' },
-	{ value: 'pasta', label: 'Pasta' },
-	{ value: 'pizza', label: 'Pizza' },
-	{ value: 'dessert', label: 'Dessert' },
-	{ value: 'breakfast', label: 'Breakfast' },
-	{ value: 'side', label: 'Side' },
-	{ value: 'sauce', label: 'Sauce' },
-	{ value: 'snack', label: 'Snack' },
-	{ value: 'other', label: 'Other' }
+	{ value: 'soup' },
+	{ value: 'salad' },
+	{ value: 'pasta' },
+	{ value: 'pizza' },
+	{ value: 'dessert' },
+	{ value: 'breakfast' },
+	{ value: 'side' },
+	{ value: 'sauce' },
+	{ value: 'snack' },
+	{ value: 'other' }
 ] as const;
 
 const CATEGORY_ALIASES = new Map<string, string>([
@@ -35,9 +39,24 @@ const CATEGORY_ALIASES = new Map<string, string>([
 	['vlees', 'meat']
 ]);
 
-const LABELS: ReadonlyMap<string, string> = new Map(
-	RECIPE_TYPE_OPTIONS.map((option) => [option.value, option.label])
-);
+type Category = (typeof RECIPE_TYPE_OPTIONS)[number]['value'];
+
+const CATEGORY_LABELS: Record<Category, (locale: AppLocale) => string> = {
+	meat: (locale) => m.food_category_meat({}, { locale }),
+	fish: (locale) => m.food_category_fish({}, { locale }),
+	vegetarian: (locale) => m.food_category_vegetarian({}, { locale }),
+	vegan: (locale) => m.food_category_vegan({}, { locale }),
+	soup: (locale) => m.food_category_soup({}, { locale }),
+	salad: (locale) => m.food_category_salad({}, { locale }),
+	pasta: (locale) => m.food_category_pasta({}, { locale }),
+	pizza: (locale) => m.food_category_pizza({}, { locale }),
+	dessert: (locale) => m.food_category_dessert({}, { locale }),
+	breakfast: (locale) => m.food_category_breakfast({}, { locale }),
+	side: (locale) => m.food_category_side({}, { locale }),
+	sauce: (locale) => m.food_category_sauce({}, { locale }),
+	snack: (locale) => m.food_category_snack({}, { locale }),
+	other: (locale) => m.food_category_other({}, { locale })
+};
 
 function cleanCategory(value: string): string {
 	return value
@@ -53,11 +72,14 @@ export function normalizeFoodCategory(value: string | null | undefined): string 
 	return CATEGORY_ALIASES.get(cleaned) ?? cleaned;
 }
 
-export function foodCategoryLabel(value: string | null | undefined): string | null {
+export function foodCategoryLabel(
+	value: string | null | undefined,
+	locale: AppLocale = getLocale()
+): string | null {
 	const normalized = normalizeFoodCategory(value);
 	if (!normalized) return null;
-	const label = LABELS.get(normalized);
-	if (label) return label;
+	const label = CATEGORY_LABELS[normalized as Category];
+	if (label) return label(locale);
 	return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 

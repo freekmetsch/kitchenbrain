@@ -23,8 +23,7 @@
 		frozenPortions,
 		hasRoles,
 		serveFresh,
-		onSaved,
-		onOpenRolesAiEdit
+		onSaved
 	}: {
 		recipe: Recipe;
 		weeks: Week[];
@@ -33,7 +32,6 @@
 		hasRoles: boolean;
 		serveFresh: Array<{ name: string; amount: string | null; unit: string | null }>;
 		onSaved: (payload: { is_freezer_staple?: boolean; target_portions?: number }) => void;
-		onOpenRolesAiEdit: () => void;
 	} = $props();
 
 	let stapleSaving = $state(false);
@@ -199,15 +197,6 @@
 						}}>🍽️ {m.recipes_freezer_serve_button()}</button
 					>
 				</div>
-			{:else}
-				<button
-					type="button"
-					class="text-left text-[11px] text-base-content/50"
-					onclick={onOpenRolesAiEdit}
-				>
-					🍽️ {m.recipes_freezer_needs_roles_prefix()}
-					<span class="underline decoration-dotted underline-offset-2">{m.recipes_freezer_set_roles_link()}</span>
-				</button>
 			{/if}
 		{/if}
 		{#if serveOpen && hasRoles && frozenPortions > 0}

@@ -6,9 +6,10 @@
 	import { base } from '$app/paths';
 	import FixedBottomBar from '$lib/components/ui/FixedBottomBar.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData, ActionData } from './$types';
+	import { useChatAgent } from '$lib/chat/agent_context';
 
 	type Ingredient = {
 		name: string;
@@ -19,6 +20,10 @@
 	};
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	const chatAgent = useChatAgent();
+	const { slug: draftSlug, updatedAt: draftUpdatedAt } = untrack(() => data.recipe);
+	const draftKey = `kitchenbrain:recipe-draft:${draftSlug}`;
+	const baseUpdatedAt = new Date(draftUpdatedAt).toISOString();
 
 	let title = $state(untrack(() => data.recipe.title));
 	let language = $state<'nl' | 'en'>(untrack(() => (data.recipe.language as 'nl' | 'en') ?? 'nl'));
@@ -37,6 +42,8 @@
 	let directions = $state<string[]>(untrack(() => [...(data.recipe.directions as string[])]));
 
 	let submitting = $state(false);
+	let draftReady = $state(false);
+	let draftRecovered = $state(false);
 
 	function addIngredient() {
 		ingredients = [...ingredients, { name: '', amount: '', unit: '' }];
@@ -88,6 +95,79 @@
 
 	const initialSnapshot = untrack(snapshot);
 	let dirty = $derived(snapshot() !== initialSnapshot);
+	let classifiedCount = $derived(
+		ingredients.filter((ingredient) => ingredient.role === 'cook_in' || ingredient.role === 'serve_fresh').length
+	);
+
+	function applyDraft(draft: {
+		title: string;
+		language: 'nl' | 'en';
+		notes: string;
+		servings: number | null;
+		ingredients: Ingredient[];
+		directions: string[];
+	}) {
+		title = draft.title;
+		language = draft.language;
+		notes = draft.notes;
+		servings = draft.servings;
+		ingredients = draft.ingredients.map((ingredient) => ({ ...ingredient }));
+		directions = [...draft.directions];
+	}
+
+	function serverDraft() {
+		return {
+			title: data.recipe.title,
+			language: (data.recipe.language as 'nl' | 'en') ?? 'nl',
+			notes: data.recipe.notes ?? '',
+			servings: data.recipe.servings,
+			ingredients: (data.recipe.ingredients as Ingredient[]).map((ingredient) => ({
+				...ingredient,
+				unit: ingredient.unit ?? ''
+			})),
+			directions: [...(data.recipe.directions as string[])]
+		};
+	}
+
+	function discardRecoveredDraft() {
+		applyDraft(serverDraft());
+		draftRecovered = false;
+		sessionStorage.removeItem(draftKey);
+	}
+
+	onMount(() => {
+		try {
+			const stored = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null');
+			if (stored?.v === 1 && stored.baseUpdatedAt === baseUpdatedAt && stored.draft) {
+				applyDraft(stored.draft);
+				draftRecovered = true;
+			} else if (stored) sessionStorage.removeItem(draftKey);
+		} catch {
+			sessionStorage.removeItem(draftKey);
+		}
+		draftReady = true;
+	});
+
+	$effect(() => {
+		if (!draftReady) return;
+		const draft = { title, language, notes, servings, ingredients, directions };
+		if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ v: 1, baseUpdatedAt, draft }));
+		else sessionStorage.removeItem(draftKey);
+	});
+
+	$effect(() =>
+		chatAgent.publishScreen({
+			v: 1,
+			routeId: '/recipes/[slug]/edit',
+			label: m.recipes_agent_context_label({ title: data.recipe.title }),
+			entity: { kind: 'recipe', id: data.recipe.slug, label: data.recipe.title },
+			facts: [
+				{ key: 'ingredientRoleCoverage', value: `${classifiedCount}/${ingredients.length}` },
+				{ key: 'language', value: language }
+			],
+			interaction: { mode: 'edit', dirty }
+		})
+	);
 
 	beforeNavigate(({ cancel }) => {
 		if (!dirty || submitting) return;
@@ -99,7 +179,7 @@
 	<title>{m.recipes_edit_heading()} {data.recipe.title} · {m.recipes_title_suffix()}</title>
 </svelte:head>
 
-<div class="ui-page-shell px-4 py-4">
+<div class="ui-page-shell px-4 pt-4">
 	<div class="flex items-center gap-2 mb-4">
 		<a
 			href="{base}/recipes/{data.recipe.slug}"
@@ -112,12 +192,24 @@
 	{#if form?.error}
 		<div class="mb-3 rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.error}</div>
 	{/if}
+	{#if draftRecovered}
+		<div class="mb-3 flex items-center gap-3 rounded-xl border border-info/30 bg-info/10 px-3 py-2 text-sm text-info">
+			<span class="min-w-0 flex-1">{m.recipes_edit_draft_restored()}</span>
+			<button type="button" class="btn btn-ghost btn-sm min-h-9" onclick={discardRecoveredDraft}
+				>{m.recipes_edit_draft_discard()}</button
+			>
+		</div>
+	{/if}
 
 	<form
 		method="POST"
 		use:enhance={() => {
 			submitting = true;
 			return async ({ result, update }) => {
+				if (result.type === 'redirect' || result.type === 'success') {
+					sessionStorage.removeItem(draftKey);
+					draftRecovered = false;
+				}
 				await update();
 				submitting = false;
 				if (result.type === 'failure') {
@@ -163,37 +255,41 @@
 		<section class="ui-form-card">
 			<div class="flex items-baseline gap-2 mb-2">
 				<span class="ui-section-label">{m.recipes_edit_ingredients_label()}</span>
-				<button type="button" class="btn btn-xs btn-ghost border border-base-300 ml-auto" onclick={addIngredient}
+				<button type="button" class="btn btn-xs btn-ghost min-h-9 border border-base-300 ml-auto" onclick={addIngredient}
 					>{m.recipes_edit_add_ingredient_button()}</button
 				>
 			</div>
-			<div class="flex flex-col gap-1.5">
+			<div class="flex flex-col gap-2.5">
 				{#each ingredients as ing, i (i)}
-					<div class="flex gap-1.5 items-start">
-						<input
-							type="text"
-							placeholder={m.recipes_edit_amount_placeholder()}
-							bind:value={ing.amount}
-							class="input input-bordered input-sm w-20 shrink-0"
-						/>
-						<input
-							type="text"
-							placeholder={m.recipes_edit_unit_placeholder()}
-							bind:value={ing.unit}
-							class="input input-bordered input-sm w-16 shrink-0"
-						/>
-						<input
-							type="text"
-							placeholder={m.recipes_edit_name_placeholder()}
-							bind:value={ing.name}
-							class="input input-bordered input-sm flex-1 min-w-0"
-						/>
-						<button
-							type="button"
-							class="btn btn-xs btn-ghost text-error shrink-0"
-							aria-label={m.recipes_edit_remove_ingredient_aria()}
-				onclick={() => removeIngredient(i)}><Icon name="x" class="h-3.5 w-3.5" /></button
-						>
+					<div class="rounded-xl border border-base-300/70 bg-base-200/45 p-2.5">
+						<label class="flex min-w-0 flex-col gap-1">
+							<span class="ui-field-label">{m.recipes_edit_name_label()}</span>
+							<input type="text" bind:value={ing.name} class="input input-bordered input-sm w-full" />
+						</label>
+						<div class="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 sm:grid-cols-[6rem_6rem_minmax(0,1fr)_2.25rem]">
+							<label class="flex min-w-0 flex-col gap-1">
+								<span class="ui-field-label">{m.recipes_edit_amount_label()}</span>
+								<input type="text" bind:value={ing.amount} class="input input-bordered input-sm min-w-0 w-full" />
+							</label>
+							<label class="flex min-w-0 flex-col gap-1">
+								<span class="ui-field-label">{m.recipes_edit_unit_label()}</span>
+								<input type="text" bind:value={ing.unit} class="input input-bordered input-sm min-w-0 w-full" />
+							</label>
+							<label class="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
+								<span class="ui-field-label">{m.recipes_edit_role_label()}</span>
+								<select bind:value={ing.role} class="select select-bordered select-sm min-w-0 w-full">
+									<option value={undefined}>{m.recipes_edit_role_unclassified()}</option>
+									<option value="cook_in">{m.recipes_edit_role_cook_in()}</option>
+									<option value="serve_fresh">{m.recipes_edit_role_serve_fresh()}</option>
+								</select>
+							</label>
+							<button
+								type="button"
+								class="btn btn-ghost h-9 min-h-9 w-9 self-end p-0 text-error"
+								aria-label={m.recipes_edit_remove_ingredient_aria()}
+								onclick={() => removeIngredient(i)}><Icon name="x" class="h-3.5 w-3.5" /></button
+							>
+						</div>
 					</div>
 				{/each}
 			</div>
@@ -203,7 +299,7 @@
 			<div class="flex items-baseline gap-2 mb-2">
 				<span class="ui-section-label">{m.recipes_edit_directions_label()}</span>
 				<span class="text-[11px] text-base-content/50">{m.recipes_edit_directions_hint()}</span>
-				<button type="button" class="btn btn-xs btn-ghost border border-base-300 ml-auto" onclick={addDirection}
+				<button type="button" class="btn btn-xs btn-ghost min-h-9 border border-base-300 ml-auto" onclick={addDirection}
 					>{m.recipes_edit_add_step_button()}</button
 				>
 			</div>
@@ -223,21 +319,21 @@
 						<div class="flex flex-col gap-0.5 shrink-0">
 							<button
 								type="button"
-								class="btn btn-xs btn-ghost"
+								class="btn btn-xs btn-ghost min-h-9 min-w-9"
 								aria-label={m.recipes_edit_move_up_aria()}
 								disabled={i === 0}
 								onclick={() => moveDirection(i, -1)}>▴</button
 							>
 							<button
 								type="button"
-								class="btn btn-xs btn-ghost"
+								class="btn btn-xs btn-ghost min-h-9 min-w-9"
 								aria-label={m.recipes_edit_move_down_aria()}
 								disabled={i === directions.length - 1}
 								onclick={() => moveDirection(i, 1)}>▾</button
 							>
 							<button
 								type="button"
-								class="btn btn-xs btn-ghost text-error"
+								class="btn btn-xs btn-ghost min-h-9 min-w-9 text-error"
 								aria-label={m.recipes_edit_remove_direction_aria()}
 					onclick={() => removeDirection(i)}><Icon name="x" class="h-3.5 w-3.5" /></button
 							>

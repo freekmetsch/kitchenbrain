@@ -5,10 +5,10 @@
 // Freezer-aware (the meal-plan ↔ freezer ↔ shopping seam): a meal planned
 // with source 'freezer' is served from frozen leftover portions, so only its
 // `serve_fresh`-role ingredients (the naan/rice/limes next to a frozen curry)
-// go on the list. A freezer meal whose recipe has no ingredient roles at all
-// can't say what needs buying fresh — it contributes nothing and is surfaced
-// in `freezerMealsMissingFreshInfo` so the UI can point at the recipe instead
-// of silently showing an empty (or fully duplicated) list.
+// go on the list. A freezer meal with incomplete ingredient roles can't say
+// whether its unknown ingredients are fresh sides. Known `serve_fresh` items
+// still contribute, and the meal is surfaced in `freezerMealsMissingFreshInfo`
+// so the UI can point at the recipe instead of implying the list is complete.
 //
 // AH-INVARIANT: every name emitted here is the Dutch
 // `recipes.ingredients[].name`; sub-recipe expansion (ADR 0003) happens via
@@ -18,6 +18,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient, MealSource } from '$lib/server/db/schema';
 import { expandMealIngredients } from '$lib/server/meal_recipes';
+import { ingredientRoleCoverage } from '$lib/server/recipe_links';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -45,7 +46,7 @@ export type WeekNeeds = {
 	mealsWithoutRecipe: string[];
 	/** Meals served from the freezer this week (fresh sides only on the list). */
 	freezerMeals: FreezerMealRef[];
-	/** Freezer meals whose recipe has no cook_in/serve_fresh roles — the fresh sides are unknown. */
+	/** Freezer meals whose recipe role coverage is incomplete — some fresh sides may be unknown. */
 	freezerMealsMissingFreshInfo: FreezerMealRef[];
 };
 
@@ -100,10 +101,9 @@ export function deriveWeekNeeds(db: DB, meals: PlannedMealForNeeds[]): WeekNeeds
 		if (meal.source === 'freezer') {
 			const ref: FreezerMealRef = { dinner: meal.dinner, recipeSlug: recipe.slug };
 			freezerMeals.push(ref);
-			const hasRoles = ingredients.some((ing) => ing.role === 'cook_in' || ing.role === 'serve_fresh');
-			if (!hasRoles) {
+			const coverage = ingredientRoleCoverage(ingredients);
+			if (!coverage.complete) {
 				freezerMealsMissingFreshInfo.push(ref);
-				continue;
 			}
 			for (const ing of ingredients) {
 				if (ing.role === 'serve_fresh') contribute(ing, meal);

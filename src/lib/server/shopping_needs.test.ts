@@ -67,6 +67,20 @@ describe('deriveWeekNeeds', () => {
 		expect(res.freezerMealsMissingFreshInfo).toEqual([{ dinner: 'Chili', recipeSlug: 'chili' }]);
 	});
 
+	it('flags partial role coverage while keeping known fresh sides visible', () => {
+		const db = createTestDb();
+		seedRecipe(db, 'curry', [
+			{ name: 'currypasta', amount: '1', unit: 'potje', role: 'cook_in' },
+			{ name: 'naan', amount: '4', role: 'serve_fresh' },
+			{ name: 'limoen', amount: '2' }
+		]);
+
+		const res = deriveWeekNeeds(db, [meal('Curry', 'curry', 'freezer')]);
+
+		expect(res.needed.map((item) => item.name)).toEqual(['naan']);
+		expect(res.freezerMealsMissingFreshInfo).toEqual([{ dinner: 'Curry', recipeSlug: 'curry' }]);
+	});
+
 	it('a shared ingredient loses freshSideOnly when a fresh meal also needs it', () => {
 		const db = createTestDb();
 		seedRecipe(db, 'curry', CURRY);
@@ -96,6 +110,22 @@ describe('deriveWeekNeeds', () => {
 		const res = deriveWeekNeeds(db, [meal('Taco avond', taco.slug, 'freezer')]);
 
 		expect(res.needed.map((i) => i.name).sort()).toEqual(['avocado', 'koriander']);
+	});
+
+	it('treats complete sub-recipe-only roles as complete coverage', () => {
+		const db = createTestDb();
+		const mainDish = seedRecipe(db, 'taco-vlees', [
+			{ name: 'gehakt', amount: '500', unit: 'g', role: 'cook_in' }
+		]);
+		const side = seedRecipe(db, 'guacamole', [
+			{ name: 'avocado', amount: '2', role: 'serve_fresh' }
+		]);
+		const taco = createMealRecipe(db, { title: 'Taco avond', subRecipeIds: [mainDish.id, side.id] });
+
+		const res = deriveWeekNeeds(db, [meal('Taco avond', taco.slug, 'freezer')]);
+
+		expect(res.freezerMealsMissingFreshInfo).toEqual([]);
+		expect(res.needed.map((item) => item.name)).toEqual(['avocado']);
 	});
 
 	it('reports meals without a recipe and dangling recipe slugs', () => {

@@ -19,7 +19,7 @@
 {#if t}
 	<div
 		class="ui-z-toast pointer-events-none fixed inset-x-0"
-		style="bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px))"
+		style="bottom: var(--ui-overlay-bottom)"
 	>
 		<div
 			role={t.variant === 'error' ? 'alert' : 'status'}
@@ -30,7 +30,7 @@
 			{#if t.action}
 				<button
 					type="button"
-					class="shrink-0 font-semibold underline-offset-2 hover:underline"
+					class="min-h-9 shrink-0 px-1 font-semibold underline-offset-2 hover:underline"
 					onclick={() => runAction(t.action)}>{t.action.label}</button
 				>
 			{/if}

@@ -8,8 +8,9 @@
 	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
 	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
-	import { FOOD_CLASS_LABEL } from './shared';
+	import { foodClassText } from './shared';
 	import type { Section } from './shared';
+	import { scrollRail } from '$lib/actions/scroll_rail';
 
 	let {
 		sectionFilter = $bindable(),
@@ -31,7 +32,7 @@
 </script>
 
 <div class="sticky top-0 z-20 border-b border-base-300/60 bg-base-100/95 px-4 pb-2 pt-2 backdrop-blur">
-	<div class="flex items-center gap-1.5 overflow-x-auto">
+	<div class="ui-scroll-rail flex items-center gap-1.5" use:scrollRail>
 		<div class="shrink-0">
 			<SegmentedTabs tabs={SECTION_TABS} bind:value={sectionFilter} />
 		</div>
@@ -40,7 +41,7 @@
 				type="button"
 				aria-pressed={classFilter === fc}
 				class={classFilter === fc ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
-				onclick={() => (classFilter = classFilter === fc ? null : fc)}>{FOOD_CLASS_LABEL[fc] ?? fc}</button
+				onclick={() => (classFilter = classFilter === fc ? null : fc)}>{foodClassText(fc)}</button
 			>
 		{/each}
 		{#if needsReviewCount > 0}

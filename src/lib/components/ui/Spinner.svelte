@@ -8,12 +8,13 @@
 	// Reduced motion: steam/bubbles freeze at partial opacity (no keyframes).
 	import { toPathDef } from '$lib/components/ui/icons/paths';
 	import { iconSet } from '$lib/components/ui/icons/active.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		size = 'sm',
 		variant = 'pot',
 		class: klass = '',
-		label = 'Loading'
+		label = m.ui_loading_label()
 	}: {
 		/** Matches the old daisyUI loading sizes: xs 1rem, sm 1.25rem, md 1.5rem, lg 2.5rem. */
 		size?: 'xs' | 'sm' | 'md' | 'lg';

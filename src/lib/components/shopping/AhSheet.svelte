@@ -20,6 +20,7 @@
 	import { fade } from 'svelte/transition';
 	import AhPreviewItem from './AhPreviewItem.svelte';
 	import AhPushResult from './AhPushResult.svelte';
+	import { MOTION_MICRO_MS } from '$lib/motion';
 	import type { AhPushOutcome, Decision, ShoppingListItem } from './types';
 
 	type Props = {
@@ -358,7 +359,7 @@
 			<button type="button" class="btn" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
 		</div>
 	{:else if ahItems}
-		<ul class="mb-4 max-h-[55vh] space-y-2 overflow-y-auto" in:fade={{ duration: 150 }}>
+		<ul class="mb-4 max-h-[55vh] space-y-2 overflow-y-auto" in:fade={{ duration: MOTION_MICRO_MS }}>
 			{#each ahItems as item (item.ref)}
 				<AhPreviewItem
 					{item}

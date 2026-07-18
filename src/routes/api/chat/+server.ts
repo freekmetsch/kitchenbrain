@@ -27,6 +27,12 @@ import { getHouseholdPref, K_HOUSEHOLD_PROFILE } from '$lib/server/db/household_
 import type { TurnExecutionContext } from '$lib/server/ai/commit_risk';
 import { APP_TIME_ZONE } from '$lib/week';
 import { getLocale } from '$lib/paraglide/runtime';
+import type { ScreenContextV1 } from '$lib/chat/screen_context';
+import {
+	blocksDirtyRecipeWrite,
+	parseScreenContext,
+	serializeScreenContext
+} from '$lib/server/ai/screen_context';
 
 // Vision upload hard caps (Stage 4b / P5.4). Images arrive as multipart/form-data
 // (no base64 +33% on the wire); the client downscales to ≤1568px before sending,
@@ -109,6 +115,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const images: VisionImage[] = [];
 	let message = '';
 	let isRetry = false;
+	let screenContext: ScreenContextV1 | undefined;
 	const contentType = request.headers.get('content-type') ?? '';
 	if (contentType.includes('multipart/form-data')) {
 		let form: FormData;
@@ -119,6 +126,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 		const rawMsg = form.get('message');
 		message = typeof rawMsg === 'string' ? rawMsg : '';
+		const rawContext = form.get('screenContext');
+		if (typeof rawContext === 'string' && rawContext) {
+			try {
+				screenContext = parseScreenContext(JSON.parse(rawContext));
+			} catch {
+				throw error(400, 'Invalid screen context');
+			}
+		}
 		// getAll returns (File | string)[]; a non-string entry is the uploaded File.
 		const files = form.getAll('images').filter((f): f is File => typeof f !== 'string');
 		if (files.length > MAX_IMAGES) throw error(400, `Attach at most ${MAX_IMAGES} photos.`);
@@ -142,9 +157,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		} catch {
 			throw error(400, 'Invalid JSON');
 		}
-		const body = (raw ?? {}) as { message?: unknown; retry?: unknown };
+		const body = (raw ?? {}) as { message?: unknown; retry?: unknown; screenContext?: unknown };
 		message = typeof body.message === 'string' ? body.message : '';
 		isRetry = body.retry === true;
+		try {
+			screenContext = parseScreenContext(body.screenContext);
+		} catch {
+			throw error(400, 'Invalid screen context');
+		}
 	}
 
 	const hasImages = images.length > 0;
@@ -209,6 +229,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			// every future turn stay text-only (one-shot ingestion).
 			if (hasImages && messages.length > 0) {
 				messages[messages.length - 1] = buildVisionMessage(userText, images);
+			}
+			if (screenContext && messages.length > 0) {
+				const current = messages[messages.length - 1];
+				const contextText = serializeScreenContext(screenContext);
+				messages[messages.length - 1] = {
+					role: 'user',
+					content:
+						typeof current.content === 'string'
+							? `${current.content}\n\n${contextText}`
+							: [...current.content, { type: 'text', text: contextText }]
+				};
 			}
 			// One TurnExecutionContext per chat request drives the commit-risk gate
 			// (just-created tracking + bulk-destructive count) across the tool loop.
@@ -300,7 +331,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 								summary: describeToolStart(tool.name, tool.input)
 							})
 						);
-						const result = await executeToolCall(tool.name, tool.input, db, user.id, turnCtx);
+						const result = blocksDirtyRecipeWrite(screenContext, tool.name, tool.input)
+							? {
+									ok: false,
+									error: 'Save or discard the open recipe draft before changing this recipe with AI.'
+								}
+							: await executeToolCall(tool.name, tool.input, db, user.id, turnCtx);
 						const display = buildToolDisplay(db, tool.name, tool.input, result);
 						allToolCalls.push({ id: tool.id, name: tool.name, input: tool.input, result, display });
 						controller.enqueue(sse({ type: 'tool', id: tool.id, name: tool.name, result, display }));

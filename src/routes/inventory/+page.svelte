@@ -13,6 +13,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { onMount, tick, untrack } from 'svelte';
 	import { slide } from 'svelte/transition';
+	import { MOTION_MICRO_MS } from '$lib/motion';
 	import { m } from '$lib/paraglide/messages';
 	import ActivitySheet from '$lib/components/inventory/ActivitySheet.svelte';
 	import AddItemForm from '$lib/components/inventory/AddItemForm.svelte';
@@ -32,10 +33,13 @@
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import { rollsUpTo } from '$lib/food_class';
 	import { patchKeepStocked } from '$lib/keep_stocked';
+	import { captureRemoval, restoreRemoval, type RemovedListItem } from '$lib/inventory_undo';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type { PageData } from './$types';
+	import { useChatAgent } from '$lib/chat/agent_context';
 
 	let { data }: { data: PageData } = $props();
+	const chatAgent = useChatAgent();
 
 	// ── constants ──────────────────────────────────────────────────────────────
 	const KIND_ORDER = ['leftover', 'ingredient', 'processed', null] as const;
@@ -99,6 +103,22 @@
 				(classFilter === null || rollsUpTo(i.foodClass, classFilter)) &&
 				(!reviewOnly || i.needsReview)
 		)
+	);
+
+	$effect(() =>
+		chatAgent.publishScreen({
+			v: 1,
+			routeId: '/inventory',
+			label: m.inventory_heading(),
+			entity: { kind: 'inventory' },
+			facts: [
+				{ key: 'totalItems', value: items.length },
+				{ key: 'visibleItems', value: filtered.length },
+				{ key: 'sectionFilter', value: sectionFilter },
+				{ key: 'foodClassFilter', value: classFilter ?? 'all' },
+				{ key: 'reviewOnly', value: reviewOnly }
+			]
+		})
 	);
 
 	function bucket(i: Item): Kind | null {
@@ -470,10 +490,9 @@
 	// ── delete + undo ──────────────────────────────────────────────────────────────
 	async function deleteItem(item: Item) {
 		if (editingId === item.id) editingId = null;
-		const idx = items.findIndex((i) => i.id === item.id);
-		if (idx < 0) return;
-		const snapshot = items[idx];
-		items = items.filter((i) => i.id !== item.id);
+		const removal = captureRemoval(items, item.id);
+		if (!removal.removed) return;
+		items = removal.items;
 		let ok = false;
 		try {
 			ok = (await fetch(`${base}/api/inventory/${item.id}`, { method: 'DELETE' })).ok;
@@ -481,28 +500,61 @@
 			ok = false;
 		}
 		if (!ok) {
-			items = [...items.slice(0, idx), snapshot, ...items.slice(idx)];
+			items = restoreRemoval(items, removal.removed);
 			flashToast(m.inventory_toast_remove_failed(), { error: true });
 			return;
 		}
 		flashToast(m.inventory_toast_removed({ name: item.name }), {
-			action: { label: m.inventory_action_undo(), run: () => undoDelete(item.id) }
+			action: { label: m.inventory_action_undo(), run: () => undoDelete(removal.removed!) }
 		});
 	}
 
-	async function undoDelete(itemId: number) {
-		toast.dismiss();
-		const res = await fetch(`${base}/api/inventory/undo`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ item_id: itemId })
-		});
-		if (!res.ok) {
-			flashToast(m.inventory_toast_undo_failed(), { error: true });
-			return;
+	async function readServerItem(itemId: number): Promise<(Item & { deletedAt?: unknown }) | null | undefined> {
+		try {
+			const res = await fetch(`${base}/api/inventory/${itemId}`);
+			if (!res.ok) return res.status === 404 ? null : undefined;
+			return (await res.json()).item as Item & { deletedAt?: unknown };
+		} catch {
+			return undefined;
 		}
-		const { item } = await res.json();
-		reconcileItem(item);
+	}
+
+	function removeOptimisticRestore(itemId: number) {
+		items = items.filter((item) => item.id !== itemId);
+	}
+
+	async function reconcileUndoFailure(removed: RemovedListItem<Item>): Promise<boolean> {
+		const serverItem = await readServerItem(removed.item.id);
+		if (serverItem === undefined) return false;
+		if (serverItem === null || serverItem.deletedAt) removeOptimisticRestore(removed.item.id);
+		else reconcileItem(serverItem);
+		return true;
+	}
+
+	async function undoDelete(removed: RemovedListItem<Item>) {
+		toast.dismiss();
+		items = restoreRemoval(items, removed);
+		try {
+			const res = await fetch(`${base}/api/inventory/undo`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ item_id: removed.item.id })
+			});
+			if (!res.ok) {
+				await reconcileUndoFailure(removed);
+				flashToast(
+					res.status === 409 ? m.inventory_toast_undo_conflict() : m.inventory_toast_undo_failed(),
+					{ error: res.status !== 409 }
+				);
+				return;
+			}
+			const { item } = await res.json();
+			reconcileItem(item);
+		} catch {
+			const reconciled = await reconcileUndoFailure(removed);
+			if (!reconciled) await invalidateAll();
+			flashToast(m.inventory_toast_undo_failed(), { error: true });
+		}
 	}
 
 	// ── history ────────────────────────────────────────────────────────────────────
@@ -605,7 +657,7 @@
 				</div>
 				<ul class="ui-list-card divide-y divide-base-200">
 					{#each shelf.items as item (item.id)}
-						<li id="inventory-item-{item.id}" class="relative overflow-hidden" transition:slide={{ duration: 150 }}>
+						<li id="inventory-item-{item.id}" class="relative overflow-hidden" transition:slide={{ duration: MOTION_MICRO_MS }}>
 							<ItemRow
 								{item}
 								link={linkFor(item)}

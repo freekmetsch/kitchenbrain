@@ -116,7 +116,6 @@
 
 <header
 	class="sticky top-0 z-30 bg-base-100/95 backdrop-blur border-b border-base-200"
-	style="padding-top: env(safe-area-inset-top)"
 >
 	<div class="px-3 py-2 flex items-center gap-2">
 		<a
@@ -145,6 +144,15 @@
 				onAddToPlan();
 			}}><Icon name="plus" class="h-3.5 w-3.5" /> {m.recipes_header_plan_button()}</button
 		>
+		<button
+			type="button"
+			class="btn btn-sm btn-ghost h-9 min-h-9 shrink-0 border border-base-300 px-2"
+			onclick={onEditRaw}
+			aria-label={m.recipes_edit_heading()}
+		>
+			<span aria-hidden="true">✎</span>
+			<span class="hidden sm:inline">{m.recipes_edit_heading()}</span>
+		</button>
 		<div class="relative shrink-0" data-recipe-menu>
 			<button
 				bind:this={menuButton}
@@ -192,15 +200,6 @@
 							role="menuitem"
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={menuAction(onEditRaw)}>✏️ {m.recipes_edit_heading()}</button
-						>
-					</li>
-					<li>
-						<button
-							type="button"
-							role="menuitem"
-							data-recipe-menu-item
-							class="w-full text-left px-3 py-2 hover:bg-base-200"
 							onclick={menuAction(onRegenerateCookMode)}>↻ {m.recipes_header_regenerate_cook_mode()}</button
 						>
 					</li>
@@ -221,7 +220,7 @@
 							role="menuitem"
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={menuAction(onAiEdit)}>✏️ {m.recipes_header_ai_edit()}</button
+							onclick={menuAction(onAiEdit)}>✦ {m.recipes_header_ask_ai()}</button
 						>
 					</li>
 					{#if recipe.imageUrl}
