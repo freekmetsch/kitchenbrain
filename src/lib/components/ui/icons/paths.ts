@@ -28,7 +28,7 @@ export interface IconDef {
 	sw: number;
 	/** Stroke linecap/linejoin flavor; 'round' unless a set says otherwise. */
 	cap?: 'round' | 'square' | 'butt';
-	paths: IconPath[];
+	paths: readonly IconPath[];
 }
 
 /** Normalize a path entry to its object form (shared by Icon + Spinner). */

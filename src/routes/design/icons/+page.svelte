@@ -18,7 +18,7 @@
 	const NAV: { icon: IconName; label: string }[] = [
 		{ icon: 'home', label: 'Home' },
 		{ icon: 'jar', label: 'Stock' },
-		{ icon: 'cutlery', label: 'Meals' },
+		{ icon: 'calendar', label: 'Plan' },
 		{ icon: 'basket', label: 'Shopping' },
 		{ icon: 'chefHat', label: 'Recipes' },
 		{ icon: 'settings', label: 'Settings' }
@@ -33,9 +33,11 @@
 	<header>
 		<h1 class="text-xl font-semibold">Icon design shotgun</h1>
 		<p class="mt-1 text-sm text-base-content/60">
-			Five new hand-drawn candidates plus the current set. Tap <span class="font-medium">Use this set</span>
-			to restyle the whole app instantly — nav, buttons, spinners, everything. The choice sticks on
-			this device, so browse around and come back to switch.
+			Five candidates, each built from scratch in its own visual language — carved stamps, one
+			continuous line, pixels, paper collage, stamped coins. Tap
+			<span class="font-medium">Use this set</span> to restyle the whole app instantly — nav,
+			buttons, spinners, everything. The choice sticks on this device, so browse around and come
+			back to switch.
 		</p>
 	</header>
 

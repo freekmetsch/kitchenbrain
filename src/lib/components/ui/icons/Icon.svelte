@@ -29,6 +29,7 @@
 		<path
 			d={pd.d}
 			fill={pd.fill ? 'currentColor' : 'none'}
+			fill-rule="evenodd"
 			stroke={pd.fill ? 'none' : 'currentColor'}
 			stroke-width={pd.sw}
 			opacity={pd.opacity}
