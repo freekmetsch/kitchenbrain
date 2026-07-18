@@ -46,7 +46,7 @@
 		activeTimer = $bindable(false)
 	}: Props = $props();
 
-	const defaultServings = servings ?? 4;
+	const defaultServings = $derived(servings ?? 4);
 	let servingsMultiplier = $state(1);
 	let currentServings = $derived(Math.max(1, Math.round(defaultServings * servingsMultiplier)));
 

@@ -7,12 +7,13 @@ import { mealPlanMeals } from '$lib/server/db/schema';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { isoWeekNumber, weekStartFor } from '$lib/week';
 import { readJsonBody } from '$lib/server/api_body';
+import { isoDateSchema } from '$lib/date_schema';
 
 const CreateSchema = z.object({
-	weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	weekStartDate: isoDateSchema,
 	dinner: z.string().min(1).max(500),
 	recipeSlug: z.string().nullable().optional(),
-	plannedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+	plannedDate: isoDateSchema.nullable().optional(),
 	source: z.enum(['fresh', 'freezer']).optional()
 });
 

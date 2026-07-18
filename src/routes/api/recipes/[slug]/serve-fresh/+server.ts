@@ -14,19 +14,23 @@ import { recipes, inventoryItems, shoppingListOverrides } from '$lib/server/db/s
 import { serveFreshForRecipe } from '$lib/server/recipe_links';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { todayIso, weekStartFor } from '$lib/week';
+import { isoDateSchema } from '$lib/date_schema';
 
 const BodySchema = z.object({
-	weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+	weekStart: isoDateSchema.optional()
 });
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
 	let body: unknown = {};
-	try {
-		body = await request.json();
-	} catch {
-		/* empty body is fine — defaults to the current week */
+	const rawBody = await request.text();
+	if (rawBody.trim()) {
+		try {
+			body = JSON.parse(rawBody);
+		} catch {
+			throw error(400, 'Invalid JSON');
+		}
 	}
 	const parsed = BodySchema.safeParse(body);
 	if (!parsed.success) throw error(400, parsed.error.message);

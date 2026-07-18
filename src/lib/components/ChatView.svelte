@@ -43,9 +43,9 @@
 	let { initialMessages = [], initialInput = '', initialCapExceeded = false, username = '' }: { initialMessages: Message[]; initialInput?: string; initialCapExceeded?: boolean; username?: string } = $props();
 
 	let messages = $state<Message[]>(untrack(() => initialMessages.map((m) => ({ ...m, hydrated: true }))));
-	let input = $state(initialInput);
+	let input = $state(untrack(() => initialInput));
 	let isStreaming = $state(false);
-	let capExceeded = $state(initialCapExceeded);
+	let capExceeded = $state(untrack(() => initialCapExceeded));
 	let abortController: AbortController | null = null;
 	let messageListEl: HTMLElement;
 	let textareaEl: HTMLTextAreaElement;

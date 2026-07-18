@@ -5,21 +5,22 @@ import { db } from '$lib/server/db/index';
 import { addInventory } from '$lib/server/inventory_writes';
 import { parseDateOnly } from '$lib/inventory_dates';
 import { readJsonBody } from '$lib/server/api_body';
+import { isoDateSchema } from '$lib/date_schema';
 
 const AddSchema = z.object({
 	name: z.string().min(1),
 	section: z.enum(['freezer', 'pantry']),
 	qty_text: z.string().optional(),
-	qty_num: z.number().optional(),
+	qty_num: z.number().nonnegative().optional(),
 	unit: z.string().optional(),
 	category: z.string().optional(),
 	kind: z.enum(['ingredient', 'leftover', 'processed']).optional(),
 	food_class: z.string().optional(),
-	made_from_recipe_id: z.number().optional(),
+	made_from_recipe_id: z.number().int().positive().optional(),
 	recipe_status: z.enum(['linked', 'plan_to_add', 'no_recipe']).optional(),
 	is_staple: z.boolean().optional(),
-	expiry_date: z.string().optional(),
-	created_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+	expiry_date: isoDateSchema.optional(),
+	created_at: isoDateSchema.optional(),
 	tags: z.array(z.string()).optional()
 });
 

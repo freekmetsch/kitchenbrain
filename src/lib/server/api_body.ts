@@ -17,3 +17,11 @@ export async function readJsonBody<T>(request: Request, schema: ZodType<T>): Pro
 	if (!parsed.success) throw error(400, parsed.error.message);
 	return parsed.data;
 }
+
+/** Parse a path parameter as one complete positive, safe integer. */
+export function readPositiveIntParam(value: string): number {
+	if (!/^[1-9]\d*$/.test(value)) throw error(400, 'Invalid id');
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed)) throw error(400, 'Invalid id');
+	return parsed;
+}

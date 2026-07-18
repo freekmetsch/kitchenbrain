@@ -9,13 +9,14 @@ import { dateInputValue, daysSinceDate } from '$lib/inventory_dates';
 import { getMealPlanPrefs, getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { addDays, isoWeekNumber, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
 import type { ExecutorFn } from './shared';
+import { isoDateSchema } from '$lib/date_schema';
 
 export const mealPlanExecutors: Record<string, ExecutorFn> = {
 	async get_meal_plan(raw, db) {
 		const input = z
 			.object({
-				weeks: z.number().optional(),
-				week_start_date: z.string().optional()
+				weeks: z.number().int().min(1).max(12).optional(),
+				week_start_date: isoDateSchema.optional()
 			})
 			.parse(raw);
 
@@ -57,7 +58,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 	async plan_meal(raw, db) {
 		const input = z
 			.object({
-				week_start_date: z.string(),
+				week_start_date: isoDateSchema,
 				dinner: z.string(),
 				recipe_slug: z.string().optional(),
 				source: z.enum(['fresh', 'freezer']).optional(),
@@ -101,7 +102,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 	},
 
 	async remove_meal(raw, db) {
-		const input = z.object({ id: z.number() }).parse(raw);
+		const input = z.object({ id: z.number().int().positive() }).parse(raw);
 		const meal = db
 			.select()
 			.from(schema.mealPlanMeals)
@@ -114,7 +115,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 
 	async mark_meal_cooked(raw, db) {
 		const input = z
-			.object({ id: z.number(), cooked_date: z.string().optional() })
+			.object({ id: z.number().int().positive(), cooked_date: isoDateSchema.optional() })
 			.parse(raw);
 		const cookedDate = input.cooked_date ?? todayIso();
 		const meal = db
@@ -144,7 +145,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 
 	async suggest_meals(raw, db) {
 		const input = z
-			.object({ week_start_date: z.string().optional(), count: z.number().optional() })
+			.object({ week_start_date: isoDateSchema.optional(), count: z.number().int().min(1).max(10).optional() })
 			.parse(raw);
 
 		const inventory = db
@@ -255,7 +256,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 	async log_meal(raw, db) {
 		const input = z
 			.object({
-				date: z.string().optional(),
+				date: isoDateSchema.optional(),
 				recipe_slug: z.string().optional(),
 				meal_name: z.string().optional(),
 				rating: z.number().min(1).max(5).optional(),

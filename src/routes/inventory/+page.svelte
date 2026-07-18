@@ -11,7 +11,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import ActivitySheet from '$lib/components/inventory/ActivitySheet.svelte';
@@ -52,7 +52,7 @@
 	}
 
 	// ── state ──────────────────────────────────────────────────────────────────
-	let items = $state<Item[]>(data.items.map((i) => ({ ...i })));
+	let items = $state<Item[]>(untrack(() => data.items.map((i) => ({ ...i }))));
 
 	let sectionFilter = $state<Section | 'all'>('all');
 	let classFilter = $state<string | null>(null);
@@ -165,15 +165,25 @@
 		else items = [...items, { ...server }];
 	}
 
-	async function patch(item: Item, payload: Record<string, unknown>): Promise<boolean> {
+	async function requestPatch(item: Item, payload: Record<string, unknown>): Promise<Item | null> {
 		try {
 			const res = await fetch(`${base}/api/inventory/${item.id}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
 			});
-			if (!res.ok) return false;
+			if (!res.ok) return null;
 			const { item: updated } = await res.json();
+			return updated as Item;
+		} catch {
+			return null;
+		}
+	}
+
+	async function patch(item: Item, payload: Record<string, unknown>): Promise<boolean> {
+		const updated = await requestPatch(item, payload);
+		if (!updated) return false;
+		try {
 			const local = items.find((i) => i.id === item.id);
 			if (local) applyServer(local, updated);
 			return true;
@@ -212,20 +222,48 @@
 	}
 
 	// ── quantity ──────────────────────────────────────────────────────────────────
-	async function stepQty(item: Item, delta: number) {
+	type QtySync = { confirmed: number; running: Promise<void> | null };
+	const qtySyncByItem = new Map<number, QtySync>();
+
+	function stepQty(item: Item, delta: number) {
 		const prev = item.qtyNum ?? 0;
 		const next = Math.max(0, Math.round((prev + delta) * 100) / 100);
 		if (next === prev) return;
 		item.qtyNum = next;
-		const ok = await patch(item, { qty_num: next, qty_text: composeQty(next, item.unit) });
-		if (!ok) {
-			// Reverse just this step's delta (not restore an absolute `prev`) so an older
-			// failed request can't clobber a newer successful one on rapid taps.
-			item.qtyNum = Math.max(0, Math.round(((item.qtyNum ?? 0) - delta) * 100) / 100);
-			flashToast(m.inventory_toast_qty_update_failed(), { error: true });
-		} else if (next === 0 && prev > 0) {
-			onReachedZero(item);
+
+		let sync = qtySyncByItem.get(item.id);
+		if (!sync) {
+			sync = { confirmed: prev, running: null };
+			qtySyncByItem.set(item.id, sync);
 		}
+		if (sync.running) return;
+
+		sync.running = (async () => {
+			while (true) {
+				const desired = item.qtyNum ?? 0;
+				const previouslyConfirmed = sync!.confirmed;
+				const updated = await requestPatch(item, {
+					qty_num: desired,
+					qty_text: composeQty(desired, item.unit)
+				});
+				if (!updated) {
+					item.qtyNum = sync!.confirmed;
+					flashToast(m.inventory_toast_qty_update_failed(), { error: true });
+					return;
+				}
+
+				sync!.confirmed = updated.qtyNum ?? desired;
+				// A newer tap happened while this request was in flight. Preserve the
+				// optimistic value and persist that next instead of applying stale data.
+				if ((item.qtyNum ?? 0) !== desired) continue;
+
+				applyServer(item, updated as unknown as Record<string, unknown>);
+				if (desired === 0 && previouslyConfirmed > 0) onReachedZero(item);
+				return;
+			}
+		})().finally(() => {
+			qtySyncByItem.delete(item.id);
+		});
 	}
 
 	function openQtyEdit(item: Item) {

@@ -5,19 +5,20 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { shoppingListOverrides } from '$lib/server/db/schema';
 import { readJsonBody } from '$lib/server/api_body';
+import { isoDateSchema } from '$lib/date_schema';
 
 // AH-INVARIANT: names/amounts/units are AH-coupled Dutch values — validate shape
 // and bounds only, never trim or normalize; write them exactly as received.
 const PostSchema = z.discriminatedUnion('action', [
 	z.object({
 		action: z.literal('toggle_bought'),
-		weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+		weekStart: isoDateSchema,
 		name: z.string().min(1).max(256),
 		bought: z.boolean()
 	}),
 	z.object({
 		action: z.literal('add_manual'),
-		weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+		weekStart: isoDateSchema,
 		name: z.string().min(1).max(256),
 		amount: z.string().max(64).nullable().optional(),
 		unit: z.string().max(64).nullable().optional()
@@ -25,7 +26,7 @@ const PostSchema = z.discriminatedUnion('action', [
 ]);
 
 const DeleteQuerySchema = z.object({
-	week: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	week: isoDateSchema,
 	name: z.string().min(1).max(256)
 });
 

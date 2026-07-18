@@ -6,19 +6,19 @@ import { db } from '$lib/server/db/index';
 import { mealPlanMeals } from '$lib/server/db/schema';
 import { recordCook, unrecordCook } from '$lib/server/cook_log';
 import { todayIso } from '$lib/week';
-import { readJsonBody } from '$lib/server/api_body';
+import { readJsonBody, readPositiveIntParam } from '$lib/server/api_body';
+import { isoDateSchema } from '$lib/date_schema';
 
 const UpdateSchema = z.object({
 	status: z.enum(['planned', 'cooked']).nullable().optional(),
-	cookedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-	plannedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+	cookedDate: isoDateSchema.nullable().optional(),
+	plannedDate: isoDateSchema.nullable().optional(),
 	source: z.enum(['fresh', 'freezer']).optional()
 });
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
-	const id = parseInt(params.id);
-	if (isNaN(id)) throw error(400, 'Invalid id');
+	const id = readPositiveIntParam(params.id);
 	const body = await readJsonBody(request, UpdateSchema);
 
 	// Metadata-only update (day pin and/or fresh↔freezer source): must not touch
@@ -75,8 +75,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
-	const id = parseInt(params.id);
-	if (isNaN(id)) throw error(400, 'Invalid id');
+	const id = readPositiveIntParam(params.id);
 	const meal = db.select().from(mealPlanMeals).where(eq(mealPlanMeals.id, id)).get();
 	if (!meal) throw error(404, 'Meal not found');
 	if (meal.status === 'cooked') unrecordCook(db, meal.id);

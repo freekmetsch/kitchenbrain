@@ -4,7 +4,7 @@ import { db } from '$lib/server/db/index';
 import { mealPlanMeals, recipes } from '$lib/server/db/schema';
 import { frozenPortionsByRecipe } from '$lib/server/recipe_links';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
-import { addDays, dateOfWeekday, isoWeekNumber, nearestWeekBucket, todayIso, weekStartFor } from '$lib/week';
+import { addDays, dateOfWeekday, isIsoDate, isoWeekNumber, nearestWeekBucket, todayIso, weekStartFor } from '$lib/week';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const prefs = getMealPlanPrefs();
@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	// The focused week always gets a card — even a past one outside the normal
 	// window — so the link can never land on a page without its target.
 	const weekParam = url.searchParams.get('week');
-	const focusWeek = /^\d{4}-\d{2}-\d{2}$/.test(weekParam ?? '')
+	const focusWeek = isIsoDate(weekParam)
 		? weekStartFor(weekParam!, prefs.weekStartDay)
 		: null;
 

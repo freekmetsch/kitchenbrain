@@ -14,7 +14,27 @@ export function isoDateInAppTimeZone(date: Date): string {
 function parseIsoDate(date: string): { year: number; month: number; day: number } {
 	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
 	if (!m) throw new Error(`Invalid ISO date: ${date}`);
-	return { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) };
+	const parts = { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) };
+	const candidate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+	if (
+		candidate.getUTCFullYear() !== parts.year ||
+		candidate.getUTCMonth() !== parts.month - 1 ||
+		candidate.getUTCDate() !== parts.day
+	) {
+		throw new Error(`Invalid ISO date: ${date}`);
+	}
+	return parts;
+}
+
+/** True only for a real calendar date written exactly as YYYY-MM-DD. */
+export function isIsoDate(value: unknown): value is string {
+	if (typeof value !== 'string') return false;
+	try {
+		parseIsoDate(value);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 function utcDateFromIso(date: string): Date {
@@ -45,6 +65,9 @@ export function isoWeekStart(date: Date | string = new Date()): string {
  * classic ISO Monday week start.
  */
 export function weekStartFor(date: Date | string = new Date(), startDay: number): string {
+	if (!Number.isInteger(startDay) || startDay < 0 || startDay > 6) {
+		throw new Error(`Invalid planning week start day: ${startDay}`);
+	}
 	const iso = typeof date === 'string' ? date : isoDateInAppTimeZone(date);
 	const d = utcDateFromIso(iso);
 	// getUTCDay is Sunday-based; shift so 0 = Monday, then back up to the most

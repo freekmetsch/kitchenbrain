@@ -13,6 +13,7 @@ import {
 import { listInventoryHistory } from '$lib/server/inventory_history_query';
 import { dateInputValue, daysSinceDate, parseDateOnly } from '$lib/inventory_dates';
 import { todayIso, addDays } from '$lib/week';
+import { isoDateSchema } from '$lib/date_schema';
 import type { DB, ExecutorFn } from './shared';
 
 type InventoryItem = typeof schema.inventoryItems.$inferSelect;
@@ -31,17 +32,17 @@ function inventoryForAi(item: InventoryItem) {
 // unaffected — it sources product search from recipes.ingredients (Dutch) and
 // shopping_list_overrides, never from these inventory fields (CLAUDE.md invariant).
 const singleUpdateSchema = z.object({
-	id: z.number(),
+	id: z.number().int().positive(),
 	qty_text: z.string().optional(),
-	qty_num: z.number().optional(),
+	qty_num: z.number().nonnegative().optional(),
 	unit: z.string().optional(),
 	section: z.enum(['freezer', 'pantry']).optional(),
-	expiry_date: z.string().nullable().optional(),
-	created_at: z.string().optional(),
+	expiry_date: isoDateSchema.nullable().optional(),
+	created_at: isoDateSchema.optional(),
 	category: z.string().optional(),
 	kind: z.enum(['ingredient', 'leftover', 'processed']).optional(),
 	food_class: z.string().optional(),
-	made_from_recipe_id: z.number().nullable().optional(),
+	made_from_recipe_id: z.number().int().positive().nullable().optional(),
 	recipe_status: z.enum(['linked', 'plan_to_add', 'no_recipe']).nullable().optional(),
 	is_staple: z.boolean().optional()
 });
@@ -149,15 +150,15 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 				name: z.string(),
 				section: z.enum(['freezer', 'pantry']),
 				qty_text: z.string().optional(),
-				qty_num: z.number().optional(),
+				qty_num: z.number().nonnegative().optional(),
 				unit: z.string().optional(),
 				category: z.string().optional(),
 				kind: z.enum(['ingredient', 'leftover', 'processed']).optional(),
 				food_class: z.string().optional(),
-				made_from_recipe_id: z.number().optional(),
+				made_from_recipe_id: z.number().int().positive().optional(),
 				is_staple: z.boolean().optional(),
-				expiry_date: z.string().optional(),
-				created_at: z.string().optional()
+				expiry_date: isoDateSchema.optional(),
+				created_at: isoDateSchema.optional()
 			})
 			.parse(raw);
 

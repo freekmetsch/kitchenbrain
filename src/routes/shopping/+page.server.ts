@@ -7,7 +7,7 @@ import { namesMatch, normalizeNameKey } from '$lib/match';
 import { deriveWeekNeeds } from '$lib/server/shopping_needs';
 import { getAHStatus } from '$lib/server/ah/client';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
-import { addDays, dateOfWeekday, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
+import { addDays, dateOfWeekday, isIsoDate, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
 
 export type ShoppingItem = {
 	name: string;
@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const prefs = getMealPlanPrefs();
 	const weekParam = url.searchParams.get('week');
-	const weekStart = weekStartFor(weekParam ?? todayIso(), prefs.weekStartDay);
+	const weekStart = weekStartFor(isIsoDate(weekParam) ? weekParam : todayIso(), prefs.weekStartDay);
 
 	// Range query, not equality: meals created before a week-start-day change
 	// keep their old week key. weekKeyRange matches every key whose week

@@ -5,11 +5,12 @@ import { normalizeNameKey } from '$lib/match';
 import { deriveWeekNeeds } from '$lib/server/shopping_needs';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { todayIso, weekKeyRange, weekStartFor } from '$lib/week';
+import { isoDateSchema } from '$lib/date_schema';
 import type { ExecutorFn } from './shared';
 
 export const shoppingExecutors: Record<string, ExecutorFn> = {
 	async generate_shopping_list(raw, db) {
-		const input = z.object({ week_start_date: z.string().optional() }).parse(raw);
+		const input = z.object({ week_start_date: isoDateSchema.optional() }).parse(raw);
 		// Household planning-week boundary + range query, mirroring the shopping
 		// page load: meals keyed under an older week-start convention still count.
 		const weekStart = weekStartFor(input.week_start_date ?? todayIso(), getWeekStartDay(db));

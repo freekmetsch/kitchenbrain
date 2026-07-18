@@ -1,11 +1,11 @@
-import { isoDateInAppTimeZone } from '$lib/week';
+import { isIsoDate, isoDateInAppTimeZone } from '$lib/week';
 
 const DAY_MS = 86_400_000;
 
 export function parseDateOnly(value: string | null | undefined): Date | undefined {
 	if (!value) return undefined;
-	if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-		throw new Error('Expected date in YYYY-MM-DD format');
+	if (!isIsoDate(value)) {
+		throw new Error('Expected a valid date in YYYY-MM-DD format');
 	}
 	const [year, month, day] = value.split('-').map(Number);
 	return new Date(Date.UTC(year, month - 1, day));

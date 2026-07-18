@@ -4,32 +4,32 @@ import { z } from 'zod';
 import { db } from '$lib/server/db/index';
 import { removeInventory, updateInventory } from '$lib/server/inventory_writes';
 import { parseDateOnly } from '$lib/inventory_dates';
-import { readJsonBody } from '$lib/server/api_body';
+import { readJsonBody, readPositiveIntParam } from '$lib/server/api_body';
+import { isoDateSchema } from '$lib/date_schema';
 
 const PatchSchema = z.object({
 	name: z.string().min(1).optional(),
 	qty_text: z.string().nullable().optional(),
-	qty_num: z.number().nullable().optional(),
+	qty_num: z.number().nonnegative().nullable().optional(),
 	unit: z.string().nullable().optional(),
-	expiry_date: z.string().nullable().optional(),
-	created_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+	expiry_date: isoDateSchema.nullable().optional(),
+	created_at: isoDateSchema.optional(),
 	section: z.enum(['freezer', 'pantry']).optional(),
 	category: z.string().nullable().optional(),
 	kind: z.enum(['ingredient', 'leftover', 'processed']).nullable().optional(),
 	food_class: z.string().nullable().optional(),
-	made_from_recipe_id: z.number().nullable().optional(),
+	made_from_recipe_id: z.number().int().positive().nullable().optional(),
 	recipe_status: z.enum(['linked', 'plan_to_add', 'no_recipe']).nullable().optional(),
 	is_staple: z.boolean().optional(),
 	needs_review: z.boolean().optional(),
 	review_reason: z.string().nullable().optional(),
 	tags: z.array(z.string()).optional()
-});
+}).refine((input) => Object.values(input).some((value) => value !== undefined), 'No fields to update');
 
 export const PATCH: RequestHandler = async ({ request, params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
-	const id = parseInt(params.id);
-	if (isNaN(id)) throw error(400, 'Invalid id');
+	const id = readPositiveIntParam(params.id);
 
 	const input = await readJsonBody(request, PatchSchema);
 
@@ -64,8 +64,7 @@ export const PATCH: RequestHandler = async ({ request, params, locals }) => {
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
-	const id = parseInt(params.id);
-	if (isNaN(id)) throw error(400, 'Invalid id');
+	const id = readPositiveIntParam(params.id);
 
 	const result = removeInventory(
 		db,

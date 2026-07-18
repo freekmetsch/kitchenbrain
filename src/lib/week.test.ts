@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	dateOfWeekday,
+	isIsoDate,
 	isoWeekNumber,
 	isoWeekStart,
 	nearestWeekBucket,
@@ -38,6 +39,14 @@ describe('week helpers', () => {
 		expect(weekStartFor('2026-07-12', 6)).toBe('2026-07-12');
 		// startDay 0 matches the ISO Monday helper.
 		expect(weekStartFor('2026-07-12', 0)).toBe(isoWeekStart('2026-07-12'));
+	});
+
+	it('rejects impossible calendar dates instead of normalizing them', () => {
+		expect(isIsoDate('2024-02-29')).toBe(true);
+		expect(isIsoDate('2026-02-29')).toBe(false);
+		expect(isIsoDate('2026-13-01')).toBe(false);
+		expect(isIsoDate('2026-04-31')).toBe(false);
+		expect(() => weekStartFor('2026-99-99', 0)).toThrow('Invalid ISO date');
 	});
 
 	it('places a Monday-offset weekday inside a custom planning week', () => {
