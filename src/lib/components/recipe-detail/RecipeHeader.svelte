@@ -23,6 +23,8 @@
 		onAddToPlan,
 		onToggleLanguage,
 		onEditRaw,
+		hasCookProgress,
+		onResetCookProgress,
 		onRegenerateCookMode,
 		onForceRetranslate,
 		onAiEdit,
@@ -40,6 +42,8 @@
 		onAddToPlan: () => void;
 		onToggleLanguage: () => void;
 		onEditRaw: () => void;
+		hasCookProgress: boolean;
+		onResetCookProgress: () => void;
 		onRegenerateCookMode: () => void;
 		onForceRetranslate: () => void;
 		onAiEdit: () => void;
@@ -136,10 +140,10 @@
 		</button>
 		<h1 class="text-[15px] font-semibold leading-tight flex-1 min-w-0 truncate">{displayTitle}</h1>
 		<button
-			class="btn btn-sm btn-primary shrink-0"
+			class="btn btn-sm btn-primary shrink-0 gap-1"
 			onclick={() => {
 				onAddToPlan();
-			}}>+ {m.recipes_header_plan_button()}</button
+			}}><Icon name="plus" class="h-3.5 w-3.5" /> {m.recipes_header_plan_button()}</button
 		>
 		<div class="relative shrink-0" data-recipe-menu>
 			<button
@@ -161,6 +165,17 @@
 					class="absolute right-0 mt-1 w-56 rounded-xl border border-base-200 bg-base-100 shadow-xl z-40 py-1 text-sm"
 					onkeydown={handleMenuKeydown}
 				>
+					{#if hasCookProgress}
+						<li>
+							<button
+								type="button"
+								role="menuitem"
+								data-recipe-menu-item
+								class="w-full text-left px-3 py-2 hover:bg-base-200"
+								onclick={menuAction(onResetCookProgress)}>↺ {m.recipes_header_reset_cook_progress()}</button
+							>
+						</li>
+					{/if}
 					<li>
 						<button
 							type="button"
@@ -207,16 +222,6 @@
 							data-recipe-menu-item
 							class="w-full text-left px-3 py-2 hover:bg-base-200"
 							onclick={menuAction(onAiEdit)}>✏️ {m.recipes_header_ai_edit()}</button
-						>
-					</li>
-					<li>
-						<button
-							type="button"
-							role="menuitem"
-							data-recipe-menu-item
-							class="w-full text-left px-3 py-2 hover:bg-base-200"
-							onclick={pickPhoto}
-							>{recipe.imageUrl ? `📷 ${m.recipes_header_replace_photo()}` : `📷 ${m.recipes_header_add_photo()}`}</button
 						>
 					</li>
 					{#if recipe.imageUrl}

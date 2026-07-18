@@ -156,6 +156,5 @@
 				</ul>
 			{/if}
 		</div>
-		<button class="btn btn-ghost btn-sm mt-3" onclick={() => (addSubOpen = false)}>{m.recipes_cancel_button()}</button>
 	</div>
 </BottomSheet>

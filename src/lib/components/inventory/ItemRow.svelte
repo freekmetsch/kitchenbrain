@@ -24,6 +24,8 @@
 		qtyEditVal = $bindable(),
 		portionEditing,
 		portionEditVal = $bindable(),
+		stapleAdded,
+		stapleBusy,
 		history,
 		draft = $bindable(),
 		saving,
@@ -34,6 +36,7 @@
 		onCommitQtyEdit,
 		onCancelQtyEdit,
 		onResolveReview,
+		onAddStaple,
 		onSetRecipeStatus,
 		onLinkRecipe,
 		onClearRecipeStatus,
@@ -54,6 +57,8 @@
 		qtyEditVal: string;
 		portionEditing: boolean;
 		portionEditVal: string;
+		stapleAdded: boolean;
+		stapleBusy: boolean;
 		history: HistoryEvent[] | undefined;
 		draft: EditDraft;
 		saving: boolean;
@@ -64,6 +69,7 @@
 		onCommitQtyEdit: () => void;
 		onCancelQtyEdit: () => void;
 		onResolveReview: () => void;
+		onAddStaple: () => void;
 		onSetRecipeStatus: (status: 'plan_to_add' | 'no_recipe') => void;
 		onLinkRecipe: (s: RecipeSuggestion) => void;
 		onClearRecipeStatus: () => void;
@@ -96,6 +102,7 @@
 			>
 			<QtyControl
 				{item}
+				target={link?.isFreezerStaple ? link.targetPortions : null}
 				editing={qtyEditing}
 				bind:value={qtyEditVal}
 				onStep={onStepQty}
@@ -122,6 +129,9 @@
 			{onCancelPortionEdit}
 			{onOpenEdit}
 			{onResolveReview}
+			{stapleAdded}
+			{stapleBusy}
+			{onAddStaple}
 		/>
 
 		<ItemEditor

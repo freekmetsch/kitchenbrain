@@ -106,15 +106,9 @@
 			</label>
 		{/each}
 	</div>
-	<div class="flex justify-end gap-2">
+	<div>
 		<button
-			class="btn btn-ghost btn-sm"
-			onclick={() => {
-				open = false;
-			}}>{m.recipes_cancel_button()}</button
-		>
-		<button
-			class="btn btn-primary btn-sm"
+			class="btn btn-primary btn-sm w-full"
 			onclick={addToPlan}
 			disabled={addToPlanSubmitting}
 		>

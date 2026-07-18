@@ -10,6 +10,7 @@
 	import { slide } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import PendingButton from '$lib/components/ui/PendingButton.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
 
 	let {
 		open = $bindable(false),
@@ -53,7 +54,7 @@
 			type="button"
 			class="btn btn-sm btn-ghost border border-base-300"
 			aria-label={m.recipes_aiedit_close_aria()}
-			onclick={() => (open = false)}>✕</button
+			onclick={() => (open = false)}><Icon name="x" /></button
 		>
 	</div>
 {/if}

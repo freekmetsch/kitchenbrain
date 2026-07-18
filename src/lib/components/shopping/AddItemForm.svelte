@@ -9,6 +9,7 @@
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { tick } from 'svelte';
 	import type { ShoppingListItem } from './types';
 
 	type Props = {
@@ -21,6 +22,14 @@
 	let addAmount = $state('');
 	let addUnit = $state('');
 	let addSubmitting = $state(false);
+	let open = $state(false);
+	let nameInput: HTMLInputElement | null = $state(null);
+
+	async function openForm() {
+		open = true;
+		await tick();
+		nameInput?.focus();
+	}
 
 	async function addManual() {
 		const name = addName.trim();
@@ -45,6 +54,7 @@
 			addName = '';
 			addAmount = '';
 			addUnit = '';
+			open = false;
 		} catch {
 			toast.error(m.shopping_toast_add_failed());
 		} finally {
@@ -53,7 +63,8 @@
 	}
 </script>
 
-<section class="ui-form-card mt-4">
+{#if open}
+	<section class="ui-form-card mt-4">
 	<form
 		onsubmit={(e) => {
 			e.preventDefault();
@@ -62,6 +73,7 @@
 		class="flex items-center gap-2"
 	>
 		<input
+			bind:this={nameInput}
 			type="text"
 			class="input input-bordered input-sm min-w-0 flex-1"
 			placeholder={m.shopping_additem_name_placeholder()}
@@ -98,5 +110,24 @@
 				<Icon name="plus" />
 			{/if}
 		</button>
+		<button
+			type="button"
+			class="btn btn-ghost btn-sm btn-square shrink-0"
+			aria-label={m.ui_bottomsheet_close()}
+			onclick={() => (open = false)}
+		>
+			<Icon name="x" />
+		</button>
 	</form>
-</section>
+	</section>
+{:else}
+	<button
+		type="button"
+		class="mt-4 flex w-full items-center gap-2 rounded-xl border border-dashed border-base-300 px-3 py-2.5 text-left text-sm text-base-content/55 hover:border-primary/40 hover:text-primary"
+		aria-expanded="false"
+		onclick={openForm}
+	>
+		<Icon name="plus" class="h-4 w-4" />
+		{m.shopping_additem_name_placeholder()}
+	</button>
+{/if}

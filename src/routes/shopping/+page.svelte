@@ -138,12 +138,17 @@
 		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.shopping_heading()}</h1>
 		<button
 			type="button"
-			class="btn btn-primary btn-sm shrink-0 gap-1.5"
+			class="btn btn-primary btn-sm btn-square shrink-0 relative"
 			onclick={() => ahSheet?.openAhModal()}
 			disabled={visibleToBuyCount === 0}
+			aria-label={m.shopping_review_ah_order()}
 		>
 			<Icon name="cart" />
-			{m.shopping_review_ah_order()}
+			{#if visibleToBuyCount > 0}
+				<span class="absolute -right-1 -top-1 min-w-4 rounded-full bg-base-100 px-1 text-[10px] font-bold leading-4 text-primary shadow-sm"
+					>{visibleToBuyCount}</span
+				>
+			{/if}
 		</button>
 	</header>
 

@@ -54,7 +54,7 @@
 			<div class="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
 				<span class="font-medium">{m.home_expiring_soon_label()}</span>
 				{#each data.expiring as item}
-				<a href="{base}/inventory" class="inline-flex items-center gap-1 hover:underline">
+				<a href="{base}/inventory?item={item.id}" class="inline-flex items-center gap-1 hover:underline">
 					<span>{item.name}</span>
 					{#if item.expiryDate}
 					<span class="rounded-full border px-1.5 text-[11px] font-medium {expiryChipClass(item.expiryDate)}">{formatExpiry(item.expiryDate)}</span>
