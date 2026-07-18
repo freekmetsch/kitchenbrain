@@ -4,7 +4,12 @@
 # command overrides, or this image's CMD is bypassed and Litestream never runs.
 FROM node:22-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
+# npm ci runs the `prepare` script (paraglide i18n:compile + svelte-kit sync),
+# which reads project.inlang/ and messages/ — copy them into the dependency
+# layer or the compile dies with ENOENT before the full source COPY below.
+COPY package.json package-lock.json svelte.config.js ./
+COPY project.inlang ./project.inlang
+COPY messages ./messages
 RUN npm ci
 COPY . .
 RUN DATABASE_URL=./build.db npx vite build

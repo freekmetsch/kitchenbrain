@@ -8,6 +8,7 @@
 
 import type { IconDef, IconName } from '../paths';
 import { ICONS as CLASSIC } from '../paths';
+import { ATELIER } from './atelier';
 import { LINOCUT } from './linocut';
 import { THREAD } from './thread';
 import { BITMAP } from './bitmap';
@@ -21,10 +22,10 @@ export interface IconSetMeta {
 }
 
 const SETS = {
-	classic: {
-		name: 'Classic',
-		tagline: 'The current set — heroicons-matched outlines.',
-		icons: CLASSIC
+	atelier: {
+		name: 'Atelier',
+		tagline: 'The current set — fine engraved lines with tiny tick details.',
+		icons: ATELIER
 	},
 	linocut: {
 		name: 'Linocut',
@@ -50,6 +51,11 @@ const SETS = {
 		name: 'Coin',
 		tagline: 'Stamped tokens: glyphs knocked out of solid discs.',
 		icons: COIN_SET
+	},
+	classic: {
+		name: 'Classic',
+		tagline: 'The original heroicons-matched outlines.',
+		icons: CLASSIC
 	}
 } as const satisfies Record<string, IconSetMeta>;
 
@@ -59,7 +65,7 @@ export type IconSetId = keyof typeof SETS;
 // fields like `cap` even on sets that don't use them.
 export const ICON_SETS: Record<IconSetId, IconSetMeta> = SETS;
 
-export const DEFAULT_ICON_SET: IconSetId = 'classic';
+export const DEFAULT_ICON_SET: IconSetId = 'atelier';
 
 export const isIconSetId = (v: unknown): v is IconSetId =>
 	typeof v === 'string' && v in SETS;
