@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
 
 	let {
 		open = $bindable(false),
@@ -48,8 +49,11 @@
 		{#if title}
 			<div class="flex items-center justify-between border-b border-base-200 px-4 py-3">
 				<h2 class="text-sm font-semibold">{title}</h2>
-				<button type="button" class="btn btn-ghost btn-sm h-8 min-h-0" onclick={() => (open = false)}
-					>{m.ui_bottomsheet_close()}</button
+				<button
+					type="button"
+					class="btn btn-ghost btn-sm h-9 min-h-0 w-9 p-0"
+					aria-label={m.ui_bottomsheet_close()}
+					onclick={() => (open = false)}><Icon name="x" class="h-4 w-4" /></button
 				>
 			</div>
 		{/if}

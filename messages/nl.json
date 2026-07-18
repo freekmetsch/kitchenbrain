@@ -137,6 +137,7 @@
 	"recipes_translation_paused_budget": "Vertalen gepauzeerd — dagelijks AI-budget bereikt. Probeer het morgen opnieuw.",
 	"recipes_translation_connection_failed": "Verbinding mislukt — Nederlands wordt getoond. Tik om opnieuw te proberen.",
 	"recipes_confirm_leave_timer": "Je hebt een actieve timer — toch de pagina verlaten?",
+	"recipes_confirm_reset_cook_progress": "Dit recept opnieuw starten en de timers wissen?",
 	"recipes_ai_roles_prefill": "Markeer elk ingrediënt als meekoken of vers serveren",
 	"recipes_title_suffix": "Recepten",
 
@@ -149,6 +150,7 @@
 	"recipes_header_view_in_english": "Bekijk in het Engels",
 	"recipes_edit_heading": "Recept bewerken",
 	"recipes_header_regenerate_cook_mode": "Kookmodus opnieuw genereren",
+	"recipes_header_reset_cook_progress": "Opnieuw beginnen met koken",
 	"recipes_header_retranslate": "Opnieuw vertalen naar Engels",
 	"recipes_header_ai_edit": "AI-bewerking",
 	"recipes_header_remove_photo": "Foto verwijderen",
@@ -686,6 +688,7 @@
 	"benchsheet_rating_skip_button": "overslaan",
 	"benchsheet_cook_button": "Ik heb het gekookt",
 	"benchsheet_cooked_logged": "✓ Vastgelegd",
+	"benchsheet_cook_failed": "Kon deze kooksessie niet vastleggen. Probeer opnieuw.",
 
 	"cookmode_merge_from_prefix": "Van ",
 	"cookmode_timer_expand_aria": "Timer uitklappen",

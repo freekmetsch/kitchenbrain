@@ -23,6 +23,7 @@
 
 	let {
 		item,
+		target = null,
 		editing,
 		value = $bindable(),
 		onStep,
@@ -32,6 +33,8 @@
 		onOpenRowEdit
 	}: {
 		item: Item;
+		/** Keep-stocked target. When present, fold it into the one quantity readout. */
+		target?: number | null;
 		editing: boolean;
 		value: string;
 		onStep: (delta: number) => void;
@@ -84,7 +87,11 @@
 		{item.qtyNum}<span class="ml-0.5 text-xs font-normal text-base-content/60">{item.unit}</span>
 	</button>
 {:else}
-	<div class="flex shrink-0 items-center gap-0.5 rounded-lg border border-base-300/60 bg-base-200/50 p-0.5">
+	<div
+		class="flex shrink-0 items-center gap-0.5 rounded-lg border p-0.5 {target != null && item.qtyNum < target
+			? 'border-warning/40 bg-warning/10'
+			: 'border-base-300/60 bg-base-200/50'}"
+	>
 		<button
 			type="button"
 			class="btn btn-ghost btn-sm h-9 min-h-0 w-9 p-0"
@@ -98,9 +105,10 @@
 			onclick={() => onOpenEdit()}
 			aria-label={m.inventory_qty_edit_aria({ name: item.name })}
 		>
-			{item.qtyNum}<span class="text-xs font-normal text-base-content/60"
-				>{item.unit && item.unit !== 'stuk' ? ' ' + item.unit : ''}</span
-			>
+			{item.qtyNum}{#if target != null}<span class="text-xs font-normal text-base-content/50">/{target}</span>{:else}<span
+					class="text-xs font-normal text-base-content/60"
+					>{item.unit && item.unit !== 'stuk' ? ' ' + item.unit : ''}</span
+				>{/if}
 		</button>
 		<button
 			type="button"

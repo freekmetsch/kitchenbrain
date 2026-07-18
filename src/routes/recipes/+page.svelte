@@ -8,7 +8,7 @@
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import SmartImage from '$lib/components/ui/SmartImage.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
@@ -188,6 +188,20 @@
 		goto(recipeHref());
 	}
 
+	// Search behaves like a live filter. Replacing the current URL avoids a
+	// browser-back entry for every short pause while typing.
+	let searchTimer: ReturnType<typeof setTimeout> | null = null;
+	function scheduleSearch() {
+		if (searchTimer) clearTimeout(searchTimer);
+		searchTimer = setTimeout(() => {
+			searchTimer = null;
+			void goto(recipeHref(), { replaceState: true, keepFocus: true, noScroll: true });
+		}, 300);
+	}
+	onDestroy(() => {
+		if (searchTimer) clearTimeout(searchTimer);
+	});
+
 	function setClass(value: string) {
 		const next = classFilter === value ? '' : value;
 		classFilter = next;
@@ -330,7 +344,13 @@
 				placeholder={m.recipes_search_placeholder()}
 				aria-label={m.recipes_search_aria()}
 				bind:value={searchInput}
-				onkeydown={(e) => { if (e.key === 'Enter') search(); }}
+				oninput={scheduleSearch}
+				onkeydown={(e) => {
+					if (e.key !== 'Enter') return;
+					if (searchTimer) clearTimeout(searchTimer);
+					searchTimer = null;
+					search();
+				}}
 			/>
 			<select class="select select-bordered select-sm w-36 shrink-0" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
 				<option value="title">{m.recipes_sort_az()}</option>
@@ -520,10 +540,9 @@
 			{#if newMealError}
 				<p class="text-xs text-error mb-2">{newMealError}</p>
 			{/if}
-			<div class="flex justify-end gap-2">
-				<button class="btn btn-ghost btn-sm" onclick={() => (newMealOpen = false)}>{m.recipes_cancel_button()}</button>
+			<div>
 				<button
-					class="btn btn-primary btn-sm"
+					class="btn btn-primary btn-sm w-full"
 					disabled={newMealLoading || newMealSlugs.length < 2 || !newMealTitle.trim()}
 					onclick={createMeal}
 				>
@@ -547,10 +566,9 @@
 			{#if scrapeError}
 				<p class="text-sm text-error mb-2">{scrapeError}</p>
 			{/if}
-			<div class="flex justify-end gap-2 mt-3">
-				<button class="btn btn-ghost" onclick={() => { scrapeOpen = false; }}>{m.recipes_cancel_button()}</button>
+			<div class="mt-3">
 				<button
-					class="btn btn-primary"
+					class="btn btn-primary w-full"
 					onclick={scrape}
 					disabled={!scrapeUrl.trim() || scrapeLoading}
 				>

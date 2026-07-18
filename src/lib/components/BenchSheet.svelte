@@ -17,6 +17,7 @@
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { toast } from '$lib/stores/toast.svelte';
 	import type { BenchSheetRating, CookModeRecipe, CookModeStep } from '$lib/types';
 	import ComponentCard from './cook-mode/ComponentCard.svelte';
 	import MergeCard from './cook-mode/MergeCard.svelte';
@@ -33,7 +34,9 @@
 
 	export type BenchSheetController = {
 		regenerate: () => void;
+		resetSession: () => void;
 		hasActiveTimer: boolean;
+		hasProgress: boolean;
 		// Surface so the page can render an inline AI-paused banner above the
 		// raw fallback rather than a centered error block. Null = no fallback.
 		aiPausedReason: string | null;
@@ -457,12 +460,7 @@
 		pendingCookMode = null;
 		// A fresh sheet invalidates old progress AND running timers — their
 		// step indices point into the old generation.
-		clearProgress();
-		checked = {};
-		mep = {};
-		timerEnds = {};
-		timerOrder = [];
-		firedFor.clear();
+		resetCookSession();
 		void loadCookMode(true);
 	}
 
@@ -542,6 +540,20 @@
 		} catch {}
 	}
 
+	function resetCookSession() {
+		clearProgress();
+		checked = {};
+		mep = {};
+		mepExpanded = false;
+		timerEnds = {};
+		timerOrder = [];
+		firedFor.clear();
+		benchSheetRating = null;
+		ratingDismissed = false;
+		cookedDone = false;
+		cookedSubmitting = false;
+	}
+
 	$effect(() => {
 		if (cookMode && !progressRestored) {
 			progressRestored = true;
@@ -573,22 +585,29 @@
 	async function markCooked() {
 		cookedSubmitting = true;
 		try {
-			await fetch(`${base}/api/recipes/${recipeSlug}/cook`, {
+			const res = await fetch(`${base}/api/recipes/${recipeSlug}/cook`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ benchSheetRating })
 			});
+			if (!res.ok) {
+				toast.error(m.benchsheet_cook_failed());
+				cookedSubmitting = false;
+				return;
+			}
 			cookedDone = true;
 			clearProgress();
 			onCooked?.();
 			if (cookedAckTimeout) clearTimeout(cookedAckTimeout);
 			cookedAckTimeout = setTimeout(() => {
-				cookedDone = false;
-				cookedSubmitting = false;
+				// The acknowledgement is the session boundary: leave the same recipe
+				// ready for a second batch instead of exposing a live double-log button.
+				resetCookSession();
 				cookedAckTimeout = null;
 			}, 1200);
 		} catch {
 			cookedSubmitting = false;
+			toast.error(m.benchsheet_cook_failed());
 		}
 	}
 
@@ -597,6 +616,11 @@
 	let allDone = $derived(steps.length > 0 && totalDone === steps.length);
 	let mepList = $derived(cookMode?.mise_en_place ?? []);
 	let mepDone = $derived(mepList.filter((_, i) => mep[i]).length);
+	let hasProgress = $derived(
+		Object.values(checked).some(Boolean) ||
+			Object.values(mep).some(Boolean) ||
+			timerOrder.length > 0
+	);
 
 	let streams = $derived(cookMode?.streams ?? []);
 	let streamPaletteMap = $derived(streamPalette(streams));
@@ -680,8 +704,14 @@
 		if (controller.regenerate !== regenerate) controller.regenerate = regenerate;
 	});
 	$effect(() => {
+		if (controller.resetSession !== resetCookSession) controller.resetSession = resetCookSession;
+	});
+	$effect(() => {
 		const next = anyTimerRunning;
 		if (controller.hasActiveTimer !== next) controller.hasActiveTimer = next;
+	});
+	$effect(() => {
+		if (controller.hasProgress !== hasProgress) controller.hasProgress = hasProgress;
 	});
 	$effect(() => {
 		if (controller.aiPausedReason !== aiPausedReason) controller.aiPausedReason = aiPausedReason;

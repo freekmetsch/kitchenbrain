@@ -102,7 +102,10 @@
 		onCommitPortionEdit,
 		onCancelPortionEdit,
 		onOpenEdit,
-		onResolveReview
+		onResolveReview,
+		stapleAdded,
+		stapleBusy,
+		onAddStaple
 	}: {
 		item: Item;
 		link: RecipeLink | null;
@@ -119,6 +122,9 @@
 		onCancelPortionEdit: () => void;
 		onOpenEdit: () => void;
 		onResolveReview: () => void;
+		stapleAdded: boolean;
+		stapleBusy: boolean;
+		onAddStaple: () => void;
 	} = $props();
 
 	const exp = $derived(expiryBadge(item.expiryDate));
@@ -137,13 +143,6 @@
 			<a href="{base}/recipes/{link.slug}" class="max-w-40 truncate text-primary/80 hover:text-primary"
 				>↗ {sameName ? m.inventory_recipe_link_default() : link.title}</a
 			>
-			{#if link.isFreezerStaple && link.targetPortions != null}
-				<span
-					class="rounded-full border px-1.5 font-medium tabular-nums {link.onHandPortions < link.targetPortions
-						? 'border-warning/40 bg-warning/10 text-warning'
-						: 'border-base-300 text-base-content/60'}">{link.onHandPortions} / {link.targetPortions} portions</span
-				>
-			{/if}
 		{:else if item.recipeStatus === 'plan_to_add'}
 			<button
 				type="button"
@@ -203,6 +202,19 @@
 			<span class="rounded-full bg-warning/10 px-1.5 font-medium text-warning">{m.inventory_cook_again_badge()}</span>
 		{:else}
 			<span class="rounded-full bg-error/10 px-1.5 font-medium text-error/80">{m.inventory_out_badge()}</span>
+		{/if}
+		{#if item.isStaple}
+			<button
+				type="button"
+				class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-base-200 px-1.5 text-primary disabled:opacity-50"
+				disabled={stapleBusy || stapleAdded}
+				aria-label={stapleAdded
+					? m.inventory_staples_on_list()
+					: m.inventory_staples_add_aria({ name: item.name })}
+				onclick={onAddStaple}
+			>
+				<Icon name={stapleAdded ? 'check' : 'cart'} class="h-3.5 w-3.5" />
+			</button>
 		{/if}
 	{/if}
 

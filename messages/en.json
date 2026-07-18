@@ -137,6 +137,7 @@
 	"recipes_translation_paused_budget": "Translation paused — daily AI budget reached. Try again tomorrow.",
 	"recipes_translation_connection_failed": "Connection failed — viewing Dutch. Tap to retry.",
 	"recipes_confirm_leave_timer": "You have an active timer — leave anyway?",
+	"recipes_confirm_reset_cook_progress": "Start this recipe over and clear its timers?",
 	"recipes_ai_roles_prefill": "Mark each ingredient as cook-in or serve-fresh",
 	"recipes_title_suffix": "Recipes",
 
@@ -149,6 +150,7 @@
 	"recipes_header_view_in_english": "View in English",
 	"recipes_edit_heading": "Edit recipe",
 	"recipes_header_regenerate_cook_mode": "Regenerate cook mode",
+	"recipes_header_reset_cook_progress": "Start cooking over",
 	"recipes_header_retranslate": "Re-translate to EN",
 	"recipes_header_ai_edit": "AI edit",
 	"recipes_header_remove_photo": "Remove photo",
@@ -686,6 +688,7 @@
 	"benchsheet_rating_skip_button": "skip",
 	"benchsheet_cook_button": "I cooked it",
 	"benchsheet_cooked_logged": "✓ Logged",
+	"benchsheet_cook_failed": "Could not log this cook. Try again.",
 
 	"cookmode_merge_from_prefix": "From ",
 	"cookmode_timer_expand_aria": "Expand timer",

@@ -11,6 +11,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
+	import { onMount, tick } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import ActivitySheet from '$lib/components/inventory/ActivitySheet.svelte';
@@ -20,7 +21,6 @@
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import ItemRow from '$lib/components/inventory/ItemRow.svelte';
 	import LinkRecipeSheet from '$lib/components/inventory/LinkRecipeSheet.svelte';
-	import StaplesStrip from '$lib/components/inventory/StaplesStrip.svelte';
 	import { composeQty, daysOld } from '$lib/components/inventory/shared';
 	import type {
 		EditDraft,
@@ -128,7 +128,22 @@
 		})).filter((s) => s.items.length > 0 || (s.kind === 'leftover' && ghostsVisible.length > 0))
 	);
 
-	const staples = $derived(items.filter((i) => i.isStaple));
+
+	// Home's expiry alert deep-links to the exact row. Open its editor and bring
+	// it into view instead of dropping the user at the top of a generic page.
+	onMount(async () => {
+		const raw = new URL(window.location.href).searchParams.get('item');
+		const id = raw ? Number(raw) : NaN;
+		const item = Number.isInteger(id) ? items.find((candidate) => candidate.id === id) : undefined;
+		if (!item) return;
+		clearFilters();
+		openEdit(item);
+		await tick();
+		document.getElementById(`inventory-item-${id}`)?.scrollIntoView({
+			behavior: 'smooth',
+			block: 'center'
+		});
+	});
 
 	// ── server sync ──────────────────────────────────────────────────────────────
 	const SYNC_FIELDS = [
@@ -537,9 +552,6 @@
 	<!-- sticky facet bar (P2.2) -->
 	<FacetBar bind:sectionFilter bind:classFilter bind:reviewOnly {needsReviewCount} />
 
-	<!-- pantry staples strip (P4.4) -->
-	<StaplesStrip {staples} added={stapleAdded} busy={stapleOutBusy} onAdd={stapleOut} />
-
 	<!-- add form -->
 	<AddItemForm open={showAddForm} onCancel={() => (showAddForm = false)} onAdded={onItemAdded} {flashToast} />
 
@@ -555,7 +567,7 @@
 				</div>
 				<ul class="ui-list-card divide-y divide-base-200">
 					{#each shelf.items as item (item.id)}
-						<li class="relative overflow-hidden" transition:slide={{ duration: 150 }}>
+						<li id="inventory-item-{item.id}" class="relative overflow-hidden" transition:slide={{ duration: 150 }}>
 							<ItemRow
 								{item}
 								link={linkFor(item)}
@@ -576,6 +588,9 @@
 								onCommitQtyEdit={() => commitQtyEdit(item)}
 								onCancelQtyEdit={() => (qtyEditId = null)}
 								onResolveReview={() => resolveReview(item)}
+								stapleAdded={stapleAdded.includes(item.id)}
+								stapleBusy={stapleOutBusy === item.id}
+								onAddStaple={() => stapleOut(item)}
 								onSetRecipeStatus={(status) => setRecipeStatus(item, status)}
 								onLinkRecipe={(s) => linkRecipe(item, s)}
 								onClearRecipeStatus={() => clearRecipeStatus(item)}

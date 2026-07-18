@@ -74,7 +74,9 @@
 
 	let benchSheetController = $state<BenchSheetController>({
 		regenerate: () => {},
+		resetSession: () => {},
 		hasActiveTimer: false,
+		hasProgress: false,
 		aiPausedReason: null
 	});
 
@@ -205,6 +207,11 @@
 		editAiOpen = true;
 	}
 
+	function resetCookProgress() {
+		if (!confirm(m.recipes_confirm_reset_cook_progress())) return;
+		benchSheetController.resetSession();
+	}
+
 	onMount(() => {
 		if (viewLang === 'en' && recipe.translationStatus === 'pending') {
 			void requestTranslation(false);
@@ -229,6 +236,8 @@
 	}}
 	onToggleLanguage={() => setViewLanguage(viewLang === 'en' ? 'nl' : 'en')}
 	onEditRaw={openEditRaw}
+	hasCookProgress={benchSheetController.hasProgress}
+	onResetCookProgress={resetCookProgress}
 	onRegenerateCookMode={() => benchSheetController.regenerate()}
 	onForceRetranslate={() => void requestTranslation(true)}
 	onAiEdit={() => {

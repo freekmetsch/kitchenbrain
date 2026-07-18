@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { beforeNavigate } from '$app/navigation';
 	import { base } from '$app/paths';
 	import FixedBottomBar from '$lib/components/ui/FixedBottomBar.svelte';
@@ -100,7 +101,11 @@
 
 <div class="ui-page-shell px-4 py-4">
 	<div class="flex items-center gap-2 mb-4">
-		<a href="{base}/recipes/{data.recipe.slug}" class="btn btn-sm btn-ghost -ml-2">← {m.recipes_cancel_button()}</a>
+		<a
+			href="{base}/recipes/{data.recipe.slug}"
+			class="btn btn-sm btn-ghost -ml-2 h-9 w-9 p-0"
+			aria-label={m.recipes_cancel_button()}><Icon name="chevronLeft" /></a
+		>
 		<h1 class="text-lg font-bold flex-1">{m.recipes_edit_heading()}</h1>
 	</div>
 
@@ -187,7 +192,7 @@
 							type="button"
 							class="btn btn-xs btn-ghost text-error shrink-0"
 							aria-label={m.recipes_edit_remove_ingredient_aria()}
-							onclick={() => removeIngredient(i)}>✕</button
+				onclick={() => removeIngredient(i)}><Icon name="x" class="h-3.5 w-3.5" /></button
 						>
 					</div>
 				{/each}
@@ -234,7 +239,7 @@
 								type="button"
 								class="btn btn-xs btn-ghost text-error"
 								aria-label={m.recipes_edit_remove_direction_aria()}
-								onclick={() => removeDirection(i)}>✕</button
+					onclick={() => removeDirection(i)}><Icon name="x" class="h-3.5 w-3.5" /></button
 							>
 						</div>
 					</div>
@@ -257,8 +262,7 @@
 		<input type="hidden" name="directions" value={serializedDirections} />
 
 		<FixedBottomBar>
-			<a href="{base}/recipes/{data.recipe.slug}" class="btn btn-sm btn-ghost flex-1">{m.recipes_cancel_button()}</a>
-			<button type="submit" class="btn btn-sm btn-primary flex-1" disabled={submitting || !dirty}>
+			<button type="submit" class="btn btn-sm btn-primary w-full" disabled={submitting || !dirty}>
 				{#if submitting}
 					<Spinner size="xs" />
 				{/if}
