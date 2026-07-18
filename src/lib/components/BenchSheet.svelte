@@ -933,7 +933,7 @@
 					</button>
 					<button
 						type="button"
-						class="text-[10px] text-base-content/40 underline ml-1"
+						class="btn btn-ghost btn-xs ml-1 min-h-9 px-2 text-xs font-normal text-base-content/55 underline"
 						onclick={() => {
 							benchSheetRating = null;
 							ratingDismissed = true;

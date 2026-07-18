@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Keukenbrein full-app UI test report — 2026-07-18</title>
+  <style>
+    :root{color-scheme:light;--ink:#20201d;--muted:#696860;--paper:#f7f5ef;--card:#fff;--line:#ddd9ce;--pass:#17683b;--fail:#a32d26;--skip:#725a16;--accent:#b7431c}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}main{width:min(1040px,calc(100% - 32px));margin:40px auto 80px}h1{font-size:clamp(28px,5vw,48px);line-height:1.05;margin:0 0 10px}h2{margin:40px 0 14px;font-size:22px}h3{margin:0 0 7px;font-size:17px}.meta,.note{color:var(--muted)}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:24px 0}.metric,.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}.metric strong{display:block;font-size:30px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{position:relative}.status{font-weight:750;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.pass{color:var(--pass)}.fail{color:var(--fail)}.skip{color:var(--skip)}img{display:block;width:100%;max-height:290px;object-fit:contain;background:#ece9df;border:1px solid var(--line);border-radius:9px;margin-top:12px}code{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;background:#efede6;padding:2px 5px;border-radius:4px}.callout{border-left:4px solid var(--accent);padding:12px 16px;background:#fff4ed;border-radius:0 10px 10px 0}.compact{margin:8px 0 0;padding-left:20px}.compact li+li{margin-top:5px}@media(max-width:720px){.summary,.grid{grid-template-columns:1fr 1fr}}@media(max-width:480px){.summary,.grid{grid-template-columns:1fr}main{width:min(100% - 20px,1040px);margin-top:24px}}
+  </style>
+</head>
+<body><main>
+  <p class="status">Adversarial UI validation</p>
+  <h1>Keukenbrein full-app UI</h1>
+  <p class="meta">2026-07-18 · local SvelteKit dev server · English and Dutch · desktop and mobile viewports · temporary user <code>codex-ui</code></p>
+
+  <section class="summary" aria-label="Test summary">
+    <div class="metric"><strong>16</strong><span>Total tests</span></div>
+    <div class="metric"><strong class="pass">5</strong><span>Passed</span></div>
+    <div class="metric"><strong class="fail">3</strong><span>Failed in run</span></div>
+    <div class="metric"><strong class="skip">8</strong><span>Skipped by budget</span></div>
+  </section>
+
+  <p class="callout"><strong>Closeout status:</strong> all three browser findings were fixed in the working tree after the one-pass run. They remain recorded as failures here because the UI-test budget rules did not permit a second agent run. Automated checks, unit tests, and the production build are run separately after these fixes.</p>
+
+  <h2>Failures found and fixed</h2>
+  <section class="grid">
+    <article class="card">
+      <p class="status fail">Failed in browser · fixed afterward</p>
+      <h3>Desktop AI agent did not reliably reopen or restore focus</h3>
+      <p>Closing left focus on <code>BODY</code>; a queued native dialog close event could also close a freshly reopened panel. The fix now waits for the trigger to remount, restores focus explicitly, and ignores stale close events.</p>
+      <img alt="Recipe detail page captured during the agent focus and reopen test" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDADUlKC8oITUvKy88OTU/UIVXUElJUKN1e2GFwarLyL6qurfV8P//1eL/5re6////////////zv//////////////wAALCACWAPABAREA/8QAGQABAQEBAQEAAAAAAAAAAAAAAAECAwQF/8QALBABAAIBAQcDAwUBAQAAAAAAAAERAgMSEyFRUmGRMUFxBCIyFDNTgaFCQ//aAAgBAQAAPwD6X9EzXNJymP8AmZ+EjOZr7Jg25/jyWMpnKtmY7tAAAAAA56+c4aOWWPrDyR9TqT/6Yx/T06GplnoxllFzfs6bU3P2SYzftMfLSBYWKAAAAAAmzjyjwVSgkxElRfoVBERCbMcliIj0UAAAAAAAEn0Zi9idqa7sbcfzx4g3mNfvR4hqNXTiOOpErvtPrx8m+0+vHyb7T68fJvtPrx8m+0+vHyb7T68fJvtPrx8m+0+vHyb7T68fJvtPrx8rjqYZfjlErccy45lxzLjmXHMuOZccy45lxzLjmXHMuOZccyPm1SeEWztd8fJtd8fJtd8fKxMzxipg+7sfd2Pu7NAAAAAAAJPoxtY3McOHZM84x05ziImo5OH6jOv28Fj6nV9tPHy6aGtlqZZY5YxExydwAAAAAAAQr5TLGMsZjLjEuX6XS6Z8n6XS6Z8t6elhp3sRV92wAAAAAAFRLy5f6XlyjyXlyjysKAAAAAACT6cEvLl/plOezNYxfysFzfpw52XPKS55Slz0ysTM+0woAAAAAAADPGZ4VTQAAAAAAAAAzj+MfCVN/nl8UlT15eFxiYnjlM/MNgAAAAAAA8utOW8n1r2b0b2+Ezs1xt2x/GPhJjL2mPCxfvKgAAAAAAAJMxjFzMRHcxyjKLxmJjsoAAAAAAAADyfWXt4X+DP0v7/2fjXF7QAAAAAAAAGcsYyipiJjuYYY4RWMRHw0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJfGlAS+Ne6gJcXXuoCXF1fFQEuLpQEuLr3UBK42oCVxtQErj6qAlcbUBnZnau/8aASuNqP/9k=">
+    </article>
+    <article class="card">
+      <p class="status fail">Failed in browser · fixed afterward</p>
+      <h3>Two-second timer was labeled “1 minute”</h3>
+      <p>The chip rounded every sub-minute duration up to one minute. It now renders the exact clock value and uses a matching localized accessible label.</p>
+      <img alt="Recipe timer fixture showing the former one-minute label" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDADUlKC8oITUvKy88OTU/UIVXUElJUKN1e2GFwarLyL6qurfV8P//1eL/5re6////////////zv//////////////wAALCACWAPABAREA/8QAGQABAQEBAQEAAAAAAAAAAAAAAAECAwQF/8QALBABAAIBAQcDAwUBAQAAAAAAAAERAgMSEyFRUmGRMUFxBCIyFDNTgaFCQ//aAAgBAQAAPwD6X9EzXNJymP8AmZ+EjOZr7Jg25/jyWMpnKtmY7tAAAAAA56+c4aOWWPrDyR9TqT/6Yx/T06GplnoxllFzfs6bU3P2SYzftMfLSBYWKAAAAAAmzjyjwVSgkxElRfoVBERCbMcliIj0UAAAAAAAEn0Zi9idqa7sbcfzx4g3mNfvR4hqNXTiOOpErvtPrx8m+0+vHyb7T68fJvtPrx8m+0+vHyb7T68fJvtPrx8m+0+vHyb7T68fJvtPrx8m+0+vHyb7T68fJvtPrx8rjqYZfjlErccy45lxzLjmXHMuOZccy45lxzLjmXHMuOZccyPm1SeEWztd8fJtd8fJtd8fKxMzxipg+7sfd2Pu7NAAAAAAAJPoxtY3McOHZM84x05ziImo5OH6jOv28Fj6nV9tPHy6aGtlqZZY5YxExydwAAAAAAAQr5TLGMsZjLjEuX6XS6Z8n6XS6Z8t6elhp3sRV92wAAAAAAFRLy5f6XlyjyXlyjysKAAAAAACT6cEvLl/plOezNYxfysFzfpw52XPKS55Slz0ysTM+0woAAAAAAADPGZ4VTQAAAAAAAAAzj+MfCVN/nl8UlT15eFxiYnjlM/MNgAAAAAAA8utOW8n1r2b0b2+Ezs1xt2x/GPhJjL2mPCxfvKgAAAAAAAJMxjFzMRHcxyjKLxmJjsoAAAAAAAADyfWXt4X+DP0v7/2fjXF7QAAAAAAAAGcsYyipiJjuYYY4RWMRHw0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJfGlAS+Ne6gJcXXuoCXF1fFQEuLpQEuLr3UBK42oCVxtQErj6qAlcbUBnZnau/8aASuNqP/9k=">
+    </article>
+    <article class="card">
+      <p class="status fail">Failed in browser · fixed afterward</p>
+      <h3>Shared muted and primary text missed contrast targets</h3>
+      <p>The light theme primary color and low-opacity utility text produced serious contrast findings on several routes. The shared theme now uses a darker primary and an accessible opacity floor.</p>
+      <img alt="Mobile recipe list used for the automated contrast scan" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDADUlKC8oITUvKy88OTU/UIVXUElJUKN1e2GFwarLyL6qurfV8P//1eL/5re6////////////zv//////////////wAALCADwAG8BAREA/8QAGQABAQEBAQEAAAAAAAAAAAAAAAECAwQF/8QALBABAQACAQIEBAYDAQAAAAAAAAECESEDEjFBUWGREyIyYoGhFCNCsf/aAAgBAQAAPwD6Vsxm7ZJ7qkss3OVAAHmvxmG/05H+Zh8uTt0851MJlj4VOr0/xMZN61dsTo5y/r43OOdMzo9W3Kd9npd+PDp0+nlhlu5bmtc11ASzcs/8YvSlyuXdlLfStTHWPbu/y8M6PVx3Pw9ren1bv/VJ9I9Xw+Fw6MmXFdUFRUAAUZ7Z7nbPc7Z7nbPc7Z7kxk9VS4y3d3v6rOJpRNTu35+Cp5JMt3Wqtuond+2/ZZ4JctWzVO79t+ypMt3WrFt1NpMt+V+zOX5s9XmSb16nbhePw/6bngoADNuUvGO/5Tefyf2bz+T+zefyf2mUyy1+XVnhZkknUt5t19Y6TiKzMr8tWXflYW68rUmX7and+2ts91+Wly1/zVl35aS3V8LTfH6aS7/5saAAAABDZs2bNkqgAJUAFigAJUHPmW83xbw/RNqsUABKgAsUABD+TRo0aNKAAlm5pzvRxvnl91/CxuOt5fcvSlttuXPuToyczLLf1MelMbLvK69a6AAAzZd8XRjL53bQAAAMyXXNXn1UEUAAAAAAAAAAAAAAAAAAAHl+L62WOsMbq3m15u3qYTv5j2/DdW9Xp7vjOK7AAADyfGdO5WZyb1NV5rn3b1jzfF7fhenen0+fG3buAAAJYzMZLvUaigAAAAAAAAAAAAAAAAAAAAAAAAAAAluptMbtpnu/PrXDTOVs1qbWcwt1LTHLuisTPeWuPp5xtnLLt1w0l9iSz0+ys6vrPs0ll3xSeHIT3Luzi6rOsvWfZtLLvxH/2Q=">
+    </article>
+  </section>
+
+  <h2>Passed</h2>
+  <section class="grid">
+    <article class="card"><p class="status pass">Pass</p><h3>Authenticated shell and navigation</h3><p>Login, route navigation, active state, and main shell rendered correctly.</p></article>
+    <article class="card"><p class="status pass">Pass</p><h3>Locale correctness</h3><p>English and Dutch navigation, categories, portion text, and settings initials were correct.</p></article>
+    <article class="card"><p class="status pass">Pass</p><h3>Keyboard-operable horizontal rails</h3><p>Overflow masks appeared and arrow-key movement advanced focus and scroll position.</p></article>
+    <article class="card"><p class="status pass">Pass</p><h3>Console, resources, and images</h3><p>Visited routes were free of meaningful console, failed-resource, and image errors.</p></article>
+    <article class="card"><p class="status pass">Pass</p><h3>Empty, missing, and visual consistency states</h3><p>Empty views and 404 handling remained coherent with the shared design system.</p></article>
+  </section>
+
+  <h2>Skipped when the step budget expired</h2>
+  <section class="card">
+    <ul class="compact">
+      <li>History scroll restoration on collection-to-detail round trips</li>
+      <li>Full fixed-surface obstruction sweep (partial bounds and overflow checks passed)</li>
+      <li>Inventory optimistic delete and exact-position Undo</li>
+      <li>Inventory add failure and async error recovery</li>
+      <li>Mobile AI-agent modal behavior</li>
+      <li>Cross-route and refresh agent continuity</li>
+      <li>Full recipe-role draft recovery and dirty-context blocking (partial role coverage and draft capture passed)</li>
+      <li>Complete responsive sweep (all non-inventory routes at four widths and inventory mobile passed)</li>
+    </ul>
+  </section>
+
+  <h2>Run notes</h2>
+  <div class="card"><p>The three parallel test groups visited the authenticated shell and ten unique application pages. Initial inventory HTTP 500 responses came from an invalid timestamp in temporary fixture setup; the fixture was corrected and this was classified as test noise, not an application defect. All temporary users, sessions, preferences, recipes, and inventory rows were deleted after the run.</p></div>
+</main></body></html>

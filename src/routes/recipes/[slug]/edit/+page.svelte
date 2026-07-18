@@ -17,6 +17,11 @@
 		unit?: string;
 		// Set via the AI chat, not this form — must survive a manual save.
 		role?: 'cook_in' | 'serve_fresh';
+		substitutes?: Array<{
+			name: string;
+			kind?: 'protein' | 'spice' | 'vegetable' | 'other';
+			note?: string;
+		}>;
 	};
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -35,7 +40,8 @@
 				name: i.name,
 				amount: i.amount,
 				unit: i.unit ?? '',
-				role: i.role
+				role: i.role,
+				substitutes: (i.substitutes ?? []).map((substitute) => ({ ...substitute }))
 			}))
 		)
 	);
@@ -50,6 +56,21 @@
 	}
 	function removeIngredient(i: number) {
 		ingredients = ingredients.filter((_, idx) => idx !== i);
+	}
+	function addSubstitute(ingredientIndex: number) {
+		const ingredient = ingredients[ingredientIndex];
+		ingredient.substitutes = [
+			...(ingredient.substitutes ?? []),
+			{ name: '', kind: 'other', note: '' }
+		];
+		ingredients = [...ingredients];
+	}
+	function removeSubstitute(ingredientIndex: number, substituteIndex: number) {
+		const ingredient = ingredients[ingredientIndex];
+		ingredient.substitutes = (ingredient.substitutes ?? []).filter(
+			(_, index) => index !== substituteIndex
+		);
+		ingredients = [...ingredients];
 	}
 	function addDirection() {
 		directions = [...directions, ''];
@@ -73,7 +94,14 @@
 					name: ing.name.trim(),
 					amount: ing.amount.trim(),
 					unit: ing.unit?.trim() || undefined,
-					role: ing.role
+					role: ing.role,
+					substitutes: (ing.substitutes ?? [])
+						.map((substitute) => ({
+							name: substitute.name.trim(),
+							kind: substitute.kind,
+							note: substitute.note?.trim() || undefined
+						}))
+						.filter((substitute) => substitute.name.length > 0)
 				}))
 				.filter((ing) => ing.name)
 		)
@@ -111,7 +139,10 @@
 		language = draft.language;
 		notes = draft.notes;
 		servings = draft.servings;
-		ingredients = draft.ingredients.map((ingredient) => ({ ...ingredient }));
+		ingredients = draft.ingredients.map((ingredient) => ({
+			...ingredient,
+			substitutes: (ingredient.substitutes ?? []).map((substitute) => ({ ...substitute }))
+		}));
 		directions = [...draft.directions];
 	}
 
@@ -123,7 +154,8 @@
 			servings: data.recipe.servings,
 			ingredients: (data.recipe.ingredients as Ingredient[]).map((ingredient) => ({
 				...ingredient,
-				unit: ingredient.unit ?? ''
+				unit: ingredient.unit ?? '',
+				substitutes: (ingredient.substitutes ?? []).map((substitute) => ({ ...substitute }))
 			})),
 			directions: [...(data.recipe.directions as string[])]
 		};
@@ -290,6 +322,52 @@
 								onclick={() => removeIngredient(i)}><Icon name="x" class="h-3.5 w-3.5" /></button
 							>
 						</div>
+
+						<details class="mt-2 rounded-lg border border-base-300/60 bg-base-100/60">
+							<summary class="flex min-h-9 cursor-pointer list-none items-center gap-2 px-2.5 text-xs text-base-content/65">
+								<span class="flex-1">{m.recipes_edit_substitutes_summary({ count: ing.substitutes?.length ?? 0 })}</span>
+								<span aria-hidden="true">⌄</span>
+							</summary>
+							<div class="border-t border-base-300/50 p-2.5">
+								<p class="mb-2 text-xs leading-relaxed text-base-content/60">
+									{m.recipes_substitutes_disclaimer()}
+								</p>
+								<div class="space-y-2">
+									{#each ing.substitutes ?? [] as substitute, substituteIndex}
+										<div class="rounded-lg border border-base-300/60 bg-base-200/35 p-2">
+											<div class="grid grid-cols-[minmax(0,1fr)_7rem_2.25rem] gap-2">
+												<label class="flex min-w-0 flex-col gap-1">
+													<span class="ui-field-label">{m.recipes_edit_substitute_name()}</span>
+													<input type="text" bind:value={substitute.name} class="input input-bordered input-sm min-w-0 w-full" />
+												</label>
+												<label class="flex min-w-0 flex-col gap-1">
+													<span class="ui-field-label">{m.recipes_edit_substitute_kind()}</span>
+													<select bind:value={substitute.kind} class="select select-bordered select-sm min-w-0 w-full">
+														<option value="protein">{m.recipes_substitutes_kind_protein()}</option>
+														<option value="spice">{m.recipes_substitutes_kind_spice()}</option>
+														<option value="vegetable">{m.recipes_substitutes_kind_vegetable()}</option>
+														<option value="other">{m.recipes_substitutes_kind_other()}</option>
+													</select>
+												</label>
+												<button
+													type="button"
+													class="btn btn-ghost h-9 min-h-9 w-9 self-end p-0 text-error"
+													aria-label={m.recipes_edit_substitute_remove_aria({ name: substitute.name || m.recipes_edit_substitute_name() })}
+													onclick={() => removeSubstitute(i, substituteIndex)}><Icon name="x" class="h-3.5 w-3.5" /></button
+												>
+											</div>
+											<label class="mt-2 flex min-w-0 flex-col gap-1">
+												<span class="ui-field-label">{m.recipes_edit_substitute_note()}</span>
+												<input type="text" bind:value={substitute.note} class="input input-bordered input-sm min-w-0 w-full" />
+											</label>
+										</div>
+									{/each}
+								</div>
+								<button type="button" class="btn btn-ghost btn-xs mt-2 border border-base-300" onclick={() => addSubstitute(i)}>
+									{m.recipes_edit_substitutes_add()}
+								</button>
+							</div>
+						</details>
 					</div>
 				{/each}
 			</div>

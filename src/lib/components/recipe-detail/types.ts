@@ -2,8 +2,22 @@
 // components. Moved out of +page.svelte during the recipe-detail decomposition.
 import type { CookModeRecipe } from '$lib/types';
 
-export type Ingredient = { name: string; amount: string; unit?: string; role?: 'cook_in' | 'serve_fresh' };
-type TranslatedIngredient = { name: string };
+export type IngredientSubstitute = {
+	name: string;
+	kind?: 'protein' | 'spice' | 'vegetable' | 'other';
+	note?: string;
+};
+export type Ingredient = {
+	name: string;
+	amount: string;
+	unit?: string;
+	role?: 'cook_in' | 'serve_fresh';
+	substitutes?: IngredientSubstitute[];
+};
+type TranslatedIngredient = {
+	name: string;
+	substitutes?: Array<{ name: string; note?: string }>;
+};
 type TranslationStatus = 'pending' | 'ready' | 'error';
 export type Recipe = {
 	id: number;

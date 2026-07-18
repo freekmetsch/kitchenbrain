@@ -4,8 +4,24 @@ import type { MachineActor } from '$lib/actors';
 
 export type IngredientRole = 'cook_in' | 'serve_fresh';
 export type MealSource = 'fresh' | 'freezer';
-export type Ingredient = { name: string; amount: string; unit?: string; role?: IngredientRole };
-export type TranslatedIngredient = { name: string };
+export type IngredientSubstituteKind = 'protein' | 'spice' | 'vegetable' | 'other';
+export type IngredientSubstitute = {
+	/** Canonical Dutch name, just like Ingredient.name. */
+	name: string;
+	kind?: IngredientSubstituteKind;
+	note?: string;
+};
+export type Ingredient = {
+	name: string;
+	amount: string;
+	unit?: string;
+	role?: IngredientRole;
+	substitutes?: IngredientSubstitute[];
+};
+export type TranslatedIngredient = {
+	name: string;
+	substitutes?: Array<{ name: string; note?: string }>;
+};
 export type TranslationStatus = 'pending' | 'ready' | 'error';
 export type { CookModeRecipe, CookModeStep } from '$lib/types';
 

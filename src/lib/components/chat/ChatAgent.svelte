@@ -142,19 +142,21 @@
 	});
 </script>
 
-{#if !controller.opened}
+<!-- Home already has the full composer. A second floating trigger covered its
+     Send button on phones and offered no additional action there. -->
+{#if !controller.opened && $page.url.pathname !== `${base}/`}
 	<button
 		bind:this={bubble}
 		use:draggable={dragOptions}
 		type="button"
-		class="ui-z-agent fixed right-3 flex h-14 w-14 touch-none select-none items-center justify-center rounded-full bg-primary text-primary-content shadow-xl transition-[translate,box-shadow] hover:shadow-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {dragging ? 'ring-4 ring-primary/25' : ''}"
+		class="ui-z-agent fixed right-3 flex h-12 w-12 touch-none select-none items-center justify-center rounded-full bg-primary/95 text-primary-content shadow-lg transition-[translate,box-shadow,opacity] hover:bg-primary hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {dragging ? 'ring-4 ring-primary/25' : ''}"
 		style="bottom: var(--ui-overlay-bottom)"
 		aria-label={m.agent_open_aria()}
 		aria-keyshortcuts="ArrowUp ArrowDown"
 		onkeydown={repositionWithKeyboard}
 		onclick={openAgent}
 	>
-		<Icon name="pot" class="h-7 w-7" />
+		<Icon name="pot" class="h-6 w-6" />
 		{#if controller.unread > 0}
 			<span class="absolute -right-0.5 -top-0.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-error px-1 text-[10px] font-bold text-error-content"
 				>{controller.unread}</span

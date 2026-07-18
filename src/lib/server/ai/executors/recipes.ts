@@ -34,11 +34,18 @@ function kickTranslateIfAppDb(db: DB, slug: string) {
 
 // Shared by add_recipe and edit_recipe — one definition of what an ingredient
 // entry looks like on the wire.
+const SubstituteSchema = z.object({
+	name: z.string().trim().min(1),
+	kind: z.enum(['protein', 'spice', 'vegetable', 'other']).optional(),
+	note: z.string().trim().min(1).max(500).optional()
+});
+
 const IngredientSchema = z.object({
 	name: z.string(),
 	amount: z.string(),
 	unit: z.string().optional(),
-	role: z.enum(['cook_in', 'serve_fresh']).optional()
+	role: z.enum(['cook_in', 'serve_fresh']).optional(),
+	substitutes: z.array(SubstituteSchema).max(12).optional()
 });
 
 export const recipeExecutors: Record<string, ExecutorFn> = {
@@ -213,6 +220,14 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 				set_ingredient_roles: z
 					.array(z.object({ name: z.string(), role: z.enum(['cook_in', 'serve_fresh']) }))
 					.optional(),
+				set_ingredient_substitutes: z
+					.array(
+						z.object({
+							name: z.string(),
+							substitutes: z.array(SubstituteSchema).max(12)
+						})
+					)
+					.optional(),
 				directions: z.array(z.string()).optional(),
 				notes: z.string().optional()
 			})
@@ -257,15 +272,38 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			}
 		}
 
+		const substitutesApplied: string[] = [];
+		const substitutesAmbiguous: string[] = [];
+		const substitutesUnmatched: string[] = [];
+		if (input.set_ingredient_substitutes?.length) {
+			for (const { name, substitutes } of input.set_ingredient_substitutes) {
+				const matchIdxs = ingredients
+					.map((ingredient, index) => (namesMatch(name, ingredient.name) ? index : -1))
+					.filter((index) => index >= 0);
+				if (matchIdxs.length === 1) {
+					ingredients[matchIdxs[0]] = {
+						...ingredients[matchIdxs[0]],
+						substitutes: substitutes.length ? substitutes : undefined
+					};
+					substitutesApplied.push(name);
+				} else if (matchIdxs.length > 1) {
+					substitutesAmbiguous.push(name);
+				} else {
+					substitutesUnmatched.push(name);
+				}
+			}
+		}
+
 		const updates: Record<string, unknown> = { updatedAt: new Date(), ingredients };
 		if (input.servings !== undefined) updates.servings = input.servings;
 		if (input.directions !== undefined) updates.directions = input.directions;
 		if (input.notes !== undefined) updates.notes = input.notes;
 		// Only flag on ambiguity — a normal edit must never clear an existing review flag.
-		if (rolesAmbiguous.length) {
+		const ambiguousNames = [...new Set([...rolesAmbiguous, ...substitutesAmbiguous])];
+		if (ambiguousNames.length) {
 			Object.assign(
 				updates,
-				reviewFields(`Ambiguous ingredient role match — set role manually: ${rolesAmbiguous.join(', ')}`)
+				reviewFields(`Ambiguous ingredient match — edit manually: ${ambiguousNames.join(', ')}`)
 			);
 		}
 		// Direction or ingredient-set changes make the cached bench sheet lie —
@@ -279,6 +317,27 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			updates.cookModeJson = null;
 			updates.cookModeGeneratedAt = null;
 		}
+		// English fields are one cache over the complete canonical recipe. Any
+		// content edit (including substitutes) invalidates the whole cache; keeping
+		// a few old EN arrays beside new Dutch fields is how mixed-language recipes
+		// escaped the previous agent edit path. Role-only edits are metadata and do
+		// not affect translation.
+		const translationStale =
+			input.directions !== undefined ||
+			input.notes !== undefined ||
+			!!input.add_ingredients?.length ||
+			!!input.remove_ingredient_names?.length ||
+			input.set_ingredient_substitutes !== undefined;
+		if (translationStale) {
+			updates.titleEn = null;
+			updates.categoryEn = null;
+			updates.cuisineEn = null;
+			updates.notesEn = null;
+			updates.ingredientsEn = null;
+			updates.directionsEn = null;
+			updates.translationStatus = recipe.language === 'en' ? 'ready' : 'pending';
+			updates.translatedAt = null;
+		}
 
 		db.update(schema.recipes).set(updates).where(eq(schema.recipes.slug, input.slug)).run();
 		if (sheetStale) kickCookModeIfAppDb(db, input.slug);
@@ -286,8 +345,12 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			ok: true,
 			slug: input.slug,
 			...(rolesApplied.length ? { roles_applied: rolesApplied } : {}),
-			...(rolesAmbiguous.length ? { roles_ambiguous: rolesAmbiguous, needs_review: true } : {}),
-			...(rolesUnmatched.length ? { roles_unmatched: rolesUnmatched } : {})
+			...(rolesAmbiguous.length ? { roles_ambiguous: rolesAmbiguous } : {}),
+			...(rolesUnmatched.length ? { roles_unmatched: rolesUnmatched } : {}),
+			...(substitutesApplied.length ? { substitutes_applied: substitutesApplied } : {}),
+			...(substitutesAmbiguous.length ? { substitutes_ambiguous: substitutesAmbiguous } : {}),
+			...(substitutesUnmatched.length ? { substitutes_unmatched: substitutesUnmatched } : {}),
+			...(ambiguousNames.length ? { needs_review: true } : {})
 		};
 	},
 

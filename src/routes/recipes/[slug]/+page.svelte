@@ -10,12 +10,14 @@
 	import MealComposition from '$lib/components/recipe-detail/MealComposition.svelte';
 	import FreezerStockPanel from '$lib/components/recipe-detail/FreezerStockPanel.svelte';
 	import RoleCoverage from '$lib/components/recipe-detail/RoleCoverage.svelte';
+	import SubstituteSuggestions from '$lib/components/recipe-detail/SubstituteSuggestions.svelte';
 	import AddToPlanSheet from '$lib/components/recipe-detail/AddToPlanSheet.svelte';
 	import { labelWeeks, type Recipe } from '$lib/components/recipe-detail/types';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { useChatAgent } from '$lib/chat/agent_context';
 	import type { IngredientRoleCoverage } from '$lib/server/recipe_links';
+	import { isStaleCookMode } from '$lib/components/cook-mode/staleness';
 
 	let {
 		data
@@ -48,22 +50,46 @@
 	let viewLang = $state<'en' | 'nl'>(untrack(() => data.recipeLang));
 	let translationLoading = $state(false);
 	let translationMessage = $state('');
-	let displayTitle = $derived(viewLang === 'en' ? (recipe.titleEn ?? recipe.title) : recipe.title);
-	let displayNotes = $derived(viewLang === 'en' ? (recipe.notesEn ?? recipe.notes) : recipe.notes);
-	let displayCategory = $derived(viewLang === 'en' ? (recipe.categoryEn ?? recipe.category) : recipe.category);
-	let displayCuisine = $derived(viewLang === 'en' ? (recipe.cuisineEn ?? recipe.cuisine) : recipe.cuisine);
+
+	function hasCompleteEnglishDisplay(candidate: Recipe): boolean {
+		if (candidate.language === 'en') return true;
+		if (candidate.translationStatus !== 'ready' || !candidate.titleEn?.trim()) return false;
+		if (candidate.ingredientsEn?.length !== candidate.ingredients.length) return false;
+		if (candidate.directionsEn?.length !== candidate.directions.length) return false;
+		if (candidate.category?.trim() && !candidate.categoryEn?.trim()) return false;
+		if (candidate.cuisine?.trim() && !candidate.cuisineEn?.trim()) return false;
+		if (candidate.notes?.trim() && !candidate.notesEn?.trim()) return false;
+		return candidate.ingredients.every(
+			(ingredient, index) =>
+				(candidate.ingredientsEn?.[index]?.substitutes?.length ?? 0) ===
+				(ingredient.substitutes?.length ?? 0)
+		);
+	}
+
+	let englishDisplayReady = $derived(hasCompleteEnglishDisplay(recipe));
+	// English is an all-or-nothing display mode. Until the complete translation
+	// is ready, render the intact Dutch source rather than mixing field fallbacks.
+	let showTranslated = $derived(viewLang === 'en' && englishDisplayReady && recipe.language !== 'en');
+	let displayTitle = $derived(showTranslated ? recipe.titleEn! : recipe.title);
+	let displayNotes = $derived(showTranslated ? recipe.notesEn : recipe.notes);
+	let displayCategory = $derived(showTranslated ? recipe.categoryEn : recipe.category);
+	let displayCuisine = $derived(showTranslated ? recipe.cuisineEn : recipe.cuisine);
 	let displayDirections = $derived(
-		viewLang === 'en' && recipe.directionsEn?.length === recipe.directions.length
-			? recipe.directionsEn
-			: recipe.directions
+		showTranslated ? recipe.directionsEn! : recipe.directions
 	);
 	let displayIngredients = $derived(
 		recipe.ingredients.map((ing, i) => ({
 			...ing,
-			name:
-				viewLang === 'en' && recipe.ingredientsEn?.length === recipe.ingredients.length
-					? (recipe.ingredientsEn[i]?.name ?? ing.name)
-					: ing.name
+			name: showTranslated ? recipe.ingredientsEn![i].name : ing.name,
+			substitutes: showTranslated
+				? (ing.substitutes ?? []).map((substitute, substituteIndex) => ({
+						...substitute,
+						name:
+							recipe.ingredientsEn![i].substitutes?.[substituteIndex]?.name ?? substitute.name,
+						note:
+							recipe.ingredientsEn![i].substitutes?.[substituteIndex]?.note ?? substitute.note
+					}))
+				: ing.substitutes
 		}))
 	);
 
@@ -182,8 +208,11 @@
 	function setViewLanguage(lang: 'en' | 'nl') {
 		viewLang = lang;
 		translationMessage = '';
-		if (lang === 'en' && recipe.translationStatus === 'pending') {
-			void requestTranslation(false);
+		if (lang === 'en' && recipe.language !== 'en') {
+			if (recipe.translationStatus === 'pending') void requestTranslation(false);
+			else if (recipe.translationStatus === 'ready' && !hasCompleteEnglishDisplay(recipe)) {
+				void requestTranslation(true);
+			}
 		}
 	}
 
@@ -201,10 +230,12 @@
 		void goto(`${base}/recipes/${recipe.slug}/edit`);
 	}
 
-	// The AI chat's edit_recipe tool is the designed path for setting roles —
-	// prefill the ask so one tap away from the hint does the right thing.
+	// Classification is a single, explicit action: open the contextual agent and
+	// immediately submit the scoped request instead of leaving another draft for
+	// the cook to send manually.
 	function openRolesAiEdit() {
-		chatAgent.open({ draft: m.recipes_ai_roles_prefill() });
+		chatAgent.open();
+		void chatAgent.send(m.recipes_ai_roles_prefill());
 	}
 
 	function openRecipeAiEdit() {
@@ -233,8 +264,11 @@
 	}
 
 	onMount(() => {
-		if (viewLang === 'en' && recipe.translationStatus === 'pending') {
-			void requestTranslation(false);
+		if (viewLang === 'en' && recipe.language !== 'en') {
+			if (recipe.translationStatus === 'pending') void requestTranslation(false);
+			else if (recipe.translationStatus === 'ready' && !hasCompleteEnglishDisplay(recipe)) {
+				void requestTranslation(true);
+			}
 		}
 	});
 </script>
@@ -288,6 +322,8 @@
 
 <RoleCoverage slug={recipe.slug} coverage={data.roleCoverage} onAskAi={openRolesAiEdit} />
 
+<SubstituteSuggestions ingredients={displayIngredients} />
+
 <input
 	bind:this={imageFileInput}
 	type="file"
@@ -318,7 +354,7 @@
 <BenchSheet
 	recipeSlug={recipe.slug}
 	recipeTitle={displayTitle}
-	initial={recipe.cookModeJson}
+	initial={isStaleCookMode(recipe.cookModeJson) ? null : recipe.cookModeJson}
 	fallback={benchSheetFallback}
 	onCooked={() => {
 		void invalidateAll();

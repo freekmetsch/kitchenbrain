@@ -6,6 +6,7 @@
 	import PushHistory from '$lib/components/shopping/PushHistory.svelte';
 	import ShoppingLists from '$lib/components/shopping/ShoppingLists.svelte';
 	import WeekNav from '$lib/components/shopping/WeekNav.svelte';
+	import ShoppingNotices from '$lib/components/shopping/ShoppingNotices.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { optimistic } from '$lib/optimistic';
@@ -177,57 +178,12 @@
 		deliveryDate={data.deliveryDate}
 	/>
 
-	{#if !data.ah.connected && items.length}
-		<div class="mb-3 rounded-2xl border border-warning/25 bg-warning/10 px-3 py-2 text-sm" role="status">
-			<div class="flex items-start gap-2">
-				<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-				<span class="text-base-content/70">
-					{m.shopping_ah_not_connected_banner()}
-					<a href="{base}/settings" class="font-medium text-primary underline-offset-2 hover:underline">{m.shopping_connect_settings_link()}</a>.
-				</span>
-			</div>
-		</div>
-	{/if}
-
-	{#if data.mealsWithoutRecipe.length}
-		<div class="mb-3 rounded-2xl border border-info/20 bg-info/10 px-3 py-2 text-sm text-base-content/70" role="status">
-			<div class="flex gap-2">
-				<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-info" />
-				<span>{m.shopping_without_recipe({ names: data.mealsWithoutRecipe.join(', ') })}</span>
-			</div>
-		</div>
-	{/if}
-
-	{#if data.freezerMeals.length}
-		<div class="mb-3 rounded-2xl border border-info/20 bg-info/10 px-3 py-2 text-sm text-base-content/70" role="status">
-			<div class="flex gap-2">
-				<span class="mt-0.5 shrink-0">❄️</span>
-				<span>
-					{m.shopping_freezer_meals_banner({
-						names: data.freezerMeals.map((f) => f.dinner).join(', ')
-					})}
-				</span>
-			</div>
-		</div>
-	{/if}
-
-	{#if data.freezerMealsMissingFreshInfo.length}
-		<!-- Blind-spot surfacing: a freezer meal whose recipe has no
-		     cook_in/serve_fresh roles contributes nothing to this list, so say so
-		     and point at the recipe instead of silently under-shopping. -->
-		<div class="mb-3 rounded-2xl border border-warning/25 bg-warning/10 px-3 py-2 text-sm" role="status">
-			<div class="flex items-start gap-2">
-				<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-				<span class="text-base-content/70">
-					{m.shopping_freezer_missing_roles_banner()}
-					{#each data.freezerMealsMissingFreshInfo as f, i}
-						{#if i > 0}<span>, </span>{/if}
-						<a href="{base}/recipes/{f.recipeSlug}" class="font-medium text-primary underline-offset-2 hover:underline">{f.dinner}</a>
-					{/each}
-				</span>
-			</div>
-		</div>
-	{/if}
+	<ShoppingNotices
+		showAhNotice={!data.ah.connected && items.length > 0}
+		mealsWithoutRecipe={data.mealsWithoutRecipe}
+		freezerMeals={data.freezerMeals}
+		freezerMealsMissingFreshInfo={data.freezerMealsMissingFreshInfo}
+	/>
 
 	{#if !items.length}
 		<EmptyState iconName="basket" title={emptyCopy.title} description={emptyCopy.description}>

@@ -320,6 +320,20 @@ export const tools: Anthropic.Tool[] = [
 							name: { type: 'string' },
 							amount: { type: 'string' },
 							unit: { type: 'string' },
+							substitutes: {
+								type: 'array',
+								description:
+									'Optional practical alternatives for this ingredient. Names stay Dutch. Suggest only plausible swaps and include a short caution/use note when cooking behavior changes.',
+								items: {
+									type: 'object',
+									properties: {
+										name: { type: 'string' },
+										kind: { type: 'string', enum: ['protein', 'spice', 'vegetable', 'other'] },
+										note: { type: 'string' }
+									},
+									required: ['name']
+								}
+							},
 							role: {
 								type: 'string',
 								enum: ['cook_in', 'serve_fresh'],
@@ -349,7 +363,7 @@ export const tools: Anthropic.Tool[] = [
 	{
 		name: 'edit_recipe',
 		description:
-			'Edit a recipe: add/remove ingredients, update steps, change servings, or set ingredient roles (cook_in vs serve_fresh).',
+			'Edit a recipe: add/remove ingredients, update steps, change servings, set ingredient roles, or save practical ingredient substitutes.',
 		input_schema: {
 			type: 'object',
 			properties: {
@@ -363,6 +377,19 @@ export const tools: Anthropic.Tool[] = [
 							name: { type: 'string' },
 							amount: { type: 'string' },
 							unit: { type: 'string' },
+							substitutes: {
+								type: 'array',
+								description: 'Optional Dutch-named ingredient alternatives.',
+								items: {
+									type: 'object',
+									properties: {
+										name: { type: 'string' },
+										kind: { type: 'string', enum: ['protein', 'spice', 'vegetable', 'other'] },
+										note: { type: 'string' }
+									},
+									required: ['name']
+								}
+							},
 							role: {
 								type: 'string',
 								enum: ['cook_in', 'serve_fresh'],
@@ -389,6 +416,30 @@ export const tools: Anthropic.Tool[] = [
 							}
 						},
 						required: ['name', 'role']
+					}
+				},
+				set_ingredient_substitutes: {
+					type: 'array',
+					description:
+						'Replace the saved alternatives for existing ingredients. Match each ingredient by its stored Dutch name. Use an empty substitutes array to clear them.',
+					items: {
+						type: 'object',
+						properties: {
+							name: { type: 'string', description: 'Ingredient name as stored on the recipe (Dutch)' },
+							substitutes: {
+								type: 'array',
+								items: {
+									type: 'object',
+									properties: {
+										name: { type: 'string', description: 'Dutch substitute name' },
+										kind: { type: 'string', enum: ['protein', 'spice', 'vegetable', 'other'] },
+										note: { type: 'string', description: 'Short practical use/caution note' }
+									},
+									required: ['name']
+								}
+							}
+						},
+						required: ['name', 'substitutes']
 					}
 				},
 				directions: { type: 'array', items: { type: 'string' } },

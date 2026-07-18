@@ -13,6 +13,7 @@
 	import { itemLabel } from './format';
 	import type { ShoppingListItem } from './types';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
+	import MealReferences from './MealReferences.svelte';
 
 	// Check-off flies the row between "To buy" and "In basket"; adds/removes
 	// without a counterpart fall back to a slide. Keyed by item name (unique
@@ -81,9 +82,10 @@
 						aria-label={m.shopping_mark_bought_aria({ name: item.name })}
 						onchange={() => onToggleBought(item)}
 					/>
-					<label for={rowId} class="min-w-0 flex-1 cursor-pointer py-1">
-						<span class="block text-sm font-medium leading-5">{item.name}</span>
-						<span class="mt-1 flex flex-wrap items-center gap-1.5">
+					<div class="min-w-0 flex-1 py-1">
+						<label for={rowId} class="block min-w-0 cursor-pointer">
+							<span class="block text-sm font-medium leading-5">{item.name}</span>
+							<span class="mt-1 flex flex-wrap items-center gap-1.5">
 							{#if itemLabel(item)}
 								<span class="text-xs text-base-content/50">{itemLabel(item)}</span>
 							{/if}
@@ -99,11 +101,12 @@
 							{#if item.freshSide}
 								<span class="ui-chip-muted">❄️ {m.shopping_fresh_side_badge()}</span>
 							{/if}
-							{#if item.forMeals?.length}
-								<span class="text-xs text-base-content/40">{m.shopping_for_meals({ meals: item.forMeals.join(', ') })}</span>
-							{/if}
-						</span>
-					</label>
+							</span>
+						</label>
+						{#if item.forMeals?.length}
+							<div class="mt-1.5"><MealReferences meals={item.forMeals} /></div>
+						{/if}
+					</div>
 					{#if item.manual}
 						<button
 							type="button"

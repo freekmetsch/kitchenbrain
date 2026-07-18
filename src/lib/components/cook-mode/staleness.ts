@@ -43,13 +43,15 @@ export function violatesActionState(value: string): string | null {
 //
 // Clauses, in evaluation order:
 //   (a) cm == null → false  (let the caller treat "no cache" separately).
-//   (b) streams missing or empty (pre-DAG legacy shape).
-//   (c) any step.goal fails the action-led check (pre-action-led legacy).
-//   (d) any step has timer_seconds without timer_action (pre-timer-pill-label).
+//   (b) cache version/language missing or old (pre-atomic-English contract).
+//   (c) streams missing or empty (pre-DAG legacy shape).
+//   (d) any step.goal fails the action-led check (pre-action-led legacy).
+//   (e) any step has timer_seconds without timer_action (pre-timer-pill-label).
 //
 // Future schema bumps add a clause here — single place to update on the next rev.
 export function isStaleCookMode(cm: Partial<CookModeRecipe> | null): boolean {
 	if (cm == null) return false;
+	if (cm.version !== 2 || cm.language !== 'en') return true;
 	if (!Array.isArray(cm.streams) || cm.streams.length === 0) return true;
 	if (!Array.isArray(cm.steps)) return true;
 	for (const step of cm.steps) {

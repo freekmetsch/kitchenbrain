@@ -277,8 +277,6 @@ def main():
     #   otherwise           -> copy the token and tell the user where to paste it
     password = os.environ.get("HB_APP_PASSWORD")
     if args.print_only or not password:
-        if not (args.print_only or password):
-            log("\n  HB_APP_PASSWORD is not set — finishing the manual way.")
         print_payload(pair)
         return
 

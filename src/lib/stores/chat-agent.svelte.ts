@@ -302,11 +302,20 @@ export class ChatAgentController {
 	}
 
 	async send(text = this.input, isRetry = false): Promise<void> {
+		// A contextual CTA can open the agent and send in the same tick. Let the
+		// one-time history load settle first; otherwise hydrateOnce can replace the
+		// just-appended optimistic turn with the older server snapshot.
+		if (!this.hydrated) await this.ensureHydrated();
 		const outgoing = this.attachments;
 		const hasAttachments = outgoing.length > 0;
 		if (this.isStreaming || (!text.trim() && !hasAttachments)) return;
+		// Screen publishers run inside Svelte's reactive graph, so screenContext is
+		// normally a deeply reactive Proxy. Browser structuredClone rejects those
+		// proxies with DataCloneError before the request can even start. JSON is the
+		// wire format for this bounded, primitive-only object anyway, so use that
+		// same serialization boundary to detach it from Svelte state.
 		const screenContext = this.contextEnabled && this.screenContext
-			? structuredClone(this.screenContext)
+			? (JSON.parse(JSON.stringify(this.screenContext)) as ScreenContextV1)
 			: undefined;
 
 		this.attachments = [];

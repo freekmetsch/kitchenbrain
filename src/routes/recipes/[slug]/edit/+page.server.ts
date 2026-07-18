@@ -7,13 +7,20 @@ import { recipes } from '$lib/server/db/schema';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import type { Actions, PageServerLoad } from './$types';
 
+const SubstituteSchema = z.object({
+	name: z.string().trim().min(1, 'substitute name required'),
+	kind: z.enum(['protein', 'spice', 'vegetable', 'other']).optional(),
+	note: z.string().trim().max(500).optional()
+});
+
 const IngredientSchema = z.object({
 	name: z.string().trim().min(1, 'name required'),
 	amount: z.string().trim().default(''),
 	unit: z.string().trim().optional(),
 	// Set via the AI chat; z.object strips unknown keys, so without this a
 	// manual save silently wipes every role (kills serve-from-freezer).
-	role: z.enum(['cook_in', 'serve_fresh']).optional()
+	role: z.enum(['cook_in', 'serve_fresh']).optional(),
+	substitutes: z.array(SubstituteSchema).max(12).optional()
 });
 
 const RecipeEditSchema = z.object({

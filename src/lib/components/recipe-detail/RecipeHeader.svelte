@@ -8,7 +8,9 @@
 	import { base } from '$app/paths';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { tick } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import { MOTION_MICRO_MS } from '$lib/motion';
 	import { m } from '$lib/paraglide/messages';
 	import type { Recipe } from './types';
 
@@ -171,6 +173,7 @@
 				<ul
 					role="menu"
 					class="absolute right-0 mt-1 w-56 rounded-xl border border-base-200 bg-base-100 shadow-xl z-40 py-1 text-sm"
+					transition:fly={{ y: -4, duration: MOTION_MICRO_MS }}
 					onkeydown={handleMenuKeydown}
 				>
 					{#if hasCookProgress}

@@ -13,7 +13,7 @@ import { getChatModel } from '$lib/server/ai/config';
 import { db } from '$lib/server/db/index';
 import { recipes, type Ingredient } from '$lib/server/db/schema';
 import type { CookModeRecipe } from '$lib/types';
-import { violatesActionState } from '$lib/components/cook-mode/staleness';
+import { isStaleCookMode, violatesActionState } from '$lib/components/cook-mode/staleness';
 
 const StreamSchema = z.object({
 	id: z.string().min(1),
@@ -75,6 +75,8 @@ const StepSchema = z.object({
 const buildCookModeSchema = (maxSteps: number): z.ZodType<CookModeRecipe> =>
 	z
 	.object({
+		version: z.literal(2),
+		language: z.literal('en'),
 		mise_en_place: z.array(z.string()),
 		streams: z.array(StreamSchema).min(1),
 		steps: z.array(StepSchema).min(2).max(maxSteps)
@@ -227,7 +229,7 @@ async function generateCookModeUncached(slug: string, opts: { force?: boolean } 
 				)
 		: [];
 
-	if (!opts.force && recipe.cookModeJson) {
+	if (!opts.force && recipe.cookModeJson && !isStaleCookMode(recipe.cookModeJson)) {
 		// A meal's cached sheet is stale when any sub-recipe's content changed
 		// after generation (live links, not copies).
 		const genAt = recipe.cookModeGeneratedAt?.getTime() ?? 0;

@@ -17,6 +17,10 @@ export type CookModeStep = {
 };
 
 export type CookModeRecipe = {
+	/** Cache contract. Missing/older versions are regenerated before display. */
+	version: 2;
+	/** Bench sheets are English display data; canonical Dutch stays in recipes.ingredients. */
+	language: 'en';
 	mise_en_place: string[];
 	streams: CookModeStream[];
 	steps: CookModeStep[];

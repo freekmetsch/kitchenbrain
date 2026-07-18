@@ -8,6 +8,8 @@ Your output is a single JSON object that conforms exactly to the schema below �
 
 ```json
 {
+  "version": 2,
+  "language": "en",
   "mise_en_place": [
     "string — one prep / measurement / equipment line. Pull all chopping, measuring, preheating, and gathering OUT of the steps. Empty array allowed only for genuinely zero-prep recipes."
   ],
@@ -48,7 +50,7 @@ Your output is a single JSON object that conforms exactly to the schema below �
 8. **One beat per step — split only on a real seam.** A step is one *beat* of cooking, not one motion. Split two actions into separate steps ONLY when at least one holds: (a) a real wait sits between them (a timer, a state change like macerating — not a stir); (b) the vessel/station/tool changes (board → pan, mixer → oven); (c) they run in parallel and a second cook could claim one. Otherwise collapse: same vessel, no wait, mechanically continuous motions ("measure → sift → whisk in") are ONE step. Never emit a step whose body is a single verb on a single ingredient ("Add garlic" — bad). "Add the onion and stir 5 min until translucent" is one step; "Add onion. Add garlic. Stir." is three — bad.
 9. **Quantities inline.** Repeat the relevant amount in the body text ("Add the 2 tbsp olive oil"). Do not assume the cook can see the ingredient panel.
 10. **Sensory cues over arbitrary times.** "Until golden brown and fragrant, ~3 min" beats "Cook 3 minutes". Keep the time as `timer_seconds` when it's the dominant wait.
-11. **Source language for ingredients.** Dutch ingredients stay Dutch (required for AH grocery integration). Title / goal / body / stream-name / timer_purpose / timer_action / timer_location are written in clear English unless the source recipe is already English.
+11. **English display contract.** Write every displayed string in clear English, including ingredient strings in `mise_en_place`, `steps[].ingredients`, goals, bodies, stream names, and timer labels. The input may contain canonical Dutch ingredient names because those drive Albert Heijn lookup, but this generated bench sheet is display-only and never feeds shopping or AH. Translate the Dutch names here; do not change the canonical recipe.
 12. **Don't invent.** If the source recipe omits a temperature or pan size, leave it qualitative ("medium-high heat", "wide pan"). Never fabricate an ingredient that isn't in the input list.
 13. **Scope.** 2–20 steps total. Combine trivial steps; split a single mega-step that does five things.
 14. **Emit steps in cook order.** Order the flat list as one cook would *start* the work: interleave parallel streams by when their steps begin (start the 45-min roast, then the sauce steps during that wait), don't group all of one stream then all of another unless the work is genuinely sequential. A step with `merges_from` must appear AFTER at least one step of every stream it lists. Every declared stream must own ≥ 1 step. A stream whose output is needed late (a glaze used at plating) still starts where the cook would realistically make it — during a wait, not at position 0 by default.
@@ -70,6 +72,8 @@ The aromatics stream and the spinach stream run in parallel; spinach folds into 
 
 ```json
 {
+  "version": 2,
+  "language": "en",
   "mise_en_place": [
     "1 large yellow onion, finely chopped",
     "4 cloves garlic, minced",
@@ -162,6 +166,8 @@ Three components held at three stations: the bird in the oven (passive wait), pa
 
 ```json
 {
+  "version": 2,
+  "language": "en",
   "mise_en_place": [
     "1 whole chicken, ~1.6 kg, patted dry, salted, trussed",
     "2 sprigs thyme, 1 lemon halved",
@@ -265,6 +271,8 @@ One component, one pan, one bake. Linear flow. Single stream — no fabricated p
 
 ```json
 {
+  "version": 2,
+  "language": "en",
   "mise_en_place": [
     "200 g dark chocolate, chopped",
     "180 g unsalted butter, cubed",

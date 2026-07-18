@@ -13,7 +13,13 @@ import type { TurnExecutionContext } from '../commit_risk';
 
 const turnCtx = (): TurnExecutionContext => ({ createdThisTurn: new Set(), destructiveCount: 0 });
 
-const benchSheet: CookModeRecipe = { mise_en_place: [], streams: [], steps: [] };
+const benchSheet: CookModeRecipe = {
+	version: 2,
+	language: 'en',
+	mise_en_place: [],
+	streams: [],
+	steps: []
+};
 
 type EditResult = {
 	ok: boolean;
@@ -21,6 +27,9 @@ type EditResult = {
 	roles_applied?: string[];
 	roles_ambiguous?: string[];
 	roles_unmatched?: string[];
+	substitutes_applied?: string[];
+	substitutes_ambiguous?: string[];
+	substitutes_unmatched?: string[];
 	needs_review?: boolean;
 };
 type StapleResult = {
@@ -67,7 +76,15 @@ describe('edit_recipe', () => {
 				{ name: 'Ui', amount: '1', unit: 'stuks' },
 				{ name: 'Knoflook', amount: '2', unit: 'teentjes' }
 			],
-			{ cookModeJson: benchSheet, cookModeGeneratedAt: new Date() }
+			{
+				cookModeJson: benchSheet,
+				cookModeGeneratedAt: new Date(),
+				titleEn: 'Stew',
+				ingredientsEn: [{ name: 'Onion' }, { name: 'Garlic' }],
+				directionsEn: ['Put everything in a pan.'],
+				translationStatus: 'ready',
+				translatedAt: new Date()
+			}
 		);
 
 		const res = (await executeToolCall(
@@ -92,6 +109,11 @@ describe('edit_recipe', () => {
 		// Ingredient-set change invalidates the cached bench sheet.
 		expect(row.cookModeJson).toBeNull();
 		expect(row.cookModeGeneratedAt).toBeNull();
+		// Content edits invalidate the complete EN cache atomically.
+		expect(row.titleEn).toBeNull();
+		expect(row.ingredientsEn).toBeNull();
+		expect(row.directionsEn).toBeNull();
+		expect(row.translationStatus).toBe('pending');
 	});
 
 	it('sets a role when the name matches exactly one ingredient, keeping the bench sheet', async () => {
@@ -144,7 +166,7 @@ describe('edit_recipe', () => {
 		expect(res.needs_review).toBe(true);
 		const row = recipeBySlug(db, 'knoflookpasta');
 		expect(row.needsReview).toBe(true);
-		expect(row.reviewReason).toContain('Ambiguous ingredient role match');
+		expect(row.reviewReason).toContain('Ambiguous ingredient match');
 		// No role was silently picked.
 		for (const ing of row.ingredients as Ingredient[]) expect(ing.role).toBeUndefined();
 	});
@@ -163,6 +185,53 @@ describe('edit_recipe', () => {
 
 		expect(isOk(res)).toBe(true);
 		expect(res.roles_unmatched).toEqual(['Zalm']);
+	});
+
+	it('stores ingredient substitutes deterministically and invalidates only the EN cache', async () => {
+		const db = createTestDb();
+		seedRecipe(
+			db,
+			'curry',
+			[{ name: 'Kipfilet', amount: '400', unit: 'g' }],
+			{
+				cookModeJson: benchSheet,
+				cookModeGeneratedAt: new Date(),
+				titleEn: 'Curry',
+				ingredientsEn: [{ name: 'Chicken breast' }],
+				directionsEn: ['Put everything in a pan.'],
+				translationStatus: 'ready'
+			}
+		);
+
+		const res = (await executeToolCall(
+			'edit_recipe',
+			{
+				slug: 'curry',
+				set_ingredient_substitutes: [
+					{
+						name: 'Kipfilet',
+						substitutes: [
+							{ name: 'Tempeh', kind: 'protein', note: 'Korter bakken; wordt sneller droog.' }
+						]
+					}
+				]
+			},
+			db,
+			1,
+			turnCtx()
+		)) as EditResult;
+
+		expect(isOk(res)).toBe(true);
+		expect(res.substitutes_applied).toEqual(['Kipfilet']);
+		const row = recipeBySlug(db, 'curry');
+		expect((row.ingredients as Ingredient[])[0].substitutes).toEqual([
+			{ name: 'Tempeh', kind: 'protein', note: 'Korter bakken; wordt sneller droog.' }
+		]);
+		// Alternatives do not change today's cooking steps, so the sheet stays.
+		expect(row.cookModeJson).not.toBeNull();
+		// They are displayed in translation, so the EN cache must refresh.
+		expect(row.ingredientsEn).toBeNull();
+		expect(row.translationStatus).toBe('pending');
 	});
 
 	it('reports a clean error for an unknown recipe', async () => {

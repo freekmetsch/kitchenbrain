@@ -17,7 +17,20 @@ const TranslationSchema = z.object({
 	category_en: z.string().nullable(),
 	cuisine_en: z.string().nullable(),
 	notes_en: z.string().nullable(),
-	ingredients_en: z.array(z.object({ name: z.string().min(1) })),
+	ingredients_en: z.array(
+		z.object({
+			name: z.string().min(1),
+			substitutes: z
+				.array(
+					z.object({
+						name: z.string().min(1),
+						note: z.string().min(1).optional()
+					})
+				)
+				.optional()
+				.default([])
+		})
+	),
 	directions_en: z.array(z.string())
 });
 
@@ -65,6 +78,27 @@ export async function translateRecipe(slug: string, opts: { force?: boolean } = 
 		}
 		if (translated.directions_en.length !== recipe.directions.length) {
 			throw new Error('Translated direction count does not match source');
+		}
+		const sourceIngredients = recipe.ingredients as Ingredient[];
+		for (const [index, ingredient] of sourceIngredients.entries()) {
+			if (
+				translated.ingredients_en[index].substitutes.length !==
+				(ingredient.substitutes?.length ?? 0)
+			) {
+				throw new Error(`Translated substitute count does not match source ingredient ${index}`);
+			}
+		}
+		// An English view is atomic: optional source copy is either translated or
+		// omitted only when the source is omitted. Accepting null here produced a
+		// field-by-field Dutch/English mixture in otherwise "ready" recipes.
+		for (const [source, value, field] of [
+			[recipe.category, translated.category_en, 'category'],
+			[recipe.cuisine, translated.cuisine_en, 'cuisine'],
+			[recipe.notes, translated.notes_en, 'notes']
+		] as const) {
+			if (source?.trim() && !value?.trim()) {
+				throw new Error(`Translated ${field} is missing`);
+			}
 		}
 
 		return db
