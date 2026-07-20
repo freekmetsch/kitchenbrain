@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	hydrateDirections,
 	hydrateIngredients,
+	recipeIngredientsEqual,
 	serializeDirections,
 	serializeIngredients
 } from './recipe_edit';
@@ -46,5 +47,14 @@ describe('recipe edit UI identity', () => {
 			}
 		]);
 		expect(JSON.parse(serializeDirections(directions))).toEqual(['Snijd.']);
+	});
+
+	it('treats omitted and empty alternative lists as the same saved recipe', () => {
+		expect(
+			recipeIngredientsEqual(
+				[{ name: 'ui', amount: '1', role: 'cook_in' }],
+				[{ name: 'ui', amount: '1', role: 'cook_in', substitutes: [] }]
+			)
+		).toBe(true);
 	});
 });

@@ -24,6 +24,7 @@
 		title: string;
 		language: 'nl' | 'en';
 		notes: string;
+		sourceUrl: string;
 		servings: number | null;
 		ingredients: Parameters<typeof hydrateIngredients>[0];
 		directions: Array<string | DirectionDraft>;
@@ -38,6 +39,7 @@
 	let title = $state(untrack(() => data.recipe.title));
 	let language = $state<'nl' | 'en'>(untrack(() => (data.recipe.language as 'nl' | 'en') ?? 'nl'));
 	let notes = $state(untrack(() => data.recipe.notes ?? ''));
+	let sourceUrl = $state(untrack(() => data.recipe.sourceUrl ?? ''));
 	let servings = $state<number | null>(untrack(() => data.recipe.servings));
 	let ingredients = $state<IngredientDraft[]>(
 		untrack(() => hydrateIngredients(data.recipe.ingredients as Parameters<typeof hydrateIngredients>[0]))
@@ -59,6 +61,7 @@
 			title,
 			language,
 			notes,
+			sourceUrl,
 			servings,
 			ingredients: serializedIngredients,
 			directions: serializedDirections
@@ -75,6 +78,7 @@
 		title = draft.title;
 		language = draft.language;
 		notes = draft.notes;
+		sourceUrl = draft.sourceUrl ?? '';
 		servings = draft.servings;
 		ingredients = hydrateIngredients(draft.ingredients);
 		directions = hydrateDirections(draft.directions);
@@ -85,6 +89,7 @@
 			title: data.recipe.title,
 			language: (data.recipe.language as 'nl' | 'en') ?? 'nl',
 			notes: data.recipe.notes ?? '',
+			sourceUrl: data.recipe.sourceUrl ?? '',
 			servings: data.recipe.servings,
 			ingredients: data.recipe.ingredients as Parameters<typeof hydrateIngredients>[0],
 			directions: data.recipe.directions as string[]
@@ -112,7 +117,7 @@
 
 	$effect(() => {
 		if (!draftReady) return;
-		const draft = { title, language, notes, servings, ingredients, directions };
+		const draft = { title, language, notes, sourceUrl, servings, ingredients, directions };
 		if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ v: 1, baseUpdatedAt, draft }));
 		else sessionStorage.removeItem(draftKey);
 	});
@@ -199,23 +204,23 @@
 				}
 			};
 		}}
-		class="flex flex-col gap-4"
+		class="flex flex-col gap-3"
 	>
-		<section class="ui-form-card flex flex-col gap-2.5" aria-labelledby="basics-heading">
+		<section class="ui-form-card flex flex-col gap-2" aria-labelledby="basics-heading">
 			<h2 id="basics-heading" class="ui-section-label">{m.recipes_edit_basics_label()}</h2>
-			<label class="flex flex-col gap-1.5">
+			<label class="flex flex-col gap-1">
 				<span class="ui-field-label">{m.recipes_edit_title_label()}</span>
 				<input type="text" name="title" bind:value={title} required class="input input-bordered input-sm" />
 			</label>
-			<div class="grid grid-cols-[1fr_6rem] gap-3">
-				<label class="flex flex-col gap-1.5">
+			<div class="grid grid-cols-[1fr_6rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1.5fr)]">
+				<label class="flex flex-col gap-1">
 					<span class="ui-field-label">{m.recipes_edit_language_label()}</span>
 					<select bind:value={language} name="language" class="select select-bordered select-sm">
 						<option value="nl">{m.recipes_edit_language_dutch()}</option>
 						<option value="en">{m.recipes_edit_language_english()}</option>
 					</select>
 				</label>
-				<label class="flex flex-col gap-1.5">
+				<label class="flex flex-col gap-1">
 					<span class="ui-field-label">{m.recipes_edit_servings_label()}</span>
 					<input
 						type="number"
@@ -226,18 +231,28 @@
 						class="input input-bordered input-sm"
 					/>
 				</label>
+				<label class="col-span-2 flex flex-col gap-1 sm:col-span-1">
+					<span class="ui-field-label">{m.recipes_edit_source_url_label()}</span>
+					<input
+						type="url"
+						name="sourceUrl"
+						bind:value={sourceUrl}
+						class="input input-bordered input-sm"
+						placeholder="https://…"
+					/>
+				</label>
 			</div>
 		</section>
 
 		<IngredientListEditor bind:ingredients />
 		<DirectionListEditor bind:directions />
 
-		<label class="ui-form-card flex flex-col gap-1.5">
+		<label class="ui-form-card flex flex-col gap-1">
 			<span class="ui-section-label">{m.recipes_edit_notes_label()}</span>
 			<textarea
 				name="notes"
 				bind:value={notes}
-				rows="4"
+				rows="3"
 				class="textarea textarea-bordered textarea-sm leading-snug"
 				placeholder={m.recipes_edit_notes_placeholder()}
 			></textarea>

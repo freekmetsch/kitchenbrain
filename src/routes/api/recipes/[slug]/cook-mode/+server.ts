@@ -5,12 +5,23 @@ import { generateCookMode } from '$lib/server/ai/cook_mode';
 
 export const POST: RequestHandler = async ({ locals, params, url }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
+	const language = url.searchParams.get('lang');
+	const servingsParam = url.searchParams.get('servings');
+	const servings = servingsParam == null ? undefined : Number(servingsParam);
+	if (language != null && language !== 'en' && language !== 'nl') {
+		return json({ status: 'error', message: 'Unsupported cooking-view language' }, { status: 400 });
+	}
+	if (servings != null && (!Number.isInteger(servings) || servings < 1 || servings > 99)) {
+		return json({ status: 'error', message: 'Servings must be between 1 and 99' }, { status: 400 });
+	}
 
 	try {
 		const result = await generateCookMode(params.slug, {
-			force: url.searchParams.get('force') === 'true'
+			force: url.searchParams.get('force') === 'true',
+			language: language ?? undefined,
+			servings
 		});
-		if (!result) throw error(404, 'Recipe not found');
+		if (!result) return json({ status: 'error', message: 'Recipe not found' }, { status: 404 });
 		if (!result.recipe.cookModeJson && result.reason === 'no_directions') {
 			return json({ status: 'unavailable', reason: 'no_directions' }, { status: 422 });
 		}

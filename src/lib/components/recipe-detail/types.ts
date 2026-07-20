@@ -1,6 +1,6 @@
 // Shared shapes for the recipe detail page (/recipes/[slug]) and its section
 // components. Moved out of +page.svelte during the recipe-detail decomposition.
-import type { CookModeRecipe } from '$lib/types';
+import type { StoredCookModeRecipe } from '$lib/types';
 
 export type IngredientSubstitute = {
 	name: string;
@@ -43,7 +43,7 @@ export type Recipe = {
 	language: string | null;
 	translationStatus: TranslationStatus;
 	translatedAt: Date | null;
-	cookModeJson: CookModeRecipe | null;
+	cookModeJson: StoredCookModeRecipe | null;
 	isFreezerStaple: boolean;
 	targetPortions: number | null;
 	needsReview: boolean;

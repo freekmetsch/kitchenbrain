@@ -1,18 +1,20 @@
 // Cook-mode cached-payload staleness predicate.
 //
-// `cookModeJson` is generated once per recipe by `lib/server/ai/cook_mode.ts`
-// and cached on the recipes row. When the schema shape evolves (pre-DAG → DAG
-// → bench-sheet → action-led + timer pill labels), every existing cached row
-// is "stale" relative to the new shape and needs a one-shot force-regen on
-// next open. This module collects every such version check in one predicate
-// so future schema bumps add a single clause.
+// `cookModeJson` is cached on the recipe row. Valid v2 English sheets remain
+// renderable; v3 adds one shared graph with bilingual text leaves and servings.
+// This module owns validation and language projection for both formats.
 //
 // The regex + violatesActionState helpers also gate the AI's emit at
 // validation time (see `cook_mode.ts`). Sharing the helpers here keeps the
 // renderer's "is this old?" check and the server's "is this acceptable?"
 // check in lockstep.
 
-import type { CookModeRecipe } from '$lib/types';
+import type {
+	CookModeDisplayRecipe,
+	CookModeRecipe,
+	LocalizedCookModeText,
+	StoredCookModeRecipe
+} from '$lib/types';
 
 // Action-led form: capitalized verb-led action, em-dash separator (` — `, U+2014),
 // then a target state. Up to 8 words total, with ≥ 2 words before the em-dash
@@ -41,29 +43,91 @@ export function violatesActionState(value: string): string | null {
 // shape — i.e. needs a force-regen on next view. Returns FALSE for null
 // (caller distinguishes empty vs stale: empty = first generation, stale = re-gen).
 //
-// Clauses, in evaluation order:
-//   (a) cm == null → false  (let the caller treat "no cache" separately).
-//   (b) cache version/language missing or old (pre-atomic-English contract).
-//   (c) streams missing or empty (pre-DAG legacy shape).
-//   (d) any step.goal fails the action-led check (pre-action-led legacy).
-//   (e) any step has timer_seconds without timer_action (pre-timer-pill-label).
-//
-// Future schema bumps add a clause here — single place to update on the next rev.
-export function isStaleCookMode(cm: Partial<CookModeRecipe> | null): boolean {
-	if (cm == null) return false;
-	if (cm.version !== 2 || cm.language !== 'en') return true;
-	if (!Array.isArray(cm.streams) || cm.streams.length === 0) return true;
-	if (!Array.isArray(cm.steps)) return true;
+// Null means no cache rather than stale. Unknown versions and malformed v2/v3
+// payloads are stale and regenerate on the next cooking-view request.
+function validLocalizedText(value: unknown): value is LocalizedCookModeText {
+	if (value == null || typeof value !== 'object') return false;
+	const text = value as Partial<LocalizedCookModeText>;
+	return typeof text.en === 'string' && text.en.trim() !== '' && typeof text.nl === 'string' && text.nl.trim() !== '';
+}
+
+function isValidV2(cm: Partial<CookModeRecipe>): boolean {
+	if (cm.language !== 'en') return false;
+	if (!Array.isArray(cm.streams) || cm.streams.length === 0) return false;
+	if (!Array.isArray(cm.steps)) return false;
 	for (const step of cm.steps) {
-		if (typeof step.goal !== 'string' || violatesActionState(step.goal) != null) {
-			return true;
-		}
-		if (
-			step.timer_seconds != null &&
-			(step.timer_action == null || step.timer_action === '')
-		) {
-			return true;
+		if (typeof step.goal !== 'string' || violatesActionState(step.goal) != null) return false;
+		if (step.timer_seconds != null && (step.timer_action == null || step.timer_action === '')) return false;
+	}
+	return true;
+}
+
+function isValidV3(cm: Partial<StoredCookModeRecipe>): boolean {
+	if (!('generation_id' in cm) || typeof cm.generation_id !== 'string' || !cm.generation_id) return false;
+	if (!('servings' in cm) || !Number.isInteger(cm.servings) || (cm.servings as number) < 1) return false;
+	if (!Array.isArray(cm.streams) || cm.streams.length === 0 || !Array.isArray(cm.steps)) return false;
+	if (!Array.isArray(cm.mise_en_place) || !cm.mise_en_place.every(validLocalizedText)) return false;
+	for (const stream of cm.streams) {
+		if (!validLocalizedText(stream.name)) return false;
+	}
+	for (const step of cm.steps) {
+		if (!validLocalizedText(step.title) || !validLocalizedText(step.goal) || !validLocalizedText(step.body)) return false;
+		if (violatesActionState(step.goal.en) != null || violatesActionState(step.goal.nl) != null) return false;
+		if (!Array.isArray(step.ingredients) || !step.ingredients.every(validLocalizedText)) return false;
+		if (step.timer_seconds != null) {
+			if (!validLocalizedText(step.timer_purpose) || !validLocalizedText(step.timer_action) || !validLocalizedText(step.timer_location)) return false;
+		} else if (step.timer_purpose != null || step.timer_action != null || step.timer_location != null) {
+			return false;
 		}
 	}
-	return false;
+	return true;
+}
+
+export function isStaleCookMode(cm: Partial<StoredCookModeRecipe> | null): boolean {
+	if (cm == null) return false;
+	if (cm.version === 2) return !isValidV2(cm as Partial<CookModeRecipe>);
+	if (cm.version === 3) return !isValidV3(cm);
+	return true;
+}
+
+export function hasCookModeLanguage(
+	cm: Partial<StoredCookModeRecipe> | null,
+	language: 'en' | 'nl',
+	servings: number
+): boolean {
+	if (cm == null || isStaleCookMode(cm)) return false;
+	if (cm.version === 2) return language === 'en';
+	return 'servings' in cm && cm.servings === servings;
+}
+
+export function localizeCookMode(
+	cm: StoredCookModeRecipe | null,
+	language: 'en' | 'nl'
+): CookModeDisplayRecipe | null {
+	if (cm == null || isStaleCookMode(cm)) return null;
+	if (cm.version === 2) {
+		if (language !== 'en') return null;
+		return { ...cm, generation_id: null, servings: null };
+	}
+	const pick = (value: LocalizedCookModeText) => value[language];
+	return {
+		version: 3,
+		language,
+		generation_id: cm.generation_id,
+		servings: cm.servings,
+		mise_en_place: cm.mise_en_place.map(pick),
+		streams: cm.streams.map((stream) => ({ id: stream.id, name: pick(stream.name) })),
+		steps: cm.steps.map((step) => ({
+			title: pick(step.title),
+			goal: pick(step.goal),
+			body: pick(step.body),
+			ingredients: step.ingredients.map(pick),
+			timer_seconds: step.timer_seconds,
+			timer_purpose: step.timer_purpose == null ? null : pick(step.timer_purpose),
+			timer_action: step.timer_action == null ? null : pick(step.timer_action),
+			timer_location: step.timer_location == null ? null : pick(step.timer_location),
+			stream_id: step.stream_id,
+			merges_from: step.merges_from
+		}))
+	};
 }

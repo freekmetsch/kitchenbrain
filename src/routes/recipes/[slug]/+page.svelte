@@ -8,6 +8,7 @@
 	import RecipeHero from '$lib/components/recipe-detail/RecipeHero.svelte';
 	import ImportReviewBanner from '$lib/components/recipe-detail/ImportReviewBanner.svelte';
 	import RecipeMetaChips from '$lib/components/recipe-detail/RecipeMetaChips.svelte';
+	import RecipeViewToolbar from '$lib/components/recipe-detail/RecipeViewToolbar.svelte';
 	import MealComposition from '$lib/components/recipe-detail/MealComposition.svelte';
 	import FreezerStockPanel from '$lib/components/recipe-detail/FreezerStockPanel.svelte';
 	import RoleCoverage from '$lib/components/recipe-detail/RoleCoverage.svelte';
@@ -48,6 +49,7 @@
 	let viewLang = $state<'en' | 'nl'>(
 		untrack(() => (data.recipe.language === 'en' ? 'en' : data.recipeLang))
 	);
+	let recipeView = $state<'cook' | 'original'>('cook');
 	let translationLoading = $state(false);
 	let translationMessage = $state('');
 
@@ -348,37 +350,21 @@
 	}}
 />
 
-<div class="flex items-center justify-between gap-3 px-3 pt-3 text-xs">
-	<span class="font-medium text-base-content/60">{m.recipes_language_label()}</span>
-	{#if recipe.language === 'en'}
-		<span class="font-semibold">{m.recipes_language_english()}</span>
-	{:else}
-		<div
-			class="join rounded-lg border border-base-300 bg-base-100 p-0.5"
-			role="group"
-			aria-label={m.recipes_language_label()}
-		>
-			<button
-				type="button"
-				class="btn btn-xs join-item min-h-8 px-3 {viewLang === 'nl' ? 'btn-primary' : 'btn-ghost'}"
-				aria-pressed={viewLang === 'nl'}
-				onclick={() => setViewLanguage('nl')}>NL</button
-			>
-			<button
-				type="button"
-				class="btn btn-xs join-item min-h-8 px-3 {viewLang === 'en' ? 'btn-primary' : 'btn-ghost'}"
-				aria-pressed={viewLang === 'en'}
-				onclick={() => setViewLanguage('en')}>EN</button
-			>
-		</div>
-	{/if}
-</div>
+<RecipeViewToolbar
+	bind:view={recipeView}
+	language={viewLang}
+	languageSwitchable={recipe.language !== 'en'}
+	onLanguageChange={setViewLanguage}
+/>
 
 <BenchSheet
 	recipeSlug={recipe.slug}
 	recipeTitle={displayTitle}
 	initial={isStaleCookMode(recipe.cookModeJson) ? null : recipe.cookModeJson}
 	fallback={benchSheetFallback}
+	view={recipeView}
+	viewLang={viewLang}
+	onEdit={openEditRaw}
 	onCooked={() => {
 		void invalidateAll();
 		freezeOpen = true;

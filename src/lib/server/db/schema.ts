@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer, real, unique, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
-import type { BenchSheetRating, CookModeRecipe } from '$lib/types';
+import type { BenchSheetRating, StoredCookModeRecipe } from '$lib/types';
 import type { MachineActor } from '$lib/actors';
 
 export type IngredientRole = 'cook_in' | 'serve_fresh';
@@ -117,7 +117,7 @@ export const recipes = sqliteTable('recipes', {
 	translatedAt: integer('translated_at', { mode: 'timestamp' }),
 	lastCookedAt: integer('last_cooked_at', { mode: 'timestamp' }),
 	cookedCount: integer('cooked_count').notNull().default(0),
-	cookModeJson: text('cook_mode_json', { mode: 'json' }).$type<CookModeRecipe>(),
+	cookModeJson: text('cook_mode_json', { mode: 'json' }).$type<StoredCookModeRecipe>(),
 	cookModeGeneratedAt: integer('cook_mode_generated_at', { mode: 'timestamp' }),
 	isFreezerStaple: integer('is_freezer_staple', { mode: 'boolean' }).notNull().default(false),
 	targetPortions: integer('target_portions'),

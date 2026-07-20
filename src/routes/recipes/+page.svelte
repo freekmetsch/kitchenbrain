@@ -335,8 +335,8 @@
 	<title>{m.recipes_title()}</title>
 </svelte:head>
 
-<div class="ui-page-shell px-4 py-4">
-	<header class="mb-3 flex items-center justify-between gap-3">
+<div class="ui-page-shell px-4 py-3">
+	<header class="mb-2 flex items-center justify-between gap-3">
 		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.recipes_heading()}</h1>
 		<div class="flex shrink-0 gap-2">
 			<button
@@ -356,7 +356,7 @@
 	<!-- Sticky filter bar. Chips toggle: tap the active chip to clear it (same
 	     contract as the /inventory facet bar) — no "All" chips, no group labels,
 	     rows scroll horizontally on 375px instead of wrapping. -->
-	<section class="sticky top-0 z-20 -mx-4 mb-4 border-y border-base-200 bg-base-100/95 px-4 py-2 backdrop-blur">
+	<section class="sticky top-0 z-20 -mx-4 mb-3 border-y border-base-200 bg-base-100/95 px-4 py-2 backdrop-blur">
 		<div class="mb-2 flex gap-2">
 			<input
 				type="search"
@@ -381,27 +381,6 @@
 			</select>
 		</div>
 		<div class="ui-scroll-rail flex items-center gap-1.5 pb-0.5" use:scrollRail>
-			{#each CORE_FOOD_TYPE_OPTIONS as option}
-				<button
-					type="button"
-					class={classFilter === option.value ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
-					aria-pressed={classFilter === option.value}
-					onclick={() => setClass(option.value)}
-				>{foodCategoryLabel(option.value)}</button>
-			{/each}
-			{#if data.dishTypes.length}
-				<span class="h-4 w-px shrink-0 bg-base-300" aria-hidden="true"></span>
-			{/if}
-			{#each data.dishTypes as dishType}
-				<button
-					type="button"
-					class={dishFilter === dishType ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
-					aria-pressed={dishFilter === dishType}
-					onclick={() => setDish(dishType)}
-				>{foodCategoryLabel(dishType) ?? dishType}</button>
-			{/each}
-		</div>
-		<div class="ui-scroll-rail mt-1.5 flex items-center gap-1.5 pb-0.5" use:scrollRail>
 			<button
 				type="button"
 				class={data.toggles.haveAll ? 'ui-chip-active shrink-0 border-success/40 bg-success/10 text-success' : 'ui-chip shrink-0'}
@@ -426,6 +405,26 @@
 				aria-pressed={data.toggles.quickOnly}
 				onclick={() => toggle('quickOnly')}
 			>{m.recipes_filter_quick()}</button>
+			<span class="h-4 w-px shrink-0 bg-base-300" aria-hidden="true"></span>
+			{#each CORE_FOOD_TYPE_OPTIONS as option}
+				<button
+					type="button"
+					class={classFilter === option.value ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
+					aria-pressed={classFilter === option.value}
+					onclick={() => setClass(option.value)}
+				>{foodCategoryLabel(option.value)}</button>
+			{/each}
+			{#if data.dishTypes.length}
+				<span class="h-4 w-px shrink-0 bg-base-300" aria-hidden="true"></span>
+			{/if}
+			{#each data.dishTypes as dishType}
+				<button
+					type="button"
+					class={dishFilter === dishType ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
+					aria-pressed={dishFilter === dishType}
+					onclick={() => setDish(dishType)}
+				>{foodCategoryLabel(dishType) ?? dishType}</button>
+			{/each}
 		</div>
 	</section>
 
@@ -452,7 +451,7 @@
 			{/snippet}
 		</EmptyState>
 	{:else}
-		<div class="grid grid-cols-2 gap-3">
+		<div class="grid grid-cols-2 gap-2">
 			{#each data.recipes as recipe (recipe.id)}
 				{@const title = displayTitle(recipe)}
 				{@const category = displayCategory(recipe)}
@@ -465,11 +464,11 @@
 					in:fade={{ duration: MOTION_MICRO_MS }}
 				>
 					{#if recipe.imageUrl}
-						<figure class="h-28 overflow-hidden">
+						<figure class="h-24 overflow-hidden">
 							<SmartImage src={recipe.imageUrl} alt={title} class="h-full w-full" />
 						</figure>
 					{:else}
-						<div class="h-28 bg-base-200 flex items-center justify-center text-3xl">🍽️</div>
+						<div class="h-24 bg-base-200 flex items-center justify-center text-3xl">🍽️</div>
 					{/if}
 					<div class="p-2">
 						<h2 class="text-sm font-semibold leading-snug line-clamp-2 mb-1">{title}</h2>

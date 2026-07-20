@@ -7,11 +7,13 @@
 		tabs,
 		value = $bindable(),
 		onchange,
-		cols
+		cols,
+		ariaLabel
 	}: {
 		tabs: { value: T; label: string }[];
 		value: T;
 		onchange?: (v: T) => void;
+		ariaLabel?: string;
 		/** 2 → wrap into a 2-column grid (overflow). Default: single inline row. */
 		cols?: 2;
 	} = $props();
@@ -33,6 +35,7 @@
 
 <div
 	role="tablist"
+	aria-label={ariaLabel}
 	tabindex="-1"
 	{onkeydown}
 	class="rounded-lg bg-base-200 p-0.5 {cols === 2

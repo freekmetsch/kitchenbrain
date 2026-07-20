@@ -38,7 +38,7 @@
 	}
 </script>
 
-<section class="ui-form-card" aria-labelledby="directions-heading">
+<section class="ui-form-card !p-3" aria-labelledby="directions-heading">
 	<div class="mb-2 flex flex-wrap items-baseline gap-2">
 		<h2 id="directions-heading" class="ui-section-label">{m.recipes_edit_directions_label()}</h2>
 		<span class="text-[11px] text-base-content/50">{m.recipes_edit_directions_hint()}</span>
@@ -49,24 +49,18 @@
 			onclick={addDirection}>{m.recipes_edit_add_step_button()}</button
 		>
 	</div>
-	<ol class="space-y-4">
+	<ol class="space-y-2.5">
 		{#each directions as direction, index (direction.clientId)}
-			<li class="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-2" data-direction-id={direction.clientId}>
-				<span class="mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-content">
-					{index + 1}
-				</span>
-				<div class="min-w-0">
-					<textarea
-						bind:value={direction.text}
-						rows="3"
-						class="textarea textarea-bordered textarea-sm w-full min-w-0 leading-snug"
-						placeholder={m.recipes_edit_direction_placeholder()}
-					></textarea>
-					<div class="mt-1.5 flex flex-wrap justify-end gap-1">
+			<li class="min-w-0" data-direction-id={direction.clientId}>
+				<div class="mb-1 flex items-center gap-1">
+					<span class="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-content">
+						{index + 1}
+					</span>
+					<div class="ml-auto flex gap-1">
 						<button
 							type="button"
 							data-move-direction="-1"
-							class="btn btn-sm btn-ghost h-11 min-h-11 min-w-11 px-3"
+							class="btn btn-sm btn-ghost h-9 min-h-9 min-w-9 px-2"
 							aria-label={m.recipes_edit_move_up_aria()}
 							disabled={index === 0}
 							onclick={() => moveDirection(index, -1)}>↑</button
@@ -74,19 +68,26 @@
 						<button
 							type="button"
 							data-move-direction="1"
-							class="btn btn-sm btn-ghost h-11 min-h-11 min-w-11 px-3"
+							class="btn btn-sm btn-ghost h-9 min-h-9 min-w-9 px-2"
 							aria-label={m.recipes_edit_move_down_aria()}
 							disabled={index === directions.length - 1}
 							onclick={() => moveDirection(index, 1)}>↓</button
 						>
 						<button
 							type="button"
-							class="btn btn-sm btn-ghost h-11 min-h-11 min-w-11 px-3 text-error"
+							class="btn btn-sm btn-ghost h-9 min-h-9 min-w-9 px-2 text-error"
 							aria-label={m.recipes_edit_remove_direction_aria()}
 							onclick={() => removeDirection(index)}><Icon name="x" class="h-4 w-4" /></button
 						>
 					</div>
 				</div>
+					<textarea
+						bind:value={direction.text}
+						rows="2"
+						aria-label={m.recipes_edit_direction_aria({ number: index + 1 })}
+						class="textarea textarea-bordered textarea-sm w-full min-w-0 leading-snug"
+						placeholder={m.recipes_edit_direction_placeholder()}
+					></textarea>
 			</li>
 		{/each}
 	</ol>

@@ -18,14 +18,18 @@
 	import { onDestroy, untrack } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
-	import type { BenchSheetRating, CookModeRecipe, CookModeStep } from '$lib/types';
+	import type {
+		BenchSheetRating,
+		CookModeDisplayRecipe,
+		CookModeStep,
+		StoredCookModeRecipe
+	} from '$lib/types';
 	import ComponentCard from './cook-mode/ComponentCard.svelte';
 	import MergeCard from './cook-mode/MergeCard.svelte';
 	import TimerStack from './cook-mode/TimerStack.svelte';
-	import SegmentedTabs from './ui/SegmentedTabs.svelte';
 	import FixedBottomBar from './ui/FixedBottomBar.svelte';
 	import { fmtClock, paletteFor, streamPalette, type BeatPalette } from './cook-mode/palette';
-	import { isStaleCookMode } from './cook-mode/staleness';
+	import { isStaleCookMode, localizeCookMode } from './cook-mode/staleness';
 	import RawDirectionsFallback from './RawDirectionsFallback.svelte';
 	import TimerWorker from '$lib/timer/worker?worker';
 	import type {
@@ -54,8 +58,11 @@
 	type Props = {
 		recipeSlug: string;
 		recipeTitle: string;
-		initial: CookModeRecipe | null;
+		initial: StoredCookModeRecipe | null;
 		fallback: FallbackContext;
+		view: 'cook' | 'original';
+		viewLang: 'en' | 'nl';
+		onEdit: () => void;
 		onCooked?: () => void;
 		controller: BenchSheetController;
 	};
@@ -65,11 +72,18 @@
 		recipeTitle,
 		initial,
 		fallback,
+		view,
+		viewLang,
+		onEdit,
 		onCooked,
 		controller = $bindable<BenchSheetController>()
 	}: Props = $props();
 
-	let cookMode = $state<CookModeRecipe | null>(untrack(() => initial));
+	let storedCookMode = $state<StoredCookModeRecipe | null>(untrack(() => initial));
+	let cookMode = $derived(localizeCookMode(storedCookMode, viewLang));
+	let servingDraft = $state(
+		untrack(() => (initial?.version === 3 ? initial.servings : (fallback.servings ?? 4)))
+	);
 	let loading = $state(false);
 	let loadError = $state('');
 	// Connection drops and transient server errors are retryable: the server
@@ -90,7 +104,7 @@
 	// joins the same in-flight generation). If a raw-view timer is running
 	// when the sheet arrives, it parks in `pendingCookMode` instead of
 	// swapping — unmounting the raw view would kill the timer.
-	let pendingCookMode = $state<CookModeRecipe | null>(null);
+	let pendingCookMode = $state<StoredCookModeRecipe | null>(null);
 	let rawTimerActive = $state(false);
 	let genStartedAt: number | null = null;
 	let genElapsedSec = $state(0);
@@ -103,24 +117,20 @@
 		return () => clearInterval(id);
 	});
 
-	function adoptCookMode(cm: CookModeRecipe) {
-		cookMode = cm;
+	function adoptCookMode(cm: StoredCookModeRecipe) {
+		resetCookSession();
+		storedCookMode = cm;
+		servingDraft = cm.version === 3 ? cm.servings : (fallback.servings ?? 4);
 		pendingCookMode = null;
 		// The raw view unmounts with the swap, taking its timers — its binding
 		// can't reset this itself, and a stale true would park the next regen.
 		rawTimerActive = false;
-		checked = {};
-		mep = {};
+		progressRestored = false;
 	}
 
 	let checked = $state<Record<number, boolean>>({});
 	let mep = $state<Record<number, boolean>>({});
 	let mepExpanded = $state(false);
-
-	// Cooking view ↔ original recipe. Both stay mounted while a sheet exists —
-	// the original view owns its own naive timers, and unmounting it on toggle
-	// would silently kill them mid-cook. Hidden, not destroyed.
-	let view = $state<'cook' | 'original'>('cook');
 
 	// Canonical timer state. `timerEnds` holds wall-clock fire times keyed by
 	// step idx; `timerOrder` holds insertion order so the multi-pill stack can
@@ -448,22 +458,27 @@
 			genElapsedSec = 0;
 		}
 		try {
-			const res = await fetch(
-				`${base}/api/recipes/${recipeSlug}/cook-mode${force ? '?force=true' : ''}`,
-				{ method: 'POST' }
-			);
+			const params = new URLSearchParams({
+				lang: viewLang,
+				servings: String(servingDraft)
+			});
+			if (force) params.set('force', 'true');
+			const res = await fetch(`${base}/api/recipes/${recipeSlug}/cook-mode?${params}`, {
+				method: 'POST'
+			});
 			const body = await res.json();
 			if (res.ok && body.cookMode) {
-				const incoming = body.cookMode as Partial<CookModeRecipe>;
+				const incoming = body.cookMode as Partial<StoredCookModeRecipe>;
 				if (!force && isStaleCookMode(incoming)) {
 					regenerating = true;
+					loading = false;
 					return loadCookMode(true);
 				}
 				autoRetries = 0;
-				if (rawTimerActive) {
-					pendingCookMode = body.cookMode;
+				if (rawTimerActive || anyTimerRunning || hasProgress) {
+					pendingCookMode = body.cookMode as StoredCookModeRecipe;
 				} else {
-					adoptCookMode(body.cookMode);
+					adoptCookMode(body.cookMode as StoredCookModeRecipe);
 				}
 			} else if (body.reason === 'daily_cap_exceeded') {
 				loadError = m.benchsheet_error_budget_reached();
@@ -494,11 +509,7 @@
 
 	function regenerate() {
 		regenerating = true;
-		cookMode = null;
 		pendingCookMode = null;
-		// A fresh sheet invalidates old progress AND running timers — their
-		// step indices point into the old generation.
-		resetCookSession();
 		void loadCookMode(true);
 	}
 
@@ -528,11 +539,11 @@
 	const PROGRESS_KEY = `cookmode-progress:${untrack(() => recipeSlug)}`;
 	let progressRestored = false;
 
-	function stepsSig(cm: CookModeRecipe): string {
-		return cm.steps.map((s) => s.goal).join('|');
+	function stepsSig(cm: CookModeDisplayRecipe): string {
+		return cm.generation_id ?? cm.steps.map((step) => `${step.stream_id}:${step.timer_seconds ?? ''}`).join('|');
 	}
 
-	function restoreProgress(cm: CookModeRecipe) {
+	function restoreProgress(cm: CookModeDisplayRecipe) {
 		try {
 			const raw = localStorage.getItem(PROGRESS_KEY);
 			if (!raw) return;
@@ -664,6 +675,12 @@
 	let streams = $derived(cookMode?.streams ?? []);
 	let streamPaletteMap = $derived(streamPalette(streams));
 	let streamNameById = $derived(new Map(streams.map((s) => [s.id, s.name])));
+	let generatedServings = $derived(cookMode?.servings ?? (fallback.servings ?? 4));
+	let needsServingUpdate = $derived(servingDraft !== generatedServings);
+
+	function changeServings(delta: number) {
+		servingDraft = Math.max(1, Math.min(99, servingDraft + delta));
+	}
 
 	type BeatBase = {
 		step: CookModeStep;
@@ -754,7 +771,74 @@
 	});
 </script>
 
-{#if (loading || pendingCookMode) && fallback.directions.length > 0}
+{#if fallback.directions.length > 0}
+	<div class="flex min-h-11 items-center gap-2 px-3 py-1.5">
+		<div
+			class="inline-flex min-h-9 items-center rounded-lg border border-base-300 bg-base-100"
+			aria-label={m.recipes_fallback_servings_label()}
+		>
+			<span class="pl-2.5 pr-1 text-xs text-base-content/60">{m.recipes_fallback_servings_label()}</span>
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs min-h-9 min-w-9 px-0 text-base"
+				aria-label={m.benchsheet_servings_decrease()}
+				disabled={servingDraft <= 1 || loading}
+				onclick={() => changeServings(-1)}>−</button
+			>
+			<span class="w-7 text-center text-sm font-semibold tabular-nums">{servingDraft}</span>
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs min-h-9 min-w-9 px-0 text-base"
+				aria-label={m.benchsheet_servings_increase()}
+				disabled={servingDraft >= 99 || loading}
+				onclick={() => changeServings(1)}>+</button
+			>
+		</div>
+		{#if view === 'original'}
+			<button type="button" class="btn btn-sm btn-ghost ml-auto min-h-9" onclick={onEdit}>
+				{m.recipes_edit_heading()}
+			</button>
+		{:else}
+			<button
+				type="button"
+				class="btn btn-sm btn-ghost ml-auto min-h-9"
+				disabled={loading}
+				onclick={regenerate}
+			>
+				{#if loading}<Spinner size="sm" />{/if}
+				{needsServingUpdate ? m.benchsheet_update_view_button() : m.benchsheet_regenerate_button()}
+			</button>
+		{/if}
+	</div>
+{/if}
+
+{#if cookMode && (loading || pendingCookMode)}
+	<div
+		class="mx-3 mb-2 rounded-xl border {pendingCookMode ? 'border-success/40 bg-success/10' : 'border-base-200 bg-base-100'} px-3 py-2 flex items-center gap-2.5"
+		role="status"
+	>
+		{#if !pendingCookMode}<Spinner size="sm" class="text-primary shrink-0" />{/if}
+		<p class="min-w-0 flex-1 text-xs">
+			{pendingCookMode ? m.benchsheet_ready_title() : m.benchsheet_refreshing_label()}
+		</p>
+		{#if pendingCookMode}
+			<button
+				type="button"
+				class="btn btn-xs btn-success shrink-0"
+				onclick={() => pendingCookMode && adoptCookMode(pendingCookMode)}>{m.benchsheet_switch_button()}</button
+			>
+		{/if}
+	</div>
+{/if}
+
+{#if cookMode && loadError && !loading}
+	<div class="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-warning/35 bg-warning/10 px-3 py-2 text-xs" role="status">
+		<span class="min-w-0 flex-1">{loadError} {m.benchsheet_kept_current_view()}</span>
+		<button type="button" class="btn btn-xs btn-ghost shrink-0" onclick={regenerate}>{m.recipes_retry_cooking_view()}</button>
+	</div>
+{/if}
+
+{#if !cookMode && (loading || pendingCookMode) && fallback.directions.length > 0}
 	<!-- One RawDirectionsFallback instance across generating → ready: swapping
 	     branches would remount it and kill any running raw-view timer — the
 	     exact loss pendingCookMode exists to prevent. Only the banner changes. -->
@@ -798,6 +882,7 @@
 		ingredientStock={fallback.ingredientStock}
 		viewLang={fallback.viewLang}
 		servings={fallback.servings}
+		targetServings={servingDraft}
 		sourceUrl={fallback.sourceUrl}
 		bind:activeTimer={rawTimerActive}
 	/>
@@ -817,6 +902,7 @@
 		ingredientStock={fallback.ingredientStock}
 		viewLang={fallback.viewLang}
 		servings={fallback.servings}
+		targetServings={servingDraft}
 		sourceUrl={fallback.sourceUrl}
 		bannerMessage={m.benchsheet_paused_banner({ reason: aiPausedReason })}
 		onRetry={() => loadCookMode(true)}
@@ -828,19 +914,6 @@
 	</div>
 {:else if cookMode}
 	{#if fallback.directions.length > 0}
-		<!-- The obvious escape hatch: cooking view ↔ the untouched original.
-		     Both stay mounted (hidden, not unmounted) so timers in either view
-		     survive toggling. -->
-		<div class="px-3 pt-3">
-			<SegmentedTabs
-				cols={2}
-				tabs={[
-					{ value: 'cook', label: m.benchsheet_view_cooking() },
-					{ value: 'original', label: m.benchsheet_view_original() }
-				]}
-				bind:value={view}
-			/>
-		</div>
 		<div class={view === 'original' ? '' : 'hidden'}>
 			<RawDirectionsFallback
 				directions={fallback.directions}
@@ -848,6 +921,7 @@
 				ingredientStock={fallback.ingredientStock}
 				viewLang={fallback.viewLang}
 				servings={fallback.servings}
+				targetServings={servingDraft}
 				sourceUrl={fallback.sourceUrl}
 				bind:activeTimer={rawTimerActive}
 			/>

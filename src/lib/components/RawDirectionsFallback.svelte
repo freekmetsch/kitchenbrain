@@ -25,6 +25,7 @@
 		ingredientStock: boolean[];
 		viewLang: 'en' | 'nl';
 		servings: number | null;
+		targetServings: number;
 		sourceUrl?: string | null;
 		// Optional: the generating path renders its own progress banner above
 		// this component instead.
@@ -41,15 +42,14 @@
 		ingredientStock,
 		viewLang,
 		servings,
+		targetServings,
 		sourceUrl,
 		bannerMessage,
 		onRetry,
 		activeTimer = $bindable(false)
 	}: Props = $props();
 
-	const defaultServings = $derived(servings ?? 4);
-	let servingsMultiplier = $state(1);
-	let currentServings = $derived(Math.max(1, Math.round(defaultServings * servingsMultiplier)));
+	let servingsMultiplier = $derived(targetServings / (servings ?? 4));
 
 	function scaleAmount(amount: string, name: string): string {
 		return scaleIngredientAmount(amount, name, servingsMultiplier);
@@ -114,26 +114,6 @@
 				class="font-medium text-base-content underline underline-offset-2">{source.host} ↗</a
 			>
 		</p>
-	{/if}
-
-	{#if servings}
-		<div class="flex items-center gap-3 mb-4 p-3 bg-base-200 rounded-xl">
-			<span class="text-sm flex-1">{m.recipes_fallback_servings_label()}</span>
-			<button
-				class="btn btn-xs btn-circle btn-ghost border border-base-300"
-				onclick={() => {
-					servingsMultiplier = Math.max(0.25, servingsMultiplier - 0.25);
-				}}
-				disabled={servingsMultiplier <= 0.25}>−</button
-			>
-			<span class="text-sm font-semibold w-8 text-center tabular-nums">{currentServings}</span>
-			<button
-				class="btn btn-xs btn-circle btn-ghost border border-base-300"
-				onclick={() => {
-					servingsMultiplier = servingsMultiplier + 0.25;
-				}}>+</button
-			>
-		</div>
 	{/if}
 
 	{#if ingredients.length > 0}

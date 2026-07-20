@@ -71,3 +71,13 @@ export function serializeIngredients(items: IngredientDraft[]): string {
 export function serializeDirections(items: DirectionDraft[]): string {
 	return JSON.stringify(items.map((direction) => direction.text.trim()).filter(Boolean));
 }
+
+export function recipeIngredientsEqual(
+	left: PersistedIngredient[],
+	right: PersistedIngredient[]
+): boolean {
+	return (
+		serializeIngredients(hydrateIngredients(left)) ===
+		serializeIngredients(hydrateIngredients(right))
+	);
+}

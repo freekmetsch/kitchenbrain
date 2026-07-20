@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
+import { scaleAmount } from '$lib/recipe_scale';
 import { subRecipesOf } from '$lib/server/meal_recipes';
 import {
 	createMessage,
@@ -12,235 +14,282 @@ import {
 import { getChatModel, getChatFallbackModel } from '$lib/server/ai/config';
 import { db } from '$lib/server/db/index';
 import { recipes, type Ingredient } from '$lib/server/db/schema';
-import type { CookModeRecipe } from '$lib/types';
-import { isStaleCookMode, violatesActionState } from '$lib/components/cook-mode/staleness';
+import type { LocalizedCookModeRecipe, LocalizedCookModeText } from '$lib/types';
+import {
+	hasCookModeLanguage,
+	isStaleCookMode,
+	violatesActionState
+} from '$lib/components/cook-mode/staleness';
+import { inaccessibleCookModeTerm } from '$lib/components/cook-mode/plain-language';
+
+const LocalizedTextSchema = z.object({
+	en: z.string().min(1),
+	nl: z.string().min(1)
+});
 
 const StreamSchema = z.object({
 	id: z.string().min(1),
-	name: z.string().min(1).max(32)
+	name: LocalizedTextSchema
 });
 
-// Dev-mode prompt/regex drift catcher. If a future prompt rewrite or regex
-// tweak desyncs from these expectations, the import-time check throws so we
-// notice before the next AI call rather than after a bad regen.
-const GOOD_GOAL_FIXTURES: string[] = [
-	'Rub butter into flour — sandy',
-	'Reduce sauce — coats spoon',
-	'Brown crust — deep gold',
-	'Whisk batter — pale ribbon',
-	'Fold mixture — just combined',
-	'Roast chicken — 74°C in thigh',
-	'Bake top — set with crackle',
-	'Sweat shallots — translucent',
-	'Chop aromatics — even fine dice'
-];
-const BAD_GOAL_FIXTURES: string[] = [
-	'Stir occasionally', // no em-dash, no state
-	'Onions - translucent', // hyphen-minus, not em-dash
-	'dough — sandy', // lowercase start
-	'Bake at 180°C until skewer comes out clean and a moist crumb sticks — done', // > 8 words
-	'', // empty
-	'Mix', // no em-dash
-	'Dough — sandy', // old noun-state form (1 word before em-dash)
-	'Whisk eggs and add sugar gradually folding in flour — combined' // > 8 words
-];
-if (import.meta.env.DEV) {
-	for (const g of GOOD_GOAL_FIXTURES) {
-		const issue = violatesActionState(g);
-		if (issue) {
-			throw new Error(`cook_mode goal fixture regression: GOOD "${g}" was rejected — ${issue}`);
-		}
-	}
-	for (const b of BAD_GOAL_FIXTURES) {
-		if (!violatesActionState(b)) {
-			throw new Error(`cook_mode goal fixture regression: BAD "${b}" was accepted`);
-		}
-	}
-}
-
 const StepSchema = z.object({
-	title: z.string().min(1),
-	goal: z.string().min(1).max(64),
-	body: z.string().min(1),
-	ingredients: z.array(z.string()),
+	title: LocalizedTextSchema,
+	goal: LocalizedTextSchema,
+	body: LocalizedTextSchema,
+	ingredients: z.array(LocalizedTextSchema),
 	timer_seconds: z.number().int().nonnegative().nullable(),
-	timer_purpose: z.string().max(64).nullable(),
-	timer_action: z.string().min(1).max(20).nullable(),
-	timer_location: z.string().min(1).max(16).nullable(),
+	timer_purpose: LocalizedTextSchema.nullable(),
+	timer_action: LocalizedTextSchema.nullable(),
+	timer_location: LocalizedTextSchema.nullable(),
 	stream_id: z.string().min(1),
 	merges_from: z.array(z.string())
 });
 
-// Factory: meal recipes (sub-recipe composition, ADR 0003) get a higher step
-// budget — one combined bench sheet over 3-4 sub-recipes doesn't fit in 20.
-const buildCookModeSchema = (maxSteps: number): z.ZodType<CookModeRecipe> =>
+type GeneratedCookMode = Omit<LocalizedCookModeRecipe, 'generation_id' | 'servings'>;
+
+function localizedValues(value: LocalizedCookModeText): string[] {
+	return [value.en, value.nl];
+}
+
+function displayedText(data: GeneratedCookMode): string[] {
+	return [
+		...data.mise_en_place.flatMap(localizedValues),
+		...data.streams.flatMap((stream) => localizedValues(stream.name)),
+		...data.steps.flatMap((step) => [
+			...localizedValues(step.title),
+			...localizedValues(step.goal),
+			...localizedValues(step.body),
+			...(step.timer_purpose ? localizedValues(step.timer_purpose) : []),
+			...(step.timer_action ? localizedValues(step.timer_action) : []),
+			...(step.timer_location ? localizedValues(step.timer_location) : [])
+		])
+	];
+}
+
+const buildCookModeSchema = (maxSteps: number): z.ZodType<GeneratedCookMode> =>
 	z
-	.object({
-		version: z.literal(2),
-		language: z.literal('en'),
-		mise_en_place: z.array(z.string()),
-		streams: z.array(StreamSchema).min(1),
-		steps: z.array(StepSchema).min(2).max(maxSteps)
-	})
-	.superRefine((data, ctx) => {
-		const streamIds = new Set(data.streams.map((s) => s.id));
-		// Every declared stream must own at least one step — an unused stream
-		// renders as a phantom lane (color reserved, divider never emitted).
-		const usedStreamIds = new Set(data.steps.map((s) => s.stream_id));
-		data.streams.forEach((s, si) => {
-			if (!usedStreamIds.has(s.id)) {
-				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
-					path: ['streams', si, 'id'],
-					message: `stream "${s.id}" has no steps — remove it or assign it steps`
-				});
-			}
-		});
-		data.steps.forEach((step, i) => {
-			if (!streamIds.has(step.stream_id)) {
-				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
-					path: ['steps', i, 'stream_id'],
-					message: `stream_id "${step.stream_id}" is not declared in streams[]`
-				});
-			}
-			if (step.merges_from.length === 1) {
-				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
-					path: ['steps', i, 'merges_from'],
-					message: 'merges_from must be empty or contain ≥ 2 stream_ids (single-source merges have no visual signal)'
-				});
-			}
-			step.merges_from.forEach((m, mi) => {
-				if (!streamIds.has(m)) {
+		.object({
+			version: z.literal(3),
+			mise_en_place: z.array(LocalizedTextSchema),
+			streams: z.array(StreamSchema).min(1),
+			steps: z.array(StepSchema).min(2).max(maxSteps)
+		})
+		.superRefine((data, ctx) => {
+			const streamIds = new Set(data.streams.map((stream) => stream.id));
+			const usedStreamIds = new Set(data.steps.map((step) => step.stream_id));
+
+			data.streams.forEach((stream, index) => {
+				if (!usedStreamIds.has(stream.id)) {
 					ctx.addIssue({
 						code: z.ZodIssueCode.custom,
-						path: ['steps', i, 'merges_from', mi],
-						message: `merges_from entry "${m}" is not declared in streams[]`
-					});
-					return;
-				}
-				// A merge must come after the work it merges: every source stream
-				// needs ≥ 1 earlier step, or the convergence points at nothing and
-				// the flat list reads out of cook order on complex recipes.
-				const hasEarlierStep = data.steps.slice(0, i).some((p) => p.stream_id === m);
-				if (!hasEarlierStep) {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						path: ['steps', i, 'merges_from', mi],
-						message: `merges_from entry "${m}" has no earlier step — a merge step must appear after at least one step of every stream it merges`
+						path: ['streams', index, 'id'],
+						message: `stream "${stream.id}" has no steps`
 					});
 				}
 			});
-			const goalIssue = violatesActionState(step.goal);
-			if (goalIssue) {
-				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
-					path: ['steps', i, 'goal'],
-					message: `goal ${goalIssue}. Examples: "Sweat shallots — translucent", "Reduce sauce — coats spoon", "Bake top — set with crackle".`
+
+			data.steps.forEach((step, index) => {
+				if (!streamIds.has(step.stream_id)) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: ['steps', index, 'stream_id'],
+						message: `stream_id "${step.stream_id}" is not declared`
+					});
+				}
+				if (step.merges_from.length === 1) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: ['steps', index, 'merges_from'],
+						message: 'merges_from must be empty or contain at least two stream IDs'
+					});
+				}
+				step.merges_from.forEach((streamId, mergeIndex) => {
+					if (!streamIds.has(streamId)) {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							path: ['steps', index, 'merges_from', mergeIndex],
+							message: `merge stream "${streamId}" is not declared`
+						});
+					} else if (!data.steps.slice(0, index).some((prior) => prior.stream_id === streamId)) {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							path: ['steps', index, 'merges_from', mergeIndex],
+							message: `merge stream "${streamId}" has no earlier step`
+						});
+					}
 				});
-			}
-			// Timer companion fields share a contract: required (non-empty)
-			// when timer_seconds is set; null when timer_seconds is null.
-			const timerFields: { name: 'timer_purpose' | 'timer_action' | 'timer_location'; requiredHint: string }[] = [
-				{ name: 'timer_purpose', requiredHint: 'action-led, ≤ 8 words (e.g. "Bake top — crackled, set").' },
-				{ name: 'timer_action', requiredHint: '1–2 words, lowercase gerund (e.g. "baking", "simmering", "resting").' },
-				{ name: 'timer_location', requiredHint: 'free text ≤ 16 chars (e.g. "oven", "stove", "fridge", "counter", "sous-vide").' }
-			];
-			for (const { name, requiredHint } of timerFields) {
-				const value = step[name];
-				if (step.timer_seconds != null && (value == null || value.trim() === '')) {
+
+				for (const language of ['en', 'nl'] as const) {
+					const goalIssue = violatesActionState(step.goal[language]);
+					if (goalIssue) {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							path: ['steps', index, 'goal', language],
+							message: `goal ${goalIssue}`
+						});
+					}
+					if (step.timer_purpose) {
+						const timerIssue = violatesActionState(step.timer_purpose[language]);
+						if (timerIssue) {
+							ctx.addIssue({
+								code: z.ZodIssueCode.custom,
+								path: ['steps', index, 'timer_purpose', language],
+								message: `timer_purpose ${timerIssue}`
+							});
+						}
+					}
+				}
+
+				const timerFields = [step.timer_purpose, step.timer_action, step.timer_location];
+				if (step.timer_seconds == null && timerFields.some((value) => value != null)) {
 					ctx.addIssue({
 						code: z.ZodIssueCode.custom,
-						path: ['steps', i, name],
-						message: `${name} is required (non-empty) when timer_seconds is set. ${requiredHint}`
+						path: ['steps', index, 'timer_seconds'],
+						message: 'timer text must be null when timer_seconds is null'
 					});
 				}
-				if (step.timer_seconds == null && value != null) {
+				if (step.timer_seconds != null && timerFields.some((value) => value == null)) {
 					ctx.addIssue({
 						code: z.ZodIssueCode.custom,
-						path: ['steps', i, name],
-						message: `${name} must be null when timer_seconds is null`
+						path: ['steps', index, 'timer_seconds'],
+						message: 'all timer text is required when timer_seconds is set'
 					});
 				}
-			}
-			if (step.timer_purpose != null) {
-				const tpIssue = violatesActionState(step.timer_purpose);
-				if (tpIssue) {
+			});
+
+			displayedText(data).forEach((value, index) => {
+				const inaccessibleTerm = inaccessibleCookModeTerm(value);
+				if (inaccessibleTerm) {
 					ctx.addIssue({
 						code: z.ZodIssueCode.custom,
-						path: ['steps', i, 'timer_purpose'],
-						message: `timer_purpose ${tpIssue}. Often identical to goal; refine only when active-wait state is more specific.`
+						path: ['display_text', index],
+						message: `use plain home-cook wording instead of "${inaccessibleTerm}"`
 					});
 				}
-			}
+			});
 		});
-	});
+
+type GenerateOptions = {
+	force?: boolean;
+	language?: 'en' | 'nl';
+	servings?: number;
+};
 
 type GenerateResult = Awaited<ReturnType<typeof generateCookModeUncached>>;
 
-// One generation per slug at a time. A cook who opens the recipe, leaves, and
-// comes back would otherwise fire a second AI call while the first is still
-// running (double spend, and the loser's write clobbers the winner's). Joiners
-// get the running generation's promise instead.
-const inflight = new Map<string, Promise<GenerateResult>>();
+const inflight = new Map<string, { requestKey: string; promise: Promise<GenerateResult> }>();
 
-export async function generateCookMode(slug: string, opts: { force?: boolean } = {}) {
-	const running = inflight.get(slug);
-	if (running) return running;
-	const p = generateCookModeUncached(slug, opts).finally(() => inflight.delete(slug));
-	inflight.set(slug, p);
-	return p;
+function normalizedServings(value: number | undefined, fallback: number): number {
+	if (!Number.isInteger(value)) return fallback;
+	return Math.max(1, Math.min(99, value as number));
 }
 
-// Fire-and-forget pre-generation for write paths (import, AI edit, meal
-// composition): by the time the recipe is opened the bench sheet is cached.
-// Failures are non-fatal — the recipe page's own load path retries and has
-// the raw-directions fallback.
+export async function generateCookMode(slug: string, opts: GenerateOptions = {}) {
+	const requestKey = `${opts.language ?? 'en'}:${opts.servings ?? 'default'}:${opts.force === true}`;
+	const running = inflight.get(slug);
+	if (running) {
+		if (running.requestKey === requestKey) return running.promise;
+		await running.promise.catch(() => undefined);
+		return generateCookMode(slug, opts);
+	}
+
+	const promise = generateCookModeUncached(slug, opts).finally(() => {
+		if (inflight.get(slug)?.promise === promise) inflight.delete(slug);
+	});
+	inflight.set(slug, { requestKey, promise });
+	return promise;
+}
+
 export function kickCookModeGeneration(slug: string) {
-	generateCookMode(slug).catch((err) => {
+	generateCookMode(slug).catch((error) => {
 		console.warn(
-			`[cook-mode] background pre-generation failed for ${slug}: ${err instanceof Error ? err.message : err}`
+			`[cook-mode] background pre-generation failed for ${slug}: ${error instanceof Error ? error.message : error}`
 		);
 	});
 }
 
-async function generateCookModeUncached(slug: string, opts: { force?: boolean } = {}) {
+function scaleIngredients(ingredients: Ingredient[], multiplier: number): Ingredient[] {
+	return ingredients.map((ingredient) => ({
+		...ingredient,
+		amount: scaleAmount(ingredient.amount, ingredient.name, multiplier)
+	}));
+}
+
+function generationFingerprint(
+	recipe: typeof recipes.$inferSelect,
+	subRows: Array<typeof recipes.$inferSelect>
+): string {
+	return JSON.stringify({
+		recipe: {
+			title: recipe.title,
+			language: recipe.language,
+			servings: recipe.servings,
+			totalTimeMin: recipe.totalTimeMin,
+			ingredients: recipe.ingredients,
+			directions: recipe.directions
+		},
+		subRecipes: subRows.map((subRecipe) => ({
+			id: subRecipe.id,
+			title: subRecipe.title,
+			language: subRecipe.language,
+			servings: subRecipe.servings,
+			totalTimeMin: subRecipe.totalTimeMin,
+			ingredients: subRecipe.ingredients,
+			directions: subRecipe.directions
+		}))
+	});
+}
+
+function loadSubRows(recipeId: number) {
+	const refs = subRecipesOf(db, recipeId);
+	if (refs.length === 0) return [];
+	return db
+		.select()
+		.from(recipes)
+		.where(
+			inArray(
+				recipes.id,
+				refs.map((reference) => reference.id)
+			)
+		)
+		.all()
+		.sort(
+			(a, b) => refs.findIndex((reference) => reference.id === a.id) - refs.findIndex((reference) => reference.id === b.id)
+		);
+}
+
+async function generateCookModeUncached(
+	slug: string,
+	opts: GenerateOptions = {},
+	freshnessRetry = 0
+) {
 	const recipe = db.select().from(recipes).where(eq(recipes.slug, slug)).get();
 	if (!recipe) return null;
 
-	// Meal recipe (ADR 0003): pull full sub-recipe rows for the combined
-	// bench sheet — each sub-recipe becomes its own stream(s), the meal's own
-	// directions form the assembly/plating steps.
-	const subRefs = subRecipesOf(db, recipe.id);
-	const subRows = subRefs.length
-		? db
-				.select()
-				.from(recipes)
-				.where(
-					inArray(
-						recipes.id,
-						subRefs.map((s) => s.id)
-					)
-				)
-				.all()
-				.sort(
-					(a, b) =>
-						subRefs.findIndex((r) => r.id === a.id) - subRefs.findIndex((r) => r.id === b.id)
-				)
-		: [];
+	const language = opts.language ?? 'en';
+	const sourceServings = recipe.servings ?? 4;
+	const targetServings = normalizedServings(opts.servings, sourceServings);
+	const subRows = loadSubRows(recipe.id);
 
 	if (!opts.force && recipe.cookModeJson && !isStaleCookMode(recipe.cookModeJson)) {
-		// A meal's cached sheet is stale when any sub-recipe's content changed
-		// after generation (live links, not copies).
-		const genAt = recipe.cookModeGeneratedAt?.getTime() ?? 0;
-		const subChanged = subRows.some((s) => (s.updatedAt?.getTime() ?? 0) > genAt);
-		if (!subChanged) return { recipe, generated: false };
+		const generatedAt = recipe.cookModeGeneratedAt?.getTime() ?? 0;
+		const subChanged = subRows.some((subRecipe) => (subRecipe.updatedAt?.getTime() ?? 0) > generatedAt);
+		const servesTarget =
+			recipe.cookModeJson.version === 3
+				? recipe.cookModeJson.servings === targetServings
+				: targetServings === sourceServings;
+		if (
+			!subChanged &&
+			servesTarget &&
+			hasCookModeLanguage(recipe.cookModeJson, language, targetServings)
+		) {
+			return { recipe, generated: false };
+		}
 	}
 
 	const ownDirections = recipe.directions as string[];
 	const totalDirections =
-		ownDirections.length + subRows.reduce((n, s) => n + (s.directions as string[]).length, 0);
+		ownDirections.length + subRows.reduce((count, subRecipe) => count + (subRecipe.directions as string[]).length, 0);
 	if (totalDirections === 0) {
 		return { recipe, generated: false, reason: 'no_directions' as const };
 	}
@@ -248,67 +297,77 @@ async function generateCookModeUncached(slug: string, opts: { force?: boolean } 
 	const cap = checkDailyCap();
 	if (cap.exceeded) throw new DailyCapExceeded();
 
+	const multiplier = targetServings / sourceServings;
 	const prompt = loadPrompt('cook_mode');
 	const payload = {
 		title: recipe.title,
-		ingredients: recipe.ingredients as Ingredient[],
+		source_language: recipe.language,
+		source_servings: sourceServings,
+		target_servings: targetServings,
+		ingredients: scaleIngredients(recipe.ingredients as Ingredient[], multiplier),
 		directions: ownDirections,
 		totalTimeMin: recipe.totalTimeMin,
 		...(subRows.length > 0
 			? {
-					sub_recipes: subRows.map((s) => ({
-						title: s.title,
-						ingredients: s.ingredients as Ingredient[],
-						directions: s.directions as string[],
-						totalTimeMin: s.totalTimeMin
+					sub_recipes: subRows.map((subRecipe) => ({
+						title: subRecipe.title,
+						source_language: subRecipe.language,
+						ingredients: scaleIngredients(subRecipe.ingredients as Ingredient[], multiplier),
+						directions: subRecipe.directions as string[],
+						totalTimeMin: subRecipe.totalTimeMin
 					}))
 				}
 			: {})
 	};
 	const payloadJson = JSON.stringify(payload);
-	const CookModeSchema = buildCookModeSchema(subRows.length > 0 ? 30 : 20);
+	const schema = buildCookModeSchema(subRows.length > 0 ? 30 : 20);
+	const fingerprint = generationFingerprint(recipe, subRows);
 
-	// Attempts 1–2 run on the chat model (second gets the validation errors fed
-	// back); attempt 3 escalates to the fallback model — the strict schema
-	// (goal grammar, timer contract, merge ordering) is where cheap models
-	// repeatedly fail, and a dead bench sheet costs more than one bigger call.
-	let cookMode: CookModeRecipe | null = null;
+	let generated: GeneratedCookMode | null = null;
 	let lastError: string | null = null;
-	for (let attempt = 0; attempt < 3 && cookMode == null; attempt++) {
+	for (let attempt = 0; attempt < 3 && generated == null; attempt++) {
 		const userContent = lastError
-			? `${payloadJson}\n\nYour previous response failed schema validation:\n${lastError}\n\nReturn ONLY corrected JSON conforming to the schema.`
+			? `${payloadJson}\n\nYour previous response failed schema validation:\n${lastError}\n\nReturn only corrected JSON.`
 			: payloadJson;
-		const msg = await createMessage({
+		const message = await createMessage({
 			model: attempt < 2 ? getChatModel().value : getChatFallbackModel().value,
 			system: prompt,
 			messages: [{ role: 'user', content: userContent }]
 		});
-		logSpend(msg.model, msg.usage, msg.costUsd);
-		const text = msg.text;
+		logSpend(message.model, message.usage, message.costUsd);
 		try {
-			const parsed = CookModeSchema.safeParse(parseModelJson(text));
+			const parsed = schema.safeParse(parseModelJson(message.text));
 			if (parsed.success) {
-				cookMode = parsed.data;
+				generated = parsed.data;
 				break;
 			}
 			lastError = parsed.error.issues
-				.map((iss) => `${iss.path.join('.') || '<root>'}: ${iss.message}`)
+				.map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
 				.join('; ');
-		} catch (e) {
-			lastError = `JSON parse error: ${(e as Error).message}`;
+		} catch (error) {
+			lastError = `JSON parse error: ${(error as Error).message}`;
 		}
 	}
-	if (cookMode == null) {
+	if (generated == null) {
 		throw new Error(`cook_mode JSON failed validation after 3 attempts: ${lastError}`);
 	}
 
+	const currentRecipe = db.select().from(recipes).where(eq(recipes.slug, slug)).get();
+	if (!currentRecipe) return null;
+	const currentSubRows = loadSubRows(currentRecipe.id);
+	if (generationFingerprint(currentRecipe, currentSubRows) !== fingerprint) {
+		if (freshnessRetry >= 1) throw new Error('Recipe changed repeatedly during cooking-view generation');
+		return generateCookModeUncached(slug, opts, freshnessRetry + 1);
+	}
+
+	const cookMode: LocalizedCookModeRecipe = {
+		...generated,
+		generation_id: randomUUID(),
+		servings: targetServings
+	};
 	const updated = db
 		.update(recipes)
-		.set({
-			cookModeJson: cookMode,
-			cookModeGeneratedAt: new Date(),
-			updatedAt: new Date()
-		})
+		.set({ cookModeJson: cookMode, cookModeGeneratedAt: new Date() })
 		.where(eq(recipes.slug, slug))
 		.returning()
 		.get();
