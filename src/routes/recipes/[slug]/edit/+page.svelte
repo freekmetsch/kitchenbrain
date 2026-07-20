@@ -1,27 +1,32 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import Spinner from '$lib/components/ui/Spinner.svelte';
-	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { beforeNavigate } from '$app/navigation';
 	import { base } from '$app/paths';
-	import FixedBottomBar from '$lib/components/ui/FixedBottomBar.svelte';
+	import { onMount, tick, untrack } from 'svelte';
+	import Spinner from '$lib/components/ui/Spinner.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import IngredientListEditor from '$lib/components/recipe-edit/IngredientListEditor.svelte';
+	import DirectionListEditor from '$lib/components/recipe-edit/DirectionListEditor.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
-	import { onMount, untrack } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData, ActionData } from './$types';
 	import { useChatAgent } from '$lib/chat/agent_context';
+	import {
+		hydrateDirections,
+		hydrateIngredients,
+		serializeDirections,
+		serializeIngredients,
+		type DirectionDraft,
+		type IngredientDraft
+	} from '$lib/recipe_edit';
 
-	type Ingredient = {
-		name: string;
-		amount: string;
-		unit?: string;
-		// Set via the AI chat, not this form — must survive a manual save.
-		role?: 'cook_in' | 'serve_fresh';
-		substitutes?: Array<{
-			name: string;
-			kind?: 'protein' | 'spice' | 'vegetable' | 'other';
-			note?: string;
-		}>;
+	type StoredDraft = {
+		title: string;
+		language: 'nl' | 'en';
+		notes: string;
+		servings: number | null;
+		ingredients: Parameters<typeof hydrateIngredients>[0];
+		directions: Array<string | DirectionDraft>;
 	};
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -34,81 +39,20 @@
 	let language = $state<'nl' | 'en'>(untrack(() => (data.recipe.language as 'nl' | 'en') ?? 'nl'));
 	let notes = $state(untrack(() => data.recipe.notes ?? ''));
 	let servings = $state<number | null>(untrack(() => data.recipe.servings));
-	let ingredients = $state<Ingredient[]>(
-		untrack(() =>
-			(data.recipe.ingredients as Ingredient[]).map((i) => ({
-				name: i.name,
-				amount: i.amount,
-				unit: i.unit ?? '',
-				role: i.role,
-				substitutes: (i.substitutes ?? []).map((substitute) => ({ ...substitute }))
-			}))
-		)
+	let ingredients = $state<IngredientDraft[]>(
+		untrack(() => hydrateIngredients(data.recipe.ingredients as Parameters<typeof hydrateIngredients>[0]))
 	);
-	let directions = $state<string[]>(untrack(() => [...(data.recipe.directions as string[])]));
+	let directions = $state<DirectionDraft[]>(
+		untrack(() => hydrateDirections(data.recipe.directions as string[]))
+	);
 
 	let submitting = $state(false);
 	let draftReady = $state(false);
 	let draftRecovered = $state(false);
+	let errorSummary: HTMLDivElement | null = $state(null);
 
-	function addIngredient() {
-		ingredients = [...ingredients, { name: '', amount: '', unit: '' }];
-	}
-	function removeIngredient(i: number) {
-		ingredients = ingredients.filter((_, idx) => idx !== i);
-	}
-	function addSubstitute(ingredientIndex: number) {
-		const ingredient = ingredients[ingredientIndex];
-		ingredient.substitutes = [
-			...(ingredient.substitutes ?? []),
-			{ name: '', kind: 'other', note: '' }
-		];
-		ingredients = [...ingredients];
-	}
-	function removeSubstitute(ingredientIndex: number, substituteIndex: number) {
-		const ingredient = ingredients[ingredientIndex];
-		ingredient.substitutes = (ingredient.substitutes ?? []).filter(
-			(_, index) => index !== substituteIndex
-		);
-		ingredients = [...ingredients];
-	}
-	function addDirection() {
-		directions = [...directions, ''];
-	}
-	function removeDirection(i: number) {
-		directions = directions.filter((_, idx) => idx !== i);
-	}
-
-	function moveDirection(i: number, delta: number) {
-		const j = i + delta;
-		if (j < 0 || j >= directions.length) return;
-		const next = [...directions];
-		[next[i], next[j]] = [next[j], next[i]];
-		directions = next;
-	}
-
-	let serializedIngredients = $derived(
-		JSON.stringify(
-			ingredients
-				.map((ing) => ({
-					name: ing.name.trim(),
-					amount: ing.amount.trim(),
-					unit: ing.unit?.trim() || undefined,
-					role: ing.role,
-					substitutes: (ing.substitutes ?? [])
-						.map((substitute) => ({
-							name: substitute.name.trim(),
-							kind: substitute.kind,
-							note: substitute.note?.trim() || undefined
-						}))
-						.filter((substitute) => substitute.name.length > 0)
-				}))
-				.filter((ing) => ing.name)
-		)
-	);
-	let serializedDirections = $derived(
-		JSON.stringify(directions.map((d) => d.trim()).filter((d) => d.length > 0))
-	);
+	let serializedIngredients = $derived(serializeIngredients(ingredients));
+	let serializedDirections = $derived(serializeDirections(directions));
 
 	function snapshot(): string {
 		return JSON.stringify({
@@ -127,37 +71,23 @@
 		ingredients.filter((ingredient) => ingredient.role === 'cook_in' || ingredient.role === 'serve_fresh').length
 	);
 
-	function applyDraft(draft: {
-		title: string;
-		language: 'nl' | 'en';
-		notes: string;
-		servings: number | null;
-		ingredients: Ingredient[];
-		directions: string[];
-	}) {
+	function applyDraft(draft: StoredDraft) {
 		title = draft.title;
 		language = draft.language;
 		notes = draft.notes;
 		servings = draft.servings;
-		ingredients = draft.ingredients.map((ingredient) => ({
-			...ingredient,
-			substitutes: (ingredient.substitutes ?? []).map((substitute) => ({ ...substitute }))
-		}));
-		directions = [...draft.directions];
+		ingredients = hydrateIngredients(draft.ingredients);
+		directions = hydrateDirections(draft.directions);
 	}
 
-	function serverDraft() {
+	function serverDraft(): StoredDraft {
 		return {
 			title: data.recipe.title,
 			language: (data.recipe.language as 'nl' | 'en') ?? 'nl',
 			notes: data.recipe.notes ?? '',
 			servings: data.recipe.servings,
-			ingredients: (data.recipe.ingredients as Ingredient[]).map((ingredient) => ({
-				...ingredient,
-				unit: ingredient.unit ?? '',
-				substitutes: (ingredient.substitutes ?? []).map((substitute) => ({ ...substitute }))
-			})),
-			directions: [...(data.recipe.directions as string[])]
+			ingredients: data.recipe.ingredients as Parameters<typeof hydrateIngredients>[0],
+			directions: data.recipe.directions as string[]
 		};
 	}
 
@@ -171,7 +101,7 @@
 		try {
 			const stored = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null');
 			if (stored?.v === 1 && stored.baseUpdatedAt === baseUpdatedAt && stored.draft) {
-				applyDraft(stored.draft);
+				applyDraft(stored.draft as StoredDraft);
 				draftRecovered = true;
 			} else if (stored) sessionStorage.removeItem(draftKey);
 		} catch {
@@ -211,29 +141,46 @@
 	<title>{m.recipes_edit_heading()} {data.recipe.title} · {m.recipes_title_suffix()}</title>
 </svelte:head>
 
-<div class="ui-page-shell px-4 pt-4">
-	<div class="flex items-center gap-2 mb-4">
+<div class="ui-page-shell px-4 pb-8">
+	<header class="sticky top-0 z-30 -mx-4 mb-4 flex items-center gap-2 border-b border-base-200 bg-base-100/95 px-4 py-2 backdrop-blur">
 		<a
 			href="{base}/recipes/{data.recipe.slug}"
-			class="btn btn-sm btn-ghost -ml-2 h-9 w-9 p-0"
+			class="btn btn-sm btn-ghost -ml-2 h-9 w-9 shrink-0 p-0"
 			aria-label={m.recipes_cancel_button()}><Icon name="chevronLeft" /></a
 		>
-		<h1 class="text-lg font-bold flex-1">{m.recipes_edit_heading()}</h1>
-	</div>
+		<h1 class="min-w-0 flex-1 truncate text-lg font-bold">{m.recipes_edit_heading()}</h1>
+		<button
+			type="submit"
+			form="recipe-edit-form"
+			class="btn btn-sm btn-primary shrink-0"
+			disabled={submitting || !dirty}
+		>
+			{#if submitting}<Spinner size="xs" />{/if}
+			{m.recipes_edit_save_button()}
+		</button>
+	</header>
 
 	{#if form?.error}
-		<div class="mb-3 rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.error}</div>
+		<div
+			bind:this={errorSummary}
+			tabindex="-1"
+			role="alert"
+			class="mb-3 rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error"
+		>
+			{form.error}
+		</div>
 	{/if}
 	{#if draftRecovered}
 		<div class="mb-3 flex items-center gap-3 rounded-xl border border-info/30 bg-info/10 px-3 py-2 text-sm text-info">
 			<span class="min-w-0 flex-1">{m.recipes_edit_draft_restored()}</span>
-			<button type="button" class="btn btn-ghost btn-sm min-h-9" onclick={discardRecoveredDraft}
-				>{m.recipes_edit_draft_discard()}</button
-			>
+			<button type="button" class="btn btn-ghost btn-sm min-h-9" onclick={discardRecoveredDraft}>
+				{m.recipes_edit_draft_discard()}
+			</button>
 		</div>
 	{/if}
 
 	<form
+		id="recipe-edit-form"
 		method="POST"
 		use:enhance={() => {
 			submitting = true;
@@ -245,26 +192,20 @@
 				await update();
 				submitting = false;
 				if (result.type === 'failure') {
-					const data = result.data as { error?: string } | undefined;
-					toast.error(data?.error ?? m.recipes_edit_toast_save_failed());
+					const resultData = result.data as { error?: string } | undefined;
+					toast.error(resultData?.error ?? m.recipes_edit_toast_save_failed());
+					await tick();
+					errorSummary?.focus();
 				}
 			};
 		}}
 		class="flex flex-col gap-4"
 	>
-		<!-- One card for the recipe's identity: title on top, language +
-		     servings side by side. Three separate labeled cards was three
-		     borders and three headings for four fields. -->
-		<section class="ui-form-card flex flex-col gap-2.5">
+		<section class="ui-form-card flex flex-col gap-2.5" aria-labelledby="basics-heading">
+			<h2 id="basics-heading" class="ui-section-label">{m.recipes_edit_basics_label()}</h2>
 			<label class="flex flex-col gap-1.5">
 				<span class="ui-field-label">{m.recipes_edit_title_label()}</span>
-				<input
-					type="text"
-					name="title"
-					bind:value={title}
-					required
-					class="input input-bordered input-sm"
-				/>
+				<input type="text" name="title" bind:value={title} required class="input input-bordered input-sm" />
 			</label>
 			<div class="grid grid-cols-[1fr_6rem] gap-3">
 				<label class="flex flex-col gap-1.5">
@@ -288,174 +229,15 @@
 			</div>
 		</section>
 
-		<section class="ui-form-card">
-			<div class="flex items-baseline gap-2 mb-2">
-				<span class="ui-section-label">{m.recipes_edit_ingredients_label()}</span>
-				<button type="button" class="btn btn-xs btn-ghost min-h-9 border border-base-300 ml-auto" onclick={addIngredient}
-					>{m.recipes_edit_add_ingredient_button()}</button
-				>
-			</div>
-			<div class="flex flex-col gap-2">
-				{#each ingredients as ing, i (i)}
-					<div class="rounded-xl border border-base-300/70 bg-base-200/45 p-2">
-						<!-- Two compact lines instead of four labeled fields: the
-						     placeholders + aria-labels carry the field names, the
-						     grid keeps rows scannable as a list. -->
-						<div class="flex items-center gap-1.5">
-							<input
-								type="text"
-								bind:value={ing.name}
-								placeholder={m.recipes_edit_name_label()}
-								aria-label={m.recipes_edit_name_label()}
-								class="input input-bordered input-sm min-w-0 flex-1"
-							/>
-							<button
-								type="button"
-								class="btn btn-ghost h-9 min-h-9 w-9 shrink-0 p-0 text-error"
-								aria-label={m.recipes_edit_remove_ingredient_aria()}
-								onclick={() => removeIngredient(i)}><Icon name="x" class="h-3.5 w-3.5" /></button
-							>
-						</div>
-						<div class="mt-1.5 grid grid-cols-[4.5rem_4rem_minmax(0,1fr)] gap-1.5">
-							<input
-								type="text"
-								bind:value={ing.amount}
-								placeholder={m.recipes_edit_amount_label()}
-								aria-label={m.recipes_edit_amount_label()}
-								class="input input-bordered input-sm min-w-0 w-full"
-							/>
-							<input
-								type="text"
-								bind:value={ing.unit}
-								placeholder={m.recipes_edit_unit_label()}
-								aria-label={m.recipes_edit_unit_label()}
-								class="input input-bordered input-sm min-w-0 w-full"
-							/>
-							<select
-								bind:value={ing.role}
-								aria-label={m.recipes_edit_role_label()}
-								class="select select-bordered select-sm min-w-0 w-full"
-							>
-								<option value={undefined}>{m.recipes_edit_role_unclassified()}</option>
-								<option value="cook_in">{m.recipes_edit_role_cook_in()}</option>
-								<option value="serve_fresh">{m.recipes_edit_role_serve_fresh()}</option>
-							</select>
-						</div>
-
-						<details class="mt-2 rounded-lg border border-base-300/60 bg-base-100/60">
-							<summary class="flex min-h-9 cursor-pointer list-none items-center gap-2 px-2.5 text-xs text-base-content/65">
-								<span class="flex-1">{m.recipes_edit_substitutes_summary({ count: ing.substitutes?.length ?? 0 })}</span>
-								<span aria-hidden="true">⌄</span>
-							</summary>
-							<div class="border-t border-base-300/50 p-2.5">
-								<p class="mb-2 text-xs leading-relaxed text-base-content/60">
-									{m.recipes_substitutes_disclaimer()}
-								</p>
-								<div class="space-y-2">
-									{#each ing.substitutes ?? [] as substitute, substituteIndex}
-										<div class="rounded-lg border border-base-300/60 bg-base-200/35 p-2">
-											<div class="grid grid-cols-[minmax(0,1fr)_7rem_2.25rem] gap-1.5">
-												<input
-													type="text"
-													bind:value={substitute.name}
-													placeholder={m.recipes_edit_substitute_name()}
-													aria-label={m.recipes_edit_substitute_name()}
-													class="input input-bordered input-sm min-w-0 w-full"
-												/>
-												<select
-													bind:value={substitute.kind}
-													aria-label={m.recipes_edit_substitute_kind()}
-													class="select select-bordered select-sm min-w-0 w-full"
-												>
-													<option value="protein">{m.recipes_substitutes_kind_protein()}</option>
-													<option value="spice">{m.recipes_substitutes_kind_spice()}</option>
-													<option value="vegetable">{m.recipes_substitutes_kind_vegetable()}</option>
-													<option value="other">{m.recipes_substitutes_kind_other()}</option>
-												</select>
-												<button
-													type="button"
-													class="btn btn-ghost h-9 min-h-9 w-9 p-0 text-error"
-													aria-label={m.recipes_edit_substitute_remove_aria({ name: substitute.name || m.recipes_edit_substitute_name() })}
-													onclick={() => removeSubstitute(i, substituteIndex)}><Icon name="x" class="h-3.5 w-3.5" /></button
-												>
-											</div>
-											<input
-												type="text"
-												bind:value={substitute.note}
-												placeholder={m.recipes_edit_substitute_note()}
-												aria-label={m.recipes_edit_substitute_note()}
-												class="input input-bordered input-sm mt-1.5 min-w-0 w-full"
-											/>
-										</div>
-									{/each}
-								</div>
-								<button type="button" class="btn btn-ghost btn-xs mt-2 border border-base-300" onclick={() => addSubstitute(i)}>
-									{m.recipes_edit_substitutes_add()}
-								</button>
-							</div>
-						</details>
-					</div>
-				{/each}
-			</div>
-		</section>
-
-		<section class="ui-form-card">
-			<div class="flex items-baseline gap-2 mb-2">
-				<span class="ui-section-label">{m.recipes_edit_directions_label()}</span>
-				<span class="text-[11px] text-base-content/50">{m.recipes_edit_directions_hint()}</span>
-				<button type="button" class="btn btn-xs btn-ghost min-h-9 border border-base-300 ml-auto" onclick={addDirection}
-					>{m.recipes_edit_add_step_button()}</button
-				>
-			</div>
-			<div class="flex flex-col gap-2">
-				{#each directions as _, i (i)}
-					<div class="flex gap-1.5 items-start">
-						<span
-							class="shrink-0 w-6 h-6 rounded-full bg-primary text-primary-content text-xs flex items-center justify-center font-bold mt-1"
-							>{i + 1}</span
-						>
-						<textarea
-							bind:value={directions[i]}
-							rows="2"
-							class="textarea textarea-bordered textarea-sm flex-1 min-w-0 leading-snug"
-							placeholder={m.recipes_edit_direction_placeholder()}
-						></textarea>
-						<!-- Secondary controls: 32 px squares (above the 24 px WCAG
-						     floor) so the row height tracks the textarea, not the
-						     button stack. -->
-						<div class="flex flex-col gap-0.5 shrink-0">
-							<button
-								type="button"
-								class="btn btn-xs btn-ghost h-8 min-h-8 w-8 p-0"
-								aria-label={m.recipes_edit_move_up_aria()}
-								disabled={i === 0}
-								onclick={() => moveDirection(i, -1)}>▴</button
-							>
-							<button
-								type="button"
-								class="btn btn-xs btn-ghost h-8 min-h-8 w-8 p-0"
-								aria-label={m.recipes_edit_move_down_aria()}
-								disabled={i === directions.length - 1}
-								onclick={() => moveDirection(i, 1)}>▾</button
-							>
-							<button
-								type="button"
-								class="btn btn-xs btn-ghost h-8 min-h-8 w-8 p-0 text-error"
-								aria-label={m.recipes_edit_remove_direction_aria()}
-								onclick={() => removeDirection(i)}><Icon name="x" class="h-3.5 w-3.5" /></button
-							>
-						</div>
-					</div>
-				{/each}
-			</div>
-		</section>
+		<IngredientListEditor bind:ingredients />
+		<DirectionListEditor bind:directions />
 
 		<label class="ui-form-card flex flex-col gap-1.5">
-			<span class="ui-field-label">{m.recipes_edit_notes_label()}</span>
+			<span class="ui-section-label">{m.recipes_edit_notes_label()}</span>
 			<textarea
 				name="notes"
 				bind:value={notes}
-				rows="3"
+				rows="4"
 				class="textarea textarea-bordered textarea-sm leading-snug"
 				placeholder={m.recipes_edit_notes_placeholder()}
 			></textarea>
@@ -463,14 +245,5 @@
 
 		<input type="hidden" name="ingredients" value={serializedIngredients} />
 		<input type="hidden" name="directions" value={serializedDirections} />
-
-		<FixedBottomBar>
-			<button type="submit" class="btn btn-sm btn-primary w-full" disabled={submitting || !dirty}>
-				{#if submitting}
-					<Spinner size="xs" />
-				{/if}
-				{dirty ? m.recipes_edit_save_button() : m.recipes_edit_saved_button()}
-			</button>
-		</FixedBottomBar>
 	</form>
 </div>
