@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Recipe UX streamline plan</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1d2a24;
+      --muted: #647269;
+      --paper: #f5f2e9;
+      --surface: #fffdf7;
+      --surface-strong: #ffffff;
+      --line: #d9d8cc;
+      --green: #1f6547;
+      --green-soft: #dfece3;
+      --amber: #9b5b12;
+      --amber-soft: #f5e7cc;
+      --red: #9a3c36;
+      --red-soft: #f5deda;
+      --blue: #315f78;
+      --blue-soft: #dfeaf0;
+      --shadow: 0 18px 50px rgba(51, 55, 43, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(48, 60, 49, 0.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 100% 34px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    a { color: inherit; }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 72px;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--green);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 900px;
+      margin-bottom: 18px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.35rem, 6vw, 5.8rem);
+      font-weight: 500;
+      letter-spacing: -0.055em;
+      line-height: 0.96;
+    }
+
+    h2 {
+      margin-bottom: 18px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.55rem, 3vw, 2.35rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      letter-spacing: 0.01em;
+    }
+
+    .lede {
+      max-width: 770px;
+      margin-bottom: 26px;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(28px, 6vw, 72px);
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      position: absolute;
+      top: -90px;
+      right: -80px;
+      width: 260px;
+      height: 260px;
+      border: 54px solid var(--green-soft);
+      border-radius: 50%;
+      content: "";
+      opacity: 0.72;
+    }
+
+    .hero-content { position: relative; z-index: 1; }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-strong);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 750;
+    }
+
+    .pill.primary {
+      border-color: var(--green);
+      background: var(--green);
+      color: white;
+    }
+
+    .hero-link {
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 18px 0 0;
+    }
+
+    .metric {
+      min-height: 118px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(255, 253, 247, 0.9);
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 5px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 2rem;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    section { margin-top: 68px; }
+
+    .section-intro {
+      max-width: 760px;
+      margin-bottom: 24px;
+      color: var(--muted);
+    }
+
+    .ownership {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .panel {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--surface);
+    }
+
+    .panel.current { border-top: 5px solid var(--red); }
+    .panel.proposed { border-top: 5px solid var(--green); }
+
+    .panel-kicker {
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .action-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .action-list li {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f2f0e8;
+      font-size: 0.88rem;
+    }
+
+    .action-list .owner {
+      min-width: 94px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .proposed .action-list li { background: var(--green-soft); }
+
+    .route-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .route-card {
+      padding: 18px;
+      border-left: 4px solid var(--blue);
+      border-radius: 10px 18px 18px 10px;
+      background: var(--blue-soft);
+    }
+
+    .route-card code {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--blue);
+      font-size: 0.76rem;
+    }
+
+    .route-card strong { font-size: 1rem; }
+
+    .phase-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      counter-reset: phase;
+    }
+
+    .phase {
+      position: relative;
+      min-height: 255px;
+      padding: 58px 20px 20px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--surface);
+      counter-increment: phase;
+    }
+
+    .phase::before {
+      position: absolute;
+      top: 18px;
+      left: 20px;
+      color: var(--green);
+      content: "0" counter(phase);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.55rem;
+    }
+
+    .phase p {
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .tickets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 14px;
+    }
+
+    .ticket {
+      padding: 5px 8px;
+      border-radius: 7px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .editor-board {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 16px;
+    }
+
+    .principles {
+      display: grid;
+      gap: 10px;
+    }
+
+    .principle {
+      padding: 16px;
+      border-left: 4px solid var(--green);
+      border-radius: 8px 16px 16px 8px;
+      background: var(--green-soft);
+    }
+
+    .principle p {
+      margin: 3px 0 0;
+      color: #355242;
+      font-size: 0.83rem;
+    }
+
+    .mock-editor {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: white;
+      box-shadow: var(--shadow);
+    }
+
+    .mock-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    .save {
+      padding: 8px 12px;
+      border-radius: 9px;
+      background: var(--green);
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .mock-body { padding: 18px; }
+    .mock-body h3 { margin-top: 10px; }
+
+    .ingredient {
+      display: grid;
+      grid-template-columns: 1fr 0.35fr 0.35fr;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    .fake-field {
+      min-width: 0;
+      padding: 8px 9px;
+      border: 1px solid #c7ccc4;
+      border-radius: 8px;
+      color: #46534b;
+      font-size: 0.76rem;
+    }
+
+    .fake-field b {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 0.58rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .fake-role { grid-column: 1 / -1; }
+
+    .target-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+    }
+
+    .target-card p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .target-action {
+      padding: 9px 12px;
+      border: 1px solid var(--green);
+      border-radius: 9px;
+      color: var(--green);
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .risk-table {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #ece9df;
+      color: var(--muted);
+      font-size: 0.7rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .priority {
+      display: inline-block;
+      padding: 3px 7px;
+      border-radius: 6px;
+      background: var(--amber-soft);
+      color: var(--amber);
+      font-size: 0.68rem;
+      font-weight: 850;
+    }
+
+    .go {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 18px;
+      align-items: center;
+      padding: 24px;
+      border: 1px solid #a8c8b1;
+      border-radius: 22px;
+      background: var(--green-soft);
+    }
+
+    .go-mark {
+      display: grid;
+      width: 70px;
+      height: 70px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--green);
+      color: white;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.35rem;
+    }
+
+    .go h2 { margin: 0 0 6px; }
+    .go p { margin: 0; color: #355242; }
+
+    footer {
+      margin-top: 68px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    @media (max-width: 900px) {
+      .metrics, .phase-grid { grid-template-columns: repeat(2, 1fr); }
+      .editor-board { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .page { width: min(100% - 20px, 1180px); padding-top: 10px; }
+      .hero { padding: 26px 20px; border-radius: 0 0 24px 24px; }
+      .hero::after { width: 170px; height: 170px; border-width: 38px; }
+      .metrics, .ownership, .route-strip, .phase-grid { grid-template-columns: 1fr; }
+      section { margin-top: 48px; }
+      .metric { min-height: auto; }
+      .action-list li { display: block; }
+      .action-list .owner { display: block; margin-bottom: 2px; }
+      .ingredient { grid-template-columns: 1fr 1fr; }
+      .ingredient .fake-field:first-child { grid-column: 1 / -1; }
+      .fake-role { grid-column: 1 / -1; }
+      .target-card { grid-template-columns: 1fr; }
+      .target-action { text-align: center; }
+      .risk-table { overflow-x: auto; }
+      table { min-width: 700px; }
+      .go { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="hero-content">
+        <p class="eyebrow">Execution plan / 20 July 2026</p>
+        <h1>Fewer choices.<br>Clearer recipe work.</h1>
+        <p class="lede">
+          A structural cleanup of the assistant width, bottom navigation, recipe actions,
+          recipe editor, and freezer targets. The goal is one obvious owner per task,
+          without changing the recipe schema or adding another interaction model.
+        </p>
+        <div class="status-row">
+          <span class="pill primary">Plan ready</span>
+          <span class="pill">Overall risk: R2</span>
+          <span class="pill">4 phases</span>
+          <span class="pill">9 tickets</span>
+          <a class="pill hero-link" href="https://github.com/freekmetsch/kitchenbrain/blob/main/docs/feature-lists/FEATURE_LIST_RECIPE_UX_STREAMLINE.md">Authoritative plan</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="metrics" aria-label="Plan evidence summary">
+      <div class="metric"><strong>1536</strong><span>pixels wide: current home chat fills the full desktop viewport</span></div>
+      <div class="metric"><strong>672</strong><span>pixels: the established maximum for standard app screens</span></div>
+      <div class="metric"><strong>7–10</strong><span>recipe overflow actions across common conditional states</span></div>
+      <div class="metric"><strong>213</strong><span>unit tests passing before implementation begins</span></div>
+    </div>
+
+    <section>
+      <p class="eyebrow">Action ownership</p>
+      <h2>The overflow stops being a storage drawer</h2>
+      <p class="section-intro">
+        Everyday actions become visible where they matter. Contextual recovery stays beside the failure.
+        The three-dot menu survives only when a real secondary action exists.
+      </p>
+      <div class="ownership">
+        <article class="panel current">
+          <p class="panel-kicker">Current: one flat list</p>
+          <ul class="action-list">
+            <li><span class="owner">Duplicate</span><span>Edit recipe / Ingredient roles</span></li>
+            <li><span class="owner">Elsewhere</span><span>Add photo / Ask AI</span></li>
+            <li><span class="owner">Preference</span><span>View in Dutch or English</span></li>
+            <li><span class="owner">Maintenance</span><span>Rebuild cooking view / Re-translate</span></li>
+            <li><span class="owner">Provenance</span><span>Open source</span></li>
+            <li><span class="owner">Conditional</span><span>Start over / Remove photo</span></li>
+          </ul>
+        </article>
+        <article class="panel proposed">
+          <p class="panel-kicker">Planned: one owner per task</p>
+          <ul class="action-list">
+            <li><span class="owner">Header</span><span>Direct Edit action</span></li>
+            <li><span class="owner">Hero</span><span>Add or replace photo</span></li>
+            <li><span class="owner">Utility row</span><span>Truthful recipe-language state</span></li>
+            <li><span class="owner">Status</span><span>Retry only when generation failed</span></li>
+            <li><span class="owner">Original view</span><span>Source hostname and link</span></li>
+            <li><span class="owner">Overflow</span><span>Start over / Remove photo, only when relevant</span></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <p class="eyebrow">Shell language</p>
+      <h2>The first three literal changes</h2>
+      <p class="section-intro">
+        The assistant adopts the standard 672-pixel desktop column. Route names state the destination
+        instead of using placeholders, while paths, order, and icons remain unchanged.
+      </p>
+      <div class="route-strip">
+        <div class="route-card"><code>/</code><strong>Home becomes Assistance</strong></div>
+        <div class="route-card"><code>/shopping</code><strong>List becomes Groceries</strong></div>
+        <div class="route-card"><code>/settings</code><strong>More becomes Settings</strong></div>
+      </div>
+    </section>
+
+    <section>
+      <p class="eyebrow">Editor direction</p>
+      <h2>Keep one page. Remove the compression.</h2>
+      <div class="editor-board">
+        <div class="principles">
+          <div class="principle"><strong>Sticky task header</strong><p>Back, title, and Save changes travel together; the permanent Saved footer disappears.</p></div>
+          <div class="principle"><strong>Labels survive filled state</strong><p>Ingredient, amount, unit, and freezer handling remain readable on 320- and 375-pixel screens.</p></div>
+          <div class="principle"><strong>Quiet optional detail</strong><p>Alternatives stay collapsed; rows with none show a small Add alternative action.</p></div>
+          <div class="principle"><strong>Data shape stays fixed</strong><p>Roles, substitutes, Dutch ingredient names, and ordering retain their current server contract.</p></div>
+          <div class="principle"><strong>Focus follows creation</strong><p>New ingredients and directions scroll into view and receive focus immediately.</p></div>
+        </div>
+        <div class="mock-editor" aria-label="Illustrative editor layout">
+          <div class="mock-top"><strong>Edit recipe</strong><span class="save">Save changes</span></div>
+          <div class="mock-body">
+            <h3>Ingredients</h3>
+            <div class="ingredient">
+              <div class="fake-field"><b>Ingredient</b>Tomatoes</div>
+              <div class="fake-field"><b>Amount</b>400</div>
+              <div class="fake-field"><b>Unit</b>g</div>
+              <div class="fake-field fake-role"><b>Freezer handling</b>Cook with recipe</div>
+            </div>
+            <div class="ingredient">
+              <div class="fake-field"><b>Ingredient</b>Fresh coriander</div>
+              <div class="fake-field"><b>Amount</b>1</div>
+              <div class="fake-field"><b>Unit</b>bunch</div>
+              <div class="fake-field fake-role"><b>Freezer handling</b>Add fresh when serving</div>
+            </div>
+            <h3>Method</h3>
+            <div class="fake-field"><b>Step 1</b>Prepare the vegetables and heat the pan.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <p class="eyebrow">Freezer target</p>
+      <h2>Status first, configuration on demand</h2>
+      <p class="section-intro">
+        The recipe surface answers the frequent question immediately. Target editing moves into a focused
+        mobile sheet or desktop dialog and commits once, from the server's canonical response.
+      </p>
+      <div class="target-card">
+        <div><strong>0 of 4 portions</strong><p>4 short of the household freezer target</p></div>
+        <div class="target-action">Edit stock target</div>
+      </div>
+    </section>
+
+    <section>
+      <p class="eyebrow">Delivery sequence</p>
+      <h2>Four checkpoints, each independently reversible</h2>
+      <div class="phase-grid">
+        <article class="phase"><h3>Shell and destination language</h3><p>Align the assistant column and rename the three requested tabs in both locales.</p><div class="tickets"><span class="ticket">RX-1</span><span class="ticket">RX-2</span></div></article>
+        <article class="phase"><h3>Recipe action ownership</h3><p>Promote Edit, remove duplicate actions, route language, provenance, and recovery to their owners.</p><div class="tickets"><span class="ticket">RX-3</span><span class="ticket">RX-4</span></div></article>
+        <article class="phase"><h3>Recipe editor</h3><p>Replace the footer, rebuild labelled ingredient rows, and streamline method controls.</p><div class="tickets"><span class="ticket">RX-5</span><span class="ticket">RX-6</span><span class="ticket">RX-7</span></div></article>
+        <article class="phase"><h3>Freezer and regression</h3><p>Add reliable target editing, then remove dead paths and run the full browser and data matrix.</p><div class="tickets"><span class="ticket">RX-8</span><span class="ticket">RX-9</span></div></article>
+      </div>
+    </section>
+
+    <section>
+      <p class="eyebrow">Independent critique</p>
+      <h2>Four execution gaps found and closed</h2>
+      <p class="section-intro">
+        The first draft was held until each P1 gap became an explicit target or acceptance test.
+      </p>
+      <div class="risk-table">
+        <table>
+          <thead><tr><th>Priority</th><th>Gap</th><th>Resolution now in plan</th></tr></thead>
+          <tbody>
+            <tr><td><span class="priority">P1</span></td><td>Source would lose its owner after leaving the menu</td><td>RX-4 routes provenance through the BenchSheet Original-view boundary.</td></tr>
+            <tr><td><span class="priority">P1</span></td><td>NL / EN could promise Dutch for a native-English recipe</td><td>Only meaningful paired states get a switch; native English is labelled statically.</td></tr>
+            <tr><td><span class="priority">P1</span></td><td>Freezer UI could apply the request instead of server truth</td><td>RX-8 adopts only the canonical response, including target clearing on switch-off.</td></tr>
+            <tr><td><span class="priority">P1</span></td><td>Client row IDs could leak into drafts or saved recipe JSON</td><td>IDs stay out of snapshots and payloads; old drafts receive IDs during recovery.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="go">
+      <div class="go-mark">GO</div>
+      <div>
+        <h2>Ready for /run</h2>
+        <p>No product decision remains open. The implementation stays inside existing routes, data shapes, and server seams, with no migration, dependency, or paid provider call.</p>
+      </div>
+    </section>
+
+    <footer>
+      Canonical detail lives in the feature-list markdown. This artifact is a reading view, not a second source of truth.
+    </footer>
+  </main>
+</body>
+</html>
