@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Latest features — UX/UI review</title>
+  <style>
+    :root { color-scheme: light; --bg:#f7f3ed; --paper:#fffdf9; --ink:#201b17; --muted:#6f655d; --line:#ded4ca; --hot:#b33b08; --hot-soft:#fff0e8; --bad:#a51d24; --warn:#8a5600; --ok:#17643a; --shadow:0 12px 32px rgb(50 30 10 / .08); }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    button,input,textarea { font:inherit; }
+    a { color:var(--hot); }
+    .shell { max-width:1100px; margin:auto; padding:24px 16px 64px; }
+    header { display:grid; gap:12px; margin-bottom:20px; }
+    .eyebrow { color:var(--hot); font-size:.78rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    h1 { margin:0; max-width:800px; font-size:clamp(2rem,5vw,4.5rem); line-height:.98; letter-spacing:-.045em; }
+    .lede { max-width:760px; margin:0; color:var(--muted); font-size:1.05rem; }
+    .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+    .stat,.card { background:var(--paper); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); }
+    .stat { padding:14px; }
+    .stat b { display:block; font-size:1.7rem; line-height:1; }
+    .stat span { color:var(--muted); font-size:.78rem; }
+    .board { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr); gap:16px; align-items:start; }
+    .card { padding:18px; margin-bottom:14px; }
+    h2,h3 { margin:0 0 10px; line-height:1.15; }
+    h2 { font-size:1.3rem; }
+    h3 { font-size:1rem; }
+    .finding { display:grid; grid-template-columns:auto 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--line); }
+    .finding:first-of-type { border-top:0; }
+    .finding input { width:22px; height:22px; margin-top:2px; accent-color:var(--hot); }
+    .meta { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:5px; }
+    .pill { border-radius:999px; padding:2px 8px; font-size:.72rem; font-weight:800; background:#eee7df; }
+    .p1 { color:var(--bad); background:#fee8e8; }
+    .p2 { color:var(--warn); background:#fff1cf; }
+    .p3 { color:#335a79; background:#e6f2fb; }
+    .finding p { margin:4px 0; }
+    .evidence { color:var(--muted); font-size:.82rem; }
+    details { border-top:1px solid var(--line); padding-top:12px; }
+    summary { cursor:pointer; font-weight:800; }
+    fieldset { border:1px solid var(--line); border-radius:14px; padding:12px; }
+    legend { font-weight:800; padding:0 6px; }
+    label.option { display:block; padding:8px; border-radius:10px; }
+    label.option:hover { background:var(--hot-soft); }
+    textarea { width:100%; min-height:100px; border:1px solid var(--line); border-radius:12px; padding:10px; background:white; color:var(--ink); }
+    #prompt { min-height:290px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:.82rem; }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    button { min-height:42px; border:1px solid var(--line); border-radius:12px; padding:8px 14px; background:white; color:var(--ink); cursor:pointer; }
+    button.primary { border-color:var(--hot); background:var(--hot); color:white; font-weight:800; }
+    .save-state { min-height:24px; color:var(--muted); font-size:.8rem; }
+    .callout { border-left:4px solid var(--hot); background:var(--hot-soft); padding:12px 14px; border-radius:0 12px 12px 0; }
+    .sequence { counter-reset:phase; display:grid; gap:8px; }
+    .phase { display:grid; grid-template-columns:34px 1fr; gap:8px; align-items:start; }
+    .phase::before { counter-increment:phase; content:counter(phase); display:grid; place-items:center; width:30px; height:30px; border-radius:50%; background:var(--ink); color:white; font-weight:800; }
+    @media (max-width:800px) { .summary { grid-template-columns:repeat(2,1fr); } .board { grid-template-columns:1fr; } .sticky { position:static!important; } }
+    @media (prefers-reduced-motion:no-preference) { button,.option { transition:background-color .15s ease-out,border-color .15s ease-out,transform .15s ease-out; } button:active { transform:scale(.98); } }
+  </style>
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div class="eyebrow">Decision workspace · 22 July 2026</div>
+    <h1>One blocker, then repair the failure paths.</h1>
+    <p class="lede">The latest features look consistent and explain the new shopping model well. The weekly-item menu is unusable on mobile. The rest of the work concerns focus, draft recovery, spoken labels, and explicit AI acceptance.</p>
+  </header>
+
+  <section class="summary" aria-label="Audit totals">
+    <div class="stat"><b>1</b><span>new P1 blocker</span></div>
+    <div class="stat"><b>7</b><span>UX P2 findings</span></div>
+    <div class="stat"><b>4</b><span>viewports checked</span></div>
+    <div class="stat"><b>0</b><span>horizontal overflows</span></div>
+  </section>
+
+  <div class="board">
+    <section>
+      <div class="card">
+        <h2>Fix set</h2>
+        <p class="callout"><strong>Recommended:</strong> ship the recurring-menu fix first, then handle async state and labels as one small interaction pass. Fold cooking semantics into the existing cooking-mode plan.</p>
+
+        <label class="finding"><input class="finding-toggle" type="checkbox" value="UX-1/UI-1" checked><span><span class="meta"><span class="pill p1">P1</span><strong>Unclip weekly-item actions</strong></span><p>Replace the dropdown inside <code>ui-list-card</code> with the existing bottom sheet. Skip, Edit, and Stop are invisible at 375 px.</p><span class="evidence">Browser + source · weekly-menu-clipped-375.png</span></span></label>
+        <label class="finding"><input class="finding-toggle" type="checkbox" value="UX-2" checked><span><span class="meta"><span class="pill p2">P2</span><strong>Keep focus and announce async changes</strong></span><p>Preserve a useful focus target after Bought and batch changes; announce the changed count or portions.</p><span class="evidence">Browser state: active element became BODY in both flows.</span></span></label>
+        <label class="finding"><input class="finding-toggle" type="checkbox" value="UX-3" checked><span><span class="meta"><span class="pill p2">P2</span><strong>Keep shopping drafts when writes fail</strong></span><p>Await writes before clearing or closing weekly and source-choice editors.</p><span class="evidence">Forced failure cleared Item, Amount, and Unit.</span></span></label>
+        <label class="finding"><input class="finding-toggle" type="checkbox" value="UX-4/UX-5/UI-4" checked><span><span class="meta"><span class="pill p2">P2</span><strong>Repair names, labels, and tabs</strong></span><p>Add item-specific names, real field labels, and reuse <code>SegmentedTabs</code> with linked panels.</p><span class="evidence">Accessibility tree + ArrowRight probe.</span></span></label>
+        <label class="finding"><input class="finding-toggle" type="checkbox" value="UX-6/UX-7" checked><span><span class="meta"><span class="pill p2">P2</span><strong>Make AI review explicit and resumable</strong></span><p>Label need selectors, keep a dismissed proposal, and follow the acceptance default chosen below.</p><span class="evidence">RecipeEnhancementSheet source + mocked browser proposal.</span></span></label>
+        <label class="finding"><input class="finding-toggle" type="checkbox" value="UX-8/UI-2/UI-3" checked><span><span class="meta"><span class="pill p2">P2</span><strong>Extend the existing cooking plan</strong></span><p>Add programmatic completion state to the current readability, focus, and progress work. Do not create a second cooking redesign.</p><span class="evidence">FEATURE_LIST_COOKING_MODE_FOCUS.md</span></span></label>
+        <details>
+          <summary>P3 polish, unchecked by default</summary>
+          <label class="finding"><input class="finding-toggle" type="checkbox" value="UX-9"><span><span class="meta"><span class="pill p3">P3</span><strong>Fix singular batch copy</strong></span><p>Say “1 recipe batch”, then use plural for 2–4.</p></span></label>
+          <label class="finding"><input class="finding-toggle" type="checkbox" value="UI-5"><span><span class="meta"><span class="pill p3">P3</span><strong>Use the app icon for empty recipe images</strong></span><p>Replace the platform plate emoji with the project icon component.</p></span></label>
+          <label class="finding"><input class="finding-toggle" type="checkbox" value="UI-6"><span><span class="meta"><span class="pill p3">P3</span><strong>Animate panel and list changes</strong></span><p>Use existing motion tokens for shopping tab panels and bought-item movement.</p></span></label>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>AI acceptance default</h2>
+        <fieldset>
+          <legend>How should a new recipe proposal open?</legend>
+          <label class="option"><input type="radio" name="ai-default" value="unchecked" checked> <strong>Unchecked</strong> — recommended. Each saved idea reflects a deliberate choice.</label>
+          <label class="option"><input type="radio" name="ai-default" value="preselected"> <strong>Preselected</strong> — fewer taps, but Apply accepts every idea unless the user removes it.</label>
+        </fieldset>
+      </div>
+
+      <div class="card">
+        <h2>Recommended sequence</h2>
+        <div class="sequence">
+          <div class="phase"><div><strong>Recurring actions</strong><br><span class="evidence">Small P1 fix; no schema or new component library.</span></div></div>
+          <div class="phase"><div><strong>Async state and draft recovery</strong><br><span class="evidence">One shared success/failure contract for shopping and planning.</span></div></div>
+          <div class="phase"><div><strong>Labels, tabs, and AI review</strong><br><span class="evidence">Reuse current primitives and messages.</span></div></div>
+          <div class="phase"><div><strong>Cooking plan extension</strong><br><span class="evidence">Add state semantics while CMF-2/3 are already changing those controls.</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sticky" style="position:sticky;top:16px">
+      <div class="card">
+        <h2>Handoff prompt</h2>
+        <p class="evidence">Selections save in this browser. The prompt loads the Markdown sources, not this HTML file.</p>
+        <textarea id="prompt" readonly aria-label="Generated handoff prompt"></textarea>
+        <div class="actions"><button class="primary" id="copy">Copy prompt</button><button id="reset">Reset</button></div>
+        <div class="save-state" id="save-state" role="status"></div>
+      </div>
+      <div class="card">
+        <h3>Sources</h3>
+        <p><a href="../feature-lists/FEATURE_LIST_UX_LATEST_FEATURES.md">UX plan</a><br><a href="../feature-lists/FEATURE_LIST_UI_LATEST_FEATURES.md">UI plan</a><br><a href="../feature-lists/FEATURE_LIST_COOKING_MODE_FOCUS.md">Cooking plan</a></p>
+        <label for="notes"><strong>Notes for the next agent</strong></label>
+        <textarea id="notes" placeholder="Add a constraint, override, or test case."></textarea>
+      </div>
+    </aside>
+  </div>
+</main>
+<script>
+  const KEY = 'docs/artifacts/2026-07-22-ux-ui-latest-features.html::v1';
+  const toggles = [...document.querySelectorAll('.finding-toggle')];
+  const radios = [...document.querySelectorAll('input[name="ai-default"]')];
+  const notes = document.querySelector('#notes');
+  const prompt = document.querySelector('#prompt');
+  const state = document.querySelector('#save-state');
+
+  function selectedIds() { return toggles.filter(x => x.checked).map(x => x.value); }
+  function aiDefault() { return radios.find(x => x.checked)?.value || 'unchecked'; }
+  function buildPrompt() {
+    const ids = selectedIds();
+    const ai = aiDefault();
+    const userNotes = notes.value;
+    prompt.value = `Continue: execute the accepted latest-feature UX/UI fixes. Load docs/feature-lists/FEATURE_LIST_UX_LATEST_FEATURES.md, docs/feature-lists/FEATURE_LIST_UI_LATEST_FEATURES.md, and docs/feature-lists/FEATURE_LIST_COOKING_MODE_FOCUS.md, then /run.\n\nAccepted findings: ${ids.length ? ids.join(', ') : 'none'}.\n\nAI proposal default: ${ai === 'unchecked' ? 'open with every suggestion unchecked. This is the recommendation because each saved idea then reflects deliberate acceptance.' : 'open with suggestions preselected. This trades stronger error prevention for fewer taps.'}\n\nSequence: fix the clipped recurring-item actions first; then async focus/draft recovery; then labels, tabs, and recipe review; fold cooking semantics into the existing cooking-mode plan.\n\nAssumptions and evidence: the weekly action menu is clipped at 375 px; bought and batch actions lost focus in the browser; forced shopping failure cleared the draft; shopping tabs ignored ArrowRight; recipe need selectors lacked names; no horizontal overflow or console error appeared at 375/768/1280/1536.\n\nUser notes, verbatim:\n${userNotes || '(none)'}\n\nState: audit only; application code has not changed. Use existing BottomSheet, SegmentedTabs, Icon, and motion tokens. Add no package or schema change.`;
+  }
+  function save() {
+    buildPrompt();
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ checked:selectedIds(), ai:aiDefault(), notes:notes.value }));
+      state.textContent = 'Selections saved on this device.';
+    } catch { state.textContent = 'Selections work now but could not be saved.'; }
+  }
+  function restore() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return buildPrompt();
+      const data = JSON.parse(raw);
+      toggles.forEach(x => x.checked = data.checked?.includes(x.value));
+      radios.forEach(x => x.checked = x.value === data.ai);
+      notes.value = data.notes || '';
+    } catch { state.textContent = 'Saved choices could not be read; defaults are active.'; }
+    buildPrompt();
+  }
+  toggles.forEach(x => x.addEventListener('change', save));
+  radios.forEach(x => x.addEventListener('change', save));
+  notes.addEventListener('input', save);
+  document.querySelector('#reset').addEventListener('click', () => {
+    try { localStorage.removeItem(KEY); } catch {}
+    toggles.forEach(x => x.checked = !x.closest('details'));
+    radios.forEach(x => x.checked = x.value === 'unchecked');
+    notes.value = '';
+    save();
+  });
+  document.querySelector('#copy').addEventListener('click', async () => {
+    buildPrompt();
+    try { await navigator.clipboard.writeText(prompt.value); state.textContent = 'Prompt copied.'; }
+    catch { prompt.focus(); prompt.select(); state.textContent = 'Copy was blocked. The prompt is selected; use your device copy command.'; }
+  });
+  restore();
+</script>
+</body>
+</html>

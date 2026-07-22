@@ -53,3 +53,6 @@ Implemented SRD-0 through SRD-17. Reviewed all 14 old shopping rows without gues
 
 ## 2026-07-22 20:30 | html-artifact | plan: cooking-mode-focus
 Touched: docs/artifacts/2026-07-22-plan-cooking-mode-focus.html
+
+## 2026-07-22 21:28 | html-artifact | audit: latest-feature UX/UI
+Touched: docs/artifacts/2026-07-22-ux-ui-latest-features.html
