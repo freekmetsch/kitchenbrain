@@ -90,6 +90,7 @@
 	let consumeDefault = $state(2);
 	let consumeMax = $state(99);
 	let pendingSourceToggles = $state<Record<number, boolean>>({});
+	let pendingServings = $state<Record<number, boolean>>({});
 
 	const DRAWER_CATEGORIES = ['meat', 'vegetarian', 'vegan', 'fish', 'pasta', 'soup', 'dessert'];
 
@@ -288,7 +289,7 @@
 	// No success toast: the new row appearing in the week list IS the confirmation
 	// (same contract as /shopping); errors still toast via optimistic().
 	async function addMealOptimistic(
-		input: { weekStartDate: string; dinner: string; recipeSlug?: string | null; source?: 'fresh' | 'freezer' },
+		input: { weekStartDate: string; dinner: string; recipeSlug?: string | null; source?: 'fresh' | 'freezer'; servings?: number | null },
 		closeDrawer = true
 	): Promise<boolean> {
 		const dinner = input.dinner.trim();
@@ -307,6 +308,7 @@
 			weekNumber: week.weekNumber,
 			dinner,
 			recipeSlug: input.recipeSlug ?? null,
+			servings: input.servings ?? null,
 			status: 'planned',
 			source: input.source ?? 'fresh',
 			cookedDate: null,
@@ -327,6 +329,7 @@
 						weekStartDate: input.weekStartDate,
 						dinner,
 						recipeSlug: input.recipeSlug ?? null,
+						servings: input.servings ?? null,
 						source: input.source ?? 'fresh'
 					})
 				});
@@ -524,8 +527,31 @@
 			weekStartDate: drawerWeek,
 			dinner: recipeDisplayTitle(recipe),
 			recipeSlug: recipe.slug,
+			servings: recipe.servings,
 			source
 		});
+	}
+
+	async function changeServings(meal: Meal, delta: number) {
+		if (meal.id < 0 || pendingServings[meal.id]) return;
+		const next = Math.max(1, Math.min(99, (meal.servings ?? 1) + delta));
+		const previous = { ...meal };
+		pendingServings = { ...pendingServings, [meal.id]: true };
+		updateMeal({ ...meal, servings: next });
+		let saved: Meal | null = null;
+		const ok = await optimistic(async () => {
+			const response = await fetch(`${base}/api/meal-plan/${meal.id}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ servings: next })
+			});
+			if (response.ok) saved = await response.json();
+			return response;
+		}, () => updateMeal(previous), m.mealplan_toast_could_not_update_servings());
+		const pending = { ...pendingServings };
+		delete pending[meal.id];
+		pendingServings = pending;
+		if (ok && saved) updateMeal(saved);
 	}
 
 	// One input serves both jobs: it filters the recipe lists live, and the
@@ -727,7 +753,7 @@
 								<div class="min-w-0 flex-1">
 									{#if meal.recipeSlug}
 										<a
-											href="{base}/recipes/{meal.recipeSlug}"
+											href="{base}/recipes/{meal.recipeSlug}?plan={meal.id}{meal.servings ? `&servings=${meal.servings}` : ''}"
 											class="block truncate text-sm font-medium {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}"
 										>
 											{meal.dinner}
@@ -736,6 +762,13 @@
 										<span class="block truncate text-sm font-medium {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}">
 											{meal.dinner}
 										</span>
+									{/if}
+									{#if meal.status !== 'cooked' && meal.recipeSlug && meal.servings}
+										<div class="mt-1 inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()}>
+											<button type="button" class="btn btn-ghost btn-xs h-8 min-h-0 rounded-r-none" disabled={!!pendingServings[meal.id] || meal.servings <= 1} onclick={() => changeServings(meal, -1)}>−</button>
+											<span class="px-1 text-xs tabular-nums">{m.mealplan_servings_count({ count: meal.servings })}</span>
+											<button type="button" class="btn btn-ghost btn-xs h-8 min-h-0 rounded-l-none" disabled={!!pendingServings[meal.id] || meal.servings >= 99} onclick={() => changeServings(meal, 1)}>+</button>
+										</div>
 									{/if}
 									{#if meal.cookedDate && meal.status === 'cooked'}
 										<span class="mt-1 inline-flex items-center gap-1 text-xs text-base-content/35">

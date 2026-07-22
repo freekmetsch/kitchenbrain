@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveQuantity, effectiveUnitPrice, rankProducts, toSearchTerm, fallbackTerm } from './matching';
+import { deriveQuantity, effectiveUnitPrice, pricePerCount, rankProducts, toSearchTerm, fallbackTerm } from './matching';
 import type { AHProduct } from './client';
 
 function product(overrides: Partial<AHProduct> & { name: string }): AHProduct {
@@ -43,6 +43,23 @@ describe('effectiveUnitPrice', () => {
 	});
 });
 
+describe('pricePerCount', () => {
+	it('generalizes count-pack pricing beyond eggs', () => {
+		expect(pricePerCount(product({ name: 'Vrije uitloop eieren', currentPrice: 3, salesUnitSize: '6 stuks' }))).toBe(0.5);
+		expect(pricePerCount(product({ name: 'Volkoren wraps', currentPrice: 2.4, salesUnitSize: '8 stuks' }))).toBeCloseTo(0.3);
+		expect(pricePerCount(product({ name: 'Hamburgerbroodjes', currentPrice: 1.8, salesUnitSize: '4 stuks' }))).toBeCloseTo(0.45);
+	});
+
+	it('does not guess when AH exposes a multipack or mass', () => {
+		expect(pricePerCount(product({ name: 'Eieren', currentPrice: 3, salesUnitSize: '2 x 6 stuks' }))).toBeNull();
+		expect(pricePerCount(product({ name: 'Tomaten', currentPrice: 3, salesUnitSize: '500 g' }))).toBeNull();
+	});
+
+	it('caps very large needs at the push boundary', () => {
+		expect(deriveQuantity('1000', 'stuk', '6 stuks')).toBe(99);
+	});
+});
+
 describe('toSearchTerm', () => {
 	it('resolves a dangling-hyphen either/or to the complete alternative', () => {
 		expect(toSearchTerm('zonnebloem- of koolzaadolie')).toBe('koolzaadolie');
@@ -77,6 +94,15 @@ describe('fallbackTerm', () => {
 });
 
 describe('rankProducts', () => {
+	it('prefers whole fresh produce over prepared or preserved forms', () => {
+		const whole = product({ name: 'AH Prei' });
+		const cut = product({ name: 'AH Gesneden prei zak' });
+		const canned = product({ name: 'Tomatenblokjes blik' });
+		const fresh = product({ name: 'AH Tomaten' });
+		expect(rankProducts('prei', [cut, whole], 'fresh').ranked[0]).toBe(whole);
+		expect(rankProducts('tomaten', [canned, fresh], 'fresh').ranked[0]).toBe(fresh);
+		expect(rankProducts('tomaten', [fresh, canned], 'preserved').ranked[0]).toBe(canned);
+	});
 	it('prefers the cheapest per-unit match over a previously-bought pricier variant (mini penne case)', () => {
 		const mini = product({
 			name: "AH Mini penne volkoren",

@@ -7,6 +7,7 @@
 <script lang="ts">
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import SmartImage from '$lib/components/ui/SmartImage.svelte';
 
 	let {
 		imageUrl,
@@ -30,7 +31,7 @@
 		onclick={onPickPhoto}
 		aria-label={m.recipes_header_replace_photo()}
 	>
-		<img src={imageUrl} alt={title} class="h-full w-full object-cover" />
+		<SmartImage src={imageUrl} alt={title} class="h-full w-full object-cover" />
 		<span
 			class="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-base-100/85 px-2.5 py-1 text-[11px] text-base-content/80 shadow-sm backdrop-blur"
 		>

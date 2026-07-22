@@ -34,7 +34,8 @@ export type MealPlanPrefs = {
 };
 
 export const MEAL_PLAN_PREF_DEFAULTS: MealPlanPrefs = {
-	weekStartDay: 0,
+	// Delivery-to-delivery fallback. A saved household preference still wins.
+	weekStartDay: 2,
 	groceryDay: null,
 	planAheadWeeks: 4,
 	dayPlanning: false,

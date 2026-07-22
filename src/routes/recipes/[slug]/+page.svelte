@@ -33,6 +33,10 @@
 			roleCoverage: IngredientRoleCoverage;
 			subRecipes: Array<{ id: number; slug: string; title: string; titleEn: string | null; sortOrder: number }>;
 			partOfMeals: Array<{ id: number; slug: string; title: string; titleEn: string | null }>;
+			occasionServings: number | null;
+			planMealId: number | null;
+			cookingIngredients: Recipe['ingredients'];
+			cookingIngredientStock: boolean[];
 		};
 	} = $props();
 	const chatAgent = useChatAgent();
@@ -110,10 +114,11 @@
 
 	let benchSheetFallback = $derived({
 		directions: displayDirections,
-		ingredients: displayIngredients,
-		ingredientStock: data.ingredientStock,
+		ingredients: data.subRecipes.length ? data.cookingIngredients : displayIngredients,
+		ingredientStock: data.subRecipes.length ? data.cookingIngredientStock : data.ingredientStock,
 		viewLang,
-		servings: recipe.servings,
+		baselineServings: recipe.servings,
+		servings: data.occasionServings,
 		sourceUrl: recipe.sourceUrl
 	});
 
@@ -158,6 +163,14 @@
 		const f = input.files?.[0];
 		if (f) void uploadImage(f);
 		input.value = '';
+	}
+
+	function handleImagePaste(event: ClipboardEvent) {
+		const item = Array.from(event.clipboardData?.items ?? []).find((candidate) => candidate.type.startsWith('image/'));
+		const file = item?.getAsFile();
+		if (!file) return;
+		event.preventDefault();
+		void uploadImage(file);
 	}
 
 	async function deleteImage() {
@@ -276,6 +289,10 @@
 	<title>{displayTitle} · {m.recipes_title_suffix()}</title>
 </svelte:head>
 
+<svelte:window onpaste={handleImagePaste} />
+
+<div class="ui-page-shell !max-w-2xl overflow-x-clip">
+
 <RecipeHeader
 	{recipe}
 	{displayTitle}
@@ -359,8 +376,9 @@
 
 <BenchSheet
 	recipeSlug={recipe.slug}
+	planMealId={data.planMealId}
 	recipeTitle={displayTitle}
-	initial={isStaleCookMode(recipe.cookModeJson) ? null : recipe.cookModeJson}
+	initial={isStaleCookMode(recipe.cookModeJson) || (recipe.cookModeJson?.version === 3 && recipe.cookModeJson.servings !== data.occasionServings) ? null : recipe.cookModeJson}
 	fallback={benchSheetFallback}
 	view={recipeView}
 	viewLang={viewLang}
@@ -394,12 +412,16 @@
 	</section>
 {/if}
 
+</div>
+
 <AddToPlanSheet
 	bind:open={addToPlanOpen}
 	weeks={weeks}
 	recipeSlug={recipe.slug}
 	dinnerTitle={displayTitle}
 	frozenPortions={data.frozenPortions}
+	baselineServings={recipe.servings ?? 4}
+	scalingMode={recipe.scalingMode}
 />
 
 <FreezePortionsModal

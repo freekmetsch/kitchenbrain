@@ -1,4 +1,5 @@
 import { mkdirSync } from 'fs';
+import sharp from 'sharp';
 
 const ALLOWED_MIME: Record<string, string> = {
 	'image/jpeg': 'jpg',
@@ -10,6 +11,8 @@ const ALLOWED_MIME: Record<string, string> = {
 };
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_PIXELS = 40_000_000;
+export const MAX_IMAGE_DIMENSION = 1600;
 
 export function getRecipeImagesDir(): string {
 	const dir = process.env.RECIPE_IMAGES_DIR ?? './data/recipe_images';
@@ -34,4 +37,17 @@ export function contentTypeForExtension(ext: string): string {
 		heif: 'image/heif'
 	};
 	return map[ext.toLowerCase()] ?? 'application/octet-stream';
+}
+
+export async function normalizeRecipeImage(input: Buffer, outputPath: string) {
+	return sharp(input, { failOn: 'error', limitInputPixels: MAX_IMAGE_PIXELS })
+		.autoOrient()
+		.resize({
+			width: MAX_IMAGE_DIMENSION,
+			height: MAX_IMAGE_DIMENSION,
+			fit: 'inside',
+			withoutEnlargement: true
+		})
+		.webp({ quality: 82, effort: 4 })
+		.toFile(outputPath);
 }

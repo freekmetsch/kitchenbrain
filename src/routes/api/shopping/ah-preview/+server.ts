@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { searchProducts, getProductsByIds, getAHStatus, AH_NOT_CONNECTED, type AHProduct, type SearchOutcome } from '$lib/server/ah/client';
-import { rankProducts, deriveQuantity, effectiveUnitPrice, toSearchTerm, fallbackTerm, normalize } from '$lib/server/ah/matching';
+import { rankProducts, deriveQuantity, effectiveUnitPrice, pricePerCount, toSearchTerm, fallbackTerm, normalize } from '$lib/server/ah/matching';
 import { aiArchetypePicks } from '$lib/server/ah/ai_pick';
 import { db } from '$lib/server/db/index';
 import * as schema from '$lib/server/db/schema';
@@ -25,7 +25,8 @@ function toPreviewProduct(p: AHProduct, amount: string | null, unit: string | nu
 		unitPrice: up ? `€${up.value.toFixed(2)}/${up.basis}` : null,
 		imageUrl: p.imageUrl,
 		isPreviouslyBought: p.isPreviouslyBought,
-		qty: deriveQuantity(amount, unit, p.salesUnitSize)
+		qty: deriveQuantity(amount, unit, p.salesUnitSize),
+		pricePerCount: pricePerCount(p)
 	};
 }
 
@@ -38,7 +39,9 @@ const BodySchema = z.object({
 				name: z.string().min(1).max(256),
 				amount: z.string().max(64).nullable().optional(),
 				unit: z.string().max(64).nullable().optional(),
-				ref: z.string().max(128).optional()
+				ref: z.string().max(128).optional(),
+				sourceName: z.string().min(1).max(256).optional(),
+				purchaseForm: z.enum(['fresh', 'preserved', 'frozen', 'dried', 'any']).optional()
 			})
 		)
 		.optional(),
@@ -95,22 +98,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			const amount = it.amount ?? null;
 			const unit = it.unit ?? null;
 			const ref = it.ref ?? String(i);
+			const sourceName = it.sourceName ?? term;
 			// AH-INVARIANT: the search term is the Dutch shopping-list item name
 			// (or a Dutch re-search term the user typed in the modal).
 			const { outcome, used } = await searchWithFallback(term, SEARCH_POOL);
 			if (!outcome.ok) {
 				// Search errored — keep the item, fall back to free text, but say why.
-				return { ref, term, amount, unit, status: 'unknown', candidates: [], lowConfidence: false };
+				return { ref, sourceName, term, amount, unit, purchaseForm: it.purchaseForm, status: 'unknown', candidates: [], lowConfidence: false };
 			}
 			if (!outcome.products.length) {
-				return { ref, term, amount, unit, status: 'freetext', candidates: [], lowConfidence: false };
+				return { ref, sourceName, term, amount, unit, purchaseForm: it.purchaseForm, status: 'freetext', candidates: [], lowConfidence: false };
 			}
-			const { ranked, lowConfidence } = rankProducts(used, outcome.products);
+			const { ranked, lowConfidence } = rankProducts(used, outcome.products, it.purchaseForm);
 			return {
 				ref,
+				sourceName,
 				term,
 				amount,
 				unit,
+				purchaseForm: it.purchaseForm,
 				status: 'product',
 				candidates: ranked.slice(0, size).map((p) => toPreviewProduct(p, amount, unit)),
 				lowConfidence

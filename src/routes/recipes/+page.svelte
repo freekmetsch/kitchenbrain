@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { CORE_FOOD_TYPE_OPTIONS, foodCategoryLabel } from '$lib/food_categories';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
@@ -15,6 +15,10 @@
 	import { useChatAgent } from '$lib/chat/agent_context';
 	import { scrollRail } from '$lib/actions/scroll_rail';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
+	import AddToPlanSheet from '$lib/components/recipe-detail/AddToPlanSheet.svelte';
+	import MakeRecipeSheet from '$lib/components/recipe-detail/MakeRecipeSheet.svelte';
+	import FreezePortionsModal from '$lib/components/FreezePortionsModal.svelte';
+	import { labelWeeks } from '$lib/components/recipe-detail/types';
 
 	type Recipe = {
 		id: number;
@@ -38,6 +42,8 @@
 		targetPortions: number | null;
 		needsReview: boolean;
 		subCount: number;
+		servings: number | null;
+		scalingMode: 'scalable' | 'fixed_batch';
 	};
 
 	type Toggles = {
@@ -60,9 +66,30 @@
 			toggles: Toggles;
 			dishTypes: string[];
 			recipeLang: 'en' | 'nl';
+			weeks: { weekStartDate: string; weekNumber: number }[];
 		};
 	} = $props();
 	const chatAgent = useChatAgent();
+	let actionRecipe = $state<Recipe | null>(null);
+	let planOpen = $state(false);
+	let makeOpen = $state(false);
+	let freezeOpen = $state(false);
+	let cookedPortions = $state(2);
+	let actionWeeks = $derived(labelWeeks(data.weeks, {
+		thisWeek: m.recipes_week_this(),
+		nextWeek: m.recipes_week_next(),
+		weekOf: (date) => m.recipes_freezer_week_of({ date })
+	}));
+
+	function openPlan(recipe: Recipe) {
+		actionRecipe = recipe;
+		planOpen = true;
+	}
+
+	function openMake(recipe: Recipe) {
+		actionRecipe = recipe;
+		makeOpen = true;
+	}
 
 	let searchInput = $state(untrack(() => data.query));
 	let sortBy = $state(untrack(() => data.sortBy));
@@ -457,12 +484,12 @@
 				{@const category = displayCategory(recipe)}
 				{@const cookedLabel = lastCookedLabel(recipe)}
 				{@const coverage = coverageLabel(recipe)}
-				<a
-					href="{base}/recipes/{recipe.slug}"
-					class="ui-list-card block hover:border-primary transition-colors"
+				<article
+					class="ui-list-card overflow-hidden transition-colors hover:border-primary"
 					animate:flip={{ duration: MOTION_CONTENT_MS }}
 					in:fade={{ duration: MOTION_MICRO_MS }}
 				>
+					<a href="{base}/recipes/{recipe.slug}" class="block">
 					{#if recipe.imageUrl}
 						<figure class="h-24 overflow-hidden">
 							<SmartImage src={recipe.imageUrl} alt={title} class="h-full w-full" />
@@ -511,11 +538,46 @@
 							</div>
 						{/if}
 					</div>
-				</a>
+					</a>
+					<div class="grid grid-cols-2 border-t border-base-300/70">
+						<button type="button" class="btn btn-ghost btn-sm min-h-11 rounded-none border-r border-base-300/70" onclick={() => openPlan(recipe)}>{m.recipes_header_plan_button()}</button>
+						<button type="button" class="btn btn-ghost btn-sm min-h-11 rounded-none" onclick={() => openMake(recipe)}>{m.recipes_make_button()}</button>
+					</div>
+				</article>
 			{/each}
 		</div>
 	{/if}
 </div>
+
+{#if actionRecipe}
+	<AddToPlanSheet
+		bind:open={planOpen}
+		weeks={actionWeeks}
+		recipeSlug={actionRecipe.slug}
+		dinnerTitle={displayTitle(actionRecipe)}
+		frozenPortions={actionRecipe.onHandPortions}
+		baselineServings={actionRecipe.servings ?? 4}
+		scalingMode={actionRecipe.scalingMode}
+	/>
+	<MakeRecipeSheet
+		bind:open={makeOpen}
+		recipeSlug={actionRecipe.slug}
+		recipeTitle={displayTitle(actionRecipe)}
+		baselineServings={actionRecipe.servings ?? 4}
+		scalingMode={actionRecipe.scalingMode}
+		onAlreadyCooked={(servings) => {
+			cookedPortions = servings;
+			freezeOpen = true;
+		}}
+	/>
+	<FreezePortionsModal
+		bind:open={freezeOpen}
+		slug={actionRecipe.slug}
+		title={displayTitle(actionRecipe)}
+		defaultPortions={cookedPortions}
+		onFrozen={() => invalidateAll()}
+	/>
+{/if}
 
 <BottomSheet bind:open={newMealOpen} title={m.recipes_new_meal_sheet_title()}>
 	<div class="flex max-h-[62dvh] flex-col">

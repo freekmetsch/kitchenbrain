@@ -45,6 +45,21 @@ describe('normalizeNameKey', () => {
 });
 
 describe('findOrMergeInventory', () => {
+	it('applies staple state when the matching pantry item already exists', () => {
+		const db = createTestDb();
+		seedItem(db, { name: 'Olijfolie', section: 'pantry', kind: 'ingredient', isStaple: false });
+
+		const result = findOrMergeInventory(db, {
+			name: 'olijfolie',
+			section: 'pantry',
+			kind: 'ingredient',
+			isStaple: true
+		});
+
+		expect(result.action).toBe('update');
+		expect(result.item.isStaple).toBe(true);
+	});
+
 	it('merges an exact duplicate by summing aligned numeric quantities', () => {
 		const db = createTestDb();
 		const first = findOrMergeInventory(db, {

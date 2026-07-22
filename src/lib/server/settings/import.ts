@@ -48,11 +48,31 @@ const InventoryItemImport = z.object({
 	deletedAt: zTimestampOrNull
 });
 
+const IngredientSubstituteImport = z.object({
+	name: z.string().min(1),
+	kind: z.enum(['protein', 'spice', 'vegetable', 'other']).optional(),
+	note: z.string().optional()
+});
+
 const IngredientImport = z.object({
 	name: z.string(),
 	amount: z.string(),
 	unit: z.string().optional(),
-	role: z.enum(['cook_in', 'serve_fresh']).optional()
+	preparation: z.string().optional(),
+	role: z.enum(['cook_in', 'serve_fresh']).optional(),
+	optional: z.boolean().optional(),
+	component: z.string().optional(),
+	purchaseForm: z.enum(['fresh', 'preserved', 'frozen', 'dried', 'any']).optional(),
+	scale: z.enum(['linear', 'whole', 'fixed']).optional(),
+	origin: z.enum(['source', 'ai_suggested']).optional(),
+	substitutes: z.array(IngredientSubstituteImport).optional()
+}).superRefine((ingredient, ctx) => {
+	if (ingredient.origin === 'ai_suggested' && ingredient.optional !== true) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'AI-suggested ingredients must be optional'
+		});
+	}
 });
 
 const RecipeImport = z.object({
@@ -65,6 +85,10 @@ const RecipeImport = z.object({
 		.nullable()
 		.transform((v) => v ?? []),
 	servings: z.number().int().nullable(),
+	scalingMode: z.enum(['scalable', 'fixed_batch']).default('scalable'),
+	structureVersion: z.number().int().min(1).default(1),
+	structureDraft: z.array(IngredientImport).nullable().default(null),
+	structureDraftSourceUpdatedAt: zTimestampOrNull.default(null),
 	totalTimeMin: z.number().int().nullable(),
 	sourceUrl: z.string().nullable(),
 	imageUrl: z.string().nullable(),
@@ -78,7 +102,12 @@ const RecipeImport = z.object({
 	categoryEn: z.string().nullable(),
 	cuisineEn: z.string().nullable(),
 	notesEn: z.string().nullable(),
-	ingredientsEn: z.array(z.object({ name: z.string() })).nullable(),
+	ingredientsEn: z.array(z.object({
+		name: z.string(),
+		preparation: z.string().optional(),
+		component: z.string().optional(),
+		substitutes: z.array(z.object({ name: z.string(), note: z.string().optional() })).optional()
+	})).nullable(),
 	directionsEn: z.array(z.string()).nullable(),
 	translationStatus: z.enum(['pending', 'ready', 'error']),
 	translatedAt: zTimestampOrNull,
@@ -101,7 +130,9 @@ const MealPlanMealImport = z.object({
 	weekStartDate: z.string(),
 	dinner: z.string(),
 	recipeSlug: z.string().nullable(),
+	servings: z.number().int().positive().nullable().default(null),
 	status: z.enum(['planned', 'cooked']),
+	source: z.enum(['fresh', 'freezer']).default('fresh'),
 	cookedDate: z.string().nullable(),
 	// default(null) keeps pre-day-planning export files importable.
 	plannedDate: z.string().nullable().default(null),
@@ -127,13 +158,27 @@ const MealSubRecipeImport = z.object({
 	createdAt: zTimestamp
 });
 
+const ShoppingOverrideImport = z.object({
+	id: z.number().int(),
+	weekStartDate: z.string(),
+	name: z.string().min(1),
+	bought: z.boolean(),
+	manual: z.boolean(),
+	amount: z.string().nullable(),
+	unit: z.string().nullable(),
+	included: z.boolean().default(true),
+	selectedName: z.string().nullable().default(null),
+	createdAt: zTimestamp
+});
+
 const ImportFileSchema = z.object({
 	exported_at: z.string().optional(),
 	inventory: z.array(InventoryItemImport).default([]),
 	recipes: z.array(RecipeImport).default([]),
 	meal_plan: z.array(MealPlanMealImport).default([]),
 	meal_log: z.array(MealLogImport).default([]),
-	meal_sub_recipes: z.array(MealSubRecipeImport).default([])
+	meal_sub_recipes: z.array(MealSubRecipeImport).default([]),
+	shopping_overrides: z.array(ShoppingOverrideImport).default([])
 });
 
 export type ImportFileData = z.infer<typeof ImportFileSchema>;
@@ -173,6 +218,10 @@ export function validateImportFile(raw: unknown): ImportValidation {
 	if (dupMealLogId != null) return { ok: false, error: `Duplicate meal_log id ${dupMealLogId}` };
 	const dupSubId = firstDuplicate(data.meal_sub_recipes, (s) => s.id);
 	if (dupSubId != null) return { ok: false, error: `Duplicate meal_sub_recipes id ${dupSubId}` };
+	const dupOverrideId = firstDuplicate(data.shopping_overrides, (s) => s.id);
+	if (dupOverrideId != null) return { ok: false, error: `Duplicate shopping override id ${dupOverrideId}` };
+	const dupOverrideKey = firstDuplicate(data.shopping_overrides, (s) => `${s.weekStartDate}\u0000${s.name}`);
+	if (dupOverrideKey != null) return { ok: false, error: 'Duplicate shopping override week/name' };
 
 	const recipeIds = new Set(data.recipes.map((r) => r.id));
 	for (const item of data.inventory) {
@@ -207,7 +256,8 @@ export function isBootstrapEligible(db: DB): boolean {
 		rowCount(db, schema.inventoryItems) === 0 &&
 		rowCount(db, schema.mealPlanMeals) === 0 &&
 		rowCount(db, schema.mealLog) === 0 &&
-		rowCount(db, schema.mealSubRecipes) === 0
+		rowCount(db, schema.mealSubRecipes) === 0 &&
+		rowCount(db, schema.shoppingListOverrides) === 0
 	);
 }
 
@@ -234,6 +284,8 @@ export function importBootstrap(db: DB, data: ImportFileData): ImportOutcome {
 		if (data.meal_plan.length)
 			inserted.meal_plan_meals = tx.insert(schema.mealPlanMeals).values(data.meal_plan).run().changes;
 		if (data.meal_log.length) inserted.meal_log = tx.insert(schema.mealLog).values(data.meal_log).run().changes;
+		if (data.shopping_overrides.length)
+			inserted.shopping_list_overrides = tx.insert(schema.shoppingListOverrides).values(data.shopping_overrides).run().changes;
 
 		return { ok: true, inserted };
 	});

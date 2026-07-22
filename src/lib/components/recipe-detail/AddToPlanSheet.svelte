@@ -18,7 +18,9 @@
 		weeks,
 		recipeSlug,
 		dinnerTitle,
-		frozenPortions = 0
+		frozenPortions = 0,
+		baselineServings = 4,
+		scalingMode = 'scalable'
 	}: {
 		open?: boolean;
 		weeks: Week[];
@@ -26,16 +28,24 @@
 		dinnerTitle: string;
 		/** Frozen portions on hand — offers the cook-fresh vs from-freezer choice when > 0. */
 		frozenPortions?: number;
+		baselineServings?: number;
+		scalingMode?: 'scalable' | 'fixed_batch';
 	} = $props();
 
 	let addToPlanWeek = $state(untrack(() => weeks[0]?.weekStartDate ?? ''));
 	let addToPlanSource = $state<'fresh' | 'freezer'>('fresh');
 	let addToPlanSubmitting = $state(false);
+	let servings = $state(untrack(() => baselineServings));
+	let batchOverride = $state(false);
 
 	// Freezer portions on hand default the plan to serving from the freezer —
 	// that's why the household stocked them. Re-evaluated each time the sheet opens.
 	$effect(() => {
-		if (open) addToPlanSource = frozenPortions > 0 ? 'freezer' : 'fresh';
+		if (open) {
+			addToPlanSource = frozenPortions > 0 ? 'freezer' : 'fresh';
+			servings = baselineServings;
+			batchOverride = false;
+		}
 	});
 
 	async function addToPlan() {
@@ -49,6 +59,7 @@
 					weekStartDate: addToPlanWeek,
 					dinner: dinnerTitle,
 					recipeSlug,
+					servings,
 					source: addToPlanSource
 				})
 			});
@@ -91,6 +102,25 @@
 			</label>
 		</div>
 	{/if}
+	<div class="mb-4 rounded-xl border border-base-300 p-3">
+		<div class="flex items-center justify-between gap-3">
+			<div>
+				<span class="text-[11px] font-semibold uppercase tracking-wide text-base-content/50">{m.recipes_addplan_servings_label()}</span>
+				{#if scalingMode === 'fixed_batch' && !batchOverride}
+					<p class="text-sm font-medium">{m.recipes_addplan_fixed_batch({ count: baselineServings })}</p>
+				{/if}
+			</div>
+			{#if scalingMode === 'fixed_batch' && !batchOverride}
+				<button type="button" class="btn btn-ghost btn-xs min-h-9" onclick={() => (batchOverride = true)}>{m.recipes_addplan_change_batch()}</button>
+			{:else}
+				<div class="flex items-center gap-2">
+					<button type="button" class="btn btn-circle btn-sm btn-ghost border border-base-300" disabled={servings <= 1} onclick={() => (servings = Math.max(1, servings - 1))}>−</button>
+					<span class="min-w-8 text-center text-lg font-bold tabular-nums">{servings}</span>
+					<button type="button" class="btn btn-circle btn-sm btn-ghost border border-base-300" disabled={servings >= 99} onclick={() => (servings = Math.min(99, servings + 1))}>+</button>
+				</div>
+			{/if}
+		</div>
+	</div>
 	<div class="flex flex-col gap-2 mb-4">
 		{#each weeks as week}
 			<label
@@ -102,7 +132,7 @@
 					bind:group={addToPlanWeek}
 					value={week.weekStartDate}
 				/>
-				<span class="text-sm">{week.label} — {m.recipes_addplan_week_label({ number: week.weekNumber })}</span>
+				<span class="text-sm">{week.label} · {week.weekStartDate}–{week.weekEndDate}</span>
 			</label>
 		{/each}
 	</div>

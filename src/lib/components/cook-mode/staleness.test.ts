@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CookModeRecipe, LocalizedCookModeRecipe } from '$lib/types';
+import type { CookModeRecipe, LocalizedCookModeRecipe, LocalizedCookModeRecipeV4 } from '$lib/types';
 import { hasCookModeLanguage, isStaleCookMode, localizeCookMode } from './staleness';
 
 const current: CookModeRecipe = {
@@ -45,6 +45,26 @@ const bilingual: LocalizedCookModeRecipe = {
 	]
 };
 
+const structured: LocalizedCookModeRecipeV4 = {
+	version: 4,
+	generation_id: 'generation-4',
+	baseline_servings: 4,
+	prep_tasks: [{ text: { en: 'Chop the onion', nl: 'Snijd de ui' }, ingredient_indexes: [0] }],
+	streams: [{ id: 'pot', name: { en: 'Main pan', nl: 'Hoofdpan' } }],
+	steps: [{
+		title: { en: 'Cook the onion', nl: 'Bak de ui' },
+		goal: { en: 'Cook onion — soft and golden', nl: 'Bak ui — zacht en goudbruin' },
+		body: { en: 'Cook over medium heat.', nl: 'Bak op middelhoog vuur.' },
+		ingredient_indexes: [0],
+		timer_seconds: null,
+		timer_purpose: null,
+		timer_action: null,
+		timer_location: null,
+		stream_id: 'pot',
+		merges_from: []
+	}]
+};
+
 describe('cook-mode cache versioning', () => {
 	it('accepts the current all-English cache contract', () => {
 		expect(isStaleCookMode(current)).toBe(false);
@@ -74,5 +94,18 @@ describe('cook-mode cache versioning', () => {
 		const malformed = structuredClone(bilingual);
 		malformed.steps[0].goal.nl = 'ui zacht';
 		expect(isStaleCookMode(malformed)).toBe(true);
+	});
+
+	it('projects v4 ingredient references instantly for a new serving target', () => {
+		expect(isStaleCookMode(structured)).toBe(false);
+		expect(hasCookModeLanguage(structured, 'nl', 99)).toBe(true);
+		const display = localizeCookMode(structured, 'nl', {
+			ingredients: [{ name: 'ui', amount: '2', scale: 'whole' }],
+			baselineServings: 4,
+			targetServings: 6
+		});
+		expect(display?.version).toBe(4);
+		expect(display?.steps[0].ingredients).toEqual(['3 ui']);
+		expect(display?.generation_id).toBe('generation-4');
 	});
 });

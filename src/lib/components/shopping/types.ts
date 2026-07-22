@@ -1,12 +1,31 @@
-// Shared client-side shapes for the shopping page components. Data types
-// derive from the shopping route's server load (via the generated $types) so
-// the components stay in lock-step with the actual shape — no hand-kept mirror.
-import type { PageData } from '../../../routes/shopping/$types';
+import type { IngredientPurchaseForm } from '$lib/recipe_ingredient';
 
-export type ShoppingListItem = PageData['items'][number];
+export type ShoppingListItem = {
+	name: string;
+	amount: string | null;
+	unit: string | null;
+	bought: boolean;
+	manual: boolean;
+	manualContribution?: boolean;
+	manualAmount?: string | null;
+	manualUnit?: string | null;
+	derivedAmount?: string | null;
+	derivedUnit?: string | null;
+	included: boolean;
+	selectedName: string;
+	covered?: boolean;
+	staple?: boolean;
+	optional?: boolean;
+	suggested?: boolean;
+	substitutes?: string[];
+	purchaseForm?: IngredientPurchaseForm;
+	incompatibleQuantities?: boolean;
+	forMeals?: string[];
+	freshSide?: boolean;
+};
 
 /** Per-item push decision inside the AH preview sheet. */
-export type Decision = { mode: 'product' | 'freetext' | 'exclude'; pick: number };
+export type Decision = { mode: 'product' | 'freetext' | 'exclude'; pick: number; qty: number };
 
 /** Outcome summary of one AH push, shown in the sheet's result view. */
 export type AhPushOutcome = {

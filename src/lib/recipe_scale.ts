@@ -1,103 +1,149 @@
-// Per-ingredient portion scaler. Default is linear with smart formatting;
-// specific ingredient classes get non-linear rules so 4× a 2-egg recipe
-// doesn't display "8.0 eggs" or quadruple the salt.
+import type { Ingredient, IngredientScale } from '$lib/recipe_ingredient';
 
-type ScaleRule = 'linear' | 'integer' | 'sqrt' | 'pinch';
+const VULGAR_FRACTIONS: Record<string, number> = {
+	'¼': 1 / 4,
+	'½': 1 / 2,
+	'¾': 3 / 4,
+	'⅓': 1 / 3,
+	'⅔': 2 / 3,
+	'⅛': 1 / 8,
+	'⅜': 3 / 8,
+	'⅝': 5 / 8,
+	'⅞': 7 / 8
+};
 
-const INTEGER_KEYWORDS = [
-	// Dutch
-	'ei', 'eieren', 'eierdooier', 'eidooier', 'eiwit',
-	'ui', 'uien', 'sjalot', 'sjalotten',
-	'teen knoflook', 'tenen knoflook',
-	'paprika', 'tomaten', 'tomaat',
-	'aardappel', 'aardappelen', 'wortel', 'wortels',
-	'courgette', 'aubergine', 'komkommer', 'venkel',
-	'plak', 'plakken', 'snee', 'sneetje', 'sneetjes',
-	'blik', 'blikje', 'pak', 'pakje', 'pot', 'potje', 'fles', 'flesje',
-	// English
-	'egg', 'eggs', 'yolk', 'yolks', 'egg white',
-	'onion', 'onions', 'shallot', 'shallots',
-	'clove', 'cloves',
-	'pepper', 'peppers', 'bell pepper',
-	'tomato', 'tomatoes',
-	'potato', 'potatoes', 'carrot', 'carrots',
-	'zucchini', 'eggplant', 'cucumber', 'fennel',
-	'slice', 'slices', 'can', 'cans', 'jar', 'jars', 'bottle', 'pack', 'packet'
+const DISPLAY_FRACTIONS: Array<[number, string]> = [
+	[1 / 8, '⅛'],
+	[1 / 4, '¼'],
+	[1 / 3, '⅓'],
+	[3 / 8, '⅜'],
+	[1 / 2, '½'],
+	[5 / 8, '⅝'],
+	[2 / 3, '⅔'],
+	[3 / 4, '¾'],
+	[7 / 8, '⅞']
 ];
 
-const SQRT_KEYWORDS = [
-	// salt + pepper + spices scale sub-linearly: 4× recipe ≈ 2× spice
-	'zout', 'peper', 'salt', 'pepper',
-	'kaneel', 'cinnamon', 'kruidnagel', 'clove',
-	'kerrie', 'curry', 'paprikapoeder', 'paprika powder',
-	'oregano', 'thijm', 'thyme', 'rozemarijn', 'rosemary',
-	'basilicum', 'basil', 'peterselie', 'parsley',
-	'koriander', 'coriander', 'cilantro',
-	'komijn', 'cumin', 'kurkuma', 'turmeric',
-	'gember', 'ginger', 'mosterd', 'mustard',
-	'nootmuskaat', 'nutmeg', 'kardemom', 'cardamom',
-	'chilipoeder', 'chili powder', 'chili', 'cayenne',
-	'gedroogde', 'dried', 'gemalen', 'ground',
-	'kruiden', 'herbs', 'specerijen', 'spices', 'seasoning'
-];
+export type QuantityRange = { min: number; max?: number };
 
-const PINCH_TOKENS = [
-	'snufje', 'snuf', 'mespunt', 'pinch', 'dash', 'to taste', 'naar smaak'
-];
+function parseNumberToken(raw: string): number | null {
+	const token = raw.trim().replace(',', '.');
+	if (!token) return null;
+	if (VULGAR_FRACTIONS[token] != null) return VULGAR_FRACTIONS[token];
 
-function classify(name: string, amount: string): ScaleRule {
-	const haystack = `${name} ${amount}`.toLowerCase();
+	const mixedVulgar = token.match(/^(\d+)\s*([¼½¾⅓⅔⅛⅜⅝⅞])$/);
+	if (mixedVulgar) return Number(mixedVulgar[1]) + VULGAR_FRACTIONS[mixedVulgar[2]];
 
-	if (PINCH_TOKENS.some((t) => haystack.includes(t))) return 'pinch';
+	const mixedSlash = token.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+	if (mixedSlash && Number(mixedSlash[3]) !== 0) {
+		return Number(mixedSlash[1]) + Number(mixedSlash[2]) / Number(mixedSlash[3]);
+	}
 
-	const tokens = haystack.split(/[\s,/.-]+/).filter(Boolean);
-	const hasWord = (kw: string) => {
-		if (kw.includes(' ')) return haystack.includes(kw);
-		return tokens.includes(kw);
-	};
+	const slash = token.match(/^(\d+)\/(\d+)$/);
+	if (slash && Number(slash[2]) !== 0) return Number(slash[1]) / Number(slash[2]);
 
-	if (INTEGER_KEYWORDS.some(hasWord)) return 'integer';
-	if (SQRT_KEYWORDS.some(hasWord)) return 'sqrt';
-	return 'linear';
+	const number = Number(token);
+	return Number.isFinite(number) ? number : null;
 }
 
-function parseAmount(amount: string): { num: number | null; suffix: string } {
-	if (!amount) return { num: null, suffix: '' };
-	const match = amount.replace(',', '.').match(/^\s*(\d+(?:\.\d+)?)(.*)$/);
-	if (!match) return { num: null, suffix: amount };
-	return { num: parseFloat(match[1]), suffix: match[2] };
+/** Parse a numeric amount or range without guessing at descriptive text. */
+export function parseQuantity(amount: string): QuantityRange | null {
+	const normalized = amount.trim().replace(/[–—]/g, '-');
+	if (!normalized) return null;
+
+	const range = normalized.match(/^(.+?)\s*-\s*(.+)$/);
+	if (range) {
+		const min = parseNumberToken(range[1]);
+		const max = parseNumberToken(range[2]);
+		return min != null && max != null ? { min, max } : null;
+	}
+
+	const value = parseNumberToken(normalized);
+	return value == null ? null : { min: value };
 }
 
-function formatNumber(n: number, integer: boolean): string {
-	if (integer) return Math.max(1, Math.round(n)).toString();
-	if (n >= 10) return Math.round(n).toString();
-	if (Number.isInteger(n)) return n.toString();
-	return n.toFixed(1).replace(/\.?0+$/, '');
+function formatDecimal(value: number, locale: 'en' | 'nl'): string {
+	if (Number.isInteger(value)) return String(value);
+	const whole = Math.floor(value);
+	const fraction = value - whole;
+	const common = DISPLAY_FRACTIONS.find(([candidate]) => Math.abs(fraction - candidate) < 0.0125);
+	if (common) return whole > 0 ? `${whole}${common[1]}` : common[1];
+	const decimal = value.toFixed(value < 10 ? 2 : 1).replace(/0+$/, '').replace(/\.$/, '');
+	return locale === 'nl' ? decimal.replace('.', ',') : decimal;
 }
 
+export function formatQuantity(quantity: QuantityRange, locale: 'en' | 'nl' = 'en'): string {
+	const min = formatDecimal(quantity.min, locale);
+	return quantity.max == null ? min : `${min}–${formatDecimal(quantity.max, locale)}`;
+}
+
+export function occasionMultiplier(baselineServings: number | null | undefined, occasionServings: number | null | undefined): number {
+	if (!baselineServings || baselineServings <= 0 || !occasionServings || occasionServings <= 0) return 1;
+	return occasionServings / baselineServings;
+}
+
+function projectValue(value: number, multiplier: number, rule: IngredientScale): number {
+	if (rule === 'fixed') return value;
+	if (rule === 'whole') return Math.max(1, Math.round(value * multiplier));
+	return value * multiplier;
+}
+
+/**
+ * The only baseline-to-occasion quantity projection. Unknown text remains
+ * unchanged; callers must not invent a second parser or multiplier.
+ */
 export function scaleAmount(
 	amount: string,
-	name: string,
-	multiplier: number
+	_name: string,
+	multiplier: number,
+	rule: IngredientScale = 'linear',
+	locale: 'en' | 'nl' = 'en'
 ): string {
-	if (!amount || multiplier === 1) return amount;
+	if (!amount || multiplier === 1 || rule === 'fixed') return amount;
+	const parsed = parseQuantity(amount);
+	if (!parsed) return amount;
+	return formatQuantity({
+		min: projectValue(parsed.min, multiplier, rule),
+		max: parsed.max == null ? undefined : projectValue(parsed.max, multiplier, rule)
+	}, locale);
+}
 
-	const rule = classify(name, amount);
-	if (rule === 'pinch') return amount;
+export function projectIngredient(
+	ingredient: Ingredient,
+	baselineServings: number | null | undefined,
+	occasionServings: number | null | undefined
+): Ingredient {
+	return {
+		...ingredient,
+		amount: scaleAmount(
+			ingredient.amount,
+			ingredient.name,
+			occasionMultiplier(baselineServings, occasionServings),
+			ingredient.scale ?? 'linear'
+		)
+	};
+}
 
-	const { num, suffix } = parseAmount(amount);
-	if (num === null) return amount;
+function normalizedUnit(unit: string | undefined): string {
+	return (unit ?? '').trim().toLocaleLowerCase('nl-NL').replace(/\.$/, '');
+}
 
-	let scaled: number;
-	switch (rule) {
-		case 'integer':
-			scaled = num * multiplier;
-			return formatNumber(scaled, true) + suffix;
-		case 'sqrt':
-			scaled = num * Math.sqrt(multiplier);
-			return formatNumber(scaled, false) + suffix;
-		default:
-			scaled = num * multiplier;
-			return formatNumber(scaled, false) + suffix;
+export type QuantitySum = { amount: string; unit?: string } | null;
+
+/** Sum only quantities with a provably identical unit and numeric shape. */
+export function sumCompatibleQuantities(items: Array<{ amount: string; unit?: string }>): QuantitySum {
+	if (items.length === 0) return null;
+	const unit = normalizedUnit(items[0].unit);
+	if (items.some((item) => normalizedUnit(item.unit) !== unit)) return null;
+
+	let min = 0;
+	let max: number | undefined;
+	for (const item of items) {
+		const parsed = parseQuantity(item.amount);
+		if (!parsed) return null;
+		min += parsed.min;
+		if (parsed.max != null || max != null) max = (max ?? min - parsed.min) + (parsed.max ?? parsed.min);
 	}
+
+	return { amount: formatQuantity({ min, max }), unit: items[0].unit };
 }

@@ -13,7 +13,8 @@ const UpdateSchema = z.object({
 	status: z.enum(['planned', 'cooked']).nullable().optional(),
 	cookedDate: isoDateSchema.nullable().optional(),
 	plannedDate: isoDateSchema.nullable().optional(),
-	source: z.enum(['fresh', 'freezer']).optional()
+	source: z.enum(['fresh', 'freezer']).optional(),
+	servings: z.number().int().positive().max(99).nullable().optional()
 });
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
@@ -24,12 +25,13 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	// Metadata-only update (day pin and/or fresh↔freezer source): must not touch
 	// the cooked status (the legacy contract below defaults a bare PUT to 'cooked').
 	if (
-		(body.plannedDate !== undefined || body.source !== undefined) &&
+		(body.plannedDate !== undefined || body.source !== undefined || body.servings !== undefined) &&
 		body.status === undefined &&
 		body.cookedDate === undefined
 	) {
-		const updates: Partial<{ plannedDate: string | null; source: 'fresh' | 'freezer' }> = {};
+		const updates: Partial<{ plannedDate: string | null; source: 'fresh' | 'freezer'; servings: number | null }> = {};
 		if (body.plannedDate !== undefined) updates.plannedDate = body.plannedDate;
+		if (body.servings !== undefined) updates.servings = body.servings;
 		if (body.source !== undefined) {
 			const current = db.select().from(mealPlanMeals).where(eq(mealPlanMeals.id, id)).get();
 			if (!current) throw error(404, 'Meal not found');

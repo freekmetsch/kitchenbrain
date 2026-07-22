@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import { scaleAmount } from '$lib/recipe_scale';
-import { subRecipesOf } from '$lib/server/meal_recipes';
+import { expandMealIngredientsForServings, subRecipesOf } from '$lib/server/meal_recipes';
 import {
 	createMessage,
 	checkDailyCap,
@@ -14,7 +13,7 @@ import {
 import { getChatModel, getChatFallbackModel } from '$lib/server/ai/config';
 import { db } from '$lib/server/db/index';
 import { recipes, type Ingredient } from '$lib/server/db/schema';
-import type { LocalizedCookModeRecipe, LocalizedCookModeText } from '$lib/types';
+import type { LocalizedCookModeRecipeV4, LocalizedCookModeText } from '$lib/types';
 import {
 	hasCookModeLanguage,
 	isStaleCookMode,
@@ -36,7 +35,7 @@ const StepSchema = z.object({
 	title: LocalizedTextSchema,
 	goal: LocalizedTextSchema,
 	body: LocalizedTextSchema,
-	ingredients: z.array(LocalizedTextSchema),
+	ingredient_indexes: z.array(z.number().int().nonnegative()),
 	timer_seconds: z.number().int().nonnegative().nullable(),
 	timer_purpose: LocalizedTextSchema.nullable(),
 	timer_action: LocalizedTextSchema.nullable(),
@@ -45,7 +44,12 @@ const StepSchema = z.object({
 	merges_from: z.array(z.string())
 });
 
-type GeneratedCookMode = Omit<LocalizedCookModeRecipe, 'generation_id' | 'servings'>;
+const PrepTaskSchema = z.object({
+	text: LocalizedTextSchema,
+	ingredient_indexes: z.array(z.number().int().nonnegative())
+});
+
+type GeneratedCookMode = Omit<LocalizedCookModeRecipeV4, 'generation_id' | 'baseline_servings'>;
 
 function localizedValues(value: LocalizedCookModeText): string[] {
 	return [value.en, value.nl];
@@ -53,7 +57,7 @@ function localizedValues(value: LocalizedCookModeText): string[] {
 
 function displayedText(data: GeneratedCookMode): string[] {
 	return [
-		...data.mise_en_place.flatMap(localizedValues),
+		...data.prep_tasks.flatMap((task) => localizedValues(task.text)),
 		...data.streams.flatMap((stream) => localizedValues(stream.name)),
 		...data.steps.flatMap((step) => [
 			...localizedValues(step.title),
@@ -66,11 +70,11 @@ function displayedText(data: GeneratedCookMode): string[] {
 	];
 }
 
-const buildCookModeSchema = (maxSteps: number): z.ZodType<GeneratedCookMode> =>
+const buildCookModeSchema = (maxSteps: number, ingredientCount: number): z.ZodType<GeneratedCookMode> =>
 	z
 		.object({
-			version: z.literal(3),
-			mise_en_place: z.array(LocalizedTextSchema),
+			version: z.literal(4),
+			prep_tasks: z.array(PrepTaskSchema),
 			streams: z.array(StreamSchema).min(1),
 			steps: z.array(StepSchema).min(2).max(maxSteps)
 		})
@@ -89,6 +93,13 @@ const buildCookModeSchema = (maxSteps: number): z.ZodType<GeneratedCookMode> =>
 			});
 
 			data.steps.forEach((step, index) => {
+				step.ingredient_indexes.forEach((ingredientIndex, refIndex) => {
+					if (ingredientIndex >= ingredientCount) ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: ['steps', index, 'ingredient_indexes', refIndex],
+						message: `ingredient index ${ingredientIndex} is out of range`
+					});
+				});
 				if (!streamIds.has(step.stream_id)) {
 					ctx.addIssue({
 						code: z.ZodIssueCode.custom,
@@ -156,6 +167,13 @@ const buildCookModeSchema = (maxSteps: number): z.ZodType<GeneratedCookMode> =>
 					});
 				}
 			});
+			data.prep_tasks.forEach((task, taskIndex) => task.ingredient_indexes.forEach((ingredientIndex, refIndex) => {
+				if (ingredientIndex >= ingredientCount) ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['prep_tasks', taskIndex, 'ingredient_indexes', refIndex],
+					message: `ingredient index ${ingredientIndex} is out of range`
+				});
+			}));
 
 			displayedText(data).forEach((value, index) => {
 				const inaccessibleTerm = inaccessibleCookModeTerm(value);
@@ -206,13 +224,6 @@ export function kickCookModeGeneration(slug: string) {
 			`[cook-mode] background pre-generation failed for ${slug}: ${error instanceof Error ? error.message : error}`
 		);
 	});
-}
-
-function scaleIngredients(ingredients: Ingredient[], multiplier: number): Ingredient[] {
-	return ingredients.map((ingredient) => ({
-		...ingredient,
-		amount: scaleAmount(ingredient.amount, ingredient.name, multiplier)
-	}));
 }
 
 function generationFingerprint(
@@ -275,7 +286,9 @@ async function generateCookModeUncached(
 		const generatedAt = recipe.cookModeGeneratedAt?.getTime() ?? 0;
 		const subChanged = subRows.some((subRecipe) => (subRecipe.updatedAt?.getTime() ?? 0) > generatedAt);
 		const servesTarget =
-			recipe.cookModeJson.version === 3
+			recipe.cookModeJson.version === 4
+				? true
+				: recipe.cookModeJson.version === 3
 				? recipe.cookModeJson.servings === targetServings
 				: targetServings === sourceServings;
 		if (
@@ -297,14 +310,13 @@ async function generateCookModeUncached(
 	const cap = checkDailyCap();
 	if (cap.exceeded) throw new DailyCapExceeded();
 
-	const multiplier = targetServings / sourceServings;
+	const baselineIngredients = expandMealIngredientsForServings(db, recipe, sourceServings);
 	const prompt = loadPrompt('cook_mode');
 	const payload = {
 		title: recipe.title,
 		source_language: recipe.language,
 		source_servings: sourceServings,
-		target_servings: targetServings,
-		ingredients: scaleIngredients(recipe.ingredients as Ingredient[], multiplier),
+		ingredients: baselineIngredients.map((ingredient, index) => ({ index, ...ingredient })),
 		directions: ownDirections,
 		totalTimeMin: recipe.totalTimeMin,
 		...(subRows.length > 0
@@ -312,7 +324,6 @@ async function generateCookModeUncached(
 					sub_recipes: subRows.map((subRecipe) => ({
 						title: subRecipe.title,
 						source_language: subRecipe.language,
-						ingredients: scaleIngredients(subRecipe.ingredients as Ingredient[], multiplier),
 						directions: subRecipe.directions as string[],
 						totalTimeMin: subRecipe.totalTimeMin
 					}))
@@ -320,7 +331,7 @@ async function generateCookModeUncached(
 			: {})
 	};
 	const payloadJson = JSON.stringify(payload);
-	const schema = buildCookModeSchema(subRows.length > 0 ? 30 : 20);
+	const schema = buildCookModeSchema(subRows.length > 0 ? 30 : 20, baselineIngredients.length);
 	const fingerprint = generationFingerprint(recipe, subRows);
 
 	let generated: GeneratedCookMode | null = null;
@@ -360,10 +371,10 @@ async function generateCookModeUncached(
 		return generateCookModeUncached(slug, opts, freshnessRetry + 1);
 	}
 
-	const cookMode: LocalizedCookModeRecipe = {
+	const cookMode: LocalizedCookModeRecipeV4 = {
 		...generated,
 		generation_id: randomUUID(),
-		servings: targetServings
+		baseline_servings: sourceServings
 	};
 	const updated = db
 		.update(recipes)

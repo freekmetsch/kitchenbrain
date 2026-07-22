@@ -177,7 +177,7 @@ export const tools: Anthropic.Tool[] = [
 			type: 'object',
 			properties: {
 				weeks: { type: 'number', description: 'Number of upcoming weeks to return (default 2)' },
-				week_start_date: { type: 'string', description: 'Specific ISO Monday date to fetch' }
+				week_start_date: { type: 'string', description: 'ISO date inside the planning week to fetch' }
 			},
 			required: []
 		}
@@ -189,9 +189,13 @@ export const tools: Anthropic.Tool[] = [
 		input_schema: {
 			type: 'object',
 			properties: {
-				week_start_date: { type: 'string', description: 'ISO Monday date of the target week' },
+				week_start_date: { type: 'string', description: 'ISO date inside the target planning week' },
 				dinner: { type: 'string' },
 				recipe_slug: { type: 'string', description: 'Optional: link to a recipe by slug' },
+				servings: {
+					type: 'number',
+					description: 'Portions for this occasion. Defaults to the linked recipe yield when omitted.'
+				},
 				source: {
 					type: 'string',
 					enum: ['fresh', 'freezer'],
@@ -233,7 +237,7 @@ export const tools: Anthropic.Tool[] = [
 		input_schema: {
 			type: 'object',
 			properties: {
-				week_start_date: { type: 'string', description: 'Target week ISO Monday date' },
+				week_start_date: { type: 'string', description: 'ISO date inside the target planning week' },
 				count: { type: 'number', description: 'Number of suggestions desired (default 5)' }
 			},
 			required: []
@@ -292,7 +296,7 @@ export const tools: Anthropic.Tool[] = [
 		input_schema: {
 			type: 'object',
 			properties: {
-				week_start_date: { type: 'string', description: 'ISO Monday date. Defaults to current week.' }
+				week_start_date: { type: 'string', description: 'ISO date inside the target planning week. Defaults to the current planning week.' }
 			},
 			required: []
 		}
@@ -320,6 +324,16 @@ export const tools: Anthropic.Tool[] = [
 							name: { type: 'string' },
 							amount: { type: 'string' },
 							unit: { type: 'string' },
+							preparation: { type: 'string', description: 'Preparation detail, kept separate from the Dutch product name' },
+							optional: { type: 'boolean', description: 'True only when the ingredient is not required' },
+							component: { type: 'string', description: 'Optional recipe section such as sauce or garnish' },
+							purchaseForm: { type: 'string', enum: ['fresh', 'preserved', 'frozen', 'dried', 'any'] },
+							scale: { type: 'string', enum: ['linear', 'whole', 'fixed'] },
+							origin: {
+								type: 'string',
+								enum: ['source', 'ai_suggested'],
+								description: 'AI-suggested sides must use ai_suggested and optional=true'
+							},
 							substitutes: {
 								type: 'array',
 								description:
@@ -341,7 +355,7 @@ export const tools: Anthropic.Tool[] = [
 									'cook_in = ends up in the frozen leftover; serve_fresh = bought fresh the week it is eaten'
 							}
 						},
-						required: ['name', 'amount']
+							required: ['name', 'amount', 'role', 'optional', 'purchaseForm', 'scale', 'origin']
 					}
 				},
 				directions: { type: 'array', items: { type: 'string' } },
@@ -377,6 +391,16 @@ export const tools: Anthropic.Tool[] = [
 							name: { type: 'string' },
 							amount: { type: 'string' },
 							unit: { type: 'string' },
+							preparation: { type: 'string', description: 'Preparation detail, kept separate from the Dutch product name' },
+							optional: { type: 'boolean', description: 'True only when the ingredient is not required' },
+							component: { type: 'string', description: 'Optional recipe section such as sauce or garnish' },
+							purchaseForm: { type: 'string', enum: ['fresh', 'preserved', 'frozen', 'dried', 'any'] },
+							scale: { type: 'string', enum: ['linear', 'whole', 'fixed'] },
+							origin: {
+								type: 'string',
+								enum: ['source', 'ai_suggested'],
+								description: 'AI-suggested sides must use ai_suggested and optional=true'
+							},
 							substitutes: {
 								type: 'array',
 								description: 'Optional Dutch-named ingredient alternatives.',
@@ -397,7 +421,7 @@ export const tools: Anthropic.Tool[] = [
 									'cook_in = ends up in the frozen leftover; serve_fresh = bought fresh the week it is eaten'
 							}
 						},
-						required: ['name', 'amount']
+							required: ['name', 'amount', 'role', 'optional', 'purchaseForm', 'scale', 'origin']
 					}
 				},
 				remove_ingredient_names: { type: 'array', items: { type: 'string' } },

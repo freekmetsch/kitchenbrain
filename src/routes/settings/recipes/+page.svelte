@@ -31,6 +31,8 @@
 	let autoTranslate = $state<OnOff>(untrack(() => (data.autoTranslateOnImport ? 'on' : 'off')));
 	let cookModePregen = $state<OnOff>(untrack(() => (data.cookModePreGeneration ? 'on' : 'off')));
 	let recipeTogglesSaving = $state(false);
+	let normalizationRunning = $state(false);
+	let normalizationStatus = $state('');
 
 	async function saveRecipePrefs(patch: { recipeLanguage?: RecipeLanguage; defaultSort?: SortBy }) {
 		const previous = { recipeLanguage, defaultSort };
@@ -79,6 +81,38 @@
 		if (ok) {
 			toast.success(patch.autoTranslateOnImport !== undefined ? m.settings_recipes_saved_autotranslate() : m.settings_recipes_saved_cookmode_pregen());
 			await invalidateAll();
+		}
+	}
+
+	async function improveExistingRecipes() {
+		if (normalizationRunning) return;
+		normalizationRunning = true;
+		try {
+			let remaining = data.legacyRecipeCount;
+			let improved = 0;
+			let review = 0;
+			while (remaining > 0) {
+				const response = await fetch(`${base}/api/settings/recipes/normalize`, { method: 'POST' });
+				if (!response.ok) throw new Error(await response.text());
+				const result = await response.json() as {
+					improved: number;
+					needsReview: number;
+					remaining: number;
+					capReached: boolean;
+					processed: number;
+				};
+				improved += result.improved;
+				review += result.needsReview;
+				remaining = result.remaining;
+				normalizationStatus = m.settings_recipes_normalize_progress({ improved, remaining, review });
+				if (result.capReached || result.processed === 0) break;
+			}
+			toast.success(m.settings_recipes_normalize_done({ improved, review }));
+			await invalidateAll();
+		} catch {
+			toast.error(m.settings_recipes_normalize_failed());
+		} finally {
+			normalizationRunning = false;
 		}
 	}
 </script>
@@ -166,6 +200,23 @@
 					</p>
 				</div>
 			</div>
+		</section>
+
+		<section class="ui-form-card">
+			<h2 class="ui-section-label mb-2">{m.settings_recipes_normalize_heading()}</h2>
+			<p class="text-sm leading-relaxed text-base-content/70">{m.settings_recipes_normalize_hint()}</p>
+			<p class="mt-2 text-xs text-base-content/55">
+				{m.settings_recipes_normalize_counts({ remaining: data.legacyRecipeCount, review: data.reviewDraftCount })}
+			</p>
+			<button
+				type="button"
+				class="btn btn-sm btn-outline mt-3"
+				disabled={normalizationRunning || data.legacyRecipeCount === 0}
+				onclick={improveExistingRecipes}
+			>
+				{normalizationRunning ? m.settings_recipes_normalize_running() : m.settings_recipes_normalize_button()}
+			</button>
+			{#if normalizationStatus}<p class="mt-2 text-xs" role="status">{normalizationStatus}</p>{/if}
 		</section>
 	</div>
 </div>

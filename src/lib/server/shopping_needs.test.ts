@@ -7,11 +7,11 @@ import { createTestDb, type TestDb } from '$lib/server/test_db';
 import { createMealRecipe } from '$lib/server/meal_recipes';
 import { deriveWeekNeeds, type PlannedMealForNeeds } from './shopping_needs';
 
-function seedRecipe(db: TestDb, slug: string, ingredients: Ingredient[]) {
+function seedRecipe(db: TestDb, slug: string, ingredients: Ingredient[], servings: number | null = 4) {
 	const now = new Date();
 	return db
 		.insert(schema.recipes)
-		.values({ slug, title: slug, ingredients, directions: [], createdAt: now, updatedAt: now })
+		.values({ slug, title: slug, servings, ingredients, directions: [], createdAt: now, updatedAt: now })
 		.returning()
 		.get();
 }
@@ -19,8 +19,9 @@ function seedRecipe(db: TestDb, slug: string, ingredients: Ingredient[]) {
 const meal = (
 	dinner: string,
 	recipeSlug: string | null,
-	source: 'fresh' | 'freezer' = 'fresh'
-): PlannedMealForNeeds => ({ dinner, recipeSlug, source });
+	source: 'fresh' | 'freezer' = 'fresh',
+	servings?: number | null
+): PlannedMealForNeeds => ({ dinner, recipeSlug, source, servings });
 
 const CURRY: Ingredient[] = [
 	{ name: 'kipdijfilet', amount: '500', unit: 'g', role: 'cook_in' },
@@ -135,5 +136,42 @@ describe('deriveWeekNeeds', () => {
 
 		expect(res.needed).toEqual([]);
 		expect(res.mealsWithoutRecipe).toEqual(['Pizza bestellen', 'Verdwenen']);
+	});
+
+	it('projects planned servings exactly once and sums compatible shared ingredients', () => {
+		const db = createTestDb();
+		seedRecipe(db, 'curry', [{ name: 'rijst', amount: '400', unit: 'g' }], 4);
+
+		const res = deriveWeekNeeds(db, [
+			meal('Curry groot', 'curry', 'fresh', 6),
+			meal('Curry klein', 'curry', 'fresh', 2)
+		]);
+
+		expect(res.needed).toHaveLength(1);
+		expect(res.needed[0]).toMatchObject({ name: 'rijst', amount: '800', unit: 'g' });
+	});
+
+	it('projects each meal-recipe child from its own yield', () => {
+		const db = createTestDb();
+		const curry = seedRecipe(db, 'curry', [{ name: 'kip', amount: '200', unit: 'g' }], 2);
+		const rice = seedRecipe(db, 'rice', [{ name: 'rijst', amount: '400', unit: 'g' }], 4);
+		const combo = createMealRecipe(db, { title: 'Curry met rijst', subRecipeIds: [curry.id, rice.id] });
+
+		const res = deriveWeekNeeds(db, [meal('Curry met rijst', combo.slug, 'fresh', 6)]);
+
+		expect(res.needed.find((item) => item.name === 'kip')?.amount).toBe('600');
+		expect(res.needed.find((item) => item.name === 'rijst')?.amount).toBe('600');
+	});
+
+	it('keeps optional choices and unsafe unit combinations explicit', () => {
+		const db = createTestDb();
+		seedRecipe(db, 'a', [{ name: 'tomaat', amount: '2', unit: 'stuk', optional: true, origin: 'ai_suggested', substitutes: [{ name: 'paprika' }] }]);
+		seedRecipe(db, 'b', [{ name: 'tomaat', amount: '400', unit: 'g', optional: true }]);
+
+		const [tomaat] = deriveWeekNeeds(db, [meal('A', 'a'), meal('B', 'b')]).needed;
+
+		expect(tomaat).toMatchObject({ optional: true, incompatibleQuantities: true });
+		expect(tomaat.amount).toBe('2 stuk + 400 g');
+		expect(tomaat.substitutes).toEqual(['paprika']);
 	});
 });

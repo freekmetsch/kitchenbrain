@@ -10,12 +10,15 @@ import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
-import { createMessage, loadPrompt, logSpend, parseModelJson } from '$lib/server/ai/client';
+import { checkDailyCap, createMessage, loadPrompt, logSpend, parseModelJson } from '$lib/server/ai/client';
 import { getChatModel } from '$lib/server/ai/config';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';
 import { getAutoTranslateOnImport, getCookModePreGeneration } from '$lib/server/recipes/prefs';
 import { normalizeFoodCategory } from '$lib/food_categories';
+import { z } from 'zod';
+import { IngredientArraySchema } from '$lib/recipe_ingredient';
+import { getBackgroundModel } from '$lib/server/ai/config';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -32,6 +35,11 @@ export type ScrapedRecipe = {
 	notes: string | null;
 	language: string;
 	cuisine: string | null;
+	/** Original source lines, kept intact until enrichment validates. */
+	rawIngredients: string[];
+	structureVersion: 1 | 2;
+	structureDraft: Ingredient[] | null;
+	enrichmentReviewReason: string | null;
 };
 
 /** Typed failure so callers map to the right HTTP status / tool error. */
@@ -221,9 +229,118 @@ function parseRawIngredient(raw: string): Ingredient {
 		: { name: raw, amount: '' };
 }
 
+const EnrichedIngredientSchema = z.object({
+	sourceIndex: z.number().int().nonnegative().nullable(),
+	name: z.string().trim().min(1),
+	amount: z.string().trim(),
+	unit: z.string().trim().min(1).optional(),
+	preparation: z.string().trim().min(1).optional(),
+	role: z.enum(['cook_in', 'serve_fresh']),
+	optional: z.boolean(),
+	component: z.string().trim().min(1).optional(),
+	purchaseForm: z.enum(['fresh', 'preserved', 'frozen', 'dried', 'any']),
+	scale: z.enum(['linear', 'whole', 'fixed']),
+	origin: z.enum(['source', 'ai_suggested']),
+	substitutes: z.array(z.object({
+		name: z.string().trim().min(1),
+		kind: z.enum(['protein', 'spice', 'vegetable', 'other']).optional(),
+		note: z.string().trim().min(1).max(500).optional()
+	})).max(12).optional()
+});
+
+const EnrichmentSchema = z.object({
+	confidence: z.enum(['high', 'low']),
+	ingredients: z.array(EnrichedIngredientSchema).max(100),
+	reviewReason: z.string().trim().min(1).max(500).nullable().default(null)
+});
+
+export type ValidatedEnrichment = {
+	confidence: 'high' | 'low';
+	ingredients: Ingredient[];
+	reviewReason: string | null;
+};
+
+/** Deterministic writer gate: every source line appears exactly once. */
+export function validateRecipeEnrichment(raw: unknown, sourceCount: number): ValidatedEnrichment {
+	const parsed = EnrichmentSchema.parse(raw);
+	const sourceIndexes = parsed.ingredients
+		.filter((ingredient) => ingredient.origin === 'source')
+		.map((ingredient) => ingredient.sourceIndex);
+	const expected = Array.from({ length: sourceCount }, (_, index) => index);
+	const actual = sourceIndexes.filter((index): index is number => index != null).sort((a, b) => a - b);
+	if (sourceIndexes.some((index) => index == null) || actual.length !== expected.length || actual.some((index, i) => index !== expected[i])) {
+		throw new Error('Enrichment must preserve every source ingredient exactly once');
+	}
+	for (const ingredient of parsed.ingredients) {
+		if (ingredient.sourceIndex != null && ingredient.sourceIndex >= sourceCount) {
+			throw new Error('Enrichment references an unknown source ingredient');
+		}
+		if (ingredient.origin === 'ai_suggested' && (ingredient.optional !== true || ingredient.sourceIndex !== null)) {
+			throw new Error('AI suggestions must be optional and must not claim a source line');
+		}
+		if (ingredient.origin === 'source' && ingredient.sourceIndex === null) {
+			throw new Error('Source ingredients must reference their source line');
+		}
+	}
+
+	const ingredients = IngredientArraySchema.parse(
+		parsed.ingredients.map(({ sourceIndex: _sourceIndex, ...ingredient }) => ingredient)
+	);
+	return { confidence: parsed.confidence, ingredients, reviewReason: parsed.reviewReason };
+}
+
+export async function enrichRecipeStructure(data: ScrapedRecipe): Promise<ScrapedRecipe> {
+	if (data.rawIngredients.length === 0) {
+		return { ...data, enrichmentReviewReason: 'Imported without ingredients; structure could not be improved.' };
+	}
+	if (checkDailyCap('background').exceeded) {
+		return { ...data, enrichmentReviewReason: 'Background AI spend cap reached; improve this recipe later.' };
+	}
+	try {
+		const msg = await createMessage({
+			model: getBackgroundModel().value,
+			system: loadPrompt('recipe_enrich'),
+			messages: [{
+				role: 'user',
+				content: JSON.stringify({
+					title: data.title,
+					language: data.language,
+					rawIngredients: data.rawIngredients,
+					directions: data.directions
+				})
+			}]
+		});
+		logSpend(msg.model, msg.usage, msg.costUsd);
+		const enriched = validateRecipeEnrichment(parseModelJson(msg.text), data.rawIngredients.length);
+		if (enriched.confidence === 'low') {
+			return {
+				...data,
+				structureDraft: enriched.ingredients,
+				structureVersion: 1,
+				enrichmentReviewReason: enriched.reviewReason ?? 'Check the proposed ingredient structure before applying it.'
+			};
+		}
+		return {
+			...data,
+			ingredients: enriched.ingredients,
+			structureDraft: null,
+			structureVersion: 2,
+			enrichmentReviewReason: null
+		};
+	} catch (error) {
+		return {
+			...data,
+			structureVersion: 1,
+			structureDraft: null,
+			enrichmentReviewReason: `Ingredient structure needs review: ${error instanceof Error ? error.message : 'invalid enrichment'}`
+		};
+	}
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseJsonLd(ld: any, url: string): ScrapedRecipe {
-	const ingredients: Ingredient[] = (ld.recipeIngredient ?? []).map(parseRawIngredient);
+	const rawIngredients: string[] = (ld.recipeIngredient ?? []).map(String);
+	const ingredients: Ingredient[] = rawIngredients.map(parseRawIngredient);
 	const directions: string[] = (ld.recipeInstructions ?? [])
 		.map((s: string | { text?: string }) => (typeof s === 'string' ? s : (s.text ?? '')))
 		.filter(Boolean);
@@ -243,6 +360,10 @@ function parseJsonLd(ld: any, url: string): ScrapedRecipe {
 		notes: null as string | null,
 		language: 'nl',
 		cuisine: (ld.recipeCuisine ?? null) as string | null
+		,rawIngredients
+		,structureVersion: 1
+		,structureDraft: null
+		,enrichmentReviewReason: null
 	};
 }
 
@@ -267,7 +388,8 @@ async function scrapeWithClaude(url: string, html: string): Promise<ScrapedRecip
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const raw = parseModelJson(text) as any;
 
-	const ingredients: Ingredient[] = (raw.ingredients_raw ?? []).map(parseRawIngredient);
+	const rawIngredients: string[] = (raw.ingredients_raw ?? []).map(String);
+	const ingredients: Ingredient[] = rawIngredients.map(parseRawIngredient);
 	return {
 		title: (raw.aliases?.[0] ?? raw.title ?? '') as string,
 		category: normalizeFoodCategory((raw.recipe_category ?? null) as string | null),
@@ -279,7 +401,11 @@ async function scrapeWithClaude(url: string, html: string): Promise<ScrapedRecip
 		directions: (raw.directions ?? []) as string[],
 		notes: (raw.notes ?? null) as string | null,
 		language: (raw.language ?? 'nl') as string,
-		cuisine: (raw.cuisine ?? null) as string | null
+		cuisine: (raw.cuisine ?? null) as string | null,
+		rawIngredients,
+		structureVersion: 1,
+		structureDraft: null,
+		enrichmentReviewReason: null
 	};
 }
 
@@ -332,7 +458,7 @@ export async function scrapeRecipeFromUrl(
 	}
 
 	if (!recipeData.title) throw new RecipeIngestError('No recipe title found', 'no_title');
-	return recipeData;
+	return enrichRecipeStructure(recipeData);
 }
 
 /**
@@ -373,7 +499,7 @@ export function insertScrapedRecipe(
 	db: DB,
 	data: ScrapedRecipe
 ): { slug: string; title: string; needsReview: boolean; reviewReason: string | null } {
-	const review = reviewFields(scrapeReview(data));
+	const review = reviewFields(data.enrichmentReviewReason ?? scrapeReview(data));
 	const slug = uniqueSlug(db, slugify(data.title));
 	const now = new Date();
 
@@ -385,6 +511,9 @@ export function insertScrapedRecipe(
 			category: data.category,
 			tags: [],
 			servings: data.servings,
+			structureVersion: data.structureVersion,
+			structureDraft: data.structureDraft,
+			structureDraftSourceUpdatedAt: data.structureDraft ? now : null,
 			totalTimeMin: data.totalTimeMin,
 			sourceUrl: data.sourceUrl,
 			imageUrl: data.imageUrl,

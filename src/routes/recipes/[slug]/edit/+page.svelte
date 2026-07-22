@@ -52,6 +52,7 @@
 	let draftReady = $state(false);
 	let draftRecovered = $state(false);
 	let errorSummary: HTMLDivElement | null = $state(null);
+	let imageUploading = $state(false);
 
 	let serializedIngredients = $derived(serializeIngredients(ingredients));
 	let serializedDirections = $derived(serializeDirections(directions));
@@ -69,7 +70,7 @@
 	}
 
 	const initialSnapshot = untrack(snapshot);
-	let dirty = $derived(snapshot() !== initialSnapshot);
+	let dirty = $derived(snapshot() !== initialSnapshot || data.reviewingStructureDraft);
 	let classifiedCount = $derived(
 		ingredients.filter((ingredient) => ingredient.role === 'cook_in' || ingredient.role === 'serve_fresh').length
 	);
@@ -100,6 +101,25 @@
 		applyDraft(serverDraft());
 		draftRecovered = false;
 		sessionStorage.removeItem(draftKey);
+	}
+
+	async function handleImagePaste(event: ClipboardEvent) {
+		const item = Array.from(event.clipboardData?.items ?? []).find((candidate) => candidate.type.startsWith('image/'));
+		const file = item?.getAsFile();
+		if (!file || imageUploading) return;
+		event.preventDefault();
+		imageUploading = true;
+		try {
+			const formData = new FormData();
+			formData.append('image', file);
+			const response = await fetch(`${base}/api/recipes/${data.recipe.slug}/image`, { method: 'POST', body: formData });
+			if (!response.ok) throw new Error();
+			toast.success(m.recipes_image_pasted());
+		} catch {
+			toast.error(m.recipes_toast_upload_failed({ status: 0 }));
+		} finally {
+			imageUploading = false;
+		}
 	}
 
 	onMount(() => {
@@ -146,6 +166,8 @@
 	<title>{m.recipes_edit_heading()} {data.recipe.title} · {m.recipes_title_suffix()}</title>
 </svelte:head>
 
+<svelte:window onpaste={handleImagePaste} />
+
 <div class="ui-page-shell px-4 pb-8">
 	<header class="sticky top-0 z-30 -mx-4 mb-4 flex items-center gap-2 border-b border-base-200 bg-base-100/95 px-4 py-2 backdrop-blur">
 		<a
@@ -181,6 +203,11 @@
 			<button type="button" class="btn btn-ghost btn-sm min-h-9" onclick={discardRecoveredDraft}>
 				{m.recipes_edit_draft_discard()}
 			</button>
+		</div>
+	{/if}
+	{#if data.reviewingStructureDraft}
+		<div class="mb-3 rounded-xl border border-info/30 bg-info/10 px-3 py-2 text-sm text-info">
+			{m.recipes_edit_structure_review_hint()}
 		</div>
 	{/if}
 
@@ -260,5 +287,6 @@
 
 		<input type="hidden" name="ingredients" value={serializedIngredients} />
 		<input type="hidden" name="directions" value={serializedDirections} />
+		<input type="hidden" name="acceptStructureDraft" value={data.reviewingStructureDraft ? '1' : '0'} />
 	</form>
 </div>

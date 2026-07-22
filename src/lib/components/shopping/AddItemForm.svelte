@@ -50,7 +50,19 @@
 				})
 			});
 			if (!r.ok) throw new Error(`HTTP ${r.status}`);
-			onAdded({ name, amount, unit, bought: false, manual: true, covered: false });
+			onAdded({
+				name,
+				amount,
+				unit,
+				bought: false,
+				manual: true,
+				manualContribution: true,
+				manualAmount: amount,
+				manualUnit: unit,
+				included: true,
+				selectedName: name,
+				covered: false
+			});
 			addName = '';
 			addAmount = '';
 			addUnit = '';

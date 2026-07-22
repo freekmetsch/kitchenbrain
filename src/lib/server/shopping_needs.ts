@@ -17,8 +17,9 @@ import { inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient, MealSource } from '$lib/server/db/schema';
-import { expandMealIngredients } from '$lib/server/meal_recipes';
+import { expandMealIngredientsForServings } from '$lib/server/meal_recipes';
 import { ingredientRoleCoverage } from '$lib/server/recipe_links';
+import { sumCompatibleQuantities } from '$lib/recipe_scale';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -26,6 +27,7 @@ export type PlannedMealForNeeds = {
 	dinner: string;
 	recipeSlug: string | null;
 	source: MealSource;
+	servings?: number | null;
 };
 
 export type NeededIngredient = {
@@ -36,6 +38,12 @@ export type NeededIngredient = {
 	forMeals: string[];
 	/** True when only freezer-planned meals need it (it's a fresh side, not a cook-from-scratch ingredient). */
 	freshSideOnly: boolean;
+	optional: boolean;
+	suggested: boolean;
+	substitutes: string[];
+	purchaseForm: Ingredient['purchaseForm'];
+	/** True when matching names used units that cannot safely be summed. */
+	incompatibleQuantities: boolean;
 };
 
 export type FreezerMealRef = { dinner: string; recipeSlug: string };
@@ -58,7 +66,8 @@ export function deriveWeekNeeds(db: DB, meals: PlannedMealForNeeds[]): WeekNeeds
 					.select({
 						id: schema.recipes.id,
 						slug: schema.recipes.slug,
-						ingredients: schema.recipes.ingredients
+					ingredients: schema.recipes.ingredients,
+					servings: schema.recipes.servings
 					})
 					.from(schema.recipes)
 					.where(inArray(schema.recipes.slug, slugs))
@@ -66,26 +75,16 @@ export function deriveWeekNeeds(db: DB, meals: PlannedMealForNeeds[]): WeekNeeds
 			: [];
 	const recipeBySlug = new Map(recipeRows.map((r) => [r.slug, r]));
 
-	const needed = new Map<string, NeededIngredient>();
+	const contributions = new Map<string, Array<{ ingredient: Ingredient; meal: PlannedMealForNeeds }>>();
 	const mealsWithoutRecipe: string[] = [];
 	const freezerMeals: FreezerMealRef[] = [];
 	const freezerMealsMissingFreshInfo: FreezerMealRef[] = [];
 
 	const contribute = (ing: Ingredient, meal: PlannedMealForNeeds) => {
 		const key = ing.name.toLowerCase();
-		const existing = needed.get(key);
-		if (existing) {
-			if (!existing.forMeals.includes(meal.dinner)) existing.forMeals.push(meal.dinner);
-			if (meal.source !== 'freezer') existing.freshSideOnly = false;
-			return;
-		}
-		needed.set(key, {
-			name: ing.name,
-			amount: ing.amount,
-			unit: ing.unit,
-			forMeals: [meal.dinner],
-			freshSideOnly: meal.source === 'freezer'
-		});
+		const rows = contributions.get(key) ?? [];
+		rows.push({ ingredient: ing, meal });
+		contributions.set(key, rows);
 	};
 
 	for (const meal of meals) {
@@ -97,7 +96,9 @@ export function deriveWeekNeeds(db: DB, meals: PlannedMealForNeeds[]): WeekNeeds
 			continue;
 		}
 
-		const ingredients = expandMealIngredients(db, recipe);
+		// The shared projection is the only place a plan occasion changes recipe
+		// quantities. Composite children are each projected from their own yield.
+		const ingredients = expandMealIngredientsForServings(db, recipe, meal.servings);
 		if (meal.source === 'freezer') {
 			const ref: FreezerMealRef = { dinner: meal.dinner, recipeSlug: recipe.slug };
 			freezerMeals.push(ref);
@@ -114,8 +115,30 @@ export function deriveWeekNeeds(db: DB, meals: PlannedMealForNeeds[]): WeekNeeds
 		for (const ing of ingredients) contribute(ing, meal);
 	}
 
+	const needed: NeededIngredient[] = [];
+	for (const rows of contributions.values()) {
+		const first = rows[0].ingredient;
+		const summed = sumCompatibleQuantities(rows.map(({ ingredient }) => ingredient));
+		const incompatibleQuantities = rows.length > 1 && summed == null;
+		const amount = summed?.amount ?? rows.map(({ ingredient }) => `${ingredient.amount}${ingredient.unit ? ` ${ingredient.unit}` : ''}`).join(' + ');
+		const unit = summed?.unit;
+		const forms = new Set(rows.map(({ ingredient }) => ingredient.purchaseForm).filter(Boolean));
+		needed.push({
+			name: first.name,
+			amount,
+			unit,
+			forMeals: [...new Set(rows.map(({ meal }) => meal.dinner))],
+			freshSideOnly: rows.every(({ meal }) => meal.source === 'freezer'),
+			optional: rows.every(({ ingredient }) => ingredient.optional === true),
+			suggested: rows.every(({ ingredient }) => ingredient.origin === 'ai_suggested'),
+			substitutes: [...new Set(rows.flatMap(({ ingredient }) => ingredient.substitutes?.map((sub) => sub.name) ?? []))],
+			purchaseForm: forms.size === 1 ? [...forms][0] : 'any',
+			incompatibleQuantities
+		});
+	}
+
 	return {
-		needed: [...needed.values()],
+		needed,
 		mealsWithoutRecipe,
 		freezerMeals,
 		freezerMealsMissingFreshInfo

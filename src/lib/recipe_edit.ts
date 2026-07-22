@@ -10,7 +10,13 @@ export type IngredientDraft = {
 	name: string;
 	amount: string;
 	unit?: string;
+	preparation?: string;
 	role?: 'cook_in' | 'serve_fresh';
+	optional?: boolean;
+	component?: string;
+	purchaseForm?: 'fresh' | 'preserved' | 'frozen' | 'dried' | 'any';
+	scale?: 'linear' | 'whole' | 'fixed';
+	origin?: 'source' | 'ai_suggested';
 	substitutes?: SubstituteDraft[];
 };
 
@@ -33,6 +39,8 @@ export function hydrateIngredients(items: PersistedIngredient[]): IngredientDraf
 		...ingredient,
 		clientId: ingredient.clientId || createRecipeEditId('ingredient'),
 		unit: ingredient.unit ?? '',
+		preparation: ingredient.preparation ?? '',
+		component: ingredient.component ?? '',
 		substitutes: (ingredient.substitutes ?? []).map((substitute) => ({
 			...substitute,
 			clientId: substitute.clientId || createRecipeEditId('substitute')
@@ -55,7 +63,13 @@ export function serializeIngredients(items: IngredientDraft[]): string {
 				name: ingredient.name.trim(),
 				amount: ingredient.amount.trim(),
 				unit: ingredient.unit?.trim() || undefined,
+				preparation: ingredient.preparation?.trim() || undefined,
 				role: ingredient.role,
+				optional: ingredient.optional || undefined,
+				component: ingredient.component?.trim() || undefined,
+				purchaseForm: ingredient.purchaseForm,
+				scale: ingredient.scale,
+				origin: ingredient.origin,
 				substitutes: (ingredient.substitutes ?? [])
 					.map((substitute) => ({
 						name: substitute.name.trim(),

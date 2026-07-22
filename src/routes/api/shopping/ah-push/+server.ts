@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import * as schema from '$lib/server/db/schema';
 import {
@@ -13,9 +13,32 @@ import {
 	AH_NOT_CONNECTED
 } from '$lib/server/ah/client';
 import type { PushProduct, PushFreetext, PushSkipped } from '$lib/shopping_ah';
+import { packQuantitySchema } from '$lib/shopping_ah';
+import { z } from 'zod';
+import { readJsonBody } from '$lib/server/api_body';
+import { isoDateSchema } from '$lib/date_schema';
+import { findShoppingOverride } from '$lib/server/shopping_overrides';
 
 type Failed = { term: string; kind: 'product' | 'freetext' };
 type PushedChoice = PushProduct | PushFreetext;
+
+const ChoiceBase = z.object({
+	ref: z.string().min(1).max(256),
+	sourceName: z.string().min(1).max(256),
+	term: z.string().min(1).max(256),
+	amount: z.string().max(64).nullable(),
+	unit: z.string().max(64).nullable()
+});
+const BodySchema = z.object({
+	weekStart: isoDateSchema.optional(),
+	products: z.array(ChoiceBase.extend({
+		id: z.string().min(1).max(256),
+		name: z.string().min(1).max(512),
+		qty: packQuantitySchema
+	})).default([]),
+	freetext: z.array(ChoiceBase).default([]),
+	skipped: z.array(ChoiceBase).default([])
+});
 
 /**
  * AH-INVARIANT: free-text descriptions must stay Dutch. The term is the Dutch
@@ -34,23 +57,11 @@ function freetextDescription({ term, amount, unit }: PushFreetext): string {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 
-	let raw: unknown;
-	try {
-		raw = await request.json();
-	} catch {
-		error(400, 'Invalid JSON');
-	}
-	if (raw === null || typeof raw !== 'object') error(400, 'Invalid JSON');
-	const body = raw as {
-		weekStart?: string;
-		products?: PushProduct[];
-		freetext?: PushFreetext[];
-		skipped?: PushSkipped[];
-	};
+	const body = await readJsonBody(request, BodySchema);
 	const weekStart = body.weekStart;
-	const products = Array.isArray(body.products) ? body.products : [];
-	const freetext = Array.isArray(body.freetext) ? body.freetext : [];
-	const skipped = Array.isArray(body.skipped) ? body.skipped : [];
+	const products = body.products as PushProduct[];
+	const freetext = body.freetext as PushFreetext[];
+	const skipped = body.skipped as PushSkipped[];
 
 	let productsPushed = 0;
 	let freetextPushed = 0;
@@ -87,7 +98,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (order) destination = 'order';
 
 		if (products.length) {
-			const items = products.map((p) => ({ id: p.id, qty: Math.max(1, Math.round(p.qty) || 1) }));
+			const items = products.map((p) => ({ id: p.id, qty: p.qty }));
 			const res = order ? await addProductsToOrder(order.id, items) : await addProductItems(items);
 			if (res.ok) {
 				productsPushed = products.length;
@@ -154,14 +165,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					const rows: (typeof schema.shoppingPushItems.$inferInsert)[] = [
 						...products.map((item) => ({
 							pushId: history.id,
-							sourceRef: item.ref,
-							sourceName: item.term,
+							sourceRef: item.sourceName,
+							sourceName: item.sourceName,
 							amount: item.amount,
 							unit: item.unit,
 							mode: 'product' as const,
 							ahProductId: item.id,
 							ahProductName: item.name,
-							quantity: Math.max(1, Math.round(item.qty) || 1),
+							quantity: item.qty,
 							destination,
 							status: successRefs.has(item.ref) ? ('success' as const) : ('failed' as const),
 							failureReason: successRefs.has(item.ref) ? null : (reason ?? null),
@@ -169,8 +180,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						})),
 						...freetext.map((item) => ({
 							pushId: history.id,
-							sourceRef: item.ref,
-							sourceName: item.term,
+							sourceRef: item.sourceName,
+							sourceName: item.sourceName,
 							amount: item.amount,
 							unit: item.unit,
 							mode: 'freetext' as const,
@@ -184,8 +195,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						})),
 						...skipped.map((item) => ({
 							pushId: history.id,
-							sourceRef: item.ref,
-							sourceName: item.term,
+							sourceRef: item.sourceName,
+							sourceName: item.sourceName,
 							amount: item.amount,
 							unit: item.unit,
 							mode: 'skip' as const,
@@ -203,16 +214,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 					const refs: string[] = [];
 					for (const choice of successfulChoices) {
-						const existing = tx
-							.select()
-							.from(schema.shoppingListOverrides)
-							.where(
-								and(
-									eq(schema.shoppingListOverrides.weekStartDate, weekStart),
-									eq(schema.shoppingListOverrides.name, choice.term)
-								)
-							)
-							.get();
+						const existing = findShoppingOverride(tx, weekStart, choice.sourceName);
 
 						if (existing) {
 							tx.update(schema.shoppingListOverrides)
@@ -223,9 +225,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 							tx.insert(schema.shoppingListOverrides)
 								.values({
 									weekStartDate: weekStart,
-									name: choice.term,
+									name: choice.sourceName,
 									bought: true,
 									manual: false,
+									selectedName: choice.term === choice.sourceName ? null : choice.term,
 									amount: choice.amount,
 									unit: choice.unit,
 									createdAt: now

@@ -23,6 +23,7 @@
 		searchTerm?: string;
 		onToggleExclude: () => void;
 		onPickProduct: (idx: number) => void;
+		onQuantityChange: (qty: number) => void;
 		onToggleFavorite: (cand: PreviewItem['candidates'][number], idx: number) => void;
 		onDemoteToText: () => void;
 		onToggleExpanded: () => void;
@@ -41,6 +42,7 @@
 		searchTerm = $bindable(),
 		onToggleExclude,
 		onPickProduct,
+		onQuantityChange,
 		onToggleFavorite,
 		onDemoteToText,
 		onToggleExpanded,
@@ -127,6 +129,17 @@
 		</div>
 		{#if sel.isBonus && sel.bonusMechanism}
 			<div class="ui-chip-active mt-1.5 w-fit border-error/40 bg-error/10 text-error">{sel.bonusMechanism}</div>
+		{/if}
+		<div class="mt-2 flex items-center justify-between gap-3 rounded-xl bg-base-200/60 px-2 py-1.5">
+			<span class="text-xs text-base-content/60">{m.shopping_ah_pack_quantity()}</span>
+			<div class="join" role="group" aria-label={m.shopping_ah_pack_quantity()}>
+				<button type="button" class="btn btn-sm join-item" disabled={(dec?.qty ?? 1) <= 1} onclick={() => onQuantityChange((dec?.qty ?? 1) - 1)}>−</button>
+				<input class="input input-sm join-item w-14 text-center tabular-nums" type="number" min="1" max="99" value={dec?.qty ?? 1} onchange={(event) => onQuantityChange(Number(event.currentTarget.value))} />
+				<button type="button" class="btn btn-sm join-item" disabled={(dec?.qty ?? 1) >= 99} onclick={() => onQuantityChange((dec?.qty ?? 1) + 1)}>+</button>
+			</div>
+		</div>
+		{#if sel.pricePerCount != null}
+			<p class="mt-1 text-right text-xs text-base-content/55">{m.shopping_ah_price_per_count({ price: formatPrice(sel.pricePerCount) })}</p>
 		{/if}
 		{#if item.lowConfidence}
 			<p class="mt-1.5 text-xs text-warning">{m.shopping_ah_low_confidence()}</p>

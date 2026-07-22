@@ -7,22 +7,7 @@ import { recipes } from '$lib/server/db/schema';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import { recipeIngredientsEqual } from '$lib/recipe_edit';
 import type { Actions, PageServerLoad } from './$types';
-
-const SubstituteSchema = z.object({
-	name: z.string().trim().min(1, 'substitute name required'),
-	kind: z.enum(['protein', 'spice', 'vegetable', 'other']).optional(),
-	note: z.string().trim().max(500).optional()
-});
-
-const IngredientSchema = z.object({
-	name: z.string().trim().min(1, 'name required'),
-	amount: z.string().trim().default(''),
-	unit: z.string().trim().optional(),
-	// Set via the AI chat; z.object strips unknown keys, so without this a
-	// manual save silently wipes every role (kills serve-from-freezer).
-	role: z.enum(['cook_in', 'serve_fresh']).optional(),
-	substitutes: z.array(SubstituteSchema).max(12).optional()
-});
+import { IngredientSchema } from '$lib/recipe_ingredient';
 
 const RecipeEditSchema = z.object({
 	title: z.string().trim().min(1, 'title required').max(200),
@@ -35,6 +20,7 @@ const RecipeEditSchema = z.object({
 		.refine((value) => value.startsWith('https://') || value.startsWith('http://'), 'source URL must use http or https')
 		.nullable(),
 	servings: z.number().int().positive().max(99).nullable(),
+	acceptStructureDraft: z.boolean().default(false),
 	ingredients: z.array(IngredientSchema).min(1, 'at least one ingredient'),
 	directions: z.array(z.string().trim().min(1, 'empty direction')).min(1, 'at least one direction')
 });
@@ -57,6 +43,7 @@ function parseFormPayload(form: FormData): FormPayload {
 		notes: form.get('notes') ? String(form.get('notes')).trim() || null : null,
 		sourceUrl: form.get('sourceUrl') ? String(form.get('sourceUrl')).trim() || null : null,
 		servings: rawServings && String(rawServings).trim() ? Number(rawServings) : null,
+		acceptStructureDraft: form.get('acceptStructureDraft') === '1',
 		ingredients,
 		directions
 	});
@@ -66,7 +53,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 	const recipe = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
 	if (!recipe) throw error(404, 'Recipe not found');
-	return { recipe };
+	const reviewingStructureDraft =
+		recipe.structureDraft != null &&
+		recipe.structureDraftSourceUpdatedAt?.getTime() === recipe.updatedAt.getTime();
+	return {
+		recipe: reviewingStructureDraft ? { ...recipe, ingredients: recipe.structureDraft } : recipe,
+		reviewingStructureDraft
+	};
 };
 
 export const actions: Actions = {
@@ -89,6 +82,13 @@ export const actions: Actions = {
 
 		const current = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
 		if (!current) return fail(404, { error: 'Recipe not found' });
+		if (
+			payload.acceptStructureDraft &&
+			(current.structureDraft == null ||
+				current.structureDraftSourceUpdatedAt?.getTime() !== current.updatedAt.getTime())
+		) {
+			return fail(409, { error: 'This recipe changed after the suggestion was created. Run the improvement again.' });
+		}
 		const sameJson = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 		const ingredientsChanged = !recipeIngredientsEqual(current.ingredients, payload.ingredients);
 		const cookingInputsChanged =
@@ -112,6 +112,9 @@ export const actions: Actions = {
 				notes: payload.notes,
 				sourceUrl: payload.sourceUrl,
 				servings: payload.servings,
+				...(payload.acceptStructureDraft
+					? { structureVersion: 2, structureDraft: null, structureDraftSourceUpdatedAt: null }
+					: {}),
 				ingredients: payload.ingredients,
 				directions: payload.directions,
 				...(cookingInputsChanged ? { cookModeJson: null, cookModeGeneratedAt: null } : {}),

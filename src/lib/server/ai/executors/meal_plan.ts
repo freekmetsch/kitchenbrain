@@ -61,6 +61,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 				week_start_date: isoDateSchema,
 				dinner: z.string(),
 				recipe_slug: z.string().optional(),
+				servings: z.number().int().positive().max(99).optional(),
 				source: z.enum(['fresh', 'freezer']).optional(),
 				note: z.string().optional()
 			})
@@ -84,6 +85,10 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			.get();
 		const nextOrder = (existing?.sortOrder ?? -1) + 1;
 
+		const baselineServings = input.recipe_slug
+			? db.select({ servings: schema.recipes.servings }).from(schema.recipes)
+					.where(eq(schema.recipes.slug, input.recipe_slug)).get()?.servings ?? null
+			: null;
 		const meal = db
 			.insert(schema.mealPlanMeals)
 			.values({
@@ -91,6 +96,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 				weekStartDate,
 				dinner: input.dinner,
 				recipeSlug: input.recipe_slug ?? null,
+				servings: input.servings ?? baselineServings,
 				source: input.source ?? 'fresh',
 				note: input.note ?? null,
 				sortOrder: nextOrder,

@@ -8,20 +8,9 @@ import { deriveWeekNeeds } from '$lib/server/shopping_needs';
 import { getAHStatus } from '$lib/server/ah/client';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
 import { addDays, deliveryDateForPlanningWeek, isIsoDate, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
-
-export type ShoppingItem = {
-	name: string;
-	amount: string | null;
-	unit: string | null;
-	bought: boolean;
-	manual: boolean;
-	covered?: boolean;
-	staple?: boolean;
-	/** Planned dinners this item is needed for (derived rows only). */
-	forMeals?: string[];
-	/** Needed only as a fresh side next to freezer-served meal(s). */
-	freshSide?: boolean;
-};
+import { sumCompatibleQuantities } from '$lib/recipe_scale';
+import type { ShoppingListItem as ShoppingItem } from '$lib/components/shopping/types';
+import { listShoppingOverrides } from '$lib/server/shopping_overrides';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(302, '/login');
@@ -65,23 +54,26 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const stapleKeys = new Set(inventory.filter((inv) => inv.isStaple).map((s) => normalizeNameKey(s.name)));
 	const isStapleName = (name: string) => stapleKeys.has(normalizeNameKey(name));
 
-	const derived: ShoppingItem[] = needs.needed.map(({ name, amount, unit, forMeals, freshSideOnly }) => ({
+	const derived: ShoppingItem[] = needs.needed.map(({ name, amount, unit, forMeals, freshSideOnly, optional, suggested, substitutes, purchaseForm, incompatibleQuantities }) => ({
 		name,
 		amount: amount ?? null,
 		unit: unit ?? null,
 		bought: false,
 		manual: false,
+		included: !optional && !isStapleName(name),
+		selectedName: name,
+		optional,
+		suggested,
+		substitutes,
+		purchaseForm,
+		incompatibleQuantities,
 		covered: inventory.some((inv) => namesMatch(name, inv.name)),
 		staple: isStapleName(name),
 		forMeals,
 		freshSide: freshSideOnly
 	}));
 
-	const overrides = db
-		.select()
-		.from(schema.shoppingListOverrides)
-		.where(eq(schema.shoppingListOverrides.weekStartDate, weekStart))
-		.all();
+	const overrides = listShoppingOverrides(db, weekStart);
 
 	const pushRows = db
 		.select()
@@ -106,26 +98,50 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		pushItemsById.get(item.pushId)!.push(item);
 	}
 
-	const overrideMap = new Map(overrides.map((o) => [o.name.toLowerCase(), o]));
-	const derivedNames = new Set(derived.map((i) => i.name.toLowerCase()));
+	const overrideMap = new Map(overrides.map((o) => [normalizeNameKey(o.name), o]));
+	const derivedNames = new Set(derived.map((i) => normalizeNameKey(i.name)));
 
 	const items: ShoppingItem[] = [];
 	for (const item of derived) {
-		const ov = overrideMap.get(item.name.toLowerCase());
-		if (item.staple && !ov) continue; // excluded by default; only shown when out
-		// A staple with an override is a "we're out" signal — force it visible and
-		// not-covered even though the staple item still physically exists in stock.
-		items.push(item.staple ? { ...item, covered: false, bought: ov!.bought } : ov ? { ...item, bought: ov.bought } : item);
+		const ov = overrideMap.get(normalizeNameKey(item.name));
+		const included = ov?.included ?? item.included;
+		const selectedName = ov?.selectedName ?? item.name;
+		const manualSum = ov?.manual && ov.amount
+			? sumCompatibleQuantities([
+					{ amount: item.amount ?? '', unit: item.unit ?? undefined },
+					{ amount: ov.amount, unit: ov.unit ?? undefined }
+				])
+			: null;
+		items.push({
+			...item,
+			manualContribution: ov?.manual ?? false,
+			manualAmount: ov?.manual ? ov.amount : null,
+			manualUnit: ov?.manual ? ov.unit : null,
+			derivedAmount: item.amount,
+			derivedUnit: item.unit,
+			amount: manualSum?.amount ?? (ov?.manual && ov.amount ? `${item.amount ?? ''} + ${ov.amount}` : item.amount),
+			unit: manualSum?.unit ?? (ov?.manual && ov.amount ? null : item.unit),
+			included,
+			selectedName,
+			bought: ov?.bought ?? false,
+			// An included staple means "we're out" even if the staple record still exists.
+			covered: item.staple && included ? false : inventory.some((inv) => namesMatch(selectedName, inv.name))
+		});
 	}
 
 	for (const ov of overrides) {
-		if (ov.manual && !derivedNames.has(ov.name.toLowerCase())) {
+		if (ov.manual && !derivedNames.has(normalizeNameKey(ov.name))) {
 			items.push({
 				name: ov.name,
 				amount: ov.amount ?? null,
 				unit: ov.unit ?? null,
 				bought: ov.bought,
 				manual: true,
+				manualContribution: true,
+				manualAmount: ov.amount ?? null,
+				manualUnit: ov.unit ?? null,
+				included: ov.included,
+				selectedName: ov.selectedName ?? ov.name,
 				covered: false
 			});
 		}

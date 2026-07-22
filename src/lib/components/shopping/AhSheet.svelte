@@ -110,7 +110,14 @@
 		// Exclude items already covered by stock -- sending them would over-buy.
 		const toSend = pending
 			.filter((i) => !i.covered)
-			.map((i) => ({ ref: itemRef(i), name: i.name, amount: i.amount, unit: i.unit }));
+			.map((i) => ({
+				ref: itemRef(i),
+				sourceName: i.name,
+				name: i.selectedName,
+				amount: i.amount,
+				unit: i.unit,
+				purchaseForm: i.purchaseForm
+			}));
 		if (!toSend.length) {
 			ahLoading = false;
 			ahError = m.shopping_ah_error_no_pending();
@@ -146,9 +153,9 @@
 			const nextFavorites: Record<string, string> = {};
 			const nextSearchTerms: Record<string, string> = {};
 			for (const it of previewItems) {
-				nextDecisions[it.ref] = { mode: it.status === 'product' ? 'product' : 'freetext', pick: 0 };
+				nextDecisions[it.ref] = { mode: it.status === 'product' ? 'product' : 'freetext', pick: 0, qty: it.candidates[0]?.qty ?? 1 };
 				nextSearchTerms[it.ref] = '';
-				if (it.status === 'product') nextBonus[it.term] = it.candidates[0]?.isBonus ?? false;
+				if (it.status === 'product') nextBonus[it.sourceName] = it.candidates[0]?.isBonus ?? false;
 				const fav = it.candidates.find((c) => c.isFavorite);
 				if (fav) nextFavorites[it.term] = fav.id;
 			}
@@ -167,8 +174,16 @@
 	}
 
 	function pickProduct(ref: string, idx: number) {
-		decisions = { ...decisions, [ref]: { mode: 'product', pick: idx } };
+		const item = ahItems?.find((entry) => entry.ref === ref);
+		decisions = { ...decisions, [ref]: { mode: 'product', pick: idx, qty: item?.candidates[idx]?.qty ?? 1 } };
 		expanded = { ...expanded, [ref]: false };
+	}
+
+	function setQuantity(ref: string, qty: number) {
+		const current = decisions[ref];
+		if (!current) return;
+		const safe = Number.isFinite(qty) ? Math.max(1, Math.min(99, Math.round(qty))) : current.qty;
+		decisions = { ...decisions, [ref]: { ...current, qty: safe } };
 	}
 
 	/**
@@ -184,7 +199,7 @@
 			favorites = rest;
 		} else {
 			favorites = { ...favorites, [item.term]: cand.id };
-			decisions = { ...decisions, [item.ref]: { mode: 'product', pick: idx } };
+			decisions = { ...decisions, [item.ref]: { mode: 'product', pick: idx, qty: cand.qty } };
 		}
 		await optimistic(
 			() =>
@@ -203,7 +218,7 @@
 	}
 
 	function demoteToText(ref: string) {
-		decisions = { ...decisions, [ref]: { mode: 'freetext', pick: 0 } };
+		decisions = { ...decisions, [ref]: { mode: 'freetext', pick: 0, qty: 1 } };
 		expanded = { ...expanded, [ref]: false };
 	}
 
@@ -224,7 +239,7 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					items: [{ ref: item.ref, name: term, amount: item.amount, unit: item.unit }],
+					items: [{ ref: item.ref, sourceName: item.sourceName, name: term, amount: item.amount, unit: item.unit }],
 					full: true
 				})
 			});
@@ -246,7 +261,7 @@
 					? { ...it, status: 'product', candidates: fresh.candidates, lowConfidence: fresh.lowConfidence }
 					: it
 			);
-			decisions = { ...decisions, [item.ref]: { mode: 'product', pick: 0 } };
+			decisions = { ...decisions, [item.ref]: { mode: 'product', pick: 0, qty: fresh.candidates[0]?.qty ?? 1 } };
 			expanded = { ...expanded, [item.ref]: true };
 		} finally {
 			searching = { ...searching, [item.ref]: false };
@@ -256,8 +271,8 @@
 	function toggleExclude(ref: string, item: PreviewItem) {
 		const cur = decisions[ref];
 		const back: Decision =
-			item.status === 'product' ? { mode: 'product', pick: cur?.pick ?? 0 } : { mode: 'freetext', pick: 0 };
-		decisions = { ...decisions, [ref]: cur?.mode === 'exclude' ? back : { mode: 'exclude', pick: cur?.pick ?? 0 } };
+			item.status === 'product' ? { mode: 'product', pick: cur?.pick ?? 0, qty: cur?.qty ?? 1 } : { mode: 'freetext', pick: 0, qty: 1 };
+		decisions = { ...decisions, [ref]: cur?.mode === 'exclude' ? back : { mode: 'exclude', pick: cur?.pick ?? 0, qty: cur?.qty ?? 1 } };
 	}
 
 	async function confirmPush() {
@@ -268,14 +283,14 @@
 		for (const it of ahItems) {
 			const d = decisions[it.ref];
 			if (!d || d.mode === 'exclude') {
-				skipped.push({ ref: it.ref, term: it.term, amount: it.amount, unit: it.unit });
+				skipped.push({ ref: it.ref, sourceName: it.sourceName, term: it.term, amount: it.amount, unit: it.unit });
 				continue;
 			}
 			const prod = it.candidates[d.pick];
 			if (d.mode === 'product' && prod) {
-				products.push({ ref: it.ref, term: it.term, amount: it.amount, unit: it.unit, id: prod.id, name: prod.name, qty: prod.qty });
+				products.push({ ref: it.ref, sourceName: it.sourceName, term: it.term, amount: it.amount, unit: it.unit, id: prod.id, name: prod.name, qty: d.qty });
 			} else {
-				freetext.push({ ref: it.ref, term: it.term, amount: it.amount, unit: it.unit });
+				freetext.push({ ref: it.ref, sourceName: it.sourceName, term: it.term, amount: it.amount, unit: it.unit });
 			}
 		}
 		if (!products.length && !freetext.length) {
@@ -311,7 +326,7 @@
 		if (d.ok || pushed > 0) {
 			const markedRefs = new Set<string>(d.markedBoughtRefs ?? []);
 			if (markedRefs.size) {
-				const pushedNames = new Set(ahItems.filter((item) => markedRefs.has(item.ref)).map((item) => item.term.toLowerCase()));
+				const pushedNames = new Set(ahItems.filter((item) => markedRefs.has(item.ref)).map((item) => item.sourceName.toLowerCase()));
 				onMarkedBought(pushedNames);
 			}
 			ahResult = {
@@ -388,6 +403,7 @@
 					bind:searchTerm={searchTerms[item.ref]}
 					onToggleExclude={() => toggleExclude(item.ref, item)}
 					onPickProduct={(idx) => pickProduct(item.ref, idx)}
+					onQuantityChange={(qty) => setQuantity(item.ref, qty)}
 					onToggleFavorite={(cand, idx) => void toggleFavorite(item, cand, idx)}
 					onDemoteToText={() => demoteToText(item.ref)}
 					onToggleExpanded={() => (expanded = { ...expanded, [item.ref]: !expanded[item.ref] })}

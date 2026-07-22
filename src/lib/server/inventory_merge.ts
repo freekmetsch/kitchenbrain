@@ -312,6 +312,7 @@ export function findOrMergeInventory(
 			category: existing.category ?? normalizeFoodCategory(input.category),
 			kind: existing.kind ?? input.kind ?? null,
 			foodClass: existing.foodClass ?? input.foodClass ?? null,
+			isStaple: input.isStaple ?? existing.isStaple,
 			needsReview,
 			reviewReason: needsReview ? reviewReason : null,
 			expiryDate: nearerExpiry(existing.expiryDate, input.expiryDate),

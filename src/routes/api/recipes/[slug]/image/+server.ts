@@ -1,14 +1,15 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { writeFile, unlink } from 'fs/promises';
+import { rename, unlink } from 'fs/promises';
 import { basename, join } from 'path';
+import { randomUUID } from 'node:crypto';
 import { db } from '$lib/server/db/index';
 import { recipes } from '$lib/server/db/schema';
 import {
 	MAX_IMAGE_BYTES,
-	extensionForMime,
-	getRecipeImagesDir
+	getRecipeImagesDir,
+	normalizeRecipeImage
 } from '$lib/server/recipe_images';
 
 // Defense in depth (F19): the slug becomes a filename component below, so
@@ -39,29 +40,44 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 	if (file.size === 0) throw error(400, 'Empty file');
 	if (file.size > MAX_IMAGE_BYTES) throw error(413, 'Image larger than 5MB');
 
-	const ext = extensionForMime(file.type);
-	if (!ext) throw error(415, `Unsupported image type: ${file.type || 'unknown'}`);
-
 	const dir = getRecipeImagesDir();
-	const filename = `${params.slug}.${ext}`;
+	const version = Date.now();
+	const filename = `${params.slug}-${version}.webp`;
 	const target = join(dir, filename);
+	const temporary = join(dir, `.${params.slug}-${randomUUID()}.tmp`);
 
 	const buf = Buffer.from(await file.arrayBuffer());
-	await writeFile(target, buf);
-
-	// Remove stale files with a different extension for the same slug.
-	for (const otherExt of ['jpg', 'png', 'webp', 'heic', 'heif']) {
-		if (otherExt === ext) continue;
-		const stale = join(dir, `${params.slug}.${otherExt}`);
-		await unlink(stale).catch(() => undefined);
+	try {
+		await normalizeRecipeImage(buf, temporary);
+	} catch {
+		await unlink(temporary).catch(() => undefined);
+		throw error(415, 'The uploaded file is not a valid supported image');
+	}
+	try {
+		await rename(temporary, target);
+	} catch {
+		await unlink(temporary).catch(() => undefined);
+		throw error(500, 'Could not store the image');
 	}
 
-	const ts = Date.now();
-	const imageUrl = `/recipe-images/${filename}?v=${ts}`;
-	db.update(recipes)
-		.set({ imageUrl, updatedAt: new Date() })
-		.where(eq(recipes.slug, params.slug))
-		.run();
+	const imageUrl = `/recipe-images/${filename}`;
+	try {
+		db.update(recipes)
+			.set({ imageUrl, updatedAt: new Date() })
+			.where(eq(recipes.slug, params.slug))
+			.run();
+	} catch (cause) {
+		await unlink(target).catch(() => undefined);
+		throw cause;
+	}
+
+	if (recipe.imageUrl?.startsWith('/recipe-images/')) {
+		const oldFilename = basename(recipe.imageUrl.split('?')[0]);
+		if (oldFilename !== filename) await unlink(join(dir, oldFilename)).catch(() => undefined);
+	}
+	for (const legacyExt of ['jpg', 'png', 'webp', 'heic', 'heif']) {
+		await unlink(join(dir, `${params.slug}.${legacyExt}`)).catch(() => undefined);
+	}
 
 	return json({ imageUrl });
 };
@@ -74,14 +90,17 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!recipe) throw error(404, 'Recipe not found');
 
 	const dir = getRecipeImagesDir();
-	for (const ext of ['jpg', 'png', 'webp', 'heic', 'heif']) {
-		await unlink(join(dir, `${params.slug}.${ext}`)).catch(() => undefined);
-	}
-
 	db.update(recipes)
 		.set({ imageUrl: null, updatedAt: new Date() })
 		.where(eq(recipes.slug, params.slug))
 		.run();
+
+	if (recipe.imageUrl?.startsWith('/recipe-images/')) {
+		await unlink(join(dir, basename(recipe.imageUrl.split('?')[0]))).catch(() => undefined);
+	}
+	for (const ext of ['jpg', 'png', 'webp', 'heic', 'heif']) {
+		await unlink(join(dir, `${params.slug}.${ext}`)).catch(() => undefined);
+	}
 
 	return json({ ok: true });
 };

@@ -1,27 +1,30 @@
 import { sqliteTable, text, integer, real, unique, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type { BenchSheetRating, StoredCookModeRecipe } from '$lib/types';
 import type { MachineActor } from '$lib/actors';
+import type {
+	Ingredient,
+	IngredientRole,
+	MealSource,
+	RecipeScalingMode,
+	IngredientPurchaseForm,
+	IngredientScale,
+	IngredientOrigin,
+	IngredientSubstitute,
+	TranslatedIngredient
+} from '$lib/recipe_ingredient';
 
-export type IngredientRole = 'cook_in' | 'serve_fresh';
-export type MealSource = 'fresh' | 'freezer';
 export type IngredientSubstituteKind = 'protein' | 'spice' | 'vegetable' | 'other';
-export type IngredientSubstitute = {
-	/** Canonical Dutch name, just like Ingredient.name. */
-	name: string;
-	kind?: IngredientSubstituteKind;
-	note?: string;
-};
-export type Ingredient = {
-	name: string;
-	amount: string;
-	unit?: string;
-	role?: IngredientRole;
-	substitutes?: IngredientSubstitute[];
-};
-export type TranslatedIngredient = {
-	name: string;
-	substitutes?: Array<{ name: string; note?: string }>;
-};
+export type {
+	Ingredient,
+	IngredientRole,
+	MealSource,
+	RecipeScalingMode,
+	IngredientPurchaseForm,
+	IngredientScale,
+	IngredientOrigin,
+	IngredientSubstitute,
+	TranslatedIngredient
+} from '$lib/recipe_ingredient';
 export type TranslationStatus = 'pending' | 'ready' | 'error';
 export type { CookModeRecipe, CookModeStep } from '$lib/types';
 
@@ -98,6 +101,10 @@ export const recipes = sqliteTable('recipes', {
 	category: text('category'),
 	tags: text('tags', { mode: 'json' }).$type<string[]>().default([]),
 	servings: integer('servings'),
+	scalingMode: text('scaling_mode').notNull().default('scalable').$type<RecipeScalingMode>(),
+	structureVersion: integer('structure_version').notNull().default(1),
+	structureDraft: text('structure_draft', { mode: 'json' }).$type<Ingredient[]>(),
+	structureDraftSourceUpdatedAt: integer('structure_draft_source_updated_at', { mode: 'timestamp' }),
 	totalTimeMin: integer('total_time_min'),
 	sourceUrl: text('source_url'),
 	imageUrl: text('image_url'),
@@ -172,6 +179,7 @@ export const mealPlanMeals = sqliteTable('meal_plan_meals', {
 	weekStartDate: text('week_start_date').notNull(),
 	dinner: text('dinner').notNull(),
 	recipeSlug: text('recipe_slug'),
+	servings: integer('servings'),
 	status: text('status').notNull().default('planned').$type<'planned' | 'cooked'>(),
 	// How the meal will be made: cooked fresh from the recipe, or served from
 	// frozen leftover portions ('freezer' — only serve_fresh ingredients need
@@ -253,6 +261,8 @@ export const shoppingListOverrides = sqliteTable(
 		manual: integer('manual', { mode: 'boolean' }).notNull().default(false),
 		amount: text('amount'),
 		unit: text('unit'),
+		included: integer('included', { mode: 'boolean' }).notNull().default(true),
+		selectedName: text('selected_name'),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 	},
 	(t) => [unique().on(t.weekStartDate, t.name)]

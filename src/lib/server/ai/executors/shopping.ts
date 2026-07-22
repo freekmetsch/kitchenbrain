@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { and, gte, isNull, lt } from 'drizzle-orm';
+import { and, eq, gte, isNull, lt } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { normalizeNameKey } from '$lib/match';
 import { deriveWeekNeeds } from '$lib/server/shopping_needs';
@@ -33,7 +33,7 @@ export const shoppingExecutors: Record<string, ExecutorFn> = {
 		const needs = deriveWeekNeeds(db, meals);
 
 		const inventory = db
-			.select({ name: schema.inventoryItems.name })
+			.select({ name: schema.inventoryItems.name, isStaple: schema.inventoryItems.isStaple })
 			.from(schema.inventoryItems)
 			.where(isNull(schema.inventoryItems.deletedAt))
 			.all();
@@ -42,14 +42,28 @@ export const shoppingExecutors: Record<string, ExecutorFn> = {
 		// (not fuzzy substring — avoids "rijst" masking "rijstazijn"). Pantry staples
 		// live in inventory, so this drops them too.
 		const stockKeys = new Set(inventory.map((inv) => normalizeNameKey(inv.name)));
+		const stapleKeys = new Set(inventory.filter((inv) => inv.isStaple).map((inv) => normalizeNameKey(inv.name)));
+		const overrides = db.select().from(schema.shoppingListOverrides)
+			.where(eq(schema.shoppingListOverrides.weekStartDate, weekStart)).all();
+		const overrideByName = new Map(overrides.map((row) => [normalizeNameKey(row.name), row]));
 		const missing = needs.needed
-			.filter(({ name }) => !stockKeys.has(normalizeNameKey(name)))
-			.map(({ name, amount, unit, forMeals, freshSideOnly }) => ({
+			.map((need) => {
+				const key = normalizeNameKey(need.name);
+				const override = overrideByName.get(key);
+				const included = override?.included ?? (!need.optional && !stapleKeys.has(key));
+				const name = override?.selectedName ?? need.name;
+				const forceMissing = stapleKeys.has(key) && override?.included === true;
+				return { need, included, name, forceMissing };
+			})
+			.filter(({ included, name, forceMissing }) => included && (forceMissing || !stockKeys.has(normalizeNameKey(name))))
+			.map(({ need, name }) => ({
+				source_name: need.name,
 				name,
-				amount,
-				unit: unit ?? null,
-				for_meals: forMeals,
-				fresh_side_for_freezer_meal: freshSideOnly
+				amount: need.amount,
+				unit: need.unit ?? null,
+				for_meals: need.forMeals,
+				fresh_side_for_freezer_meal: need.freshSideOnly,
+				incompatible_quantities: need.incompatibleQuantities
 			}));
 
 		const freezerNote = needs.freezerMealsMissingFreshInfo.length

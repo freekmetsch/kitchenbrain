@@ -13,6 +13,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { slugify, uniqueSlug } from '$lib/server/ai/recipe_ingest';
+import { projectIngredient } from '$lib/recipe_scale';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -111,6 +112,40 @@ export function expandMealIngredients(
 }
 
 /**
+ * Project every component from its own yield to one meal occasion. This is the
+ * composite-recipe quantity invariant: child yields may differ, but the meal's
+ * requested portions are shared.
+ */
+export function expandMealIngredientsForServings(
+	db: DB,
+	recipe: { id: number; servings: number | null; ingredients: unknown },
+	occasionServings: number | null | undefined,
+	subRecipes?: SubRecipeRef[]
+): Ingredient[] {
+	const target = occasionServings ?? recipe.servings;
+	const own = ((recipe.ingredients as Ingredient[]) ?? []).map((ingredient) =>
+		projectIngredient(ingredient, recipe.servings, target)
+	);
+	const subs = subRecipes ?? subRecipesOf(db, recipe.id);
+	if (subs.length === 0) return own;
+	const subRows = db.select({
+		id: schema.recipes.id,
+		servings: schema.recipes.servings,
+		ingredients: schema.recipes.ingredients
+	}).from(schema.recipes).where(inArray(schema.recipes.id, subs.map((sub) => sub.id))).all();
+	const byId = new Map(subRows.map((row) => [row.id, row]));
+	return [
+		...own,
+		...subs.flatMap((sub) => {
+			const row = byId.get(sub.id);
+			return ((row?.ingredients as Ingredient[]) ?? []).map((ingredient) =>
+				projectIngredient(ingredient, row?.servings, target)
+			);
+		})
+	];
+}
+
+/**
  * Create a Meal Recipe: a fresh recipes row (own extras start empty; the
  * edit page adds tortillas/assembly later) plus links to ≥ 2 sub-recipes.
  */
@@ -123,7 +158,7 @@ export function createMealRecipe(
 		throw new MealCompositionError('too_few_subs', 'A meal recipe combines at least 2 recipes.');
 	}
 	const found = db
-		.select({ id: schema.recipes.id })
+		.select({ id: schema.recipes.id, servings: schema.recipes.servings })
 		.from(schema.recipes)
 		.where(inArray(schema.recipes.id, subIds))
 		.all();
@@ -131,6 +166,8 @@ export function createMealRecipe(
 		throw new MealCompositionError('sub_not_found', 'One of the selected recipes does not exist.');
 	}
 	const now = new Date();
+	const knownYields = found.map((recipe) => recipe.servings).filter((value): value is number => value != null && value > 0);
+	const servings = knownYields.length ? Math.max(...knownYields) : 4;
 	const slug = uniqueSlug(db, slugify(opts.title));
 	const meal = db
 		.insert(schema.recipes)
@@ -139,6 +176,7 @@ export function createMealRecipe(
 			title: opts.title,
 			ingredients: [],
 			directions: [],
+			servings,
 			tags: [],
 			createdAt: now,
 			updatedAt: now

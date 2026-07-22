@@ -79,6 +79,7 @@ function emptyFile(overrides: Record<string, unknown> = {}) {
 		meal_plan: [],
 		meal_log: [],
 		meal_sub_recipes: [],
+		shopping_overrides: [],
 		...overrides
 	};
 }
@@ -144,6 +145,20 @@ describe('validateImportFile', () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.data.recipes[0].createdAt).toBeInstanceOf(Date);
 	});
+
+	it('keeps legacy exports compatible and rejects required AI suggestions', () => {
+		const legacy = validateImportFile(emptyFile({ recipes: [baseRecipe()] }));
+		expect(legacy.ok).toBe(true);
+		if (legacy.ok) {
+			expect(legacy.data.recipes[0].scalingMode).toBe('scalable');
+			expect(legacy.data.recipes[0].structureVersion).toBe(1);
+		}
+
+		const invalid = validateImportFile(emptyFile({
+			recipes: [baseRecipe({ ingredients: [{ name: 'kroepoek', amount: '1', origin: 'ai_suggested' }] })]
+		}));
+		expect(invalid.ok).toBe(false);
+	});
 });
 
 describe('isBootstrapEligible / importBootstrap', () => {
@@ -183,6 +198,45 @@ describe('isBootstrapEligible / importBootstrap', () => {
 		if (!validation.ok) return;
 		importBootstrap(db, validation.data);
 		expect(db.select().from(schema.recipes).all()[0].id).toBe(42);
+	});
+
+	it('round-trips occasion servings and weekly shopping choices', () => {
+		const db = createTestDb();
+		const validation = validateImportFile(emptyFile({
+			meal_plan: [{
+				id: 4,
+				weekNumber: 30,
+				weekStartDate: '2026-07-22',
+				dinner: 'Curry',
+				recipeSlug: null,
+				servings: 6,
+				status: 'planned',
+				source: 'fresh',
+				cookedDate: null,
+				plannedDate: null,
+				note: null,
+				sortOrder: 0,
+				createdAt: NOW
+			}],
+			shopping_overrides: [{
+				id: 9,
+				weekStartDate: '2026-07-22',
+				name: 'kikkererwten',
+				bought: false,
+				manual: false,
+				amount: '2',
+				unit: 'blik',
+				included: false,
+				selectedName: 'linzen',
+				createdAt: NOW
+			}]
+		}));
+		expect(validation.ok).toBe(true);
+		if (!validation.ok) return;
+		const outcome = importBootstrap(db, validation.data);
+		expect(outcome.ok).toBe(true);
+		expect(db.select().from(schema.mealPlanMeals).get()?.servings).toBe(6);
+		expect(db.select().from(schema.shoppingListOverrides).get()).toMatchObject({ included: false, selectedName: 'linzen' });
 	});
 
 	it('refuses to import when recipes already exist, touching zero rows', () => {

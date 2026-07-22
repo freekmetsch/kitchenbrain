@@ -14,6 +14,7 @@
 	import { untrack } from 'svelte';
 	import type { PageData } from './$types';
 	import { useChatAgent } from '$lib/chat/agent_context';
+	import { invalidateAll } from '$app/navigation';
 
 	type Item = PageData['items'][number];
 
@@ -41,10 +42,12 @@
 	let ahSheet: { openAhModal: () => Promise<void> } | undefined = $state();
 
 	let showCovered = $state(false);
-	let pending = $derived(items.filter((i) => !i.bought && (showCovered || !i.covered)));
-	let covered = $derived(items.filter((i) => !i.bought && i.covered));
+	let activePending = $derived(items.filter((i) => i.included && !i.bought && (showCovered || !i.covered)));
+	let choices = $derived(items.filter((i) => !i.bought && !i.manual && (i.optional || i.staple)));
+	let pending = $derived(activePending.filter((i) => !i.optional && !i.staple));
+	let covered = $derived(items.filter((i) => i.included && !i.bought && i.covered));
 	let done = $derived(items.filter((i) => i.bought));
-	let visibleToBuyCount = $derived(pending.filter((i) => !i.covered).length);
+	let visibleToBuyCount = $derived(activePending.filter((i) => !i.covered).length);
 
 	$effect(() =>
 		chatAgent.publishScreen({
@@ -97,12 +100,47 @@
 		);
 	}
 
-	// AddItemForm did the add_manual POST; merge the created row into local state.
-	function addItem(item: Item) {
-		items = [...items.filter((i) => !(i.manual && i.name.toLowerCase() === item.name.toLowerCase())), item];
+	// AddItemForm already persisted the override; reload so derived and manual
+	// quantities are recomposed by the same server projection used on refresh.
+	async function addItem(_item: Item) {
+		await invalidateAll();
 	}
 
-	async function restoreManual(item: Item) {
+	async function saveChoice(item: Item, action: 'set_included' | 'set_selected_name', value: boolean | string) {
+		const before = { ...item };
+		if (action === 'set_included') item.included = Boolean(value);
+		else item.selectedName = String(value);
+		items = [...items];
+		await optimistic(
+			() => fetch(`${base}/api/shopping`, {
+				method: 'POST', headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action, weekStart: data.weekStart, name: item.name,
+					...(action === 'set_included' ? { included: value } : { selectedName: value }) })
+			}),
+			() => { Object.assign(item, before); items = [...items]; },
+			m.shopping_toast_choice_failed()
+		);
+	}
+
+	async function setStaple(item: Item, isStaple: boolean) {
+		const before = { ...item };
+		item.staple = isStaple;
+		item.included = !isStaple;
+		items = [...items];
+		const ok = await optimistic(
+			() => fetch(`${base}/api/shopping`, {
+				method: 'POST', headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'set_staple', weekStart: data.weekStart, name: item.name, isStaple })
+			}),
+			() => { Object.assign(item, before); items = [...items]; },
+			m.shopping_toast_choice_failed()
+		);
+		if (ok) toast.success(isStaple
+			? m.shopping_toast_staple_saved({ name: item.name })
+			: m.shopping_toast_staple_removed({ name: item.name }));
+	}
+
+	async function restoreManual(item: Item, amount: string | null, unit: string | null) {
 		try {
 			const r = await fetch(`${base}/api/shopping`, {
 				method: 'POST',
@@ -111,34 +149,44 @@
 					action: 'add_manual',
 					weekStart: data.weekStart,
 					name: item.name,
-					amount: item.amount,
-					unit: item.unit
+					amount,
+					unit
 				})
 			});
 			if (!r.ok) throw new Error(`HTTP ${r.status}`);
-			items = [
-				...items.filter((i) => !(i.manual && i.name.toLowerCase() === item.name.toLowerCase())),
-				{ ...item, bought: false, manual: true, covered: false }
-			];
+			await invalidateAll();
 		} catch {
 			toast.error(m.shopping_toast_restore_failed());
 		}
 	}
 
 	async function deleteManual(item: Item) {
-		const before = items;
-		items = items.filter((i) => i !== item);
+		const before = items.map((row) => ({ ...row }));
+		const manualAmount = item.manualAmount ?? (item.manual ? item.amount : null);
+		const manualUnit = item.manualUnit ?? (item.manual ? item.unit : null);
+		items = item.manual
+			? items.filter((row) => row !== item)
+			: items.map((row) => row === item ? {
+				...row,
+				amount: row.derivedAmount ?? null,
+				unit: row.derivedUnit ?? null,
+				manualContribution: false,
+				manualAmount: null,
+				manualUnit: null
+			} : row);
 		const ok = await optimistic(
 			() =>
-				fetch(`${base}/api/shopping?week=${encodeURIComponent(data.weekStart)}&name=${encodeURIComponent(item.name)}`, {
-					method: 'DELETE'
+				fetch(`${base}/api/shopping`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ action: 'remove_manual', weekStart: data.weekStart, name: item.name })
 				}),
 			() => {
 				items = before;
 			},
 			m.shopping_toast_remove_failed()
 		);
-		if (ok) toast.undo(m.shopping_toast_removed({ name: item.name }), () => void restoreManual(item));
+		if (ok) toast.undo(m.shopping_toast_removed({ name: item.name }), () => void restoreManual(item, manualAmount, manualUnit));
 	}
 
 	// The AH push marked these items bought server-side; mirror it locally.
@@ -197,6 +245,7 @@
 	{:else}
 		<ShoppingLists
 			{pending}
+			{choices}
 			{done}
 			coveredCount={covered.length}
 			{visibleToBuyCount}
@@ -204,6 +253,9 @@
 			{bonusByName}
 			onToggleBought={toggleBought}
 			onDeleteManual={deleteManual}
+			onToggleIncluded={(item) => void saveChoice(item, 'set_included', !item.included)}
+			onSelectName={(item, selectedName) => void saveChoice(item, 'set_selected_name', selectedName)}
+			onSetStaple={(item, isStaple) => void setStaple(item, isStaple)}
 		/>
 	{/if}
 
@@ -212,4 +264,4 @@
 	<PushHistory pushHistory={data.pushHistory} />
 </div>
 
-<AhSheet bind:this={ahSheet} weekStart={data.weekStart} {pending} bind:bonusByName onMarkedBought={markBought} />
+	<AhSheet bind:this={ahSheet} weekStart={data.weekStart} pending={activePending} bind:bonusByName onMarkedBought={markBought} />

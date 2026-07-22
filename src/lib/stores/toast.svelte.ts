@@ -1,3 +1,5 @@
+import { m } from '$lib/paraglide/messages';
+
 // Global toast store — single active toast (matches the /inventory specimen model).
 // Behavior extracted from inventory/+page.svelte:1104-1114. Rendered by
 // $lib/components/ui/Toast.svelte, mounted once in the root layout by the first
@@ -55,5 +57,5 @@ export const toast = {
 	error: (msg: string, action?: ToastAction) => show(msg, { variant: 'error', action }),
 	/** Convenience for the delete-with-undo idiom. */
 	undo: (msg: string, run: () => void) =>
-		show(msg, { variant: 'undo', action: { label: 'Undo', run } })
+		show(msg, { variant: 'undo', action: { label: m.inventory_action_undo(), run } })
 };

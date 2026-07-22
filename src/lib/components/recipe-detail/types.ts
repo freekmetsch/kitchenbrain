@@ -1,23 +1,9 @@
 // Shared shapes for the recipe detail page (/recipes/[slug]) and its section
 // components. Moved out of +page.svelte during the recipe-detail decomposition.
 import type { StoredCookModeRecipe } from '$lib/types';
+import type { Ingredient, TranslatedIngredient, RecipeScalingMode } from '$lib/recipe_ingredient';
 
-export type IngredientSubstitute = {
-	name: string;
-	kind?: 'protein' | 'spice' | 'vegetable' | 'other';
-	note?: string;
-};
-export type Ingredient = {
-	name: string;
-	amount: string;
-	unit?: string;
-	role?: 'cook_in' | 'serve_fresh';
-	substitutes?: IngredientSubstitute[];
-};
-type TranslatedIngredient = {
-	name: string;
-	substitutes?: Array<{ name: string; note?: string }>;
-};
+export type { Ingredient } from '$lib/recipe_ingredient';
 type TranslationStatus = 'pending' | 'ready' | 'error';
 export type Recipe = {
 	id: number;
@@ -28,6 +14,8 @@ export type Recipe = {
 	categoryEn: string | null;
 	tags: string[];
 	servings: number | null;
+	scalingMode: RecipeScalingMode;
+	structureVersion: number;
 	totalTimeMin: number | null;
 	sourceUrl: string | null;
 	imageUrl: string | null;
@@ -49,7 +37,7 @@ export type Recipe = {
 	needsReview: boolean;
 	reviewReason: string | null;
 };
-export type Week = { weekStartDate: string; weekNumber: number; label: string };
+export type Week = { weekStartDate: string; weekEndDate: string; weekNumber: number; label: string };
 
 /**
  * Locale-aware labels for the plan-week pickers. The server load sends bare
@@ -60,8 +48,13 @@ export function labelWeeks(
 	weeks: { weekStartDate: string; weekNumber: number }[],
 	labels: { thisWeek: string; nextWeek: string; weekOf: (date: string) => string }
 ): Week[] {
-	return weeks.map((week, i) => ({
-		...week,
-		label: i === 0 ? labels.thisWeek : i === 1 ? labels.nextWeek : labels.weekOf(week.weekStartDate)
-	}));
+	return weeks.map((week, i) => {
+		const end = new Date(`${week.weekStartDate}T12:00:00Z`);
+		end.setUTCDate(end.getUTCDate() + 6);
+		return {
+			...week,
+			weekEndDate: end.toISOString().slice(0, 10),
+			label: i === 0 ? labels.thisWeek : i === 1 ? labels.nextWeek : labels.weekOf(week.weekStartDate)
+		};
+	});
 }

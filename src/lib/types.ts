@@ -47,6 +47,7 @@ export type LocalizedCookModeStep = {
 	timer_location: LocalizedCookModeText | null;
 	stream_id: string;
 	merges_from: string[];
+	ingredient_indexes?: number[];
 };
 
 export type LocalizedCookModeRecipe = {
@@ -60,12 +61,30 @@ export type LocalizedCookModeRecipe = {
 	steps: LocalizedCookModeStep[];
 };
 
+export type LocalizedCookModePrepTask = {
+	text: LocalizedCookModeText;
+	ingredient_indexes: number[];
+};
+
+export type LocalizedCookModeStepV4 = Omit<LocalizedCookModeStep, 'ingredients'> & {
+	ingredient_indexes: number[];
+};
+
+export type LocalizedCookModeRecipeV4 = {
+	version: 4;
+	generation_id: string;
+	baseline_servings: number;
+	prep_tasks: LocalizedCookModePrepTask[];
+	streams: LocalizedCookModeStream[];
+	steps: LocalizedCookModeStepV4[];
+};
+
 /** Persisted cache contract: v2 remains a renderable English legacy format. */
-export type StoredCookModeRecipe = CookModeRecipe | LocalizedCookModeRecipe;
+export type StoredCookModeRecipe = CookModeRecipe | LocalizedCookModeRecipe | LocalizedCookModeRecipeV4;
 
 /** A language-specific projection used by the cooking UI. */
 export type CookModeDisplayRecipe = {
-	version: 2 | 3;
+	version: 2 | 3 | 4;
 	language: 'en' | 'nl';
 	generation_id: string | null;
 	servings: number | null;

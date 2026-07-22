@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recipe to Shopping Plan</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2a24;
+      --muted: #68736b;
+      --paper: #f6f2e8;
+      --card: #fffdf7;
+      --line: #d8d2c3;
+      --green: #386a4b;
+      --green-soft: #e1ecdf;
+      --tomato: #b84b36;
+      --mustard: #d8a836;
+      --blue: #41647a;
+      --shadow: 0 18px 50px rgba(49, 55, 48, .09);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(216, 168, 54, .16), transparent 27rem),
+        linear-gradient(180deg, #f9f6ee 0, var(--paper) 60rem);
+      line-height: 1.5;
+    }
+    button, textarea, input { font: inherit; }
+    button, label, input { -webkit-tap-highlight-color: transparent; }
+    a { color: var(--green); text-underline-offset: .18em; }
+    :focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
+    .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+    .hero { padding: 64px 0 34px; }
+    .eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 7px 12px;
+      border: 1px solid rgba(56, 106, 75, .24);
+      border-radius: 999px;
+      color: var(--green);
+      background: rgba(255, 253, 247, .72);
+      font-size: .78rem;
+      font-weight: 750;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    h1 { max-width: 820px; margin: 20px 0 14px; font: 760 clamp(2.6rem, 7vw, 5.5rem)/.96 Georgia, serif; letter-spacing: -.045em; }
+    .lede { max-width: 760px; margin: 0; color: var(--muted); font-size: clamp(1.05rem, 2vw, 1.28rem); }
+    .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+    .chip { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.52); font-size: .84rem; }
+    section { padding: 28px 0; }
+    .section-head { display: grid; grid-template-columns: 1fr minmax(260px, 440px); gap: 24px; align-items: end; margin-bottom: 18px; }
+    h2 { margin: 0; font: 720 clamp(1.75rem, 4vw, 2.6rem)/1.05 Georgia, serif; letter-spacing: -.025em; }
+    .section-head p { margin: 0; color: var(--muted); }
+    .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .flow article { position: relative; min-height: 184px; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); box-shadow: var(--shadow); overflow: hidden; }
+    .flow article::after { content: attr(data-step); position: absolute; right: 12px; bottom: -19px; color: rgba(31,42,36,.06); font: 800 6rem/1 Georgia, serif; }
+    .flow h3 { margin: 18px 0 8px; font-size: 1.05rem; }
+    .flow p { margin: 0; color: var(--muted); font-size: .9rem; }
+    .node { width: 37px; height: 7px; border-radius: 99px; background: var(--green); }
+    .flow article:nth-child(2) .node { background: var(--mustard); }
+    .flow article:nth-child(3) .node { background: var(--tomato); }
+    .flow article:nth-child(4) .node { background: var(--blue); }
+    .callout { margin-top: 14px; padding: 18px 20px; border-left: 4px solid var(--green); border-radius: 0 14px 14px 0; background: var(--green-soft); font-weight: 650; }
+    .matrix { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--card); box-shadow: var(--shadow); }
+    .matrix-row { display: grid; grid-template-columns: minmax(180px, .75fr) 1.25fr; border-top: 1px solid var(--line); }
+    .matrix-row:first-child { border-top: 0; }
+    .matrix-row > div { padding: 17px 20px; }
+    .matrix-row > div:first-child { font-weight: 720; background: rgba(225, 236, 223, .42); }
+    .matrix-row p { margin: 3px 0 0; color: var(--muted); font-size: .9rem; }
+    .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; counter-reset: phase; }
+    .phase { counter-increment: phase; padding: 19px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,253,247,.72); }
+    .phase::before { content: "0" counter(phase); color: var(--tomato); font-size: .78rem; font-weight: 800; letter-spacing: .08em; }
+    .phase h3 { margin: 9px 0 6px; font-size: 1rem; }
+    .phase p { margin: 0; color: var(--muted); font-size: .86rem; }
+    .gate { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 14px; padding: 18px 20px; border: 1px solid rgba(56,106,75,.28); border-radius: 16px; background: var(--green-soft); }
+    .gate strong { display: block; }
+    .gate span { color: var(--muted); font-size: .88rem; }
+    .gate-mark { flex: 0 0 auto; padding: 8px 11px; border-radius: 999px; color: white; background: var(--green); font-weight: 800; letter-spacing: .06em; }
+    .decision-shell { padding: 24px; border: 1px solid #cfc7b5; border-radius: 22px; background: #fffaf0; box-shadow: var(--shadow); }
+    .decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    fieldset { min-width: 0; margin: 0; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: white; }
+    legend { max-width: 100%; padding: 0 6px; font-weight: 760; line-height: 1.25; }
+    .hint { margin: 6px 0 13px; color: var(--muted); font-size: .84rem; }
+    .option { display: grid; grid-template-columns: 22px 1fr; gap: 9px; align-items: start; margin: 7px 0; padding: 10px; border: 1px solid transparent; border-radius: 10px; cursor: pointer; }
+    .option:hover { background: #f8f6ef; }
+    .option:has(input:checked) { border-color: rgba(56,106,75,.34); background: var(--green-soft); }
+    .option input { margin: 4px 0 0; accent-color: var(--green); }
+    .option strong { display: block; font-size: .9rem; }
+    .option small { display: block; margin-top: 1px; color: var(--muted); }
+    .recommended { color: var(--green); font-size: .73rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .exclude { display: flex; gap: 9px; align-items: center; margin-top: 12px; color: var(--muted); font-size: .82rem; }
+    .exclude input { accent-color: var(--tomato); }
+    textarea { width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: #fff; }
+    .decision-note { min-height: 58px; margin-top: 12px; padding: 10px; }
+    .prompt-wrap { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .prompt-wrap label { display: block; margin-bottom: 8px; font-weight: 760; }
+    #clarification { min-height: 68px; padding: 11px; margin-bottom: 14px; }
+    #prompt { min-height: 300px; padding: 14px; font: .82rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; background: #1f2a24; color: #f7f3e9; border-color: #1f2a24; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; align-items: center; }
+    button { min-height: 44px; padding: 9px 16px; border: 1px solid var(--green); border-radius: 10px; cursor: pointer; font-weight: 750; }
+    .primary { color: white; background: var(--green); }
+    .secondary { color: var(--green); background: transparent; }
+    #copy-status { min-height: 1.5em; color: var(--muted); font-size: .86rem; }
+    footer { padding: 34px 0 54px; color: var(--muted); font-size: .82rem; }
+    @media (max-width: 820px) {
+      .flow, .phases { grid-template-columns: 1fr 1fr; }
+      .decision-grid { grid-template-columns: 1fr; }
+      .section-head { grid-template-columns: 1fr; gap: 7px; }
+    }
+    @media (max-width: 560px) {
+      .shell { width: min(100% - 20px, 1120px); }
+      .hero { padding-top: 36px; }
+      .flow, .phases { grid-template-columns: 1fr; }
+      .flow article { min-height: 150px; }
+      .matrix-row { grid-template-columns: 1fr; }
+      .matrix-row > div:first-child { padding-bottom: 8px; }
+      .matrix-row > div:last-child { padding-top: 8px; }
+      .decision-shell { padding: 12px; }
+      fieldset { padding: 14px 11px; }
+      .gate { align-items: flex-start; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print {
+      body { background: white; }
+      .actions, .prompt-wrap { display: none; }
+      .flow article, .matrix, .decision-shell { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="shell">
+      <span class="eyebrow">Implementation plan ready</span>
+      <h1>One meal quantity, carried all the way through.</h1>
+      <p class="lede">The feedback points to one connected job: recipes should preserve cooking meaning, planning should choose the occasion amount, groceries should expose real choices, and cooking should use that same amount without another AI call.</p>
+      <div class="meta" aria-label="Plan facts">
+        <span class="chip">6 phases</span>
+        <span class="chip">13 tickets</span>
+        <span class="chip">R3 overall risk</span>
+        <span class="chip">Current baseline: 237 tests pass</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="shell">
+        <div class="section-head">
+          <h2>The continuity model</h2>
+          <p>A recipe owns the baseline. Each planned or immediate cooking occasion owns its quantity. Every later surface reads that occasion.</p>
+        </div>
+        <div class="flow">
+          <article data-step="1"><div class="node"></div><h3>Recipe</h3><p>Base Dutch ingredients, preparation kept separate, useful components, optional sides, substitutes, and scaling rules.</p></article>
+          <article data-step="2"><div class="node"></div><h3>Plan or make</h3><p>Choose the week and portions directly from the card. Fixed batches stay stable but can be overridden for one occasion.</p></article>
+          <article data-step="3"><div class="node"></div><h3>Groceries and AH</h3><p>Required, optional, and staple groups; fresh-first product form; substitute choice; editable pack counts and per-egg price.</p></article>
+          <article data-step="4"><div class="node"></div><h3>Cook</h3><p>Scaled ingredient checklist plus preparation tasks, component colors, instant portion changes, and a consistent 672 px shell.</p></article>
+        </div>
+        <div class="callout">Hard invariant: shopping scaling happens in one place, exactly once. The AH row identity stays the canonical Dutch base ingredient even when a substitute is sent.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell">
+        <div class="section-head">
+          <h2>What the feedback becomes</h2>
+          <p>The visible requests are grouped by the underlying job so implementation removes drift instead of adding isolated controls.</p>
+        </div>
+        <div class="matrix">
+          <div class="matrix-row"><div>Cook with less friction</div><div>Ingredients stay in first-use order, become checkable, remain visible beside preparation tasks, and rescale instantly.<p>The cooking column matches the regular recipe width; component colors mark genuinely independent work streams.</p></div></div>
+          <div class="matrix-row"><div>Plan from where intent starts</div><div>Recipe cards get separate Plan and Make actions with occasion portions.<p>The sheet shows a real Wednesday–Tuesday range when that is the household default.</p></div></div>
+          <div class="matrix-row"><div>Shop by choice, not omission</div><div>Optional sides and staples appear at the bottom instead of disappearing. Each can be included for this week; substitutes are chosen where they matter.<p>Adding more means adjusting the intended amount or AH packs, not fighting a fixed list.</p></div></div>
+          <div class="matrix-row"><div>Import once, structure well</div><div>Every import path enriches base ingredient, preparation, component, source order, purchase form, freezer role, substitute, and optionality.<p>AI suggestions can never become required items: suggested origin always implies optional.</p></div></div>
+          <div class="matrix-row"><div>Keep images calm</div><div>Paste, camera, and file upload share one server pipeline that rotates, bounds, strips metadata, and stores one WebP.<p>The recipe hero stays inside the same reading column.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell">
+        <div class="section-head">
+          <h2>Execution sequence</h2>
+          <p>Persistent contracts land before UI consumers. Compatibility readers stay available until the new flow is proven end to end.</p>
+        </div>
+        <div class="phases">
+          <article class="phase"><h3>Contract and quantity engine</h3><p>Additive migration, compatibility types, and the pure baseline-to-occasion projection. No shopping wiring yet.</p></article>
+          <article class="phase"><h3>Import and normalization</h3><p>One enrichment contract, source provenance, strict optional-suggestion validation, and resumable legacy improvement.</p></article>
+          <article class="phase"><h3>Plan and make</h3><p>Semantic card actions, occasion servings, fixed-batch behavior, and household week-range defaults.</p></article>
+          <article class="phase"><h3>Cooking and images</h3><p>Cook cache v4, ingredient checklist, cost-free rescaling, bounded layout, clipboard upload, and normalized storage.</p></article>
+          <article class="phase"><h3>Shopping and AH</h3><p>Local choices first, exactly-once shopping scaling second, AH ranking and pack review last.</p></article>
+          <article class="phase"><h3>Full-flow rollout</h3><p>Migration rehearsal, phone and desktop matrix, accessibility, Docker, export/import/reset, and rollback drill.</p></article>
+        </div>
+        <div class="gate"><div><strong>Independent critique passed after refinement</strong><span>Two ticket boundaries were tightened; snapshot timing and AI-side validation became explicit.</span></div><div class="gate-mark">GO</div></div>
+      </div>
+    </section>
+
+    <section id="decisions">
+      <div class="shell">
+        <div class="section-head">
+          <h2>Household decisions</h2>
+          <p>The recommended choices are already selected. Change only what matters; notes are copied verbatim into the next implementation prompt.</p>
+        </div>
+        <div class="decision-shell">
+          <form id="decision-form">
+            <div class="decision-grid">
+              <fieldset data-decision="fixed">
+                <legend>Can a fixed-batch recipe change for one occasion?</legend>
+                <p class="hint">This decides whether a stable bolognese batch can occasionally be halved or doubled without editing the recipe.</p>
+                <label class="option"><input type="radio" name="fixed" value="Allow a one-off batch override" checked><span><span class="recommended">Recommended</span><strong>Allow a one-off override</strong><small>Normal batch stays prominent; the exception belongs to this occasion.</small></span></label>
+                <label class="option"><input type="radio" name="fixed" value="Hard-lock every fixed batch"><span><strong>Hard-lock the batch</strong><small>Most predictable, but an unusual batch requires editing the recipe.</small></span></label>
+                <label class="option"><input type="radio" name="fixed" value="Treat every recipe as freely scalable"><span><strong>Always scalable</strong><small>Simpler controls, but fixed-batch meaning disappears.</small></span></label>
+                <label class="exclude"><input type="checkbox" data-exclude> Exclude this choice from the current implementation</label>
+                <textarea class="decision-note" aria-label="Notes about fixed batches" placeholder="Optional note"></textarea>
+              </fieldset>
+
+              <fieldset data-decision="sides">
+                <legend>How should AI-suggested sides enter groceries?</legend>
+                <p class="hint">Suggested kroepoek or salad can be useful without becoming a silent purchase.</p>
+                <label class="option"><input type="radio" name="sides" value="Show suggested sides as optional and unchecked" checked><span><span class="recommended">Recommended</span><strong>Visible, optional, unchecked</strong><small>Useful suggestion, zero surprise purchase.</small></span></label>
+                <label class="option"><input type="radio" name="sides" value="Include suggested sides by default"><span><strong>Included by default</strong><small>Fast for frequent pairings, but easier to overbuy.</small></span></label>
+                <label class="option"><input type="radio" name="sides" value="Keep suggested sides out of groceries"><span><strong>Recipe only</strong><small>Quiet shopping list, but the suggestion is easy to forget.</small></span></label>
+                <label class="exclude"><input type="checkbox" data-exclude> Exclude this choice from the current implementation</label>
+                <textarea class="decision-note" aria-label="Notes about optional sides" placeholder="Optional note"></textarea>
+              </fieldset>
+
+              <fieldset data-decision="week">
+                <legend>Who gets Wednesday–Tuesday as the default week?</legend>
+                <p class="hint">The current app already supports a saved week boundary, so this can respect prior choices.</p>
+                <label class="option"><input type="radio" name="week" value="Use Wednesday only when no preference is saved" checked><span><span class="recommended">Recommended</span><strong>Only when unset</strong><small>New household default; explicit existing preferences stay untouched.</small></span></label>
+                <label class="option"><input type="radio" name="week" value="Move every household to Wednesday"><span><strong>Change everyone</strong><small>Consistent behavior, but can move existing plan buckets.</small></span></label>
+                <label class="option"><input type="radio" name="week" value="Keep Monday as the fallback"><span><strong>Keep Monday fallback</strong><small>No default change; Wednesday remains a manual preference.</small></span></label>
+                <label class="exclude"><input type="checkbox" data-exclude> Exclude this choice from the current implementation</label>
+                <textarea class="decision-note" aria-label="Notes about week boundaries" placeholder="Optional note"></textarea>
+              </fieldset>
+
+              <fieldset data-decision="legacy">
+                <legend>How should existing recipes gain the richer structure?</legend>
+                <p class="hint">Legacy recipes need base ingredients and provenance without surprise cost or silent rewrites.</p>
+                <label class="option"><input type="radio" name="legacy" value="Use one resumable Settings action with review for low confidence" checked><span><span class="recommended">Recommended</span><strong>Resumable Settings action</strong><small>Bounded batches; uncertain changes wait for review.</small></span></label>
+                <label class="option"><input type="radio" name="legacy" value="Normalize automatically after deployment"><span><strong>Automatic rollout</strong><small>Less work, but higher mutation and AI-cost risk.</small></span></label>
+                <label class="option"><input type="radio" name="legacy" value="Improve recipes manually one at a time"><span><strong>Manual per recipe</strong><small>Maximum control, maximum household effort.</small></span></label>
+                <label class="exclude"><input type="checkbox" data-exclude> Exclude this choice from the current implementation</label>
+                <textarea class="decision-note" aria-label="Notes about legacy recipes" placeholder="Optional note"></textarea>
+              </fieldset>
+            </div>
+
+            <div class="prompt-wrap">
+              <label for="clarification">Additional clarification</label>
+              <textarea id="clarification" placeholder="Anything implementation should know beyond the four decisions"></textarea>
+              <label for="prompt">Generated implementation prompt</label>
+              <textarea id="prompt" readonly></textarea>
+              <div class="actions">
+                <button type="button" class="primary" id="copy">Copy implementation prompt</button>
+                <button type="button" class="secondary" id="reset">Reset safe defaults</button>
+                <span id="copy-status" role="status" aria-live="polite"></span>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="shell">Authoritative source: <a href="../feature-lists/FEATURE_LIST_RECIPE_COOKING_SHOPPING.md">FEATURE_LIST_RECIPE_COOKING_SHOPPING.md</a>. This workspace stores choices in this browser only.</div></footer>
+
+  <script>
+    (() => {
+      'use strict';
+      const storageKey = 'household-brain:recipe-shopping-plan:v1';
+      const form = document.getElementById('decision-form');
+      const prompt = document.getElementById('prompt');
+      const clarification = document.getElementById('clarification');
+      const status = document.getElementById('copy-status');
+      const metadata = {
+        fixed: {
+          question: 'Can a fixed-batch recipe change for one occasion?',
+          recommendation: 'Allow a one-off batch override',
+          rationale: 'The source recipe stays stable while a rare half or double batch remains possible.',
+          consequence: 'Plan and cooking show the normal batch first and hide the override behind a secondary action.'
+        },
+        sides: {
+          question: 'How should AI-suggested sides enter groceries?',
+          recommendation: 'Show suggested sides as optional and unchecked',
+          rationale: 'Suggestions remain useful without silently buying extras.',
+          consequence: 'Suggested sides appear in the recipe and optional grocery group, off by default.'
+        },
+        week: {
+          question: 'Who gets Wednesday-Tuesday as the default week?',
+          recommendation: 'Use Wednesday only when no preference is saved',
+          rationale: 'The requested delivery rhythm becomes the fallback without moving explicitly configured plans.',
+          consequence: 'Only households with no saved boundary change; existing preferences remain authoritative.'
+        },
+        legacy: {
+          question: 'How should existing recipes gain the richer structure?',
+          recommendation: 'Use one resumable Settings action with review for low confidence',
+          rationale: 'It limits AI cost and prevents silent low-confidence rewrites without creating per-recipe busywork.',
+          consequence: 'Normalization runs in bounded batches; uncertain recipes enter review and can resume later.'
+        }
+      };
+
+      function readState() {
+        const decisions = {};
+        form.querySelectorAll('fieldset[data-decision]').forEach((field) => {
+          const id = field.dataset.decision;
+          decisions[id] = {
+            value: field.querySelector('input[type="radio"]:checked')?.value || '',
+            excluded: field.querySelector('[data-exclude]').checked,
+            note: field.querySelector('.decision-note').value
+          };
+        });
+        return { version: 1, decisions, clarification: clarification.value };
+      }
+
+      function saveState(state) {
+        try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (_) { /* Browser storage is optional. */ }
+      }
+
+      function restoreState() {
+        try {
+          const state = JSON.parse(localStorage.getItem(storageKey));
+          if (!state || state.version !== 1) return;
+          Object.entries(state.decisions || {}).forEach(([id, choice]) => {
+            const field = form.querySelector(`[data-decision="${id}"]`);
+            if (!field) return;
+            const radio = Array.from(field.querySelectorAll('input[type="radio"]')).find((item) => item.value === choice.value);
+            if (radio) radio.checked = true;
+            field.querySelector('[data-exclude]').checked = Boolean(choice.excluded);
+            field.querySelector('.decision-note').value = choice.note || '';
+          });
+          clarification.value = state.clarification || '';
+        } catch (_) { /* Invalid or unavailable storage falls back to safe defaults. */ }
+      }
+
+      function buildPrompt(state) {
+        const lines = [
+          'Continue: Implement Recipe, Cooking, and Shopping Continuity. Load docs/feature-lists/FEATURE_LIST_RECIPE_COOKING_SHOPPING.md, then /run.',
+          'State: The plan is ready and independently critiqued. Preserve the append-only migration, single quantity projection, canonical Dutch AH identity, and compatibility readers.',
+          '',
+          'Decisions:'
+        ];
+        Object.entries(metadata).forEach(([id, info]) => {
+          const choice = state.decisions[id];
+          lines.push(`- Question: ${info.question}`);
+          lines.push(`  Status: ${choice.excluded ? 'EXCLUDED from this implementation' : 'INCLUDED'}`);
+          lines.push(`  Selected: ${choice.value}`);
+          lines.push(`  Recommended default: ${info.recommendation}`);
+          lines.push(`  Rationale: ${info.rationale}`);
+          lines.push(`  Practical consequence: ${info.consequence}`);
+          lines.push(`  User note: ${choice.note || 'None.'}`);
+        });
+        lines.push('', `Additional clarification: ${state.clarification || 'None.'}`);
+        lines.push('', 'Execute the tickets in phase order. Stop only for a destructive, architectural, or genuinely user-owned decision not resolved above.');
+        return lines.join('\n');
+      }
+
+      function update() {
+        const state = readState();
+        saveState(state);
+        prompt.value = buildPrompt(state);
+      }
+
+      form.addEventListener('input', update);
+      form.addEventListener('change', update);
+      document.getElementById('reset').addEventListener('click', () => {
+        try { localStorage.removeItem(storageKey); } catch (_) { /* Ignore unavailable storage. */ }
+        form.reset();
+        clarification.value = '';
+        status.textContent = 'Safe defaults restored.';
+        update();
+      });
+      document.getElementById('copy').addEventListener('click', async () => {
+        const text = prompt.value;
+        try {
+          await navigator.clipboard.writeText(text);
+          status.textContent = 'Implementation prompt copied.';
+        } catch (_) {
+          prompt.focus();
+          prompt.select();
+          const copied = document.execCommand('copy');
+          status.textContent = copied ? 'Implementation prompt copied.' : 'Prompt selected. Copy it manually.';
+        }
+      });
+
+      restoreState();
+      update();
+    })();
+  </script>
+</body>
+</html>

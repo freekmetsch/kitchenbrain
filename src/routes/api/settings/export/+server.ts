@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index';
-import { inventoryItems, recipes, mealPlanMeals, mealLog, mealSubRecipes } from '$lib/server/db/schema';
+import { inventoryItems, recipes, mealPlanMeals, mealLog, mealSubRecipes, shoppingListOverrides } from '$lib/server/db/schema';
 import { isNull } from 'drizzle-orm';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -19,7 +19,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 		meal_log: db.select().from(mealLog).all(),
 		// Meal Recipe composition (ADR 0003) — without this, bootstrap-mode import
 		// can't restore which sub-recipes make up a meal recipe.
-		meal_sub_recipes: db.select().from(mealSubRecipes).all()
+		meal_sub_recipes: db.select().from(mealSubRecipes).all(),
+		shopping_overrides: db.select().from(shoppingListOverrides).all()
 	};
 
 	const filename = `household-brain-export-${new Date().toISOString().slice(0, 10)}.json`;

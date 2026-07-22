@@ -7,7 +7,7 @@ import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
 import { addInventory } from '$lib/server/inventory_writes';
-import { isoWeekStart } from '$lib/week';
+import { todayIso, weekStartFor } from '$lib/week';
 import { executeToolCall } from './index';
 import type { TurnExecutionContext } from '../commit_risk';
 
@@ -68,7 +68,7 @@ describe('generate_shopping_list', () => {
 			turnCtx()
 		)) as ShoppingResult;
 
-		expect(res.week).toBe(WEEK);
+		expect(res.week).toBe(weekStartFor(WEEK, 2));
 		// Canonical Dutch recipe casing is preserved (AH-INVARIANT: these names
 		// feed AH lookups downstream).
 		expect(res.shopping_list.map(({ name, amount, unit }) => ({ name, amount, unit }))).toEqual([
@@ -110,9 +110,9 @@ describe('generate_shopping_list', () => {
 			turnCtx()
 		)) as ShoppingResult;
 
-		// One entry, not two. Note: amounts are NOT summed — the first recipe's
-		// amount wins (deriveWeekNeeds keeps the first contribution).
-		expect(res.shopping_list.map((i) => i.name)).toEqual(['Rijst']);
+		expect(res.shopping_list.map((i) => ({ name: i.name, amount: i.amount }))).toEqual([
+			{ name: 'Rijst', amount: '300' }
+		]);
 	});
 
 	it('freezer-planned meals only contribute their serve_fresh sides', async () => {
@@ -166,7 +166,7 @@ describe('generate_shopping_list', () => {
 			1,
 			turnCtx()
 		)) as ShoppingResult;
-		expect(res.week).toBe(isoWeekStart());
+		expect(res.week).toBe(weekStartFor(todayIso(), 2));
 		expect(res.shopping_list).toEqual([]);
 	});
 

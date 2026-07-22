@@ -18,6 +18,7 @@ import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';
 import { getAutoTranslateOnImport, getCookModePreGeneration } from '$lib/server/recipes/prefs';
 import { db as appDb } from '$lib/server/db/index';
 import type { DB, ExecutorFn } from './shared';
+import { IngredientSchema } from '$lib/recipe_ingredient';
 
 // Pre-generate a bench sheet after a chat-side recipe write, so the recipe is
 // ready by the time it's opened. generateCookMode reads the module-level app
@@ -40,13 +41,15 @@ const SubstituteSchema = z.object({
 	note: z.string().trim().min(1).max(500).optional()
 });
 
-const IngredientSchema = z.object({
-	name: z.string(),
-	amount: z.string(),
-	unit: z.string().optional(),
-	role: z.enum(['cook_in', 'serve_fresh']).optional(),
-	substitutes: z.array(SubstituteSchema).max(12).optional()
-});
+function ingredientStructureVersion(ingredients: Ingredient[]): 1 | 2 {
+	return ingredients.length > 0 && ingredients.every((ingredient) =>
+		(ingredient.role === 'cook_in' || ingredient.role === 'serve_fresh') &&
+		typeof ingredient.optional === 'boolean' &&
+		Boolean(ingredient.purchaseForm) &&
+		Boolean(ingredient.scale) &&
+		Boolean(ingredient.origin)
+	) ? 2 : 1;
+}
 
 export const recipeExecutors: Record<string, ExecutorFn> = {
 	async get_recipe(raw, db) {
@@ -166,6 +169,7 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 				slug: input.slug,
 				category: normalizeFoodCategory(input.category),
 				servings: input.servings ?? null,
+				structureVersion: ingredientStructureVersion(input.ingredients),
 				totalTimeMin: input.total_time_min ?? null,
 				ingredients: input.ingredients,
 				directions: input.directions,
@@ -294,7 +298,11 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			}
 		}
 
-		const updates: Record<string, unknown> = { updatedAt: new Date(), ingredients };
+		const updates: Record<string, unknown> = {
+			updatedAt: new Date(),
+			ingredients,
+			structureVersion: ingredientStructureVersion(ingredients)
+		};
 		if (input.servings !== undefined) updates.servings = input.servings;
 		if (input.directions !== undefined) updates.directions = input.directions;
 		if (input.notes !== undefined) updates.notes = input.notes;

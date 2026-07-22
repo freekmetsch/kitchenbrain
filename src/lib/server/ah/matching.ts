@@ -16,6 +16,7 @@
 // so Array.sort output depended on input order).
 
 import type { AHProduct } from './client';
+import type { IngredientPurchaseForm } from '$lib/recipe_ingredient';
 
 // --- Text normalization --------------------------------------------------
 
@@ -280,7 +281,35 @@ export function deriveQuantity(
 	if (na.dim !== pa.dim) return 1;
 	const packBase = pack.qty * pa.toBase;
 	if (packBase <= 0) return 1;
-	return Math.max(1, Math.ceil((need.qty * na.toBase) / packBase));
+	return Math.min(99, Math.max(1, Math.ceil((need.qty * na.toBase) / packBase)));
+}
+
+/** Price for one item whenever AH exposes a plain count pack. Works for eggs,
+ * buns, wraps and every other countable pack; unknown/multipack shapes stay null. */
+export function pricePerCount(product: AHProduct): number | null {
+	const pack = parsePackSize(product.salesUnitSize);
+	const alias = pack ? UNIT_ALIASES[pack.u] : null;
+	const price = product.currentPrice ?? product.priceBeforeBonus;
+	if (!pack || alias?.dim !== 'count' || !price || price <= 0) return null;
+	return price / (pack.qty * alias.toBase);
+}
+
+const PRESERVED_WORDS = /\b(blik|pot|conserven|ingelegd|passata|puree|gedroogd|zongedroogd)\b/;
+const FROZEN_WORDS = /\b(diepvries|bevroren)\b/;
+const DRIED_WORDS = /\b(gedroogd|droog)\b/;
+const PREPARED_FRESH_WORDS = /\b(gesneden|snippers|blokjes|reepjes|mix|zak|voorgesneden)\b/;
+
+function formPenalty(product: AHProduct, wanted: IngredientPurchaseForm | null | undefined): number {
+	if (!wanted || wanted === 'any') return 0;
+	const text = normalize(`${product.name} ${product.salesUnitSize ?? ''}`);
+	const preserved = PRESERVED_WORDS.test(text);
+	const frozen = FROZEN_WORDS.test(text);
+	const dried = DRIED_WORDS.test(text);
+	if (wanted === 'preserved') return preserved ? 0 : 1;
+	if (wanted === 'frozen') return frozen ? 0 : 1;
+	if (wanted === 'dried') return dried ? 0 : 1;
+	if (preserved || frozen || dried) return 2;
+	return PREPARED_FRESH_WORDS.test(text) ? 1 : 0;
 }
 
 // --- Ranking -------------------------------------------------------------
@@ -310,7 +339,8 @@ const NONFOOD_CATEGORIES = new Set(['drogisterij', 'huishouden', 'baby en kind',
  */
 export function rankProducts(
 	term: string,
-	products: AHProduct[]
+	products: AHProduct[],
+	purchaseForm?: IngredientPurchaseForm | null
 ): { ranked: AHProduct[]; lowConfidence: boolean } {
 	const termTokens = stemmedTokens(term); // tokenize the invariant term once, not per product
 	const scored = products.map((p, i) => ({
@@ -318,6 +348,7 @@ export function rankProducts(
 		i,
 		score: coverage(termTokens, productTokens(p.name)),
 		up: effectiveUnitPrice(p),
+		form: formPenalty(p, purchaseForm),
 		nonfood: p.mainCategory != null && NONFOOD_CATEGORIES.has(normalize(p.mainCategory))
 	}));
 
@@ -334,8 +365,10 @@ export function rankProducts(
 		}
 	}
 
-	const key = (s: (typeof scored)[number]): [number, number, number, number, number] => [
+	const key = (s: (typeof scored)[number]): [number, number, number, number, number, number, number] => [
 		s.nonfood ? 1 : 0,
+		s.score > 0 ? 0 : 1,
+		s.form,
 		-s.score,
 		s.up && s.up.basis === majorityBasis ? s.up.value : Infinity,
 		s.p.isPreviouslyBought ? 0 : 1,

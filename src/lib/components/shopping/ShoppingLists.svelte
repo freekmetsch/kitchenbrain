@@ -21,6 +21,7 @@
 
 	type Props = {
 		pending: ShoppingListItem[];
+		choices: ShoppingListItem[];
 		done: ShoppingListItem[];
 		coveredCount: number;
 		visibleToBuyCount: number;
@@ -28,6 +29,9 @@
 		bonusByName: Record<string, boolean>;
 		onToggleBought: (item: ShoppingListItem) => void;
 		onDeleteManual: (item: ShoppingListItem) => void;
+		onToggleIncluded: (item: ShoppingListItem) => void;
+		onSelectName: (item: ShoppingListItem, selectedName: string) => void;
+		onSetStaple: (item: ShoppingListItem, isStaple: boolean) => void;
 	};
 
 	type ViewMode = 'items' | 'meals';
@@ -35,14 +39,20 @@
 
 	let {
 		pending,
+		choices,
 		done,
 		coveredCount,
 		visibleToBuyCount,
 		showCovered = $bindable(),
 		bonusByName,
 		onToggleBought,
-		onDeleteManual
+		onDeleteManual,
+		onToggleIncluded,
+		onSelectName,
+		onSetStaple
 	}: Props = $props();
+	let optionalChoices = $derived(choices.filter((item) => !item.staple));
+	let stapleChoices = $derived(choices.filter((item) => item.staple));
 
 	let viewMode = $state<ViewMode>('items');
 	let sourceMealCount = $derived(new Set(pending.flatMap((item) => item.forMeals ?? [])).size);
@@ -111,7 +121,12 @@
 				</div>
 			{/if}
 		</div>
-		{#if item.manual}
+		{#if !item.manual && !item.staple}
+			<button type="button" class="btn btn-ghost btn-xs shrink-0" onclick={() => onSetStaple(item, true)}>
+				{m.shopping_keep_stocked_button()}
+			</button>
+		{/if}
+		{#if item.manualContribution}
 			<button
 				type="button"
 				class="btn btn-ghost btn-sm h-10 min-h-0 w-10 shrink-0 px-0"
@@ -123,6 +138,74 @@
 		{/if}
 	</li>
 {/snippet}
+
+{#snippet choiceRow(item: ShoppingListItem, index: number, section: string)}
+	{@const rowId = itemDomId(section, index)}
+	<li class="flex min-h-12 items-start gap-3 px-3 py-2.5">
+		<input
+			id={rowId}
+			type="checkbox"
+			class="checkbox checkbox-md mt-1 shrink-0"
+			checked={item.included}
+			aria-label={m.shopping_include_item_aria({ name: item.name })}
+			onchange={() => onToggleIncluded(item)}
+		/>
+		<div class="min-w-0 flex-1">
+			<label for={rowId} class="text-sm font-medium">{item.name}</label>
+			{#if itemLabel(item)}<span class="ml-2 text-xs tabular-nums text-base-content/55">{itemLabel(item)}</span>{/if}
+			<div class="mt-1 flex flex-wrap items-center gap-1">
+				{#if item.suggested}<span class="badge badge-ghost badge-sm text-[10px]">{m.shopping_suggested_badge()}</span>{/if}
+				{#if item.incompatibleQuantities}<span class="text-xs text-warning">{m.shopping_incompatible_amounts()}</span>{/if}
+			</div>
+			{#if item.substitutes?.length}
+				<label class="mt-2 block text-xs text-base-content/60">
+					{m.shopping_substitute_label()}
+					<select
+						class="select select-sm mt-1 w-full"
+						value={item.selectedName}
+						onchange={(event) => onSelectName(item, event.currentTarget.value)}
+					>
+						<option value={item.name}>{item.name}</option>
+						{#each item.substitutes as substitute}<option value={substitute}>{substitute}</option>{/each}
+					</select>
+				</label>
+			{/if}
+		</div>
+		{#if item.staple}
+			<button type="button" class="btn btn-ghost btn-xs shrink-0" onclick={() => onSetStaple(item, false)}>
+				{m.shopping_stop_stocking_button()}
+			</button>
+		{/if}
+		{#if item.manualContribution}
+			<button
+				type="button"
+				class="btn btn-ghost btn-sm h-10 min-h-0 w-10 shrink-0 px-0"
+				onclick={() => onDeleteManual(item)}
+				aria-label={m.shopping_remove_item_aria({ name: item.name })}
+			>
+				<Icon name="x" />
+			</button>
+		{/if}
+	</li>
+{/snippet}
+
+{#if optionalChoices.length}
+	<section class="mb-4">
+		<h2 class="ui-section-label mb-2">{m.shopping_optional_heading({ count: optionalChoices.length })}</h2>
+		<ul class="ui-list-card divide-y divide-base-200">
+			{#each optionalChoices as item, index (item.name)}{@render choiceRow(item, index, 'optional')}{/each}
+		</ul>
+	</section>
+{/if}
+
+{#if stapleChoices.length}
+	<section class="mb-4">
+		<h2 class="ui-section-label mb-2">{m.shopping_staples_heading({ count: stapleChoices.length })}</h2>
+		<ul class="ui-list-card divide-y divide-base-200">
+			{#each stapleChoices as item, index (item.name)}{@render choiceRow(item, index, 'staple')}{/each}
+		</ul>
+	</section>
+{/if}
 
 <section class="mb-4">
 	<h2 class="sr-only">{m.shopping_to_buy_heading({ count: visibleToBuyCount })}</h2>

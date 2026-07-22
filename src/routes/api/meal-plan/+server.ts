@@ -3,7 +3,7 @@ import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
-import { mealPlanMeals } from '$lib/server/db/schema';
+import { mealPlanMeals, recipes } from '$lib/server/db/schema';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { isoWeekNumber, weekStartFor } from '$lib/week';
 import { readJsonBody } from '$lib/server/api_body';
@@ -13,6 +13,7 @@ const CreateSchema = z.object({
 	weekStartDate: isoDateSchema,
 	dinner: z.string().min(1).max(500),
 	recipeSlug: z.string().nullable().optional(),
+	servings: z.number().int().positive().max(99).nullable().optional(),
 	plannedDate: isoDateSchema.nullable().optional(),
 	source: z.enum(['fresh', 'freezer']).optional()
 });
@@ -34,6 +35,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.get();
 	const nextOrder = (existing?.sortOrder ?? -1) + 1;
 
+	const baselineServings = body.recipeSlug
+		? db.select({ servings: recipes.servings }).from(recipes).where(eq(recipes.slug, body.recipeSlug)).get()?.servings ?? null
+		: null;
 	const meal = db
 		.insert(mealPlanMeals)
 		.values({
@@ -41,6 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			weekStartDate,
 			dinner: body.dinner,
 			recipeSlug: body.recipeSlug ?? null,
+			servings: body.servings ?? baselineServings,
 			plannedDate: body.plannedDate ?? null,
 			// A meal can only be served from the freezer when there's a recipe to
 			// link the frozen portions through.

@@ -12,7 +12,7 @@ import type { TurnExecutionContext } from '../commit_risk';
 
 const turnCtx = (): TurnExecutionContext => ({ createdThisTurn: new Set(), destructiveCount: 0 });
 
-const WEEK = '2026-07-06'; // a Monday
+const WEEK = '2026-07-01'; // Wednesday fallback when no preference is saved
 
 type PlanResult = { ok: boolean; id: number; week: string; dinner: string };
 type RemoveResult = { ok: boolean; removed?: string; error?: string };

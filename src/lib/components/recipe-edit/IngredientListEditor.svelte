@@ -96,6 +96,45 @@
 						</select>
 					</label>
 				</div>
+				<details class="mt-2 rounded-box border border-base-300/70 px-3 py-2">
+					<summary class="cursor-pointer text-xs font-semibold text-base-content/70">{m.recipes_edit_ingredient_details()}</summary>
+					<div class="mt-3 grid gap-3 sm:grid-cols-2">
+						<label class="flex min-w-0 flex-col gap-1">
+							<span class="ui-field-label">{m.recipes_edit_preparation_label()}</span>
+							<input type="text" bind:value={ingredient.preparation} class="input input-bordered input-sm w-full" />
+						</label>
+						<label class="flex min-w-0 flex-col gap-1">
+							<span class="ui-field-label">{m.recipes_edit_component_label()}</span>
+							<input type="text" bind:value={ingredient.component} class="input input-bordered input-sm w-full" />
+						</label>
+						<label class="flex min-w-0 flex-col gap-1">
+							<span class="ui-field-label">{m.recipes_edit_purchase_form_label()}</span>
+							<select bind:value={ingredient.purchaseForm} class="select select-bordered select-sm w-full">
+								<option value={undefined}>{m.recipes_edit_purchase_form_any()}</option>
+								<option value="fresh">{m.recipes_edit_purchase_form_fresh()}</option>
+								<option value="preserved">{m.recipes_edit_purchase_form_preserved()}</option>
+								<option value="frozen">{m.recipes_edit_purchase_form_frozen()}</option>
+								<option value="dried">{m.recipes_edit_purchase_form_dried()}</option>
+							</select>
+						</label>
+						<label class="flex min-w-0 flex-col gap-1">
+							<span class="ui-field-label">{m.recipes_edit_scale_label()}</span>
+							<select bind:value={ingredient.scale} class="select select-bordered select-sm w-full">
+								<option value={undefined}>{m.recipes_edit_scale_linear()}</option>
+								<option value="linear">{m.recipes_edit_scale_linear()}</option>
+								<option value="whole">{m.recipes_edit_scale_whole()}</option>
+								<option value="fixed">{m.recipes_edit_scale_fixed()}</option>
+							</select>
+						</label>
+						<label class="label cursor-pointer justify-start gap-3 sm:col-span-2">
+							<input type="checkbox" class="checkbox checkbox-sm" bind:checked={ingredient.optional} disabled={ingredient.origin === 'ai_suggested'} />
+							<span class="label-text">{m.recipes_edit_optional_label()}</span>
+							{#if ingredient.origin === 'ai_suggested'}
+								<span class="badge badge-ghost badge-sm">{m.recipes_suggested_badge()}</span>
+							{/if}
+						</label>
+					</div>
+				</details>
 
 				{#if (ingredient.substitutes?.length ?? 0) === 0}
 					<button

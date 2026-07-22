@@ -31,6 +31,7 @@ export async function aiArchetypePicks(items: PreviewItem[]): Promise<Map<string
 		ref: it.ref,
 		term: it.term,
 		amount: [it.amount, it.unit].filter(Boolean).join(' ') || null,
+		purchaseForm: it.purchaseForm ?? 'any',
 		candidates: it.candidates.slice(0, CANDIDATES_SHOWN).map((c, i) => ({
 			i,
 			name: c.name,

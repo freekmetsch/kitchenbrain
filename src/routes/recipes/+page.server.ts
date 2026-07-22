@@ -9,6 +9,8 @@ import { rollsUpTo } from '$lib/food_class';
 import { namesMatch } from '$lib/match';
 import { frozenPortionsByRecipe, recipeFoodClass } from '$lib/server/recipe_links';
 import { subRecipeCountByMeal } from '$lib/server/meal_recipes';
+import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
+import { addDays, isoWeekNumber, todayIso, weekStartFor } from '$lib/week';
 
 // Dish types are the non-food-class half of the legacy category vocabulary
 // (P4.5): Food Class (meat/fish/veg…) is a separate, rolling-up axis now.
@@ -41,6 +43,12 @@ export const load: PageServerLoad = async ({ url, parent, locals }) => {
 		.map((r) => r.name);
 	const frozenByRecipe = frozenPortionsByRecipe(db);
 	const subCounts = subRecipeCountByMeal(db);
+	const prefs = getMealPlanPrefs();
+	const currentWeekStart = weekStartFor(todayIso(), prefs.weekStartDay);
+	const weeks = Array.from({ length: Math.max(2, prefs.planAheadWeeks) }, (_, index) => {
+		const weekStartDate = addDays(currentWeekStart, index * 7);
+		return { weekStartDate, weekNumber: isoWeekNumber(weekStartDate) };
+	});
 
 	// Enrich each recipe with the derived facet axes the filters + cards read.
 	let enriched = db
@@ -130,6 +138,7 @@ export const load: PageServerLoad = async ({ url, parent, locals }) => {
 		ingredientFilter,
 		toggles: { haveAll, freezerOnly, belowTargetOnly, quickOnly },
 		dishTypes: DISH_TYPES,
-		recipeLang
+		recipeLang,
+		weeks
 	};
 };

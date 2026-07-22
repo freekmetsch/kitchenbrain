@@ -2,18 +2,18 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { eq, isNull } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
-import { recipes, inventoryItems } from '$lib/server/db/schema';
+import { recipes, inventoryItems, mealPlanMeals } from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { namesMatch } from '$lib/match';
 import {
 	expandedIngredientRoleCoverage,
 	frozenPortionsByRecipe
 } from '$lib/server/recipe_links';
-import { mealsContaining, subRecipesOf } from '$lib/server/meal_recipes';
+import { expandMealIngredientsForServings, mealsContaining, subRecipesOf } from '$lib/server/meal_recipes';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
 import { addDays, isoWeekNumber, todayIso, weekStartFor } from '$lib/week';
 
-export const load: PageServerLoad = async ({ params, parent }) => {
+export const load: PageServerLoad = async ({ params, parent, url }) => {
 	const { recipeLang } = await parent();
 	const recipe = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
 	if (!recipe) throw error(404, 'Recipe not found');
@@ -50,6 +50,17 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 	// on hand.
 	const frozenPortions = frozenPortionsByRecipe(db).get(recipe.id) ?? 0;
 	const roleCoverage = expandedIngredientRoleCoverage(db, recipe, subRecipes);
+	const cookingIngredients = expandMealIngredientsForServings(db, recipe, recipe.servings, subRecipes);
+	const cookingIngredientStock = cookingIngredients.map((ingredient) => stockNames.some((name) => namesMatch(ingredient.name, name)));
+	const planId = Number(url.searchParams.get('plan'));
+	const plannedMeal = Number.isInteger(planId) && planId > 0
+		? db.select().from(mealPlanMeals).where(eq(mealPlanMeals.id, planId)).get()
+		: null;
+	const linkedPlan = plannedMeal?.recipeSlug === recipe.slug ? plannedMeal : null;
+	const requestedServings = Number(url.searchParams.get('servings'));
+	const directServings = Number.isInteger(requestedServings) && requestedServings >= 1 && requestedServings <= 99
+		? requestedServings
+		: null;
 
 	return {
 		recipe,
@@ -59,6 +70,10 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		frozenPortions,
 		roleCoverage,
 		subRecipes,
-		partOfMeals
+		partOfMeals,
+		occasionServings: linkedPlan?.servings ?? directServings ?? recipe.servings,
+		planMealId: linkedPlan?.id ?? null,
+		cookingIngredients,
+		cookingIngredientStock
 	};
 };

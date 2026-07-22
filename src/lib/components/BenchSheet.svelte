@@ -24,6 +24,8 @@
 		CookModeStep,
 		StoredCookModeRecipe
 	} from '$lib/types';
+	import type { Ingredient } from '$lib/recipe_ingredient';
+	import { projectIngredient } from '$lib/recipe_scale';
 	import ComponentCard from './cook-mode/ComponentCard.svelte';
 	import MergeCard from './cook-mode/MergeCard.svelte';
 	import TimerStack from './cook-mode/TimerStack.svelte';
@@ -48,9 +50,10 @@
 
 	type FallbackContext = {
 		directions: string[];
-		ingredients: { name: string; amount: string; unit?: string }[];
+		ingredients: Ingredient[];
 		ingredientStock: boolean[];
 		viewLang: 'en' | 'nl';
+		baselineServings: number | null;
 		servings: number | null;
 		sourceUrl: string | null;
 	};
@@ -64,6 +67,7 @@
 		viewLang: 'en' | 'nl';
 		onEdit: () => void;
 		onCooked?: () => void;
+		planMealId?: number | null;
 		controller: BenchSheetController;
 	};
 
@@ -76,14 +80,19 @@
 		viewLang,
 		onEdit,
 		onCooked,
+		planMealId = null,
 		controller = $bindable<BenchSheetController>()
 	}: Props = $props();
 
 	let storedCookMode = $state<StoredCookModeRecipe | null>(untrack(() => initial));
-	let cookMode = $derived(localizeCookMode(storedCookMode, viewLang));
 	let servingDraft = $state(
 		untrack(() => (initial?.version === 3 ? initial.servings : (fallback.servings ?? 4)))
 	);
+	let cookMode = $derived(localizeCookMode(storedCookMode, viewLang, {
+		ingredients: fallback.ingredients,
+		baselineServings: fallback.baselineServings,
+		targetServings: servingDraft
+	}));
 	let loading = $state(false);
 	let loadError = $state('');
 	// Connection drops and transient server errors are retryable: the server
@@ -120,7 +129,7 @@
 	function adoptCookMode(cm: StoredCookModeRecipe) {
 		resetCookSession();
 		storedCookMode = cm;
-		servingDraft = cm.version === 3 ? cm.servings : (fallback.servings ?? 4);
+		if (cm.version === 3) servingDraft = cm.servings;
 		pendingCookMode = null;
 		// The raw view unmounts with the swap, taking its timers — its binding
 		// can't reset this itself, and a stale true would park the next regen.
@@ -131,6 +140,8 @@
 	let checked = $state<Record<number, boolean>>({});
 	let mep = $state<Record<number, boolean>>({});
 	let mepExpanded = $state(false);
+	let ingredientChecks = $state<Record<number, boolean>>({});
+	let ingredientsExpanded = $state(true);
 
 	// Canonical timer state. `timerEnds` holds wall-clock fire times keyed by
 	// step idx; `timerOrder` holds insertion order so the multi-pill stack can
@@ -536,7 +547,7 @@
 	// restores as done WITHOUT re-firing the alarm (firedFor pre-seeded). A
 	// steps signature guards against restoring progress from a previous
 	// generation after a regen or schema-staleness rewrite.
-	const PROGRESS_KEY = `cookmode-progress:${untrack(() => recipeSlug)}`;
+	const PROGRESS_KEY = `cookmode-progress:${untrack(() => recipeSlug)}:${untrack(() => planMealId ?? 'direct')}`;
 	let progressRestored = false;
 
 	function stepsSig(cm: CookModeDisplayRecipe): string {
@@ -564,6 +575,7 @@
 			}
 			checked = saved.checked ?? {};
 			mep = saved.mep ?? {};
+			ingredientChecks = saved.ingredientChecks ?? {};
 			timerEnds = ends;
 			timerOrder = order;
 		} catch {
@@ -576,7 +588,7 @@
 			if (!cookMode) return;
 			localStorage.setItem(
 				PROGRESS_KEY,
-				JSON.stringify({ sig: stepsSig(cookMode), checked, mep, timerEnds, timerOrder })
+				JSON.stringify({ sig: stepsSig(cookMode), checked, mep, ingredientChecks, timerEnds, timerOrder })
 			);
 		} catch {
 			// Quota / private-mode failures degrade to the old ephemeral behavior.
@@ -594,6 +606,8 @@
 		checked = {};
 		mep = {};
 		mepExpanded = false;
+		ingredientChecks = {};
+		ingredientsExpanded = true;
 		timerEnds = {};
 		timerOrder = [];
 		firedFor.clear();
@@ -635,10 +649,10 @@
 	async function markCooked() {
 		cookedSubmitting = true;
 		try {
-			const res = await fetch(`${base}/api/recipes/${recipeSlug}/cook`, {
-				method: 'POST',
+			const res = await fetch(planMealId ? `${base}/api/meal-plan/${planMealId}` : `${base}/api/recipes/${recipeSlug}/cook`, {
+				method: planMealId ? 'PUT' : 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ benchSheetRating })
+				body: JSON.stringify(planMealId ? { status: 'cooked' } : { benchSheetRating })
 			});
 			if (!res.ok) {
 				toast.error(m.benchsheet_cook_failed());
@@ -666,9 +680,14 @@
 	let allDone = $derived(steps.length > 0 && totalDone === steps.length);
 	let mepList = $derived(cookMode?.mise_en_place ?? []);
 	let mepDone = $derived(mepList.filter((_, i) => mep[i]).length);
+	let projectedIngredients = $derived(
+		fallback.ingredients.map((ingredient) => projectIngredient(ingredient, fallback.baselineServings, servingDraft))
+	);
+	let ingredientDone = $derived(projectedIngredients.filter((_, index) => ingredientChecks[index]).length);
 	let hasProgress = $derived(
 		Object.values(checked).some(Boolean) ||
 			Object.values(mep).some(Boolean) ||
+			Object.values(ingredientChecks).some(Boolean) ||
 			timerOrder.length > 0
 	);
 
@@ -881,7 +900,7 @@
 		ingredients={fallback.ingredients}
 		ingredientStock={fallback.ingredientStock}
 		viewLang={fallback.viewLang}
-		servings={fallback.servings}
+		servings={fallback.baselineServings}
 		targetServings={servingDraft}
 		sourceUrl={fallback.sourceUrl}
 		bind:activeTimer={rawTimerActive}
@@ -901,7 +920,7 @@
 		ingredients={fallback.ingredients}
 		ingredientStock={fallback.ingredientStock}
 		viewLang={fallback.viewLang}
-		servings={fallback.servings}
+		servings={fallback.baselineServings}
 		targetServings={servingDraft}
 		sourceUrl={fallback.sourceUrl}
 		bannerMessage={m.benchsheet_paused_banner({ reason: aiPausedReason })}
@@ -920,7 +939,7 @@
 				ingredients={fallback.ingredients}
 				ingredientStock={fallback.ingredientStock}
 				viewLang={fallback.viewLang}
-				servings={fallback.servings}
+				servings={fallback.baselineServings}
 				targetServings={servingDraft}
 				sourceUrl={fallback.sourceUrl}
 				bind:activeTimer={rawTimerActive}
@@ -947,6 +966,33 @@
 				onclick={dismissNotificationPrimer}>{m.benchsheet_notif_not_now_button()}</button
 			>
 		</div>
+	{/if}
+
+	{#if projectedIngredients.length}
+		<section class="border-y border-base-200 bg-base-100">
+			<button class="flex w-full items-center gap-2 px-3 py-2 text-left" onclick={() => (ingredientsExpanded = !ingredientsExpanded)}>
+				<span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-base-content/60">{m.benchsheet_ingredients_label()}</span>
+				<span class="min-w-0 flex-1 text-[11px] text-base-content/70">{ingredientDone}/{projectedIngredients.length}</span>
+				<span class="text-[10px] text-base-content/40">{ingredientsExpanded ? '▴' : '▾'}</span>
+			</button>
+			{#if ingredientsExpanded}
+				<ul class="grid gap-1 px-3 pb-3">
+					{#each projectedIngredients as ingredient, index}
+						<li>
+							<button class="flex w-full items-start gap-2.5 py-1.5 text-left text-[13px]" onclick={() => (ingredientChecks[index] = !ingredientChecks[index])}>
+								<span class="mt-[1px] flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 text-[10px] {ingredientChecks[index] ? 'border-success bg-success text-success-content' : 'border-base-300'}">{ingredientChecks[index] ? '✓' : ''}</span>
+								<span class="min-w-0 flex-1 {ingredientChecks[index] ? 'line-through text-base-content/40' : ''}">
+									<strong class="font-semibold text-primary">{ingredient.amount}{ingredient.unit ? ` ${ingredient.unit}` : ''}</strong>
+									 {ingredient.name}{ingredient.preparation ? `, ${ingredient.preparation}` : ''}
+									{#if ingredient.optional}<span class="badge badge-ghost badge-xs ml-1">{m.benchsheet_optional_badge()}</span>{/if}
+									{#if ingredient.substitutes?.length}<span class="block text-[11px] text-base-content/50">{m.benchsheet_substitutes_label()}: {ingredient.substitutes.map((substitute) => substitute.name).join(', ')}</span>{/if}
+								</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
 	{/if}
 
 	{#if mepList.length}
