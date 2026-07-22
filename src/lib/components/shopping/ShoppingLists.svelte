@@ -27,6 +27,7 @@
 		visibleToBuyCount: number;
 		showCovered: boolean;
 		bonusByName: Record<string, boolean>;
+		readOnly?: boolean;
 		onToggleBought: (item: ShoppingListItem) => void;
 		onDeleteManual: (item: ShoppingListItem) => void;
 		onToggleIncluded: (item: ShoppingListItem) => void;
@@ -45,6 +46,7 @@
 		visibleToBuyCount,
 		showCovered = $bindable(),
 		bonusByName,
+		readOnly = false,
 		onToggleBought,
 		onDeleteManual,
 		onToggleIncluded,
@@ -94,6 +96,7 @@
 			type="checkbox"
 			class="checkbox checkbox-md shrink-0"
 			checked={item.bought}
+			disabled={readOnly}
 			aria-label={m.shopping_mark_bought_aria({ name: item.name })}
 			onchange={() => onToggleBought(item)}
 		/>
@@ -121,12 +124,12 @@
 				</div>
 			{/if}
 		</div>
-		{#if !item.manual && !item.staple}
+		{#if !readOnly && !item.manual && !item.staple}
 			<button type="button" class="btn btn-ghost btn-xs shrink-0" onclick={() => onSetStaple(item, true)}>
 				{m.shopping_keep_stocked_button()}
 			</button>
 		{/if}
-		{#if item.manualContribution}
+		{#if !readOnly && item.manualContribution}
 			<button
 				type="button"
 				class="btn btn-ghost btn-sm h-10 min-h-0 w-10 shrink-0 px-0"
@@ -147,6 +150,7 @@
 			type="checkbox"
 			class="checkbox checkbox-md mt-1 shrink-0"
 			checked={item.included}
+			disabled={readOnly}
 			aria-label={m.shopping_include_item_aria({ name: item.name })}
 			onchange={() => onToggleIncluded(item)}
 		/>
@@ -163,6 +167,7 @@
 					<select
 						class="select select-sm mt-1 w-full"
 						value={item.selectedName}
+						disabled={readOnly}
 						onchange={(event) => onSelectName(item, event.currentTarget.value)}
 					>
 						<option value={item.name}>{item.name}</option>
@@ -171,12 +176,12 @@
 				</label>
 			{/if}
 		</div>
-		{#if item.staple}
+		{#if !readOnly && item.staple}
 			<button type="button" class="btn btn-ghost btn-xs shrink-0" onclick={() => onSetStaple(item, false)}>
 				{m.shopping_stop_stocking_button()}
 			</button>
 		{/if}
-		{#if item.manualContribution}
+		{#if !readOnly && item.manualContribution}
 			<button
 				type="button"
 				class="btn btn-ghost btn-sm h-10 min-h-0 w-10 shrink-0 px-0"
@@ -301,6 +306,7 @@
 						type="checkbox"
 						class="checkbox checkbox-md shrink-0"
 						checked={item.bought}
+						disabled={readOnly}
 						aria-label={m.shopping_mark_not_bought_aria({ name: item.name })}
 						onchange={() => onToggleBought(item)}
 					/>

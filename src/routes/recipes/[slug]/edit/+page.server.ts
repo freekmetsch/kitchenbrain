@@ -9,6 +9,7 @@ import { recipeIngredientsEqual } from '$lib/recipe_edit';
 import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
 import type { Actions, PageServerLoad } from './$types';
 import { LiveIngredientSchema, mergeLiveIngredients } from '$lib/recipe_ingredient';
+import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 
 const RecipeEditSchema = z.object({
 	title: z.string().trim().min(1, 'title required').max(200),
@@ -151,6 +152,7 @@ export const actions: Actions = {
 			}
 		});
 		if (!updated) return fail(409, { error: 'This recipe changed while you were editing it. Reload and try again.' });
+		if (ingredientsChanged || current.servings !== payload.servings) reconcileShoppingAfterWrite(db);
 
 		// Start the rewrite now; the recipe page the redirect lands on joins
 		// this same in-flight generation instead of starting its own.

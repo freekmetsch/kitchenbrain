@@ -424,6 +424,7 @@
 	"inventory_staples_add_button": "+ list",
 	"shopping_title": "Shopping · Household Brain",
 	"shopping_heading": "Shopping",
+	"shopping_source_migration_read_only": "You can view this week. Changes are paused while the new weekly list is prepared.",
 	"shopping_review_ah_order": "Review AH order",
 	"shopping_send_to_ah_button": "Send to AH",
 	"shopping_empty_no_meals_title": "No meals planned yet",

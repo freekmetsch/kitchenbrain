@@ -25,6 +25,10 @@ const IngredientFields = {
 	substitutes: z.array(StoredIngredientSubstituteSchema).max(12).optional()
 };
 
+export function createIngredientId(): string {
+	return `ing_${globalThis.crypto.randomUUID()}`;
+}
+
 function requireOptionalAiSuggestions(
 	ingredient: { origin?: string; optional?: boolean },
 	ctx: z.RefinementCtx
@@ -59,7 +63,8 @@ export const NewIngredientSchema = z
 		substitutes: z.array(LiveIngredientSubstituteSchema).max(12).optional()
 	})
 	.strict()
-	.superRefine(requireOptionalAiSuggestions);
+	.superRefine(requireOptionalAiSuggestions)
+	.transform((ingredient) => ({ ...ingredient, id: createIngredientId() }));
 
 /** A validated full backup may restore trusted provenance and future fields. */
 export const TrustedRestoreIngredientSchema = StoredIngredientSchema;
@@ -88,7 +93,21 @@ export type TranslatedIngredient = {
 };
 
 export function parseIngredientsForWrite(raw: unknown) {
-	return IngredientArraySchema.parse(raw);
+	return ensureIngredientIds(IngredientArraySchema.parse(raw));
+}
+
+/** Assign IDs only where a trusted legacy payload does not have one yet. */
+export function ensureIngredientIds(
+	ingredients: Ingredient[],
+	createId: () => string = createIngredientId
+): Ingredient[] {
+	const seen = new Set<string>();
+	return ingredients.map((ingredient) => {
+		const id = ingredient.id ?? createId();
+		if (seen.has(id)) throw new Error('Ingredient IDs must be unique within a recipe');
+		seen.add(id);
+		return ingredient.id ? ingredient : { ...ingredient, id };
+	});
 }
 
 /**
@@ -129,7 +148,7 @@ export function mergeLiveIngredients(
 		if (ingredient.id && !existing) {
 			throw new Error('Ingredient ID does not belong to this recipe');
 		}
-		if (!existing) return StoredIngredientSchema.parse(ingredient);
+		if (!existing) return StoredIngredientSchema.parse({ ...ingredient, id: createIngredientId() });
 
 		const submittedSubstitutes = ingredient.substitutes;
 		const storedSubstitutes = existing.substitutes ?? [];

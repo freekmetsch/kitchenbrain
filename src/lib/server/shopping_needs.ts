@@ -17,17 +17,41 @@ import { inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient, MealSource } from '$lib/server/db/schema';
-import { expandMealIngredientsForServings } from '$lib/server/meal_recipes';
+import { expandMealIngredientSourcesForServings } from '$lib/server/meal_recipes';
 import { ingredientRoleCoverage } from '$lib/server/recipe_links';
 import { sumCompatibleQuantities } from '$lib/recipe_scale';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
 export type PlannedMealForNeeds = {
+	id?: number;
 	dinner: string;
 	recipeSlug: string | null;
 	source: MealSource;
 	servings?: number | null;
+};
+
+export type ShoppingSourceRef = {
+	key: `recipe:${number}:${string}`;
+	recipeId: number;
+	recipeSlug: string;
+	ingredientId: string;
+	mealIds: number[];
+};
+
+export type ShoppingSourceContribution = {
+	ref: ShoppingSourceRef;
+	name: string;
+	amount: string;
+	unit?: string;
+	component: string | null;
+	forMeals: string[];
+	freshSideOnly: boolean;
+	optional: boolean;
+	suggested: boolean;
+	substitutes: string[];
+	purchaseForm: Ingredient['purchaseForm'];
+	incompatibleQuantities: boolean;
 };
 
 export type NeededIngredient = {
@@ -44,6 +68,8 @@ export type NeededIngredient = {
 	purchaseForm: Ingredient['purchaseForm'];
 	/** True when matching names used units that cannot safely be summed. */
 	incompatibleQuantities: boolean;
+	/** Exact leaf-recipe ingredients that make up this final buy row. */
+	sources: ShoppingSourceContribution[];
 };
 
 export type FreezerMealRef = { dinner: string; recipeSlug: string };
@@ -66,8 +92,9 @@ export function deriveWeekNeeds(db: DB, meals: PlannedMealForNeeds[]): WeekNeeds
 					.select({
 						id: schema.recipes.id,
 						slug: schema.recipes.slug,
-					ingredients: schema.recipes.ingredients,
-					servings: schema.recipes.servings
+						title: schema.recipes.title,
+						ingredients: schema.recipes.ingredients,
+						servings: schema.recipes.servings
 					})
 					.from(schema.recipes)
 					.where(inArray(schema.recipes.slug, slugs))
@@ -75,16 +102,19 @@ export function deriveWeekNeeds(db: DB, meals: PlannedMealForNeeds[]): WeekNeeds
 			: [];
 	const recipeBySlug = new Map(recipeRows.map((r) => [r.slug, r]));
 
-	const contributions = new Map<string, Array<{ ingredient: Ingredient; meal: PlannedMealForNeeds }>>();
+	const rawContributions: Array<{
+		source: ReturnType<typeof expandMealIngredientSourcesForServings>[number];
+		meal: PlannedMealForNeeds;
+	}> = [];
 	const mealsWithoutRecipe: string[] = [];
 	const freezerMeals: FreezerMealRef[] = [];
 	const freezerMealsMissingFreshInfo: FreezerMealRef[] = [];
 
-	const contribute = (ing: Ingredient, meal: PlannedMealForNeeds) => {
-		const key = ing.name.toLowerCase();
-		const rows = contributions.get(key) ?? [];
-		rows.push({ ingredient: ing, meal });
-		contributions.set(key, rows);
+	const contribute = (
+		source: ReturnType<typeof expandMealIngredientSourcesForServings>[number],
+		meal: PlannedMealForNeeds
+	) => {
+		rawContributions.push({ source, meal });
 	};
 
 	for (const meal of meals) {
@@ -98,42 +128,98 @@ export function deriveWeekNeeds(db: DB, meals: PlannedMealForNeeds[]): WeekNeeds
 
 		// The shared projection is the only place a plan occasion changes recipe
 		// quantities. Composite children are each projected from their own yield.
-		const ingredients = expandMealIngredientsForServings(db, recipe, meal.servings);
+		const ingredients = expandMealIngredientSourcesForServings(db, recipe, meal.servings);
 		if (meal.source === 'freezer') {
 			const ref: FreezerMealRef = { dinner: meal.dinner, recipeSlug: recipe.slug };
 			freezerMeals.push(ref);
-			const coverage = ingredientRoleCoverage(ingredients);
+			const coverage = ingredientRoleCoverage(ingredients.map((row) => row.ingredient));
 			if (!coverage.complete) {
 				freezerMealsMissingFreshInfo.push(ref);
 			}
-			for (const ing of ingredients) {
-				if (ing.role === 'serve_fresh') contribute(ing, meal);
+			for (const source of ingredients) {
+				if (source.ingredient.role === 'serve_fresh') contribute(source, meal);
 			}
 			continue;
 		}
 
-		for (const ing of ingredients) contribute(ing, meal);
+		for (const source of ingredients) contribute(source, meal);
+	}
+
+	const sourceRows = new Map<string, typeof rawContributions>();
+	for (const row of rawContributions) {
+		const key = `recipe:${row.source.ownerRecipeId}:${row.source.ingredientId}`;
+		const rows = sourceRows.get(key) ?? [];
+		rows.push(row);
+		sourceRows.set(key, rows);
+	}
+
+	const sources: ShoppingSourceContribution[] = [];
+	for (const [key, rows] of sourceRows) {
+		const first = rows[0].source;
+		const ingredients = rows.map((row) => row.source.ingredient);
+		const summed = sumCompatibleQuantities(ingredients);
+		const incompatibleQuantities = rows.length > 1 && summed == null;
+		sources.push({
+			ref: {
+				key: key as ShoppingSourceRef['key'],
+				recipeId: first.ownerRecipeId,
+				recipeSlug: first.ownerRecipeSlug,
+				ingredientId: first.ingredientId,
+				mealIds: [...new Set(rows.flatMap(({ meal }) => (meal.id == null ? [] : [meal.id])))]
+			},
+			name: first.ingredient.name,
+			amount:
+				summed?.amount ??
+				ingredients
+					.map((ingredient) => `${ingredient.amount}${ingredient.unit ? ` ${ingredient.unit}` : ''}`)
+					.join(' + '),
+			unit: summed?.unit,
+			component: first.component,
+			forMeals: [...new Set(rows.map(({ meal }) => meal.dinner))],
+			freshSideOnly: rows.every(({ meal }) => meal.source === 'freezer'),
+			optional: rows.every(({ source }) => source.ingredient.optional === true),
+			suggested: rows.every(({ source }) => source.ingredient.origin === 'ai_suggested'),
+			substitutes: [
+				...new Set(
+					rows.flatMap(
+						({ source }) => source.ingredient.substitutes?.map((substitute) => substitute.name) ?? []
+					)
+				)
+			],
+			purchaseForm: first.ingredient.purchaseForm,
+			incompatibleQuantities
+		});
+	}
+
+	const contributions = new Map<string, ShoppingSourceContribution[]>();
+	for (const source of sources) {
+		const key = source.name.toLowerCase();
+		const rows = contributions.get(key) ?? [];
+		rows.push(source);
+		contributions.set(key, rows);
 	}
 
 	const needed: NeededIngredient[] = [];
 	for (const rows of contributions.values()) {
-		const first = rows[0].ingredient;
-		const summed = sumCompatibleQuantities(rows.map(({ ingredient }) => ingredient));
+		const first = rows[0];
+		const summed = sumCompatibleQuantities(rows);
 		const incompatibleQuantities = rows.length > 1 && summed == null;
-		const amount = summed?.amount ?? rows.map(({ ingredient }) => `${ingredient.amount}${ingredient.unit ? ` ${ingredient.unit}` : ''}`).join(' + ');
+		const amount =
+			summed?.amount ?? rows.map((source) => `${source.amount}${source.unit ? ` ${source.unit}` : ''}`).join(' + ');
 		const unit = summed?.unit;
-		const forms = new Set(rows.map(({ ingredient }) => ingredient.purchaseForm).filter(Boolean));
+		const forms = new Set(rows.map((source) => source.purchaseForm).filter(Boolean));
 		needed.push({
 			name: first.name,
 			amount,
 			unit,
-			forMeals: [...new Set(rows.map(({ meal }) => meal.dinner))],
-			freshSideOnly: rows.every(({ meal }) => meal.source === 'freezer'),
-			optional: rows.every(({ ingredient }) => ingredient.optional === true),
-			suggested: rows.every(({ ingredient }) => ingredient.origin === 'ai_suggested'),
-			substitutes: [...new Set(rows.flatMap(({ ingredient }) => ingredient.substitutes?.map((sub) => sub.name) ?? []))],
+			forMeals: [...new Set(rows.flatMap((source) => source.forMeals))],
+			freshSideOnly: rows.every((source) => source.freshSideOnly),
+			optional: rows.every((source) => source.optional),
+			suggested: rows.every((source) => source.suggested),
+			substitutes: [...new Set(rows.flatMap((source) => source.substitutes))],
 			purchaseForm: forms.size === 1 ? [...forms][0] : 'any',
-			incompatibleQuantities
+			incompatibleQuantities,
+			sources: rows
 		});
 	}
 

@@ -10,6 +10,7 @@ import { getMealPlanPrefs, getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { addDays, isoWeekNumber, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
 import type { ExecutorFn } from './shared';
 import { isoDateSchema } from '$lib/date_schema';
+import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 
 export const mealPlanExecutors: Record<string, ExecutorFn> = {
 	async get_meal_plan(raw, db) {
@@ -104,6 +105,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			})
 			.returning()
 			.get();
+		reconcileShoppingAfterWrite(db, [weekStartDate]);
 		return { ok: true, id: meal.id, week: weekStartDate, dinner: meal.dinner, source: meal.source };
 	},
 
@@ -116,6 +118,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			.get();
 		if (!meal) return { ok: false, error: 'Meal not found' };
 		db.delete(schema.mealPlanMeals).where(eq(schema.mealPlanMeals.id, input.id)).run();
+		reconcileShoppingAfterWrite(db, [meal.weekStartDate]);
 		return { ok: true, removed: meal.dinner };
 	},
 

@@ -9,7 +9,9 @@ import { z } from 'zod';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import { rowCount } from '$lib/server/settings/reset';
-import { TrustedRestoreIngredientSchema } from '$lib/recipe_ingredient';
+import { ensureIngredientIds, TrustedRestoreIngredientSchema } from '$lib/recipe_ingredient';
+import { delHouseholdPref } from '$lib/server/db/household_prefs';
+import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/shopping_entries';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -22,6 +24,16 @@ const zTimestamp = z
 	.refine((s) => !Number.isNaN(Date.parse(s)), { message: 'Invalid timestamp' })
 	.transform((s) => new Date(s));
 const zTimestampOrNull = z.union([zTimestamp, z.null()]);
+
+const TrustedIngredientArray = z
+	.array(TrustedRestoreIngredientSchema)
+	.superRefine((ingredients, ctx) => {
+		const ids = ingredients.flatMap((ingredient) => (ingredient.id ? [ingredient.id] : []));
+		if (new Set(ids).size !== ids.length) {
+			ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ingredient IDs must be unique within a recipe' });
+		}
+	})
+	.transform((ingredients) => ensureIngredientIds(ingredients));
 
 const InventoryItemImport = z.object({
 	id: z.number().int(),
@@ -62,12 +74,12 @@ const RecipeImport = z.object({
 	scalingMode: z.enum(['scalable', 'fixed_batch']).default('scalable'),
 	structureVersion: z.number().int().min(1).default(1),
 	contentRevision: z.number().int().positive().default(1),
-	structureDraft: z.array(TrustedRestoreIngredientSchema).nullable().default(null),
+	structureDraft: TrustedIngredientArray.nullable().default(null),
 	structureDraftSourceUpdatedAt: zTimestampOrNull.default(null),
 	totalTimeMin: z.number().int().nullable(),
 	sourceUrl: z.string().nullable(),
 	imageUrl: z.string().nullable(),
-	ingredients: z.array(TrustedRestoreIngredientSchema),
+	ingredients: TrustedIngredientArray,
 	directions: z.array(z.string()),
 	notes: z.string().nullable(),
 	rating: z.number().int().nullable(),
@@ -146,6 +158,49 @@ const ShoppingOverrideImport = z.object({
 	createdAt: zTimestamp
 });
 
+const RecurringShoppingItemImport = z.object({
+	id: z.number().int(),
+	name: z.string().min(1),
+	amount: z.string().nullable(),
+	unit: z.string().nullable(),
+	startWeek: z.string(),
+	endWeek: z.string().nullable(),
+	revision: z.number().int().positive(),
+	createdAt: zTimestamp,
+	updatedAt: zTimestamp
+});
+
+const ShoppingWeekEntryImport = z.object({
+	id: z.number().int(),
+	weekStartDate: z.string(),
+	sourceKey: z.string().min(1),
+	sourceKind: z.enum(['recipe', 'weekly', 'manual', 'legacy']),
+	recipeId: z.number().int().nullable(),
+	recipeSlug: z.string().nullable(),
+	ingredientId: z.string().nullable(),
+	recurringItemId: z.number().int().nullable(),
+	legacyOverrideId: z.number().int().nullable(),
+	name: z.string().min(1),
+	amount: z.string().nullable(),
+	unit: z.string().nullable(),
+	amountOverride: z.string().nullable().default(null),
+	unitOverride: z.string().nullable().default(null),
+	component: z.string().nullable(),
+	mealIds: z.array(z.number().int()),
+	approvedTerms: z.array(z.string().min(1)),
+	included: z.boolean(),
+	selectedName: z.string().nullable(),
+	bought: z.boolean(),
+	needsReview: z.boolean(),
+	retiredAt: zTimestampOrNull,
+	resolvedAt: zTimestampOrNull,
+	resolution: z.enum(['attached', 'manual', 'dismissed']).nullable(),
+	resolvedSourceKey: z.string().nullable(),
+	revision: z.number().int().positive(),
+	createdAt: zTimestamp,
+	updatedAt: zTimestamp
+});
+
 const ImportFileSchema = z.object({
 	exported_at: z.string().optional(),
 	inventory: z.array(InventoryItemImport).default([]),
@@ -153,7 +208,9 @@ const ImportFileSchema = z.object({
 	meal_plan: z.array(MealPlanMealImport).default([]),
 	meal_log: z.array(MealLogImport).default([]),
 	meal_sub_recipes: z.array(MealSubRecipeImport).default([]),
-	shopping_overrides: z.array(ShoppingOverrideImport).default([])
+	shopping_overrides: z.array(ShoppingOverrideImport).default([]),
+	recurring_shopping_items: z.array(RecurringShoppingItemImport).default([]),
+	shopping_week_entries: z.array(ShoppingWeekEntryImport).default([])
 });
 
 export type ImportFileData = z.infer<typeof ImportFileSchema>;
@@ -197,6 +254,21 @@ export function validateImportFile(raw: unknown): ImportValidation {
 	if (dupOverrideId != null) return { ok: false, error: `Duplicate shopping override id ${dupOverrideId}` };
 	const dupOverrideKey = firstDuplicate(data.shopping_overrides, (s) => `${s.weekStartDate}\u0000${s.name}`);
 	if (dupOverrideKey != null) return { ok: false, error: 'Duplicate shopping override week/name' };
+	const dupRecurringId = firstDuplicate(data.recurring_shopping_items, (item) => item.id);
+	if (dupRecurringId != null) return { ok: false, error: `Duplicate recurring shopping item id ${dupRecurringId}` };
+	const dupWeekEntryId = firstDuplicate(data.shopping_week_entries, (entry) => entry.id);
+	if (dupWeekEntryId != null) return { ok: false, error: `Duplicate shopping week entry id ${dupWeekEntryId}` };
+	const dupWeekSource = firstDuplicate(
+		data.shopping_week_entries,
+		(entry) => `${entry.weekStartDate}\u0000${entry.sourceKey}`
+	);
+	if (dupWeekSource != null) return { ok: false, error: 'Duplicate shopping week/source key' };
+	const recurringIds = new Set(data.recurring_shopping_items.map((item) => item.id));
+	for (const entry of data.shopping_week_entries) {
+		if (entry.recurringItemId != null && !recurringIds.has(entry.recurringItemId)) {
+			return { ok: false, error: `Shopping week entry ${entry.id} references missing recurring item` };
+		}
+	}
 
 	const recipeIds = new Set(data.recipes.map((r) => r.id));
 	for (const item of data.inventory) {
@@ -232,7 +304,9 @@ export function isBootstrapEligible(db: DB): boolean {
 		rowCount(db, schema.mealPlanMeals) === 0 &&
 		rowCount(db, schema.mealLog) === 0 &&
 		rowCount(db, schema.mealSubRecipes) === 0 &&
-		rowCount(db, schema.shoppingListOverrides) === 0
+		rowCount(db, schema.shoppingListOverrides) === 0 &&
+		rowCount(db, schema.recurringShoppingItems) === 0 &&
+		rowCount(db, schema.shoppingWeekEntries) === 0
 	);
 }
 
@@ -261,6 +335,17 @@ export function importBootstrap(db: DB, data: ImportFileData): ImportOutcome {
 		if (data.meal_log.length) inserted.meal_log = tx.insert(schema.mealLog).values(data.meal_log).run().changes;
 		if (data.shopping_overrides.length)
 			inserted.shopping_list_overrides = tx.insert(schema.shoppingListOverrides).values(data.shopping_overrides).run().changes;
+		if (data.recurring_shopping_items.length)
+			inserted.recurring_shopping_items = tx
+				.insert(schema.recurringShoppingItems)
+				.values(data.recurring_shopping_items)
+				.run().changes;
+		if (data.shopping_week_entries.length)
+			inserted.shopping_week_entries = tx
+				.insert(schema.shoppingWeekEntries)
+				.values(data.shopping_week_entries)
+				.run().changes;
+		delHouseholdPref(tx as unknown as DB, K_SHOPPING_SOURCE_MIGRATION);
 
 		return { ok: true, inserted };
 	});

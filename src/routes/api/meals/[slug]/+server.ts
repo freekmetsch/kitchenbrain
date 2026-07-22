@@ -15,6 +15,7 @@ import {
 	subRecipesOf,
 	MealCompositionError
 } from '$lib/server/meal_recipes';
+import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 
 const PatchSchema = z
 	.object({
@@ -69,6 +70,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	// Composition changes invalidate the meal's combined bench sheet. The
 	// canonical mutation above clears it and advances the recipe revision.
 	if (changed) kickCookModeGeneration(params.slug);
+	if (changed) reconcileShoppingAfterWrite(db);
 
 	return json({ subRecipes: subRecipesOf(db, mealId) });
 };

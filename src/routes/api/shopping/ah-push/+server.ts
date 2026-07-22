@@ -18,6 +18,10 @@ import { z } from 'zod';
 import { readJsonBody } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
 import { findShoppingOverride } from '$lib/server/shopping_overrides';
+import {
+	initializeShoppingSourceData,
+	isShoppingSourceMigrationComplete
+} from '$lib/server/shopping_entries';
 
 type Failed = { term: string; kind: 'product' | 'freetext' };
 type PushedChoice = PushProduct | PushFreetext;
@@ -56,6 +60,10 @@ function freetextDescription({ term, amount, unit }: PushFreetext): string {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
+	initializeShoppingSourceData(db);
+	if (isShoppingSourceMigrationComplete(db)) {
+		error(409, 'Shopping changes are paused until the source-aware screen is enabled');
+	}
 
 	const body = await readJsonBody(request, BodySchema);
 	const weekStart = body.weekStart;

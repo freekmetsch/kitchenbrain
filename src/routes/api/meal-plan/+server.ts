@@ -8,6 +8,7 @@ import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { isoWeekNumber, weekStartFor } from '$lib/week';
 import { readJsonBody } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
+import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 
 const CreateSchema = z.object({
 	weekStartDate: isoDateSchema,
@@ -55,6 +56,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		})
 		.returning()
 		.get();
+	reconcileShoppingAfterWrite(db, [weekStartDate]);
 
 	return json(meal);
 };

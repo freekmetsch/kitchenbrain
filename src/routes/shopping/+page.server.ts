@@ -11,13 +11,20 @@ import { addDays, deliveryDateForPlanningWeek, isIsoDate, todayIso, weekKeyRange
 import { sumCompatibleQuantities } from '$lib/recipe_scale';
 import type { ShoppingListItem as ShoppingItem } from '$lib/components/shopping/types';
 import { listShoppingOverrides } from '$lib/server/shopping_overrides';
+import {
+	initializeShoppingSourceData,
+	isShoppingSourceMigrationComplete,
+	materializeShoppingWeek
+} from '$lib/server/shopping_entries';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(302, '/login');
 
+	initializeShoppingSourceData(db);
 	const prefs = getMealPlanPrefs();
 	const weekParam = url.searchParams.get('week');
 	const weekStart = weekStartFor(isIsoDate(weekParam) ? weekParam : todayIso(), prefs.weekStartDay);
+	materializeShoppingWeek(db, weekStart, { weekStartDay: prefs.weekStartDay });
 
 	// Range query, not equality: meals created before a week-start-day change
 	// keep their old week key. weekKeyRange matches every key whose week
@@ -148,6 +155,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	return {
+		legacyShoppingReadOnly: isShoppingSourceMigrationComplete(db),
 		weekStart,
 		prevWeek: addDays(weekStart, -7),
 		nextWeek: addDays(weekStart, 7),

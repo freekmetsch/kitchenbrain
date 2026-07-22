@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, unique, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, unique, index, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type { BenchSheetRating, StoredCookModeRecipe } from '$lib/types';
 import type { MachineActor } from '$lib/actors';
 import type {
@@ -269,6 +269,66 @@ export const shoppingListOverrides = sqliteTable(
 	(t) => [unique().on(t.weekStartDate, t.name)]
 );
 
+export const recurringShoppingItems = sqliteTable(
+	'recurring_shopping_items',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		name: text('name').notNull(),
+		amount: text('amount'),
+		unit: text('unit'),
+		startWeek: text('start_week').notNull(),
+		endWeek: text('end_week'),
+		revision: integer('revision').notNull().default(1),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+	},
+	(t) => [index('recurring_shopping_items_active_range_idx').on(t.startWeek, t.endWeek)]
+);
+
+export type ShoppingWeekSourceKind = 'recipe' | 'weekly' | 'manual' | 'legacy';
+export type ShoppingLegacyResolution = 'attached' | 'manual' | 'dismissed';
+
+export const shoppingWeekEntries = sqliteTable(
+	'shopping_week_entries',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		weekStartDate: text('week_start_date').notNull(),
+		sourceKey: text('source_key').notNull(),
+		sourceKind: text('source_kind').notNull().$type<ShoppingWeekSourceKind>(),
+		recipeId: integer('recipe_id'),
+		recipeSlug: text('recipe_slug'),
+		ingredientId: text('ingredient_id'),
+		recurringItemId: integer('recurring_item_id'),
+		legacyOverrideId: integer('legacy_override_id'),
+		name: text('name').notNull(),
+		amount: text('amount'),
+		unit: text('unit'),
+		amountOverride: text('amount_override'),
+		unitOverride: text('unit_override'),
+		component: text('component'),
+		mealIds: text('meal_ids', { mode: 'json' }).$type<number[]>().notNull().default([]),
+		approvedTerms: text('approved_terms', { mode: 'json' }).$type<string[]>().notNull().default([]),
+		included: integer('included', { mode: 'boolean' }).notNull().default(true),
+		selectedName: text('selected_name'),
+		bought: integer('bought', { mode: 'boolean' }).notNull().default(false),
+		needsReview: integer('needs_review', { mode: 'boolean' }).notNull().default(false),
+		retiredAt: integer('retired_at', { mode: 'timestamp' }),
+		resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
+		resolution: text('resolution').$type<ShoppingLegacyResolution>(),
+		resolvedSourceKey: text('resolved_source_key'),
+		revision: integer('revision').notNull().default(1),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+	},
+	(t) => [
+		unique().on(t.weekStartDate, t.sourceKey),
+		index('shopping_week_entries_week_active_idx').on(t.weekStartDate, t.retiredAt),
+		index('shopping_week_entries_recipe_source_idx').on(t.recipeId, t.ingredientId),
+		index('shopping_week_entries_recurring_idx').on(t.recurringItemId),
+		unique('shopping_week_entries_legacy_override_unique').on(t.legacyOverrideId)
+	]
+);
+
 // Household-level favorite AH product per ingredient name ("knoflook" always
 // means Go-Tan gehakte knoflook here). Keyed on the normalized Dutch shopping
 // item name (AH-INVARIANT); pinned above ranking and the AI archetype pick.
@@ -282,6 +342,7 @@ export const ahFavorites = sqliteTable('ah_favorites', {
 export type ShoppingPushDestination = 'order' | 'list';
 export type ShoppingPushItemMode = 'product' | 'freetext' | 'skip';
 export type ShoppingPushItemStatus = 'success' | 'failed' | 'skipped';
+export type ShoppingPushAttemptStatus = 'pending' | 'succeeded' | 'failed' | 'uncertain';
 
 export const shoppingPushHistory = sqliteTable('shopping_push_history', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
@@ -293,6 +354,9 @@ export const shoppingPushHistory = sqliteTable('shopping_push_history', {
 	freetextPushed: integer('freetext_pushed').notNull().default(0),
 	failedCount: integer('failed_count').notNull().default(0),
 	skippedCount: integer('skipped_count').notNull().default(0),
+	attemptStatus: text('attempt_status').notNull().default('succeeded').$type<ShoppingPushAttemptStatus>(),
+	attemptError: text('attempt_error'),
+	completedAt: integer('completed_at', { mode: 'timestamp' }),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 

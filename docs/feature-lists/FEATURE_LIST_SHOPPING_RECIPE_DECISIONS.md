@@ -1,5 +1,5 @@
 # Feature List: Shopping and Recipe Decisions
-_Status: In flight - Phase 1 of 5 (paused 2026-07-22)_
+_Status: In flight - Phase 2 of 5 (Gate B approved 2026-07-22; live migration in progress)_
 
 ## Problem framing
 
@@ -293,6 +293,43 @@ Exit: one cost-free test pack and both rollback drills prove the full path; Free
 - **Verification:** first read once/concurrently, current horizon and explicit future week, never-captured past warning, meal add/delete/swap, serving and fresh/freezer change, ingredient add/delete/rename, recurring edit/remove, manual delete, orphan retirement, invalid substitute clearing, export/import/reset round-trip.
 - **Rollback:** disable materialization/reconciliation and serve the read-only legacy projection under Release A; imported/new tables remain intact.
 
+## Gate B preparation result (2026-07-22)
+
+The Release B candidate implements SRD-1A through SRD-4B behind the old shopping screen. Once the source-data initializer completes, the old screen stays readable while all old shopping mutations and AH review remain disabled. The new tables and mutation services are present, but the new three-tab UI starts only after Gate C.
+
+### Live-copy migration evidence
+
+- 🔍 verified: Railway CLI status and volume listing showed the production service online with `/data` on its persistent volume. An online SQLite rehearsal snapshot was saved at `/data/snapshots/gate-b-rehearsal-20260722T1625.db` and copied to `output/live-gate-b-rehearsal-20260722T1625.db`. No live schema or row changed.
+- The live copy contained 8 recipes and 115 ingredients. Migration assigned 115 deterministic IDs. Recipe count, ingredient order, and every old ingredient field stayed unchanged.
+- The copy contained 75 legacy overrides: 5 manual, 56 exact, 12 unmatched, and 2 ambiguous. Import committed the same 75 rows without fan-out or loss. The 14 unmatched/ambiguous rows remain read-only, show `Needs review`, and cannot reach AH.
+- The bounded bootstrap materialized 106 week entries. A second import reported all 75 rows as already imported, and a second initializer call made no changes.
+- Migration rejects an empty, non-text, or duplicate pre-existing ingredient ID before changing data.
+
+### Rollback evidence
+
+- Code rollback: the shipped Release A image at `74b7f13` booted against the migrated live copy, logged in, saved `adam-ragusea-bolognese`, moved its revision from 2 to 3, and preserved all 20 ingredient IDs and the note edit.
+- Full rollback: the pre-Release A image at `907ba22` booted and returned a healthy response against the restored pre-`0020` live copy.
+- The final rehearsal outputs are `output/gate-b-2026-07-22T14-46-27-857Z/gate-b-evidence.json` and `output/gate-b-2026-07-22T14-46-27-857Z/rollback-image-evidence.json`.
+
+### Reconciliation callers
+
+| Source-changing write | Release B caller |
+|---|---|
+| Add, change, or remove a planned meal | Meal-plan routes and the AI meal-plan executor reconcile the affected week. |
+| Change linked meal freshness or portions | Meal routes reconcile the affected week. |
+| Change a recipe's ingredients or servings | Manual recipe edit, AI recipe edit, and accepted recipe normalization reconcile existing nonpast snapshots. |
+| Add, edit, skip, disable, or remove a recurring item | Shopping mutations reconcile the effective week and bounded horizon. |
+| Add or remove a manual source; resolve a legacy row | Shopping mutations update source-owned entries in one transaction. |
+
+### Gate B checks and release boundary
+
+- 44 unit-test files / 320 tests, Svelte check, and the production build pass.
+- The old read-only screen passes at 375, 768, and 1280 px with no horizontal overflow, browser error, or console error. The pause notice renders, every old checkbox is disabled, and AH review is disabled.
+- Independent re-review returned GO for Gate B preparation after finding and fixing three further P1 gaps: two old writer routes, invalid non-string JSON ID types, and direct edits to unresolved legacy rows. The same pass confirmed that shopping-data reset and old-backup import clear the derived completion marker. No P0/P1 remains.
+- Gate B approval authorizes only SRD-1A through SRD-4B. The live sequence is: take the service offline to block household writes; take a fresh `/data` SQLite snapshot; deploy and run `0020` once; record live recipe, ingredient, override, week-entry, and unresolved counts; run Release A code rollback and pre-`0020` restore checks; bring the service back only after those checks pass. A failure keeps Release A live or restores the fresh snapshot.
+- Gate B does not authorize the Gate C shopping UI, recipe mutations, AH push changes, cooking work, or cleanup. The 14 unresolved rehearsal rows stay blocked for later review.
+- Gate B was approved by Freek on 2026-07-22. The live write freeze, fresh snapshot, and Release B migration may proceed for this ticket range only.
+
 ### SRD-5 - Rebuild the shopping screen around three tabs
 
 - **Observable behavior:** `To buy`, `N meals`, and `Every week` fit at 375 px; optional and stocked decisions live with their recipe source; the final list stays compact.
@@ -516,12 +553,12 @@ The strongest objection is that stable IDs, source-rich expansion, two tables, a
 
 Goal: add source-aware shopping decisions, weekly buys, manual recipe enhancement, whole-batch planning, component-aware ingredients, deterministic cook colors/call ownership, complete ingredient translation, and denser recipe cards.
 
-Current state: Release A / SRD-0 is shipped and rollback-compatible. The app accepts future ingredient IDs and trusted provenance without creating either, preserves unknown ingredient and substitute fields, and uses monotonic recipe revisions; Gate B remains closed.
+Current state: Gate B is approved. The Release B candidate for SRD-1A through SRD-4B passes live-copy migration, no-op import, code rollback, full restore, tests, build, and the read-only browser matrix; the live migration is in progress.
 
-First command: `/run` only after explicit approval to prepare Gate B evidence on database copies; do not touch the live database.
+First command: complete the live write freeze, fresh snapshot, additive `0020` migration, recorded live counts, and rollback checks for SRD-1A through SRD-4B only.
 
 First files: `src/lib/recipe_ingredient.ts`, `src/lib/server/db/schema.ts`, next append-only Drizzle migration, `src/lib/server/meal_recipes.ts`, `src/lib/server/shopping_needs.ts`.
 
-Pending verification: prepare the pre-`0020` and current database copies, dry-run ID and legacy-override mapping, record semantic counts and snapshot paths, and rehearse both rollback paths before asking for Gate B. No live migration is authorized.
+Pending verification: take a fresh snapshot during the write freeze, compare live counts with the rehearsal, repeat both rollback checks on the fresh copies, and reopen the service only after they pass.
 
 Decisions fixed: `Every week`; weekly alternatives do not rewrite recipes unless `Use in recipe` is chosen; AI additions start as `Nice to have`.

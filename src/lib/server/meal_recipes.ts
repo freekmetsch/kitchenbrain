@@ -27,6 +27,16 @@ export type SubRecipeRef = {
 
 export type MealRef = { id: number; slug: string; title: string; titleEn: string | null };
 
+export type ExpandedMealIngredient = {
+	ownerRecipeId: number;
+	ownerRecipeSlug: string;
+	ownerRecipeTitle: string;
+	ingredientId: string;
+	component: string | null;
+	flatIndex: number;
+	ingredient: Ingredient;
+};
+
 export class MealCompositionError extends Error {
 	constructor(
 		public code:
@@ -91,24 +101,62 @@ export function subRecipeCountByMeal(db: DB): Map<number, number> {
  */
 export function expandMealIngredients(
 	db: DB,
-	recipe: { id: number; ingredients: unknown },
+	recipe: { id: number; slug?: string; title?: string; ingredients: unknown },
 	subRecipes?: SubRecipeRef[]
 ): Ingredient[] {
-	const own = (recipe.ingredients as Ingredient[]) ?? [];
+	return expandMealIngredientSources(db, recipe, subRecipes).map((row) => row.ingredient);
+}
+
+function sourceRows(
+	db: DB,
+	recipe: { id: number; slug?: string; title?: string; servings?: number | null; ingredients: unknown },
+	subRecipes?: SubRecipeRef[]
+) {
+	const own = {
+		id: recipe.id,
+		slug: recipe.slug ?? `recipe-${recipe.id}`,
+		title: recipe.title ?? recipe.slug ?? `Recipe ${recipe.id}`,
+		servings: recipe.servings ?? null,
+		ingredients: (recipe.ingredients as Ingredient[]) ?? []
+	};
 	const subs = subRecipes ?? subRecipesOf(db, recipe.id);
-	if (subs.length === 0) return own;
-	const subRows = db
-		.select({ id: schema.recipes.id, ingredients: schema.recipes.ingredients })
+	if (subs.length === 0) return [own];
+	const rows = db
+		.select({
+			id: schema.recipes.id,
+			slug: schema.recipes.slug,
+			title: schema.recipes.title,
+			servings: schema.recipes.servings,
+			ingredients: schema.recipes.ingredients
+		})
 		.from(schema.recipes)
-		.where(
-			inArray(
-				schema.recipes.id,
-				subs.map((s) => s.id)
-			)
-		)
+		.where(inArray(schema.recipes.id, subs.map((sub) => sub.id)))
 		.all();
-	const byId = new Map(subRows.map((r) => [r.id, (r.ingredients as Ingredient[]) ?? []]));
-	return [...own, ...subs.flatMap((s) => byId.get(s.id) ?? [])];
+	const byId = new Map(rows.map((row) => [row.id, row]));
+	return [own, ...subs.flatMap((sub) => (byId.has(sub.id) ? [byId.get(sub.id)!] : []))];
+}
+
+/**
+ * Keep the leaf recipe owner and component beside every ingredient. The flat
+ * order stays identical to the compatibility Ingredient[] projection.
+ */
+export function expandMealIngredientSources(
+	db: DB,
+	recipe: { id: number; slug?: string; title?: string; ingredients: unknown },
+	subRecipes?: SubRecipeRef[]
+): ExpandedMealIngredient[] {
+	let flatIndex = 0;
+	return sourceRows(db, recipe, subRecipes).flatMap((owner) =>
+		((owner.ingredients as Ingredient[]) ?? []).map((ingredient, ingredientIndex) => ({
+			ownerRecipeId: owner.id,
+			ownerRecipeSlug: owner.slug,
+			ownerRecipeTitle: owner.title,
+			ingredientId: ingredient.id ?? `legacy_${owner.id}_${ingredientIndex}`,
+			component: ingredient.component ?? null,
+			flatIndex: flatIndex++,
+			ingredient
+		}))
+	);
 }
 
 /**
@@ -118,31 +166,34 @@ export function expandMealIngredients(
  */
 export function expandMealIngredientsForServings(
 	db: DB,
-	recipe: { id: number; servings: number | null; ingredients: unknown },
+	recipe: { id: number; slug?: string; title?: string; servings: number | null; ingredients: unknown },
 	occasionServings: number | null | undefined,
 	subRecipes?: SubRecipeRef[]
 ): Ingredient[] {
-	const target = occasionServings ?? recipe.servings;
-	const own = ((recipe.ingredients as Ingredient[]) ?? []).map((ingredient) =>
-		projectIngredient(ingredient, recipe.servings, target)
+	return expandMealIngredientSourcesForServings(db, recipe, occasionServings, subRecipes).map(
+		(row) => row.ingredient
 	);
-	const subs = subRecipes ?? subRecipesOf(db, recipe.id);
-	if (subs.length === 0) return own;
-	const subRows = db.select({
-		id: schema.recipes.id,
-		servings: schema.recipes.servings,
-		ingredients: schema.recipes.ingredients
-	}).from(schema.recipes).where(inArray(schema.recipes.id, subs.map((sub) => sub.id))).all();
-	const byId = new Map(subRows.map((row) => [row.id, row]));
-	return [
-		...own,
-		...subs.flatMap((sub) => {
-			const row = byId.get(sub.id);
-			return ((row?.ingredients as Ingredient[]) ?? []).map((ingredient) =>
-				projectIngredient(ingredient, row?.servings, target)
-			);
-		})
-	];
+}
+
+export function expandMealIngredientSourcesForServings(
+	db: DB,
+	recipe: { id: number; slug?: string; title?: string; servings: number | null; ingredients: unknown },
+	occasionServings: number | null | undefined,
+	subRecipes?: SubRecipeRef[]
+): ExpandedMealIngredient[] {
+	const target = occasionServings ?? recipe.servings;
+	let flatIndex = 0;
+	return sourceRows(db, recipe, subRecipes).flatMap((owner) =>
+		((owner.ingredients as Ingredient[]) ?? []).map((ingredient, ingredientIndex) => ({
+			ownerRecipeId: owner.id,
+			ownerRecipeSlug: owner.slug,
+			ownerRecipeTitle: owner.title,
+			ingredientId: ingredient.id ?? `legacy_${owner.id}_${ingredientIndex}`,
+			component: ingredient.component ?? null,
+			flatIndex: flatIndex++,
+			ingredient: projectIngredient(ingredient, owner.servings, target)
+		}))
+	);
 }
 
 /**

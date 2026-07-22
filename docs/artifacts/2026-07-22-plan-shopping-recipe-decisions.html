@@ -88,6 +88,7 @@
     .badge.r2 { background: var(--blue); }
     .decision-shell { padding: 24px; border: 1px solid #cec5b4; border-radius: 22px; background: #fffaf0; box-shadow: var(--shadow); }
     .decision-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
+    .decision-grid.one { grid-template-columns: 1fr; }
     fieldset { min-width: 0; margin: 0; padding: 17px; border: 1px solid var(--line); border-radius: 15px; background: white; }
     legend { max-width: 100%; padding: 0 6px; font-weight: 780; line-height: 1.25; }
     .hint { margin: 6px 0 12px; color: var(--muted); font-size: .83rem; }
@@ -139,14 +140,14 @@
 <body>
   <header class="hero">
     <div class="shell">
-      <span class="eyebrow">Plan ready for review</span>
-      <h1>Make each shopping choice clear, saved, and safe.</h1>
-      <p class="lede">The plan joins whole-recipe portions, component-aware ingredients, weekly buys, recipe needs, alternatives, AI suggestions, and cooking progress without turning the app into a stock system or an ingredient catalogue.</p>
-      <div class="meta" aria-label="Plan facts">
-        <span class="chip">5 phases</span>
-        <span class="chip">21 tickets</span>
-        <span class="chip">No new service or package</span>
-        <span class="chip risk">R3: database snapshot and rollback drill</span>
+      <span class="eyebrow">Gate B ready for a decision</span>
+      <h1>Approve the live shopping-data migration?</h1>
+      <p class="lede">Release B adds stable recipe ingredient IDs, source-owned week rows, recurring-item storage, and no-guess legacy import. The rehearsal used a copy of the live database. Nothing has migrated or changed in production.</p>
+      <div class="meta" aria-label="Gate B facts">
+        <span class="chip">8 live recipes</span>
+        <span class="chip">115 ingredient IDs</span>
+        <span class="chip">75 legacy rows accounted for</span>
+        <span class="chip risk">14 rows stay blocked for review</span>
       </div>
     </div>
   </header>
@@ -155,8 +156,8 @@
     <section>
       <div class="shell">
         <div class="risk-note">
-          <strong>Four approvals split compatibility, migration, feature enablement, and cleanup.</strong>
-          <p>Running the plan approves only the compatibility release. Later approvals sit before the live migration, the R3 recipe-mutation release, and deletion of old compatibility code.</p>
+          <strong>Gate B authorizes one bounded release: SRD-1A through SRD-4B.</strong>
+          <p>Approval starts a short write freeze, fresh snapshot, additive migration, recorded live counts, and rollback checks. It does not authorize the new shopping tabs, recipe-choice writes, AH push changes, cooking work, or cleanup.</p>
         </div>
       </div>
     </section>
@@ -164,31 +165,31 @@
     <section>
       <div class="shell">
         <div class="section-head">
-          <h2>One source for each choice</h2>
-          <p>Choices happen before similar items merge. The final list and Albert Heijn still get one concrete Dutch product term.</p>
+          <h2>What approval runs</h2>
+          <p>The live sequence keeps one fresh rollback point and stops if any count differs from the rehearsal.</p>
         </div>
-        <div class="flow" aria-label="Shopping decision flow">
-          <article data-step="1"><div class="node"></div><h3>Recipe ingredient</h3><p>A stable ID and leaf/component label keep the choice tied to the right use, even when another part uses the same ingredient.</p></article>
-          <article data-step="2"><div class="node"></div><h3>This week's choice</h3><p>Include, skip, or choose a saved Dutch alternative without changing future cooks.</p></article>
-          <article data-step="3"><div class="node"></div><h3>Recipe choice</h3><p>An explicit Use in recipe action can save the new default and keep the old name as an alternative.</p></article>
-          <article data-step="4"><div class="node"></div><h3>Final list</h3><p>Component rows stay separate while cooking, then compatible Dutch amounts sum once after source choices.</p></article>
-          <article data-step="5"><div class="node"></div><h3>Albert Heijn</h3><p>A single-use preview token accepts only current Dutch terms and offered products. Uncertain pushes never retry themselves.</p></article>
+        <div class="flow" aria-label="Gate B release flow">
+          <article data-step="1"><div class="node"></div><h3>Freeze writes</h3><p>Take the service offline so the household cannot change recipes, plans, or shopping state during the snapshot and migration.</p></article>
+          <article data-step="2"><div class="node"></div><h3>Fresh snapshot</h3><p>Save the live SQLite file on the mounted volume immediately before migration.</p></article>
+          <article data-step="3"><div class="node"></div><h3>Run Release B</h3><p>Apply additive migration 0020, assign ingredient IDs, import every legacy row once, and materialize the bounded horizon.</p></article>
+          <article data-step="4"><div class="node"></div><h3>Compare counts</h3><p>Record recipes, ingredients, legacy buckets, week rows, unresolved rows, and a second no-op run.</p></article>
+          <article data-step="5"><div class="node"></div><h3>Prove rollback</h3><p>Run the Release A edit/save check and the older-image restore check before reopening the service.</p></article>
         </div>
-        <div class="rule">AI suggestions follow the same rule: generate a proposal, let the person accept and classify each item, then write the selected set in one checked update. Cook-mode AI interprets steps and merges; the app owns quantities, groups, progress, servings, and colors.</div>
+        <div class="rule">Release B keeps the old shopping screen read-only. The new shopping choices, recipe changes, AH push work, cooking work, and cleanup remain behind later approvals.</div>
       </div>
     </section>
 
     <section>
       <div class="shell">
         <div class="section-head">
-          <h2>Added from the Dutch recording</h2>
-          <p>Each request now has its own observable ticket and rollback.</p>
+          <h2>Live-copy evidence</h2>
+          <p>🔍 verified: Railway CLI status and volume listing. The rehearsal used an online backup of the production SQLite database. Production itself stayed unchanged.</p>
         </div>
         <div class="needs">
-          <article class="need"><b>Whole recipe batches</b><p>Use ×1, ×2, ×3, or ×4 from the recipe's yield. Exact − and + controls stay available.</p></article>
-          <article class="need"><b>Component-aware ingredients</b><p>Keep crust and sauce butter separate while cooking, then buy one summed amount when units match.</p></article>
-          <article class="need"><b>Blended merge colors</b><p>Keep source labels, give the result a tested blend, and carry that color into later steps.</p></article>
-          <article class="need"><b>Less cook-mode AI work</b><p>Only recipe interpretation can call the model. Display and progress changes stay in code and cost nothing.</p></article>
+          <article class="need"><b>115 of 115 IDs assigned</b><p>All 8 recipes kept the same ingredient order and every old ingredient field.</p></article>
+          <article class="need"><b>75 of 75 rows mapped</b><p>5 manual and 56 exact rows imported. 12 unmatched and 2 ambiguous rows stayed read-only.</p></article>
+          <article class="need"><b>106 week rows</b><p>The configured horizon materialized once. A second initializer made no changes.</p></article>
+          <article class="need"><b>14 rows blocked</b><p>Unmatched and ambiguous rows show Needs review and cannot reach Albert Heijn before Gate C review.</p></article>
         </div>
       </div>
     </section>
@@ -196,13 +197,13 @@
     <section>
       <div class="shell">
         <div class="section-head">
-          <h2>Three need states</h2>
-          <p>These labels separate recipe need from the household's buying habit.</p>
+          <h2>Both rollback paths ran</h2>
+          <p>The candidate was tested with the exact images that would be used after a failed release.</p>
         </div>
         <div class="needs">
-          <article class="need"><b>Every time</b><p>The recipe needs it for each cook. Pasta and Parmesan fit here for the bolognese example.</p></article>
-          <article class="need"><b>Nice to have</b><p>The recipe still works without it. Basil, salad, and garlic bread can be reviewed here.</p></article>
-          <article class="need"><b>Usually stocked</b><p>The recipe needs it, but the household normally has it. Balsamic stays required without appearing every week.</p></article>
+          <article class="need"><b>Code rollback</b><p>Release A at 74b7f13 opened the migrated live copy, saved a recipe, advanced its revision, and kept all 20 ingredient IDs.</p></article>
+          <article class="need"><b>Full restore</b><p>The pre-Release A image at 907ba22 booted and returned healthy against the restored pre-0020 live copy.</p></article>
+          <article class="need"><b>Candidate checks</b><p>317 unit tests, Svelte check, production build, and 375/768/1280 browser checks pass.</p></article>
         </div>
       </div>
     </section>
@@ -210,15 +211,13 @@
     <section>
       <div class="shell">
         <div class="section-head">
-          <h2>Delivery order</h2>
-          <p>Identity and server checks come first. The visible work follows only after those boundaries pass their tests.</p>
+          <h2>What remains behind later gates</h2>
+          <p>Gate B changes data ownership and keeps the current screen paused. It does not expose unfinished actions.</p>
         </div>
         <div class="timeline">
-          <article class="phase"><h3>Stable identities</h3><p>Ship split live/restore schemas first. Then add ingredient IDs, bounded week snapshots, legacy resolution, and push-attempt state; prove migration and rollback on copies.</p><span class="badge">R3</span></article>
-          <article class="phase"><h3>Shopping choices</h3><p>Add source-aware rows, Every week, legacy review, the three need states, and server-checked alternatives.</p><span class="badge r2">R2</span></article>
-          <article class="phase"><h3>Recipe enhancement</h3><p>Stage AI additions and substitutes from the recipe page or chat, then apply only selected items.</p><span class="badge r2">R2</span></article>
-          <article class="phase"><h3>Planning, cooking, and cards</h3><p>Add batch shortcuts, component sections, shared checks, blended merge colors, complete translation, and compact cards.</p><span class="badge r2">R2</span></article>
-          <article class="phase"><h3>Proof, approval, cleanup</h3><p>Run bolognese and two-butter cases, both rollbacks, and browser gates. Delete compatibility code only after approval.</p><span class="badge">R3</span></article>
+          <article class="phase"><h3>Release B</h3><p>Stable IDs, additive source tables, no-guess legacy import, source-rich derivation, mutations, and bounded reconciliation.</p><span class="badge">Gate B</span></article>
+          <article class="phase"><h3>Release C</h3><p>Three shopping tabs, reviewed recipe choices, safe AH push, recipe proposals, planning, cooking, translation, and card changes.</p><span class="badge r2">Held</span></article>
+          <article class="phase"><h3>Release D</h3><p>Delete the old writers and views only after parity, unresolved-row review, browser proof, and a separate approval.</p><span class="badge">Held</span></article>
         </div>
       </div>
     </section>
@@ -226,39 +225,23 @@
     <section id="decisions">
       <div class="shell">
         <div class="section-head">
-          <h2>Choose the defaults</h2>
-          <p>The recommended picks are selected. Change them, add notes, then copy the prompt.</p>
+          <h2>Gate B decision</h2>
+          <p>The recommendation is selected. Change it, add a condition, then copy the prompt.</p>
         </div>
         <div class="decision-shell">
-          <div class="decision-grid">
+          <div class="decision-grid one">
             <fieldset>
-              <legend>Recurring shopping tab</legend>
-              <p class="hint">The tab holds items that appear each week regardless of the meal plan.</p>
-              <label class="option"><input type="radio" name="tab" value="Every week" checked><span><strong>Every week <span class="recommended">Recommended</span></strong><small>Says when the item appears.</small></span></label>
-              <label class="option"><input type="radio" name="tab" value="Weekly"><span><strong>Weekly</strong><small>Shorter, but less plain.</small></span></label>
-              <label class="option"><input type="radio" name="tab" value="Repeat"><span><strong>Repeat</strong><small>Leaves room for other schedules later.</small></span></label>
-            </fieldset>
-
-            <fieldset>
-              <legend>Alternative scope</legend>
-              <p class="hint">Choose pasta for the week without silently changing all future cooks.</p>
-              <label class="option"><input type="radio" name="alternative" value="This week first, separate Use in recipe" checked><span><strong>This week plus Use in recipe <span class="recommended">Recommended</span></strong><small>Weekly choice first; durable change stays explicit.</small></span></label>
-              <label class="option"><input type="radio" name="alternative" value="Always change the recipe"><span><strong>Always change recipe</strong><small>Faster, but a price or stock choice becomes permanent.</small></span></label>
-              <label class="option"><input type="radio" name="alternative" value="Never change the recipe here"><span><strong>Never change recipe here</strong><small>Safer, but adds a second editing trip.</small></span></label>
-            </fieldset>
-
-            <fieldset>
-              <legend>AI addition default</legend>
-              <p class="hint">The review sheet can change each suggestion before Apply.</p>
-              <label class="option"><input type="radio" name="ai" value="Nice to have" checked><span><strong>Nice to have <span class="recommended">Recommended</span></strong><small>Keeps AI additions non-required until reviewed.</small></span></label>
-              <label class="option"><input type="radio" name="ai" value="Every time"><span><strong>Every time</strong><small>Strong default for central ingredients.</small></span></label>
-              <label class="option"><input type="radio" name="ai" value="Usually stocked"><span><strong>Usually stocked</strong><small>Best only for pantry-style additions.</small></span></label>
+              <legend>Run the live write freeze, snapshot, and Release B migration?</legend>
+              <p class="hint">The rehearsal and both rollback paths pass. Fourteen legacy rows will remain read-only for later review.</p>
+              <label class="option"><input type="radio" name="gate" value="Approve Gate B" checked><span><strong>Approve Gate B <span class="recommended">Recommended</span></strong><small>Run SRD-1A through SRD-4B, record live counts, and stop on any mismatch.</small></span></label>
+              <label class="option"><input type="radio" name="gate" value="Hold Gate B"><span><strong>Hold Gate B</strong><small>Keep Release A live and preserve this candidate without touching production.</small></span></label>
+              <label class="option"><input type="radio" name="gate" value="Reject Gate B"><span><strong>Reject Gate B</strong><small>Revise the migration or rollback design before another rehearsal.</small></span></label>
             </fieldset>
           </div>
 
           <div class="prompt-wrap">
-            <label for="notes">Notes for implementation</label>
-            <textarea id="notes" placeholder="Add a naming, behavior, or layout preference."></textarea>
+            <label for="notes">Conditions or questions</label>
+            <textarea id="notes" placeholder="Add a release condition or question."></textarea>
             <label for="prompt">Copy-ready starter prompt</label>
             <textarea id="prompt" readonly></textarea>
             <div class="actions">
@@ -274,15 +257,15 @@
     <section>
       <div class="shell">
         <div class="section-head">
-          <h2>Release guardrails</h2>
-          <p>These are stop conditions, not work to defer.</p>
+          <h2>Stop conditions</h2>
+          <p>Any failed condition leaves Release A live or restores the fresh snapshot.</p>
         </div>
         <div class="guardrails">
           <article class="guardrail"><h3>Migration proof</h3><p>Old ingredient fields and order must stay the same. A second migration run must change nothing. The compatibility release must edit and save migrated recipes without stripping IDs.</p></article>
           <article class="guardrail"><h3>No legacy guesswork</h3><p>Ambiguous rows stay read-only until attached, converted to manual, or dismissed. Cleanup needs zero active unresolved rows or named exceptions.</p></article>
-          <article class="guardrail"><h3>No AH guesswork or blind retry</h3><p>A single-use token binds saved Dutch terms and offered products. Timeouts become uncertain attempts that never retry automatically.</p></article>
-          <article class="guardrail"><h3>No stale AI write</h3><p>A proposal belongs to one user, one recipe content revision, and a short time window. The AI edit tool cannot change ingredient arrays around this gate.</p></article>
-          <article class="guardrail"><h3>Bounded snapshots, fixed history</h3><p>Only the plan horizon, affected weeks, and first-read nonpast weeks materialize. Past snapshots stay fixed and removed sources retire.</p></article>
+          <article class="guardrail"><h3>No old writer remains open</h3><p>The initializer runs before every old shopping writer checks the completion marker. Crafted calls get 409 after migration.</p></article>
+          <article class="guardrail"><h3>No unresolved-row edits</h3><p>The 14 unresolved rehearsal rows reject direct changes. Only the later attach, convert, or dismiss review can change them.</p></article>
+          <article class="guardrail"><h3>Fixed history</h3><p>Captured past weeks stay fixed. A past week that was never captured reports that fact instead of rebuilding from current recipes.</p></article>
         </div>
       </div>
     </section>
@@ -294,24 +277,24 @@
 
   <script>
     (() => {
-      const storageKey = 'shopping-recipe-decisions-plan-v2';
+      const storageKey = 'shopping-recipe-decisions-gate-b-v3';
       const prompt = document.querySelector('#prompt');
       const notes = document.querySelector('#notes');
       const status = document.querySelector('#copy-status');
-      const groups = ['tab', 'alternative', 'ai'];
+      const groups = ['gate'];
 
       function selected(name) {
         return document.querySelector(`input[name="${name}"]:checked`)?.value || '';
       }
 
       function save() {
-        const state = { tab: selected('tab'), alternative: selected('alternative'), ai: selected('ai'), notes: notes.value };
+        const state = { gate: selected('gate'), notes: notes.value };
         try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (_) { /* Storage is optional. */ }
       }
 
       function render() {
         const extra = notes.value.trim() ? `\nNotes: ${notes.value.trim()}` : '';
-        prompt.value = `Continue: Execute plan Shopping and Recipe Decisions. Load docs/feature-lists/FEATURE_LIST_SHOPPING_RECIPE_DECISIONS.md, then /run.\nState: Plan ready at R3 across five phases and twenty-one tickets; Gate A authorizes the compatibility release only.\nDecisions:\n- Recurring tab: ${selected('tab')}\n- Alternative scope: ${selected('alternative')}\n- AI addition default: ${selected('ai')}${extra}`;
+        prompt.value = `Continue: Load docs/feature-lists/FEATURE_LIST_SHOPPING_RECIPE_DECISIONS.md, then /run the Gate B decision.\nState: Release A is live. The Release B candidate for SRD-1A through SRD-4B passes live-copy migration, no-op import, Release A code rollback, pre-0020 restore, 320 unit tests, build, checks, browser checks, and independent re-review. No live migration or candidate push has occurred.\nDecision: ${selected('gate')}.\nRecommendation: Approve Gate B because all 75 legacy rows are accounted for, all 115 ingredient IDs preserve old fields and order, and both rollback paths pass.\nAssumptions: the service stays offline during the fresh snapshot and migration; live counts must match the rehearsal; any mismatch stops the release.\nConsequences: approval authorizes SRD-1A through SRD-4B only. Fourteen unresolved rows remain read-only and AH-blocked. Gate C and Gate D work remain unauthorized.${extra}`;
         save();
       }
 
@@ -330,9 +313,7 @@
       document.querySelectorAll('input[type="radio"]').forEach((input) => input.addEventListener('change', render));
       notes.addEventListener('input', render);
       document.querySelector('#reset').addEventListener('click', () => {
-        document.querySelector('input[name="tab"][value="Every week"]').checked = true;
-        document.querySelector('input[name="alternative"][value="This week first, separate Use in recipe"]').checked = true;
-        document.querySelector('input[name="ai"][value="Nice to have"]').checked = true;
+        document.querySelector('input[name="gate"][value="Approve Gate B"]').checked = true;
         notes.value = '';
         try { localStorage.removeItem(storageKey); } catch (_) { /* Storage is optional. */ }
         status.textContent = 'Defaults restored.';

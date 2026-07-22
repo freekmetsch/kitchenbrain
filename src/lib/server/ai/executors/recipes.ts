@@ -20,6 +20,7 @@ import { db as appDb } from '$lib/server/db/index';
 import { updateCanonicalRecipe, type CanonicalRecipeUpdate } from '$lib/server/recipe_mutations';
 import type { DB, ExecutorFn } from './shared';
 import { NewIngredientSchema } from '$lib/recipe_ingredient';
+import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 
 // Pre-generate a bench sheet after a chat-side recipe write, so the recipe is
 // ready by the time it's opened. generateCookMode reads the module-level app
@@ -353,6 +354,7 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			changes: updates
 		});
 		if (!updated) return { ok: false, error: 'Recipe changed during the edit' };
+		if ('ingredients' in updates || 'servings' in updates) reconcileShoppingAfterWrite(db);
 		if (sheetStale) kickCookModeIfAppDb(db, input.slug);
 		return {
 			ok: true,

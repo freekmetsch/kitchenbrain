@@ -5,6 +5,7 @@ import { mergeLiveIngredients, type Ingredient } from '$lib/recipe_ingredient';
 import { checkDailyCap } from '$lib/server/ai/client';
 import { enrichRecipeStructure, type ScrapedRecipe } from '$lib/server/ai/recipe_ingest';
 import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
+import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -116,6 +117,7 @@ export async function normalizeLegacyRecipes(
 			stale += 1;
 			continue;
 		}
+		if (proposed.structureVersion === 2) reconcileShoppingAfterWrite(db);
 		if (proposed.structureVersion === 2) improved += 1;
 		else needsReview += 1;
 	}

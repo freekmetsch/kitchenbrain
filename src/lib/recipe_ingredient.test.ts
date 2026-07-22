@@ -47,7 +47,7 @@ describe('recipe ingredient compatibility schemas', () => {
 		]);
 	});
 
-	it('does not let Release A mint an ingredient ID', () => {
+	it('rejects a forged ingredient ID', () => {
 		expect(() =>
 			mergeLiveIngredients(
 				[{ name: 'Ui', amount: '1' }],
@@ -119,7 +119,7 @@ describe('recipe ingredient compatibility schemas', () => {
 			[null, 0, 1]
 		);
 
-		expect(merged[0].id).toBeUndefined();
+		expect(merged[0].id).toMatch(/^ing_/);
 		expect(merged[1]).toMatchObject({ id: 'onion', futureField: 'keep-onion' });
 		expect(merged[2]).toMatchObject({ id: 'tomato', origin: 'ai_accepted' });
 	});

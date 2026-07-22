@@ -206,7 +206,7 @@
 			type="button"
 			class="btn btn-primary btn-sm h-10 min-h-0 shrink-0 gap-1.5 px-2.5 sm:px-3"
 			onclick={() => ahSheet?.openAhModal()}
-			disabled={visibleToBuyCount === 0}
+			disabled={visibleToBuyCount === 0 || data.legacyShoppingReadOnly}
 			aria-label={m.shopping_review_ah_order()}
 		>
 			<Icon name="cart" />
@@ -232,6 +232,10 @@
 		freezerMealsMissingFreshInfo={data.freezerMealsMissingFreshInfo}
 	/>
 
+	{#if data.legacyShoppingReadOnly}
+		<div class="alert alert-info mb-3 text-sm" role="status">{m.shopping_source_migration_read_only()}</div>
+	{/if}
+
 	{#if !items.length}
 		<EmptyState iconName="basket" title={emptyCopy.title} description={emptyCopy.description}>
 			{#snippet action()}
@@ -251,6 +255,7 @@
 			{visibleToBuyCount}
 			bind:showCovered
 			{bonusByName}
+			readOnly={data.legacyShoppingReadOnly}
 			onToggleBought={toggleBought}
 			onDeleteManual={deleteManual}
 			onToggleIncluded={(item) => void saveChoice(item, 'set_included', !item.included)}
@@ -259,9 +264,13 @@
 		/>
 	{/if}
 
-	<AddItemForm weekStart={data.weekStart} onAdded={addItem} />
+	{#if !data.legacyShoppingReadOnly}
+		<AddItemForm weekStart={data.weekStart} onAdded={addItem} />
+	{/if}
 
 	<PushHistory pushHistory={data.pushHistory} />
 </div>
 
-	<AhSheet bind:this={ahSheet} weekStart={data.weekStart} pending={activePending} bind:bonusByName onMarkedBought={markBought} />
+	{#if !data.legacyShoppingReadOnly}
+		<AhSheet bind:this={ahSheet} weekStart={data.weekStart} pending={activePending} bind:bonusByName onMarkedBought={markBought} />
+	{/if}

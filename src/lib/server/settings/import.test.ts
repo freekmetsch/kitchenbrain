@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '../test_db';
 import { importBootstrap, isBootstrapEligible, validateImportFile } from './import';
+import { getHouseholdPref, setHouseholdPref } from '$lib/server/db/household_prefs';
+import {
+	initializeShoppingSourceData,
+	K_SHOPPING_SOURCE_MIGRATION
+} from '$lib/server/shopping_entries';
 
 const NOW = new Date().toISOString();
 
@@ -80,6 +85,8 @@ function emptyFile(overrides: Record<string, unknown> = {}) {
 		meal_log: [],
 		meal_sub_recipes: [],
 		shopping_overrides: [],
+		recurring_shopping_items: [],
+		shopping_week_entries: [],
 		...overrides
 	};
 }
@@ -242,6 +249,7 @@ describe('isBootstrapEligible / importBootstrap', () => {
 
 	it('round-trips occasion servings and weekly shopping choices', () => {
 		const db = createTestDb();
+		setHouseholdPref(db, K_SHOPPING_SOURCE_MIGRATION, 'complete');
 		const validation = validateImportFile(emptyFile({
 			meal_plan: [{
 				id: 4,
@@ -275,8 +283,75 @@ describe('isBootstrapEligible / importBootstrap', () => {
 		if (!validation.ok) return;
 		const outcome = importBootstrap(db, validation.data);
 		expect(outcome.ok).toBe(true);
+		expect(getHouseholdPref(db, K_SHOPPING_SOURCE_MIGRATION)).toBeNull();
+		expect(initializeShoppingSourceData(db).imported).toMatchObject({ total: 1, unmatched: 1 });
+		expect(initializeShoppingSourceData(db).alreadyComplete).toBe(true);
 		expect(db.select().from(schema.mealPlanMeals).get()?.servings).toBe(6);
 		expect(db.select().from(schema.shoppingListOverrides).get()).toMatchObject({ included: false, selectedName: 'linzen' });
+		expect(db.select().from(schema.shoppingWeekEntries).all().filter((entry) => entry.sourceKind === 'legacy'))
+			.toHaveLength(1);
+	});
+
+	it('round-trips recurring items and captured source entries', () => {
+		const validation = validateImportFile(
+			emptyFile({
+				recurring_shopping_items: [
+					{
+						id: 5,
+						name: 'melk',
+						amount: '2',
+						unit: 'pak',
+						startWeek: '2026-07-22',
+						endWeek: null,
+						revision: 1,
+						createdAt: NOW,
+						updatedAt: NOW
+					}
+				],
+				shopping_week_entries: [
+					{
+						id: 8,
+						weekStartDate: '2026-07-22',
+						sourceKey: 'weekly:5',
+						sourceKind: 'weekly',
+						recipeId: null,
+						recipeSlug: null,
+						ingredientId: null,
+						recurringItemId: 5,
+						legacyOverrideId: null,
+						name: 'melk',
+						amount: '2',
+						unit: 'pak',
+						component: null,
+						mealIds: [],
+						approvedTerms: ['melk'],
+						included: false,
+						selectedName: null,
+						bought: true,
+						needsReview: false,
+						retiredAt: null,
+						resolvedAt: null,
+						resolution: null,
+						resolvedSourceKey: null,
+						revision: 2,
+						createdAt: NOW,
+						updatedAt: NOW
+					}
+				]
+			})
+		);
+		expect(validation.ok).toBe(true);
+		if (!validation.ok) return;
+		const db = createTestDb();
+		const outcome = importBootstrap(db, validation.data);
+		expect(outcome.ok).toBe(true);
+		expect(db.select().from(schema.recurringShoppingItems).get()).toMatchObject({ id: 5, name: 'melk' });
+		expect(db.select().from(schema.shoppingWeekEntries).get()).toMatchObject({
+			id: 8,
+			sourceKey: 'weekly:5',
+			included: false,
+			bought: true
+		});
 	});
 
 	it('refuses to import when recipes already exist, touching zero rows', () => {

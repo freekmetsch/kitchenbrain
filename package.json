@@ -23,6 +23,8 @@
     "test:unit": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "shopping:migration:rehearse": "tsx scripts/rehearse_shopping_migration.ts",
+    "shopping:rollback:rehearse": "tsx scripts/rehearse_rollback_images.ts",
     "recipes:backfill:dry": "tsx scripts/backfill_recipe_translations.ts",
     "recipes:backfill": "tsx scripts/backfill_recipe_translations.ts --apply"
   },

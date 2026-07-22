@@ -8,6 +8,7 @@ import { recordCook, unrecordCook } from '$lib/server/cook_log';
 import { todayIso } from '$lib/week';
 import { readJsonBody, readPositiveIntParam } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
+import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 
 const UpdateSchema = z.object({
 	status: z.enum(['planned', 'cooked']).nullable().optional(),
@@ -47,6 +48,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 			.returning()
 			.get();
 		if (!meal) throw error(404, 'Meal not found');
+		reconcileShoppingAfterWrite(db, [meal.weekStartDate]);
 		return json(meal);
 	}
 
@@ -82,5 +84,6 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!meal) throw error(404, 'Meal not found');
 	if (meal.status === 'cooked') unrecordCook(db, meal.id);
 	db.delete(mealPlanMeals).where(eq(mealPlanMeals.id, id)).run();
+	reconcileShoppingAfterWrite(db, [meal.weekStartDate]);
 	return json({ ok: true, meal });
 };

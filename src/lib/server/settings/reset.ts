@@ -7,6 +7,8 @@ import { count, getTableName } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { AnySQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '$lib/server/db/schema';
+import { delHouseholdPref } from '$lib/server/db/household_prefs';
+import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/shopping_entries';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -73,7 +75,12 @@ const GROUP_TABLES: Record<ResetGroupKey, AnySQLiteTable[]> = {
 	chat_history: [schema.chatMessages],
 	spending_log: [schema.spending],
 	// shopping_push_items cascades from shopping_push_history — no separate entry.
-	shopping_data: [schema.shoppingListOverrides, schema.shoppingPushHistory],
+	shopping_data: [
+		schema.shoppingWeekEntries,
+		schema.recurringShoppingItems,
+		schema.shoppingListOverrides,
+		schema.shoppingPushHistory
+	],
 	ah_favorites: [schema.ahFavorites]
 };
 
@@ -108,6 +115,7 @@ export function resetGroup(db: DB, key: ResetGroupKey): ResetResult {
 		for (const table of GROUP_TABLES[key]) {
 			deleted[getTableName(table)] = tx.delete(table).run().changes;
 		}
+		if (key === 'shopping_data') delHouseholdPref(tx as unknown as DB, K_SHOPPING_SOURCE_MIGRATION);
 		return { group: key, deleted };
 	});
 }

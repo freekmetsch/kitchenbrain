@@ -3,6 +3,8 @@ import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '../test_db';
 import { RESET_GROUP_KEYS, RESET_GROUPS, countGroupRows, resetGroup } from './reset';
+import { getHouseholdPref, setHouseholdPref } from '$lib/server/db/household_prefs';
+import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/shopping_entries';
 
 const NOW = new Date();
 
@@ -133,8 +135,9 @@ describe('resetGroup(meal_history)', () => {
 });
 
 describe('resetGroup(shopping_data)', () => {
-	it('deletes shopping_list_overrides and cascades shopping_push_items via shopping_push_history', () => {
+	it('deletes legacy, recurring, captured, and push shopping data', () => {
 		const db = createTestDb();
+		setHouseholdPref(db, K_SHOPPING_SOURCE_MIGRATION, 'complete');
 		db.insert(schema.shoppingListOverrides)
 			.values({ weekStartDate: '2026-07-06', name: 'Melk', createdAt: NOW })
 			.run();
@@ -153,12 +156,30 @@ describe('resetGroup(shopping_data)', () => {
 				createdAt: NOW
 			})
 			.run();
+		const recurringId = db
+			.insert(schema.recurringShoppingItems)
+			.values({ name: 'Melk', startWeek: '2026-07-06', createdAt: NOW, updatedAt: NOW })
+			.run().lastInsertRowid as number;
+		db.insert(schema.shoppingWeekEntries)
+			.values({
+				weekStartDate: '2026-07-06',
+				sourceKey: `weekly:${recurringId}`,
+				sourceKind: 'weekly',
+				recurringItemId: recurringId,
+				name: 'Melk',
+				createdAt: NOW,
+				updatedAt: NOW
+			})
+			.run();
 
 		expect(() => resetGroup(db, 'shopping_data')).not.toThrow();
 
 		expect(db.select().from(schema.shoppingListOverrides).all()).toHaveLength(0);
 		expect(db.select().from(schema.shoppingPushHistory).all()).toHaveLength(0);
 		expect(db.select().from(schema.shoppingPushItems).all()).toHaveLength(0);
+		expect(db.select().from(schema.recurringShoppingItems).all()).toHaveLength(0);
+		expect(db.select().from(schema.shoppingWeekEntries).all()).toHaveLength(0);
+		expect(getHouseholdPref(db, K_SHOPPING_SOURCE_MIGRATION)).toBeNull();
 	});
 });
 

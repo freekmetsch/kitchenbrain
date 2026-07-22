@@ -15,6 +15,10 @@ import { serveFreshForRecipe } from '$lib/server/recipe_links';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { todayIso, weekStartFor } from '$lib/week';
 import { isoDateSchema } from '$lib/date_schema';
+import {
+	initializeShoppingSourceData,
+	isShoppingSourceMigrationComplete
+} from '$lib/server/shopping_entries';
 
 const BodySchema = z.object({
 	weekStart: isoDateSchema.optional()
@@ -22,6 +26,10 @@ const BodySchema = z.object({
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
+	initializeShoppingSourceData(db);
+	if (isShoppingSourceMigrationComplete(db)) {
+		throw error(409, 'Shopping changes are paused until the source-aware screen is enabled');
+	}
 
 	let body: unknown = {};
 	const rawBody = await request.text();

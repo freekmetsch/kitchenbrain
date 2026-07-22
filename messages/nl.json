@@ -424,6 +424,7 @@
 	"inventory_staples_add_button": "+ lijst",
 	"shopping_title": "Boodschappen · Household Brain",
 	"shopping_heading": "Boodschappen",
+	"shopping_source_migration_read_only": "Je kunt deze week bekijken. Wijzigingen zijn gepauzeerd terwijl de nieuwe weeklijst wordt klaargezet.",
 	"shopping_review_ah_order": "AH-bestelling controleren",
 	"shopping_send_to_ah_button": "Versturen naar AH",
 	"shopping_empty_no_meals_title": "Nog geen maaltijden gepland",
