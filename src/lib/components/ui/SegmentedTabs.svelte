@@ -8,14 +8,16 @@
 		value = $bindable(),
 		onchange,
 		cols,
-		ariaLabel
+		ariaLabel,
+		idPrefix
 	}: {
-		tabs: { value: T; label: string }[];
+		tabs: { value: T; label: string; badge?: string | number }[];
 		value: T;
 		onchange?: (v: T) => void;
 		ariaLabel?: string;
-		/** 2 → wrap into a 2-column grid (overflow). Default: single inline row. */
-		cols?: 2;
+		idPrefix?: string;
+		/** 2 or 3 → use an equal-width grid. Default: single inline row. */
+		cols?: 2 | 3;
 	} = $props();
 
 	function select(v: T) {
@@ -30,6 +32,8 @@
 		if (i === -1) return;
 		const next = e.key === 'ArrowRight' ? (i + 1) % tabs.length : (i - 1 + tabs.length) % tabs.length;
 		select(tabs[next].value);
+		const buttons = (e.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]');
+		buttons[next]?.focus();
 	}
 </script>
 
@@ -38,20 +42,22 @@
 	aria-label={ariaLabel}
 	tabindex="-1"
 	{onkeydown}
-	class="rounded-lg bg-base-200 p-0.5 {cols === 2
-		? 'grid grid-cols-2 gap-0.5'
+	class="rounded-lg bg-base-200 p-0.5 {cols
+		? `grid ${cols === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-0.5`
 		: 'inline-flex items-center gap-0.5'}"
 >
 	{#each tabs as t (t.value)}
 		<button
 			type="button"
 			role="tab"
+			id={idPrefix ? `${idPrefix}-tab-${t.value}` : undefined}
+			aria-controls={idPrefix ? `${idPrefix}-panel-${t.value}` : undefined}
 			aria-selected={value === t.value}
 			tabindex={value === t.value ? 0 : -1}
 			class="inline-flex min-h-9 items-center justify-center rounded-md px-2.5 py-1 text-xs font-medium transition-colors {value === t.value
 				? 'bg-base-100 shadow-sm'
 				: 'text-base-content/50 hover:text-base-content/80'}"
-			onclick={() => select(t.value)}>{t.label}</button
+			onclick={() => select(t.value)}>{t.label}{#if t.badge !== undefined}<span class="badge badge-sm ml-1">{t.badge}</span>{/if}</button
 		>
 	{/each}
 </div>

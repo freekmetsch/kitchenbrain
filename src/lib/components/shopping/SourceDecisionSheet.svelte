@@ -7,13 +7,14 @@
 	type Props = {
 		open: boolean;
 		source: ShoppingListSource | null;
-		onSave: (source: ShoppingListSource, input: { need: Need; term: string; useInRecipe: boolean }) => void;
+		onSave: (source: ShoppingListSource, input: { need: Need; term: string; useInRecipe: boolean }) => Promise<boolean>;
 	};
 
 	let { open = $bindable(), source, onSave }: Props = $props();
 	let need = $state<Need>('required');
 	let term = $state('');
 	let useInRecipe = $state(false);
+	let pending = $state(false);
 
 	$effect(() => {
 		if (!source) return;
@@ -27,6 +28,14 @@
 		{ value: 'optional' as const, label: m.shopping_need_nice_to_have(), description: m.shopping_need_nice_to_have_desc() },
 		{ value: 'stocked' as const, label: m.shopping_need_usually_stocked(), description: m.shopping_need_usually_stocked_desc() }
 	]);
+
+	async function save() {
+		if (!source || pending) return;
+		pending = true;
+		const saved = await onSave(source, { need, term, useInRecipe });
+		pending = false;
+		if (saved) open = false;
+	}
 </script>
 
 <BottomSheet bind:open title={m.shopping_source_title()}>
@@ -60,8 +69,8 @@
 				</label>
 			{/if}
 			<div class="flex justify-end gap-2">
-				<button type="button" class="btn btn-ghost" onclick={() => (open = false)}>{m.shopping_cancel_button()}</button>
-				<button type="button" class="btn btn-primary" onclick={() => { onSave(source, { need, term, useInRecipe }); open = false; }}>{m.shopping_save_choice()}</button>
+				<button type="button" class="btn btn-ghost" disabled={pending} onclick={() => (open = false)}>{m.shopping_cancel_button()}</button>
+				<button type="button" class="btn btn-primary" disabled={pending} onclick={() => void save()}>{m.shopping_save_choice()}</button>
 			</div>
 		</div>
 	{/if}

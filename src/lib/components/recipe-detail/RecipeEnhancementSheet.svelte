@@ -30,11 +30,16 @@
 			const response = await fetch(`${base}/api/recipes/${slug}/enhance`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'generate' }) });
 			if (!response.ok) throw new Error();
 			proposal = await response.json();
-			selectedAdditions = Object.fromEntries(proposal!.additions.map((addition) => [addition.id, true]));
+			selectedAdditions = Object.fromEntries(proposal!.additions.map((addition) => [addition.id, false]));
 			needs = Object.fromEntries(proposal!.additions.map((addition) => [addition.id, 'optional']));
-			selectedSubstitutes = Object.fromEntries(proposal!.substitutes.map((substitute) => [substitute.id, true]));
+			selectedSubstitutes = Object.fromEntries(proposal!.substitutes.map((substitute) => [substitute.id, false]));
 		} catch { toast.error(m.recipe_enhance_failed()); open = false; }
 		finally { loading = false; }
+	}
+
+	function openReview() {
+		if (proposal) open = true;
+		else void generate();
 	}
 
 	async function apply() {
@@ -51,6 +56,7 @@
 			});
 			if (!response.ok) { toast.error(response.status === 409 ? m.recipe_enhance_stale() : m.recipe_enhance_failed()); return; }
 			open = false;
+			proposal = null;
 			toast.success(m.recipe_enhance_applied());
 			await invalidateAll();
 		} catch {
@@ -61,7 +67,7 @@
 	}
 </script>
 
-<button type="button" class="btn btn-outline btn-sm mb-4" onclick={generate}>{m.recipe_enhance_button()}</button>
+<button type="button" class="btn btn-outline btn-sm mb-4" onclick={openReview}>{m.recipe_enhance_button()}</button>
 
 <BottomSheet bind:open title={m.recipe_enhance_title()}>
 	{#if loading}
@@ -73,7 +79,7 @@
 				{#each proposal.additions as addition (addition.id)}
 					<article class="rounded-xl border border-base-300 p-3">
 						<label class="flex gap-3"><input class="checkbox checkbox-primary" type="checkbox" bind:checked={selectedAdditions[addition.id]} /><span class="min-w-0"><span class="block text-sm font-semibold">{[addition.amount, addition.unit, addition.name].filter(Boolean).join(' ')}</span><span class="block text-xs text-base-content/60">{m.recipe_enhance_reason({ reason: addition.reason })}</span></span></label>
-						{#if selectedAdditions[addition.id]}<select class="select select-sm mt-2 w-full" bind:value={needs[addition.id]}><option value="optional">{m.shopping_need_nice_to_have()}</option><option value="required">{m.shopping_need_every_time()}</option><option value="stocked">{m.shopping_need_usually_stocked()}</option></select>{/if}
+						{#if selectedAdditions[addition.id]}<select class="select select-sm mt-2 w-full" aria-label={m.recipe_enhance_need_aria({ name: addition.name })} bind:value={needs[addition.id]}><option value="optional">{m.shopping_need_nice_to_have()}</option><option value="required">{m.shopping_need_every_time()}</option><option value="stocked">{m.shopping_need_usually_stocked()}</option></select>{/if}
 					</article>
 				{/each}
 			</div>

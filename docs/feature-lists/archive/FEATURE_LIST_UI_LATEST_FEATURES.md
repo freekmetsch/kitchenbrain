@@ -1,6 +1,6 @@
 # Feature List: UI Audit — Latest Features
 
-_Status: Audit ready — 2026-07-22_
+_Status: Shipped - 2026-07-22 (accepted P1 and P2 work complete)_
 
 ## Scope
 
@@ -62,3 +62,9 @@ The app feels unified on static screens. The recurring-item blocker and inconsis
 ## Verification target
 
 Run the recurring menu, shopping tabs, bought-state move, enhancement sheet, batch controls, recipe grid, and cooking checklist at 375 and 768 px, then inspect representative 1280 and 1536 px views. Include keyboard, reduced motion, and focus restoration. No external API call is needed.
+
+## Shipped result
+
+The accepted P1 and P2 work now ships. Weekly actions use a mobile sheet, shopping uses the shared tab control, every checkbox-shaped cooking control exposes its state, cooking type and targets are readable on a phone, and the recipe grid uses the existing chef icon. The unselected P3 motion work remains outside this run.
+
+[Open the archived visual audit](../../artifacts/archive/2026-07-22-ux-ui-latest-features.html)

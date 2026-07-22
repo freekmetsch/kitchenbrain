@@ -1,24 +1,8 @@
-<!--
-	Single beat row for the flat bench-sheet list.
-
-	Renders ONE sub-action of a stream as one full-width row. The parent <ul>
-	supplies the hairline between rows via `divide-y`; this component owns only
-	its own row chrome:
-
-	  - Persistent left color band (palette.bar) from the row's stream identity.
-	  - Checkbox on the left (toggles done).
-	  - Action-led `goal` headline as the dominant text.
-	  - `body` (muted) below for supporting detail.
-	  - Ingredient pills under the body.
-	  - Timer chip on the right column (start / running / done states).
-
-	Stream identity (the row's home) is communicated by the persistent left bar
-	and by an inline ━━ STREAM NAME ━━ divider rendered by the parent above the
-	first non-merge beat of each stream.
--->
 <script lang="ts">
+	import { m } from '$lib/paraglide/messages';
 	import type { CookModeStep } from '$lib/types';
 	import type { BeatPalette } from './palette';
+	import InstructionLines from './InstructionLines.svelte';
 	import TimerChip from './TimerChip.svelte';
 
 	type Props = {
@@ -26,87 +10,53 @@
 		globalIdx: number;
 		palette: BeatPalette;
 		done: boolean;
+		current: boolean;
 		timerActive: boolean;
 		timerDone: boolean;
 		timerRemaining?: number | null;
 		onToggle: (globalIdx: number) => void;
+		onSelect: (globalIdx: number) => void;
 		onStartTimer: (globalIdx: number) => void;
 		onResetTimer: (globalIdx: number) => void;
 		ingredientChecks: Record<number, boolean>;
 		onToggleIngredient: (ingredientIndex: number) => void;
 	};
 	let {
-		step,
-		globalIdx,
-		palette,
-		done,
-		timerActive,
-		timerDone,
-		timerRemaining = null,
-		onToggle,
-		onStartTimer,
-		onResetTimer,
-		ingredientChecks,
-		onToggleIngredient
+		step, globalIdx, palette, done, current, timerActive, timerDone, timerRemaining = null,
+		onToggle, onSelect, onStartTimer, onResetTimer, ingredientChecks, onToggleIngredient
 	}: Props = $props();
 </script>
 
-<li class="relative bg-base-100 {done ? 'opacity-60' : ''}">
-	<span class="absolute inset-y-0 left-0 w-1 {palette.bar} z-[1]" aria-hidden="true"></span>
-	<!-- TimerChip is a flex sibling of the toggle button, not a child: a
-	     <button> may not contain another <button>, and the browser's repair of
-	     that nesting breaks Svelte's hydration. -->
-	<div class="w-full pl-4 pr-3 py-2.5 flex items-start gap-3">
+<li id={`cook-step-${globalIdx}`} class="relative scroll-mt-28 bg-base-100 transition-colors {current ? 'outline-2 outline-offset-[-2px] outline-primary bg-primary/5' : ''} {done && !current ? 'bg-base-200/45 text-base-content/65' : ''}">
+	<span class="absolute inset-y-0 left-0 z-[1] w-1 {palette.bar}" aria-hidden="true"></span>
+	<div class="flex w-full items-start gap-2 py-3 pl-3 pr-3">
+		<button
+			type="button"
+			class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			aria-label={done ? m.cookmode_reopen_step_aria({ number: globalIdx + 1 }) : m.cookmode_complete_step_aria({ number: globalIdx + 1 })}
+			aria-pressed={done}
+			onclick={() => onToggle(globalIdx)}
+		>
+			<span class="flex h-6 w-6 items-center justify-center rounded-md border-2 text-xs {done ? 'border-success bg-success text-success-content' : 'border-base-300 bg-base-100'}" aria-hidden="true">{done ? '✓' : ''}</span>
+		</button>
 		<div class="min-w-0 flex-1">
-			<button
-				type="button"
-				class="w-full min-w-0 text-left flex items-start gap-3 active:scale-[0.99] transition"
-				onclick={() => onToggle(globalIdx)}
-			>
-				<span
-					class="shrink-0 w-5 h-5 rounded-md border-2 mt-0.5 flex items-center justify-center text-[11px] {done
-						? 'bg-success border-success text-success-content'
-						: 'border-base-300 bg-base-100'}">{done ? '✓' : ''}</span
-				>
-				<div class="flex-1 min-w-0">
-				<p
-					class="text-[14px] font-semibold leading-snug {done
-						? 'line-through text-base-content/40'
-						: ''}"
-				>
-					{step.goal}
-				</p>
-				{#if step.body && !done}
-					<p class="text-[12px] text-base-content/60 leading-snug mt-1">{step.body}</p>
-				{/if}
-				</div>
-			</button>
-			{#if step.ingredients.length && !done}
-				<div class="ml-8 flex flex-wrap gap-1 mt-1.5">
+			{#if step.ingredients.length && (!done || current)}
+				<div class="mb-2 flex flex-wrap gap-2">
 					{#each step.ingredients as ing, index}
 						{@const ingredientIndex = step.ingredient_indexes?.[index]}
 						{#if ingredientIndex == null}
-							<span class="text-[11px] px-1.5 py-0.5 rounded-full bg-base-100 border {palette.border} text-base-content/80">{ing}</span>
+							<span class="flex min-h-11 items-center rounded-full border bg-base-100 px-3 py-2 text-base {palette.border}">{ing}</span>
 						{:else}
-							<button
-								type="button"
-								class="min-h-8 text-[11px] px-2 py-1 rounded-full bg-base-100 border {palette.border} {ingredientChecks[ingredientIndex] ? 'line-through opacity-45' : 'text-base-content/80'}"
-								aria-pressed={!!ingredientChecks[ingredientIndex]}
-								onclick={() => onToggleIngredient(ingredientIndex)}
-							>{ing}</button>
+							<button type="button" class="min-h-11 rounded-full border bg-base-100 px-3 py-2 text-base {palette.border} {ingredientChecks[ingredientIndex] ? 'text-base-content/45' : 'text-base-content/85'}" aria-pressed={!!ingredientChecks[ingredientIndex]} onclick={() => onToggleIngredient(ingredientIndex)}>{ingredientChecks[ingredientIndex] ? '✓ ' : ''}{ing}</button>
 						{/if}
 					{/each}
-			</div>
+				</div>
 			{/if}
+			<button type="button" class="min-h-11 w-full text-left" aria-current={current ? 'step' : undefined} aria-label={m.cookmode_select_step_aria({ number: globalIdx + 1, goal: step.goal })} onclick={() => onSelect(globalIdx)}>
+				{#if current}<span class="badge badge-primary badge-sm mb-1">{m.cookmode_current_badge()}</span>{/if}
+				{#if done && !current}<p class="text-base font-medium leading-snug"><span aria-hidden="true">✓ </span>{step.goal}</p>{:else}<InstructionLines {step} />{/if}
+			</button>
 		</div>
-		<TimerChip
-			seconds={step.timer_seconds}
-			active={timerActive}
-			done={timerDone}
-			remaining={timerRemaining}
-			hidden={done}
-			onStart={() => onStartTimer(globalIdx)}
-			onReset={() => onResetTimer(globalIdx)}
-		/>
+		<TimerChip seconds={step.timer_seconds} active={timerActive} done={timerDone} remaining={timerRemaining} hidden={done} onStart={() => onStartTimer(globalIdx)} onReset={() => onResetTimer(globalIdx)} />
 	</div>
 </li>

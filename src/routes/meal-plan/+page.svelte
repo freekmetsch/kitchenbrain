@@ -92,6 +92,7 @@
 	let consumeMax = $state(99);
 	let pendingSourceToggles = $state<Record<number, boolean>>({});
 	let pendingServings = $state<Record<number, boolean>>({});
+	let servingsStatus = $state('');
 
 	const DRAWER_CATEGORIES = ['meat', 'vegetarian', 'vegan', 'fish', 'pasta', 'soup', 'dessert'];
 
@@ -533,9 +534,9 @@
 		});
 	}
 
-	async function setServings(meal: Meal, next: number) {
-		if (meal.id < 0 || pendingServings[meal.id]) return;
-		if (!Number.isInteger(next) || next < 1 || next > 99 || next === meal.servings) return;
+	async function setServings(meal: Meal, next: number): Promise<boolean> {
+		if (meal.id < 0 || pendingServings[meal.id]) return false;
+		if (!Number.isInteger(next) || next < 1 || next > 99 || next === meal.servings) return false;
 		const previous = { ...meal };
 		pendingServings = { ...pendingServings, [meal.id]: true };
 		updateMeal({ ...meal, servings: next });
@@ -552,7 +553,11 @@
 		const pending = { ...pendingServings };
 		delete pending[meal.id];
 		pendingServings = pending;
-		if (ok && saved) updateMeal(saved);
+		if (ok && saved) {
+			updateMeal(saved as Meal);
+			servingsStatus = m.mealplan_servings_updated({ dinner: meal.dinner, count: next });
+		}
+		return ok;
 	}
 
 	async function changeServings(meal: Meal, delta: number) {
@@ -659,6 +664,7 @@
 </svelte:head>
 
 <div class="ui-page-shell px-4 py-4">
+	<p class="sr-only" aria-live="polite">{servingsStatus}</p>
 	<header class="mb-3 flex items-center justify-between gap-3">
 		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.mealplan_heading()}</h1>
 		<div class="flex shrink-0 items-center gap-1.5">
@@ -771,10 +777,10 @@
 									{/if}
 									{#if meal.status !== 'cooked' && meal.recipeSlug && meal.servings}
 										<div class="mt-1 flex flex-wrap items-center gap-1.5">
-											<div class="inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()}>
-												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-r-none" disabled={!!pendingServings[meal.id] || meal.servings <= 1} onclick={() => changeServings(meal, -1)}>−</button>
+											<div class="inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()} aria-busy={!!pendingServings[meal.id]}>
+												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-r-none" disabled={meal.servings <= 1} aria-disabled={!!pendingServings[meal.id] || meal.servings <= 1} aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })} onclick={() => !pendingServings[meal.id] && changeServings(meal, -1)}>−</button>
 												<span class="px-1 text-xs tabular-nums">{m.mealplan_servings_count({ count: meal.servings })}</span>
-												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={!!pendingServings[meal.id] || meal.servings >= 99} onclick={() => changeServings(meal, 1)}>+</button>
+												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={meal.servings >= 99} aria-disabled={!!pendingServings[meal.id] || meal.servings >= 99} aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })} onclick={() => !pendingServings[meal.id] && changeServings(meal, 1)}>+</button>
 											</div>
 											{#if linkedRecipe}
 												<div class="inline-flex items-center gap-1" aria-label={linkedRecipe.scalingMode === 'fixed_batch' ? m.mealplan_batch_fixed() : m.mealplan_batch_scalable()}>
@@ -783,10 +789,11 @@
 														<button
 															type="button"
 															class="btn btn-xs h-11 min-h-0 min-w-11 px-2 {target === meal.servings ? 'btn-primary' : 'btn-ghost border border-base-300'}"
-															disabled={target == null || !!pendingServings[meal.id]}
-															aria-label={target == null ? m.mealplan_batch_unavailable_aria({ multiplier }) : m.mealplan_batch_aria({ multiplier, count: target })}
+													disabled={target == null}
+													aria-disabled={target == null || !!pendingServings[meal.id]}
+													aria-label={target == null ? m.mealplan_batch_unavailable_aria({ multiplier, dinner: meal.dinner }) : m.mealplan_batch_aria({ multiplier, count: target, dinner: meal.dinner })}
 															aria-pressed={target === meal.servings}
-															onclick={() => target != null && setServings(meal, target)}
+													onclick={() => target != null && !pendingServings[meal.id] && setServings(meal, target)}
 														>
 															×{multiplier}
 														</button>

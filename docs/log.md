@@ -56,3 +56,9 @@ Touched: docs/artifacts/2026-07-22-plan-cooking-mode-focus.html
 
 ## 2026-07-22 21:28 | html-artifact | audit: latest-feature UX/UI
 Touched: docs/artifacts/2026-07-22-ux-ui-latest-features.html
+
+## 2026-07-22 22:52 | archive-scan | 3 feature lists, 2 HTMLs archived
+Touched: docs/feature-lists/archive/FEATURE_LIST_UX_LATEST_FEATURES.md, docs/feature-lists/archive/FEATURE_LIST_UI_LATEST_FEATURES.md, docs/feature-lists/archive/FEATURE_LIST_COOKING_MODE_FOCUS.md, docs/artifacts/archive/2026-07-22-ux-ui-latest-features.html, docs/artifacts/archive/2026-07-22-plan-cooking-mode-focus.html
+
+## 2026-07-22 | shipped | latest-feature UX/UI and cooking focus
+Completed the accepted P1 and P2 shopping, meal-plan, recipe-review, and cooking work. Closed the cooking checklist and translation issue after browser checks in English and Dutch.

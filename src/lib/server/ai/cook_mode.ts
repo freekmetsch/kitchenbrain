@@ -70,6 +70,14 @@ function displayedText(data: GeneratedCookMode): string[] {
 	];
 }
 
+export function violatesCookModeBody(value: string): string | null {
+	const words = value.trim().split(/\s+/u).filter(Boolean).length;
+	if (words > 28) return `must be ≤ 28 words (got ${words})`;
+	const sentences = value.split(/[.!?]+/u).filter((sentence) => sentence.trim()).length;
+	if (sentences > 2) return `must be ≤ 2 sentences (got ${sentences})`;
+	return null;
+}
+
 const buildCookModeSchema = (maxSteps: number, ingredientCount: number): z.ZodType<GeneratedCookMode> =>
 	z
 		.object({
@@ -137,6 +145,14 @@ const buildCookModeSchema = (maxSteps: number, ingredientCount: number): z.ZodTy
 							code: z.ZodIssueCode.custom,
 							path: ['steps', index, 'goal', language],
 							message: `goal ${goalIssue}`
+						});
+					}
+					const bodyIssue = violatesCookModeBody(step.body[language]);
+					if (bodyIssue) {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							path: ['steps', index, 'body', language],
+							message: `body ${bodyIssue}`
 						});
 					}
 					if (step.timer_purpose) {

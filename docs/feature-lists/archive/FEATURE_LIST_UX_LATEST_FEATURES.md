@@ -1,6 +1,6 @@
 # Feature List: UX Audit — Latest Features
 
-_Status: Audit ready — 2026-07-22_
+_Status: Shipped - 2026-07-22 (accepted P1 and P2 work complete)_
 
 ## Scope and user
 
@@ -77,3 +77,9 @@ The new flows carry the right data and explain the new shopping choices well. Th
 ## Effort and risk
 
 Overall effort: M. Phase 1 is a small P1 UI fix. Phases 2 and 4 touch async state and need focused regression tests. No schema, migration, model, or provider change is needed.
+
+## Shipped result
+
+The accepted P1 and P2 work now ships across shopping, meal planning, recipe review, and cooking. Failed writes keep the user's draft, repeated controls have specific names, tabs follow keyboard rules, focus survives list moves, and AI suggestions start unchecked and reopen without another model call. The unselected P3 motion work and singular batch-copy refinement remain outside this run.
+
+[Open the archived visual audit](../../artifacts/archive/2026-07-22-ux-ui-latest-features.html)

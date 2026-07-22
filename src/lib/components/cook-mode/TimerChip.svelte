@@ -5,8 +5,7 @@
 	as a SIBLING of the row's toggle button, never inside it — nesting a
 	<button> in a <button> is invalid HTML the browser repairs at parse time,
 	which breaks SSR hydration. All states keep a ≥ 40 px touch target — the
-	chip sits flush against the whole-row toggle button, so an undersized chip
-	turns "start the timer" mistaps into "step done" toggles.
+	chip sits beside the completion control, so every state keeps a 44 px target.
 -->
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
@@ -30,7 +29,7 @@
 		{#if done}
 			<button
 				type="button"
-				class="inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-full bg-success/20 text-success text-[12px] font-semibold active:scale-95"
+				class="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-success/20 px-3 py-1.5 text-[12px] font-semibold text-success active:scale-95"
 				onclick={onReset}
 				aria-label={m.cookmode_timerchip_reset_aria()}
 			>
@@ -40,14 +39,14 @@
 		{:else if !active}
 			<button
 				type="button"
-				class="inline-flex items-center min-h-10 px-3.5 py-1.5 rounded-full bg-amber-500 text-white text-[13px] font-semibold active:scale-95"
+				class="inline-flex min-h-11 items-center rounded-full bg-amber-500 px-3.5 py-1.5 text-[13px] font-semibold text-white active:scale-95"
 				onclick={onStart}
 				aria-label={m.cookmode_timerchip_start_exact_aria({ duration: fmtClock(seconds) })}>⏱ {fmtClock(seconds)}</button
 			>
 		{:else}
 			<button
 				type="button"
-				class="inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-full border-2 border-amber-500 text-amber-600 text-[13px] font-mono font-semibold tabular-nums active:scale-95"
+				class="inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-amber-500 px-3 py-1.5 font-mono text-[13px] font-semibold tabular-nums text-amber-600 active:scale-95"
 				onclick={onReset}
 				aria-label={m.cookmode_cancel_timer_aria()}
 			>

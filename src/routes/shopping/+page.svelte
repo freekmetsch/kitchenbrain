@@ -55,7 +55,9 @@
 		if (!(await mutate({ action: 'set_bought_entries', entryIds: item.entryIds, weekStart: data.weekStart, bought: !before }))) {
 			item.bought = before;
 			items = [...items];
+			return false;
 		}
+		return true;
 	}
 
 	async function saveSource(source: ShoppingListSource, input: { need: 'required' | 'optional' | 'stocked'; term: string; useInRecipe: boolean }) {
@@ -67,7 +69,8 @@
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			await invalidateAll();
 			toast.success(m.shopping_choice_saved());
-		} catch { toast.error(m.shopping_mutation_failed()); }
+			return true;
+		} catch { toast.error(m.shopping_mutation_failed()); return false; }
 	}
 
 	function addItem(_item: Item) { return invalidateAll(); }
@@ -101,10 +104,10 @@
 			onToggleBought={toggleBought}
 			onDeleteManual={(source) => void mutate({ action: 'remove_source_manual', entryId: source.id, expectedRevision: source.revision })}
 			onSaveSource={saveSource}
-			onAddRecurring={(input) => void mutate({ action: 'add_recurring', startWeek: data.weekStart, ...input })}
-			onEditRecurring={(item, input) => void mutate({ action: 'edit_recurring', itemId: item.id, expectedRevision: item.revision, effectiveWeek: data.weekStart, ...input })}
-			onSkipRecurring={(item) => { if (item.entryId && item.entryRevision) void mutate({ action: 'skip_recurring', entryId: item.entryId, expectedRevision: item.entryRevision }); }}
-			onDisableRecurring={(item) => void mutate({ action: 'disable_recurring', itemId: item.id, expectedRevision: item.revision, effectiveWeek: data.weekStart })}
+			onAddRecurring={(input) => mutate({ action: 'add_recurring', startWeek: data.weekStart, ...input })}
+			onEditRecurring={(item, input) => mutate({ action: 'edit_recurring', itemId: item.id, expectedRevision: item.revision, effectiveWeek: data.weekStart, ...input })}
+			onSkipRecurring={(item) => item.entryId && item.entryRevision ? mutate({ action: 'skip_recurring', entryId: item.entryId, expectedRevision: item.entryRevision }) : Promise.resolve(false)}
+			onDisableRecurring={(item) => mutate({ action: 'disable_recurring', itemId: item.id, expectedRevision: item.revision, effectiveWeek: data.weekStart })}
 			onResolveLegacy={(item, resolution, targetEntryId) => {
 				const target = item.candidates.find((candidate) => candidate.id === targetEntryId);
 				void mutate({

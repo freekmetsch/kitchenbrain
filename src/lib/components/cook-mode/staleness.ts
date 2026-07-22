@@ -150,6 +150,7 @@ export function localizeCookMode(
 			const amount = scaleAmount(ingredient.amount, ingredient.name, multiplier, ingredient.scale ?? 'linear', language);
 			return [amount, ingredient.unit, ingredient.name, ingredient.preparation].filter(Boolean).join(' ');
 		};
+		const ingredientName = (index: number) => quantity?.ingredients[index]?.name ?? null;
 		return {
 			version: 4,
 			language,
@@ -167,6 +168,7 @@ export function localizeCookMode(
 				body: pick(step.body),
 				ingredients: step.ingredient_indexes.map(ingredientLabel).filter((label): label is string => label != null),
 				ingredient_indexes: step.ingredient_indexes,
+				ingredient_names: step.ingredient_indexes.map(ingredientName).filter((name): name is string => name != null),
 				timer_seconds: step.timer_seconds,
 				timer_purpose: step.timer_purpose == null ? null : pick(step.timer_purpose),
 				timer_action: step.timer_action == null ? null : pick(step.timer_action),

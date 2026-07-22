@@ -7,8 +7,8 @@
 
 	type Props = { proposal: RecipeEnhancementDisplay };
 	let { proposal }: Props = $props();
-	let additions = $state<Record<string, boolean>>(untrack(() => Object.fromEntries(proposal.additions.map((item) => [item.id, true]))));
-	let substitutes = $state<Record<string, boolean>>(untrack(() => Object.fromEntries(proposal.substitutes.map((item) => [item.id, true]))));
+	let additions = $state<Record<string, boolean>>(untrack(() => Object.fromEntries(proposal.additions.map((item) => [item.id, false]))));
+	let substitutes = $state<Record<string, boolean>>(untrack(() => Object.fromEntries(proposal.substitutes.map((item) => [item.id, false]))));
 	let needs = $state<Record<string, 'required' | 'optional' | 'stocked'>>(untrack(() => Object.fromEntries(proposal.additions.map((item) => [item.id, 'optional']))));
 	let applyState = $state<'ready' | 'applying' | 'done' | 'error' | 'stale'>('ready');
 
@@ -41,7 +41,7 @@
 		{#each proposal.additions as item (item.id)}
 			<div class="rounded-md border border-base-300/70 p-2">
 				<label class="flex gap-2"><input type="checkbox" class="checkbox checkbox-xs" bind:checked={additions[item.id]} /><span class="text-xs font-medium">{[item.amount, item.unit, item.name].filter(Boolean).join(' ')}</span></label>
-				{#if additions[item.id]}<select class="select select-xs mt-1 w-full" bind:value={needs[item.id]}><option value="optional">{m.shopping_need_nice_to_have()}</option><option value="required">{m.shopping_need_every_time()}</option><option value="stocked">{m.shopping_need_usually_stocked()}</option></select>{/if}
+				{#if additions[item.id]}<select class="select select-xs mt-1 w-full" aria-label={m.recipe_enhance_need_aria({ name: item.name })} bind:value={needs[item.id]}><option value="optional">{m.shopping_need_nice_to_have()}</option><option value="required">{m.shopping_need_every_time()}</option><option value="stocked">{m.shopping_need_usually_stocked()}</option></select>{/if}
 			</div>
 		{/each}
 		{#each proposal.substitutes as item (item.id)}

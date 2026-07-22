@@ -482,7 +482,7 @@
 							<SmartImage src={recipe.imageUrl} alt={title} class="h-full w-full" />
 						</figure>
 					{:else}
-						<div class="h-20 bg-base-200 flex items-center justify-center text-3xl">🍽️</div>
+						<div class="flex h-20 items-center justify-center bg-base-200 text-base-content/35"><Icon name="chefHat" class="h-9 w-9" /></div>
 					{/if}
 					<div class="p-1.5">
 						<div class="flex flex-wrap items-center gap-1">

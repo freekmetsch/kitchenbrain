@@ -15,7 +15,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
-	import { onDestroy, untrack } from 'svelte';
+	import { onDestroy, tick, untrack } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type {
@@ -32,6 +32,7 @@
 	import FixedBottomBar from './ui/FixedBottomBar.svelte';
 	import { cookPaletteGraph, fmtClock, paletteFor, type BeatPalette } from './cook-mode/palette';
 	import { isStaleCookMode, localizeCookMode } from './cook-mode/staleness';
+	import { cookStepKey, normalizeCookProgress, reduceCookProgress } from './cook-mode/cook_progress';
 	import RawDirectionsFallback from './RawDirectionsFallback.svelte';
 	import TimerWorker from '$lib/timer/worker?worker';
 	import type {
@@ -141,7 +142,8 @@
 	let mep = $state<Record<number, boolean>>({});
 	let mepExpanded = $state(false);
 	let ingredientChecks = $state<Record<number, boolean>>({});
-	let ingredientsExpanded = $state(true);
+	let ingredientsExpanded = $state(false);
+	let currentStepKey = $state<string | null>(null);
 
 	// Canonical timer state. `timerEnds` holds wall-clock fire times keyed by
 	// step idx; `timerOrder` holds insertion order so the multi-pill stack can
@@ -536,8 +538,51 @@
 		timerOrder = timerOrder.filter((i) => i !== idx);
 		firedFor.delete(idx);
 	}
+	function currentKeys(cm: CookModeDisplayRecipe | null = cookMode): string[] {
+		return cm?.steps.map((step, index) => cookStepKey(index, step.stream_id)) ?? [];
+	}
+
+	function completedKeys(cm: CookModeDisplayRecipe, values: Record<number, boolean>): Set<string> {
+		return new Set(currentKeys(cm).filter((_, index) => values[index]));
+	}
+
+	async function centerStep(index: number) {
+		await tick();
+		document.getElementById(`cook-step-${index}`)?.scrollIntoView({
+			behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+			block: 'center'
+		});
+	}
+
+	function applyCookProgress(next: { currentKey: string | null; completed: Set<string> }, shouldCenter: boolean) {
+		const keys = currentKeys();
+		checked = Object.fromEntries(keys.map((key, index) => [index, next.completed.has(key)]));
+		const previous = currentStepKey;
+		currentStepKey = next.currentKey;
+		if (shouldCenter && currentStepKey && currentStepKey !== previous) {
+			const index = keys.indexOf(currentStepKey);
+			if (index >= 0) void centerStep(index);
+		}
+	}
+
+	function selectStep(idx: number) {
+		const keys = currentKeys();
+		const key = keys[idx];
+		if (!key || !cookMode) return;
+		applyCookProgress(reduceCookProgress(keys, {
+			currentKey: currentStepKey,
+			completed: completedKeys(cookMode, checked)
+		}, { type: 'select', key }), true);
+	}
+
 	function toggleStep(idx: number) {
-		checked[idx] = !checked[idx];
+		const keys = currentKeys();
+		const key = keys[idx];
+		if (!key || !cookMode) return;
+		applyCookProgress(reduceCookProgress(keys, {
+			currentKey: currentStepKey,
+			completed: completedKeys(cookMode, checked)
+		}, { type: 'toggle', key }), true);
 	}
 
 	// ────────── Local progress persistence ──────────
@@ -555,12 +600,18 @@
 	}
 
 	function restoreProgress(cm: CookModeDisplayRecipe) {
+		let restoredKey: string | null = null;
 		try {
 			const raw = localStorage.getItem(PROGRESS_KEY);
-			if (!raw) return;
-			const saved = JSON.parse(raw);
+			const saved = raw ? JSON.parse(raw) : null;
+			if (!saved) {
+				const normalized = normalizeCookProgress(currentKeys(cm), new Set(), null);
+				currentStepKey = normalized.currentKey;
+				return;
+			}
 			if (saved?.sig !== stepsSig(cm)) {
 				localStorage.removeItem(PROGRESS_KEY);
+				currentStepKey = normalizeCookProgress(currentKeys(cm), new Set(), null).currentKey;
 				return;
 			}
 			const t = Date.now();
@@ -574,12 +625,15 @@
 				order.push(idx);
 			}
 			checked = saved.checked ?? {};
+			restoredKey = typeof saved.currentStepKey === 'string' ? saved.currentStepKey : null;
 			mep = saved.mep ?? {};
 			ingredientChecks = saved.ingredientChecks ?? {};
 			timerEnds = ends;
 			timerOrder = order;
+			currentStepKey = normalizeCookProgress(currentKeys(cm), completedKeys(cm, checked), restoredKey).currentKey;
 		} catch {
 			// Corrupt or inaccessible storage — start clean.
+			currentStepKey = normalizeCookProgress(currentKeys(cm), new Set(), null).currentKey;
 		}
 	}
 
@@ -588,7 +642,7 @@
 			if (!cookMode) return;
 			localStorage.setItem(
 				PROGRESS_KEY,
-				JSON.stringify({ sig: stepsSig(cookMode), checked, mep, ingredientChecks, timerEnds, timerOrder })
+				JSON.stringify({ sig: stepsSig(cookMode), checked, currentStepKey, mep, ingredientChecks, timerEnds, timerOrder })
 			);
 		} catch {
 			// Quota / private-mode failures degrade to the old ephemeral behavior.
@@ -607,7 +661,8 @@
 		mep = {};
 		mepExpanded = false;
 		ingredientChecks = {};
-		ingredientsExpanded = true;
+		ingredientsExpanded = false;
+		currentStepKey = cookMode ? normalizeCookProgress(currentKeys(cookMode), new Set(), null).currentKey : null;
 		timerEnds = {};
 		timerOrder = [];
 		firedFor.clear();
@@ -678,6 +733,7 @@
 	let steps = $derived(cookMode?.steps ?? []);
 	let totalDone = $derived(steps.filter((_, i) => checked[i]).length);
 	let allDone = $derived(steps.length > 0 && totalDone === steps.length);
+	let currentStepIndex = $derived(currentKeys().indexOf(currentStepKey ?? ''));
 	let mepList = $derived(cookMode?.mise_en_place ?? []);
 	let mepDone = $derived(mepList.filter((_, i) => mep[i]).length);
 	let projectedIngredients = $derived(
@@ -694,8 +750,6 @@
 	let streams = $derived(cookMode?.streams ?? []);
 	let paletteGraph = $derived(cookPaletteGraph(streams, steps));
 	let streamNameById = $derived(new Map(streams.map((s) => [s.id, s.name])));
-	let generatedServings = $derived(cookMode?.servings ?? (fallback.servings ?? 4));
-	let needsServingUpdate = $derived(servingDraft !== generatedServings);
 
 	function changeServings(delta: number) {
 		servingDraft = Math.max(1, Math.min(99, servingDraft + delta));
@@ -788,7 +842,7 @@
 	});
 </script>
 
-{#if fallback.directions.length > 0}
+{#if fallback.directions.length > 0 && (view === 'original' || !cookMode)}
 	<div class="flex min-h-11 items-center gap-2 px-3 py-1.5">
 		<div
 			class="inline-flex min-h-9 items-center rounded-lg border border-base-300 bg-base-100"
@@ -823,7 +877,7 @@
 				onclick={regenerate}
 			>
 				{#if loading}<Spinner size="sm" />{/if}
-				{needsServingUpdate ? m.benchsheet_update_view_button() : m.benchsheet_regenerate_button()}
+				{m.benchsheet_regenerate_button()}
 			</button>
 		{/if}
 	</div>
@@ -966,9 +1020,24 @@
 		</div>
 	{/if}
 
+	<div class="sticky top-0 z-20 border-y border-base-200 bg-base-100/95 px-3 py-2 shadow-sm backdrop-blur" aria-label={m.cookmode_progress_label({ done: totalDone, total: steps.length })}>
+		<div class="mb-2 flex items-center gap-3">
+			<div class="min-w-0 flex-1">
+				<div class="mb-1 flex items-center justify-between gap-2 text-xs font-semibold"><span>{m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}</span><span>{totalDone}/{steps.length}</span></div>
+				<progress class="progress progress-primary h-2 w-full" value={totalDone} max={steps.length}></progress>
+			</div>
+			<div class="inline-flex min-h-11 items-center rounded-lg border border-base-300 bg-base-100" aria-label={m.recipes_fallback_servings_label()}>
+				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_decrease()} disabled={servingDraft <= 1 || loading} onclick={() => changeServings(-1)}>−</button>
+				<span class="w-8 text-center text-sm font-semibold tabular-nums">{servingDraft}</span>
+				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_increase()} disabled={servingDraft >= 99 || loading} onclick={() => changeServings(1)}>+</button>
+			</div>
+		</div>
+		<div class="flex justify-end"><button type="button" class="btn btn-ghost btn-xs min-h-8" disabled={loading} onclick={regenerate}>{#if loading}<Spinner size="xs" />{/if}{m.benchsheet_regenerate_button()}</button></div>
+	</div>
+
 	{#if projectedIngredients.length}
 		<section class="border-y border-base-200 bg-base-100">
-			<button class="flex w-full items-center gap-2 px-3 py-2 text-left" onclick={() => (ingredientsExpanded = !ingredientsExpanded)}>
+			<button class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left" aria-expanded={ingredientsExpanded} onclick={() => (ingredientsExpanded = !ingredientsExpanded)}>
 				<span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-base-content/60">{m.benchsheet_ingredients_label()}</span>
 				<span class="min-w-0 flex-1 text-[11px] text-base-content/70">{ingredientDone}/{projectedIngredients.length}</span>
 				<span class="text-[10px] text-base-content/40">{ingredientsExpanded ? '▴' : '▾'}</span>
@@ -977,7 +1046,7 @@
 				<ul class="grid gap-1 px-3 pb-3">
 					{#each projectedIngredients as ingredient, index}
 						<li>
-							<button class="flex w-full items-start gap-2.5 py-1.5 text-left text-[13px]" onclick={() => (ingredientChecks[index] = !ingredientChecks[index])}>
+							<button class="flex min-h-11 w-full items-start gap-2.5 py-2 text-left text-base" aria-pressed={!!ingredientChecks[index]} onclick={() => (ingredientChecks[index] = !ingredientChecks[index])}>
 								<span class="mt-[1px] flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 text-[10px] {ingredientChecks[index] ? 'border-success bg-success text-success-content' : 'border-base-300'}">{ingredientChecks[index] ? '✓' : ''}</span>
 								<span class="min-w-0 flex-1 {ingredientChecks[index] ? 'line-through text-base-content/40' : ''}">
 									<strong class="font-semibold text-primary">{ingredient.amount}{ingredient.unit ? ` ${ingredient.unit}` : ''}</strong>
@@ -996,7 +1065,8 @@
 	{#if mepList.length}
 		<section class="border-y border-base-200 bg-base-100">
 			<button
-				class="w-full flex items-center gap-2 px-3 py-2 text-left"
+				class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left"
+				aria-expanded={mepExpanded}
 				onclick={() => (mepExpanded = !mepExpanded)}
 			>
 				<span class="text-[10px] uppercase tracking-wide font-bold text-base-content/60 shrink-0"
@@ -1016,7 +1086,8 @@
 					{#each mepList as item, i}
 						<li>
 							<button
-								class="flex w-full items-start gap-2.5 text-left text-[13px] py-1.5"
+								class="flex min-h-11 w-full items-start gap-2.5 py-2 text-left text-base"
+								aria-pressed={!!mep[i]}
 								onclick={() => (mep[i] = !mep[i])}
 							>
 								<span
@@ -1048,18 +1119,21 @@
 			{#if beat.kind === 'merge'}
 				<MergeCard
 					step={beat.step}
+					globalIdx={beat.globalIdx}
 					mergesFromPalettes={beat.mergesFromPalettes}
 					streamNames={beat.streamNames}
 					resultPalette={beat.palette}
 					ingredientChecks={ingredientChecks}
 					onToggleIngredient={(index) => (ingredientChecks[index] = !ingredientChecks[index])}
 					done={!!checked[beat.globalIdx]}
+					current={currentStepKey === cookStepKey(beat.globalIdx, beat.step.stream_id)}
 					timerActive={timerSnapshot.runningIdxs.has(beat.globalIdx)}
 					timerDone={timerSnapshot.doneIdxs.has(beat.globalIdx)}
 					timerRemaining={timerSnapshot.runningIdxs.has(beat.globalIdx)
 						? Math.max(0, Math.ceil((timerEnds[beat.globalIdx] - nowSec * 1000) / 1000))
 						: null}
 					onToggle={() => toggleStep(beat.globalIdx)}
+					onSelect={() => selectStep(beat.globalIdx)}
 					onStartTimer={() => {
 						const seconds = beat.step.timer_seconds;
 						if (seconds) startTimer(beat.globalIdx, seconds);
@@ -1074,12 +1148,14 @@
 					ingredientChecks={ingredientChecks}
 					onToggleIngredient={(index) => (ingredientChecks[index] = !ingredientChecks[index])}
 					done={!!checked[beat.globalIdx]}
+					current={currentStepKey === cookStepKey(beat.globalIdx, beat.step.stream_id)}
 					timerActive={timerSnapshot.runningIdxs.has(beat.globalIdx)}
 					timerDone={timerSnapshot.doneIdxs.has(beat.globalIdx)}
 					timerRemaining={timerSnapshot.runningIdxs.has(beat.globalIdx)
 						? Math.max(0, Math.ceil((timerEnds[beat.globalIdx] - nowSec * 1000) / 1000))
 						: null}
 					onToggle={toggleStep}
+					onSelect={selectStep}
 					onStartTimer={(idx) => {
 						const seconds = steps[idx]?.timer_seconds;
 						if (seconds) startTimer(idx, seconds);

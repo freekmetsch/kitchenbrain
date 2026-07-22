@@ -1,5 +1,5 @@
 # Feature List: Cooking Mode Focus
-_Status: Plan ready - 2026-07-22 (awaiting /run)_
+_Status: Shipped - 2026-07-22 (all four phases complete)_
 
 ## Problem framing
 
@@ -218,3 +218,9 @@ First files: this feature list, `docs/recordings/2026-07-22-cooking-mode-readabi
 Pending verification: baseline provider-call capture; current v4 fixture coverage; 375/768/1280 px EN/NL browser matrix; independent implementation review before push.
 
 Open questions: focused surface shape, completed-action display, and progress denominator. The defaults above let `/run` start without waiting.
+
+## Shipped result
+
+Cooking mode now has one explicit current step, cooking-only progress, quiet completed rows, readable instructions, exact safe ingredient emphasis, step ingredients above each action, and persistent focus state. Serving and checklist changes stay local. Missing or stale data and explicit Regenerate keep the existing generation path. The v4 cache, schema, provider seam, and read-validity rules did not change.
+
+[Open the archived cooking plan](../../artifacts/archive/2026-07-22-plan-cooking-mode-focus.html)

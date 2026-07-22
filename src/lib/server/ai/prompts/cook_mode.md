@@ -53,7 +53,7 @@ The server adds `generation_id` and `baseline_servings`; do not return those fie
 5. Use 2–20 steps for one recipe and up to 30 for a meal with sub-recipes.
 6. Each goal is `Verb + object — visible or measurable target`, starts with a capital letter, has at least two words before the em dash, and is at most eight words total. Use the real em dash `—`, never a hyphen.
 7. Add a timer only for a meaningful unattended interval. When `timer_seconds` is set, all three timer text fields are required. When it is null, all three are null.
-8. Keep titles short and bodies direct. `ingredient_indexes` contains only ingredients used in that step.
+8. Keep titles short. Each English and Dutch body uses direct imperative wording, has at most two sentences, and has at most 28 words. Keep one action per sentence. `ingredient_indexes` contains only ingredients used in that step.
 9. Do not invent equipment, temperatures, quantities, or actions not supported by the recipe.
 
 Return only the JSON object.

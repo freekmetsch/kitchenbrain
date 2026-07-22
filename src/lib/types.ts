@@ -15,6 +15,7 @@ export type CookModeStep = {
 	stream_id: string;
 	merges_from: string[];
 	ingredient_indexes?: number[];
+	ingredient_names?: string[];
 };
 
 export type CookModeRecipe = {

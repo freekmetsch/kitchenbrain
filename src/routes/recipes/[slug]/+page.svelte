@@ -125,6 +125,7 @@
 		hasProgress: false,
 		aiPausedReason: null
 	});
+	let cookingServings = $derived(data.occasionServings ?? recipe.servings ?? 4);
 
 	let benchSheetFallback = $derived({
 		directions: displayDirections,
@@ -136,7 +137,7 @@
 		ingredientStock: data.subRecipes.length ? data.cookingIngredientStock : data.ingredientStock,
 		viewLang,
 		baselineServings: recipe.servings,
-		servings: data.occasionServings,
+		servings: cookingServings,
 		sourceUrl: recipe.sourceUrl
 	});
 
@@ -398,7 +399,7 @@
 	recipeSlug={recipe.slug}
 	planMealId={data.planMealId}
 	recipeTitle={displayTitle}
-	initial={isStaleCookMode(recipe.cookModeJson) || (recipe.cookModeJson?.version === 3 && recipe.cookModeJson.servings !== data.occasionServings) ? null : recipe.cookModeJson}
+	initial={isStaleCookMode(recipe.cookModeJson) || (recipe.cookModeJson?.version === 3 && recipe.cookModeJson.servings !== cookingServings) ? null : recipe.cookModeJson}
 	fallback={benchSheetFallback}
 	view={recipeView}
 	viewLang={viewLang}
