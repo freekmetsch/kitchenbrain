@@ -303,6 +303,35 @@ describe('source-owned shopping week entries', () => {
 		).toThrow('already resolved');
 	});
 
+	it('dismisses an unresolved past legacy row without reopening captured shopping state', () => {
+		const db = createTestDb();
+		const now = new Date();
+		const legacy = db.insert(schema.shoppingWeekEntries).values({
+			weekStartDate: '2026-07-15',
+			sourceKey: 'legacy:past',
+			sourceKind: 'legacy',
+			name: 'snoeptomaatjes',
+			needsReview: true,
+			createdAt: now,
+			updatedAt: now
+		}).returning().get();
+
+		const dismissed = resolveLegacyShoppingEntry(db, {
+			legacyEntryId: legacy.id,
+			expectedLegacyRevision: legacy.revision,
+			action: 'dismiss',
+			weekStartDay: WEEK_START_DAY
+		});
+
+		expect(dismissed).toMatchObject({
+			resolution: 'dismissed',
+			needsReview: false,
+			resolvedSourceKey: null
+		});
+		expect(dismissed.resolvedAt).toBeInstanceOf(Date);
+		expect(dismissed.retiredAt).toBeInstanceOf(Date);
+	});
+
 	it('attaches legacy state only to a fresh server-derived candidate', () => {
 		const db = createTestDb();
 		const now = new Date();

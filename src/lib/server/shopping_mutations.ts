@@ -356,7 +356,10 @@ export function resolveLegacyShoppingEntry(
 		}
 		if (legacy.resolvedAt) throw new ShoppingMutationError('already_resolved', 'Legacy shopping row is already resolved');
 		if (legacy.revision !== input.expectedLegacyRevision) throw new ShoppingMutationError('stale', 'Legacy shopping row changed');
-		assertNonpastWeek(legacy.weekStartDate, input.weekStartDay);
+		// Dismissal changes only the retained migration audit row. It must remain
+		// available after a captured week closes so old no-match rows cannot block
+		// the final migration gate forever. Attach/manual still mutate shopping state.
+		if (input.action !== 'dismiss') assertNonpastWeek(legacy.weekStartDate, input.weekStartDay);
 		const now = new Date();
 		let resolvedSourceKey: string | null = null;
 
