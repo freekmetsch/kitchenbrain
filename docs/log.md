@@ -38,3 +38,6 @@ Touched: docs/artifacts/2026-07-22-plan-shopping-recipe-decisions.html
 
 ## 2026-07-22 16:48 | html-artifact | decision: shopping-recipe-decisions Gate B
 Touched: docs/artifacts/2026-07-22-plan-shopping-recipe-decisions.html
+
+## 2026-07-22 17:24 | html-artifact | decision: shopping-recipe-decisions Gate C
+Touched: docs/artifacts/2026-07-22-plan-shopping-recipe-decisions.html

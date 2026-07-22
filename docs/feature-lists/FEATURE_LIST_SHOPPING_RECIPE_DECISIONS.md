@@ -1,5 +1,5 @@
 # Feature List: Shopping and Recipe Decisions
-_Status: In flight - Phase 2 of 5 (Gate B approved 2026-07-22; live migration in progress)_
+_Status: In flight - Phase 2 of 5 (paused 2026-07-22 for Gate C)_
 
 ## Problem framing
 
@@ -330,6 +330,16 @@ The Release B candidate implements SRD-1A through SRD-4B behind the old shopping
 - Gate B does not authorize the Gate C shopping UI, recipe mutations, AH push changes, cooking work, or cleanup. The 14 unresolved rehearsal rows stay blocked for later review.
 - Gate B was approved by Freek on 2026-07-22. The live write freeze, fresh snapshot, and Release B migration may proceed for this ticket range only.
 
+### Live Release B result
+
+- Release B shipped at commit `b9e57ed` in Railway deployment `3cc6720d-c71f-4e4d-9451-989afdc9f99f`.
+- The write freeze snapshot is `/data/snapshots/gate-b-live-pre-0020-20260722T171401.db`. It contains 8 recipes, 115 ingredients, 75 overrides, and no `0020` tables.
+- Migration `0020` assigned IDs to all 115 ingredients. The source initializer preserved all 75 overrides, created 106 bounded week entries, and left the same 14 unmatched or ambiguous rows blocked for review. The live result matches the rehearsal.
+- The fresh code rollback passed: Release A at `74b7f13` logged in, saved `adam-ragusea-bolognese`, advanced its revision, and preserved all 20 ingredient IDs and the note edit on the post-migration copy.
+- The fresh full rollback passed: the pre-Release-A image at `907ba22` returned healthy against the fresh pre-`0020` snapshot copy.
+- The production service is online on Release B. Its health endpoint and read-only shopping initializer return 200; the final live counts remain 8 recipes, 115 ingredient IDs, 75 overrides, 106 week entries, and 14 unresolved rows.
+- Gate C remains closed. Release C UI, recipe mutations, AH push changes, cooking work, and cleanup have not started.
+
 ### SRD-5 - Rebuild the shopping screen around three tabs
 
 - **Observable behavior:** `To buy`, `N meals`, and `Every week` fit at 375 px; optional and stocked decisions live with their recipe source; the final list stays compact.
@@ -553,12 +563,12 @@ The strongest objection is that stable IDs, source-rich expansion, two tables, a
 
 Goal: add source-aware shopping decisions, weekly buys, manual recipe enhancement, whole-batch planning, component-aware ingredients, deterministic cook colors/call ownership, complete ingredient translation, and denser recipe cards.
 
-Current state: Gate B is approved. The Release B candidate for SRD-1A through SRD-4B passes live-copy migration, no-op import, code rollback, full restore, tests, build, and the read-only browser matrix; the live migration is in progress.
+Current state: Release B / SRD-1A through SRD-4B is live at `b9e57ed`. Migration `0020`, exact live counts, the read-only screen, and both fresh rollback checks pass; Gate C remains closed.
 
-First command: complete the live write freeze, fresh snapshot, additive `0020` migration, recorded live counts, and rollback checks for SRD-1A through SRD-4B only.
+First command: `/run` only after explicit Gate C approval. Approval authorizes SRD-5 through SRD-16, including the R3 recipe mutation in SRD-6; it does not authorize SRD-17 cleanup.
 
 First files: `src/lib/recipe_ingredient.ts`, `src/lib/server/db/schema.ts`, next append-only Drizzle migration, `src/lib/server/meal_recipes.ts`, `src/lib/server/shopping_needs.ts`.
 
-Pending verification: take a fresh snapshot during the write freeze, compare live counts with the rehearsal, repeat both rollback checks on the fresh copies, and reopen the service only after they pass.
+Pending verification: Freek's Gate C decision. If approved, keep the 14 unresolved legacy rows blocked until the new review flow can attach, convert, or dismiss them without guessing.
 
 Decisions fixed: `Every week`; weekly alternatives do not rewrite recipes unless `Use in recipe` is chosen; AI additions start as `Nice to have`.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Shopping and Recipe Decisions Plan</title>
+  <title>Shopping and Recipe Decisions — Gate C</title>
   <style>
     :root {
       color-scheme: light;
@@ -140,10 +140,10 @@
 <body>
   <header class="hero">
     <div class="shell">
-      <span class="eyebrow">Gate B ready for a decision</span>
-      <h1>Approve the live shopping-data migration?</h1>
-      <p class="lede">Release B adds stable recipe ingredient IDs, source-owned week rows, recurring-item storage, and no-guess legacy import. The rehearsal used a copy of the live database. Nothing has migrated or changed in production.</p>
-      <div class="meta" aria-label="Gate B facts">
+      <span class="eyebrow">Release B live · Gate C ready</span>
+      <h1>Start the household-facing shopping and recipe release?</h1>
+      <p class="lede">Release B now owns stable ingredient IDs, source-owned week rows, recurring-item storage, and no-guess legacy import. The old shopping screen stays read-only until Gate C authorizes SRD-5 through SRD-16.</p>
+      <div class="meta" aria-label="Release B facts">
         <span class="chip">8 live recipes</span>
         <span class="chip">115 ingredient IDs</span>
         <span class="chip">75 legacy rows accounted for</span>
@@ -156,8 +156,8 @@
     <section>
       <div class="shell">
         <div class="risk-note">
-          <strong>Gate B authorizes one bounded release: SRD-1A through SRD-4B.</strong>
-          <p>Approval starts a short write freeze, fresh snapshot, additive migration, recorded live counts, and rollback checks. It does not authorize the new shopping tabs, recipe-choice writes, AH push changes, cooking work, or cleanup.</p>
+          <strong>Gate B shipped one bounded release: SRD-1A through SRD-4B.</strong>
+          <p>Migration 0020, live counts, and both fresh rollback checks pass. Gate C would authorize SRD-5 through SRD-16, including the reviewed recipe-mutation boundary; cleanup remains behind Gate D.</p>
         </div>
       </div>
     </section>
@@ -165,8 +165,8 @@
     <section>
       <div class="shell">
         <div class="section-head">
-          <h2>What approval runs</h2>
-          <p>The live sequence keeps one fresh rollback point and stops if any count differs from the rehearsal.</p>
+          <h2>What Gate B ran</h2>
+          <p>The live sequence kept one fresh rollback point and matched every rehearsal count.</p>
         </div>
         <div class="flow" aria-label="Gate B release flow">
           <article data-step="1"><div class="node"></div><h3>Freeze writes</h3><p>Take the service offline so the household cannot change recipes, plans, or shopping state during the snapshot and migration.</p></article>
@@ -182,8 +182,8 @@
     <section>
       <div class="shell">
         <div class="section-head">
-          <h2>Live-copy evidence</h2>
-          <p>🔍 verified: Railway CLI status and volume listing. The rehearsal used an online backup of the production SQLite database. Production itself stayed unchanged.</p>
+          <h2>Live Release B evidence</h2>
+          <p>🔍 verified: Railway deployment, volume snapshot, live database counts, public health check, and both fresh rollback images.</p>
         </div>
         <div class="needs">
           <article class="need"><b>115 of 115 IDs assigned</b><p>All 8 recipes kept the same ingredient order and every old ingredient field.</p></article>
@@ -203,7 +203,7 @@
         <div class="needs">
           <article class="need"><b>Code rollback</b><p>Release A at 74b7f13 opened the migrated live copy, saved a recipe, advanced its revision, and kept all 20 ingredient IDs.</p></article>
           <article class="need"><b>Full restore</b><p>The pre-Release A image at 907ba22 booted and returned healthy against the restored pre-0020 live copy.</p></article>
-          <article class="need"><b>Candidate checks</b><p>317 unit tests, Svelte check, production build, and 375/768/1280 browser checks pass.</p></article>
+          <article class="need"><b>Release checks</b><p>320 unit tests, Svelte check, production build, and 375/768/1280 browser checks pass.</p></article>
         </div>
       </div>
     </section>
@@ -212,11 +212,11 @@
       <div class="shell">
         <div class="section-head">
           <h2>What remains behind later gates</h2>
-          <p>Gate B changes data ownership and keeps the current screen paused. It does not expose unfinished actions.</p>
+          <p>Release B changed data ownership and keeps the current screen read-only. Gate C is the next user decision.</p>
         </div>
         <div class="timeline">
-          <article class="phase"><h3>Release B</h3><p>Stable IDs, additive source tables, no-guess legacy import, source-rich derivation, mutations, and bounded reconciliation.</p><span class="badge">Gate B</span></article>
-          <article class="phase"><h3>Release C</h3><p>Three shopping tabs, reviewed recipe choices, safe AH push, recipe proposals, planning, cooking, translation, and card changes.</p><span class="badge r2">Held</span></article>
+          <article class="phase"><h3>Release B</h3><p>Stable IDs, additive source tables, no-guess legacy import, source-rich derivation, mutations, and bounded reconciliation.</p><span class="badge">Live</span></article>
+          <article class="phase"><h3>Release C</h3><p>Three shopping tabs, reviewed recipe choices, safe AH push, recipe proposals, planning, cooking, translation, and card changes.</p><span class="badge r2">Gate C</span></article>
           <article class="phase"><h3>Release D</h3><p>Delete the old writers and views only after parity, unresolved-row review, browser proof, and a separate approval.</p><span class="badge">Held</span></article>
         </div>
       </div>
@@ -225,17 +225,17 @@
     <section id="decisions">
       <div class="shell">
         <div class="section-head">
-          <h2>Gate B decision</h2>
+          <h2>Gate C decision</h2>
           <p>The recommendation is selected. Change it, add a condition, then copy the prompt.</p>
         </div>
         <div class="decision-shell">
           <div class="decision-grid one">
             <fieldset>
-              <legend>Run the live write freeze, snapshot, and Release B migration?</legend>
-              <p class="hint">The rehearsal and both rollback paths pass. Fourteen legacy rows will remain read-only for later review.</p>
-              <label class="option"><input type="radio" name="gate" value="Approve Gate B" checked><span><strong>Approve Gate B <span class="recommended">Recommended</span></strong><small>Run SRD-1A through SRD-4B, record live counts, and stop on any mismatch.</small></span></label>
-              <label class="option"><input type="radio" name="gate" value="Hold Gate B"><span><strong>Hold Gate B</strong><small>Keep Release A live and preserve this candidate without touching production.</small></span></label>
-              <label class="option"><input type="radio" name="gate" value="Reject Gate B"><span><strong>Reject Gate B</strong><small>Revise the migration or rollback design before another rehearsal.</small></span></label>
+              <legend>Start SRD-5 through SRD-16, including the reviewed recipe mutation?</legend>
+              <p class="hint">Release B and both rollback paths pass. The 14 unresolved rows stay blocked until the new review flow can resolve them without guessing.</p>
+              <label class="option"><input type="radio" name="gate" value="Approve Gate C" checked><span><strong>Approve Gate C <span class="recommended">Recommended</span></strong><small>Build and enable SRD-5 through SRD-16, then stop before cleanup.</small></span></label>
+              <label class="option"><input type="radio" name="gate" value="Hold Gate C"><span><strong>Hold Gate C</strong><small>Keep Release B live with the old shopping screen read-only.</small></span></label>
+              <label class="option"><input type="radio" name="gate" value="Reject Gate C"><span><strong>Reject Gate C</strong><small>Revise the feature or recipe-mutation boundary before implementation.</small></span></label>
             </fieldset>
           </div>
 
@@ -257,8 +257,8 @@
     <section>
       <div class="shell">
         <div class="section-head">
-          <h2>Stop conditions</h2>
-          <p>Any failed condition leaves Release A live or restores the fresh snapshot.</p>
+          <h2>Release C stop conditions</h2>
+          <p>Any failed condition keeps Release B live and the old shopping screen read-only.</p>
         </div>
         <div class="guardrails">
           <article class="guardrail"><h3>Migration proof</h3><p>Old ingredient fields and order must stay the same. A second migration run must change nothing. The compatibility release must edit and save migrated recipes without stripping IDs.</p></article>
@@ -277,7 +277,7 @@
 
   <script>
     (() => {
-      const storageKey = 'shopping-recipe-decisions-gate-b-v3';
+      const storageKey = 'shopping-recipe-decisions-gate-c-v4';
       const prompt = document.querySelector('#prompt');
       const notes = document.querySelector('#notes');
       const status = document.querySelector('#copy-status');
@@ -294,7 +294,7 @@
 
       function render() {
         const extra = notes.value.trim() ? `\nNotes: ${notes.value.trim()}` : '';
-        prompt.value = `Continue: Load docs/feature-lists/FEATURE_LIST_SHOPPING_RECIPE_DECISIONS.md, then /run the Gate B decision.\nState: Release A is live. The Release B candidate for SRD-1A through SRD-4B passes live-copy migration, no-op import, Release A code rollback, pre-0020 restore, 320 unit tests, build, checks, browser checks, and independent re-review. No live migration or candidate push has occurred.\nDecision: ${selected('gate')}.\nRecommendation: Approve Gate B because all 75 legacy rows are accounted for, all 115 ingredient IDs preserve old fields and order, and both rollback paths pass.\nAssumptions: the service stays offline during the fresh snapshot and migration; live counts must match the rehearsal; any mismatch stops the release.\nConsequences: approval authorizes SRD-1A through SRD-4B only. Fourteen unresolved rows remain read-only and AH-blocked. Gate C and Gate D work remain unauthorized.${extra}`;
+        prompt.value = `Continue: Act on the Gate C decision for SRD-5 through SRD-16. Load docs/feature-lists/FEATURE_LIST_SHOPPING_RECIPE_DECISIONS.md, then /run.\nState: Release B is live at b9e57ed. Migration 0020, 8 recipes, 115 ingredient IDs, 75 preserved overrides, 106 week entries, 14 blocked unresolved rows, the read-only screen, 320 tests, build, browser checks, and both fresh rollback paths pass.\nDecision: ${selected('gate')}.\nRecommendation: Approve Gate C because Release B matches every rehearsal count, source reconciliation callers are wired, unresolved rows stay blocked, and both rollback paths pass.\nAssumptions: the 14 unresolved rows remain AH-blocked until the review flow resolves them; Release C stops before SRD-17 cleanup.\nConsequences: approval authorizes SRD-5 through SRD-16, including the R3 recipe mutation in SRD-6. Gate D cleanup remains unauthorized.${extra}`;
         save();
       }
 
@@ -313,7 +313,7 @@
       document.querySelectorAll('input[type="radio"]').forEach((input) => input.addEventListener('change', render));
       notes.addEventListener('input', render);
       document.querySelector('#reset').addEventListener('click', () => {
-        document.querySelector('input[name="gate"][value="Approve Gate B"]').checked = true;
+        document.querySelector('input[name="gate"][value="Approve Gate C"]').checked = true;
         notes.value = '';
         try { localStorage.removeItem(storageKey); } catch (_) { /* Storage is optional. */ }
         status.textContent = 'Defaults restored.';
