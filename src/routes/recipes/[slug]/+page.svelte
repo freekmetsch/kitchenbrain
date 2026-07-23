@@ -122,8 +122,7 @@
 	let benchSheetController = $state<BenchSheetController>({
 		resetSession: () => {},
 		hasActiveTimer: false,
-		hasProgress: false,
-		aiPausedReason: null
+		hasProgress: false
 	});
 	let cookingServings = $derived(data.occasionServings ?? recipe.servings ?? 4);
 
@@ -399,7 +398,13 @@
 	recipeSlug={recipe.slug}
 	planMealId={data.planMealId}
 	recipeTitle={displayTitle}
-	initial={isStaleCookMode(recipe.cookModeJson) || (recipe.cookModeJson?.version === 3 && recipe.cookModeJson.servings !== cookingServings) ? null : recipe.cookModeJson}
+	initial={data.subRecipes.length === 0 ||
+	isStaleCookMode(recipe.cookModeJson) ||
+	(recipe.cookModeJson?.version === 3 && recipe.cookModeJson.servings !== cookingServings)
+		? null
+		: recipe.cookModeJson}
+	requiresPlan={data.subRecipes.length > 0}
+	progressSignature={`${recipe.slug}:${recipe.updatedAt?.toString() ?? 'saved'}`}
 	fallback={benchSheetFallback}
 	view={recipeView}
 	viewLang={viewLang}

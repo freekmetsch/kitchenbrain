@@ -29,7 +29,6 @@
 	let defaultSort = $state<SortBy>(untrack(() => data.defaultSort as SortBy));
 	let recipePrefsSaving = $state(false);
 	let autoTranslate = $state<OnOff>(untrack(() => (data.autoTranslateOnImport ? 'on' : 'off')));
-	let cookModePregen = $state<OnOff>(untrack(() => (data.cookModePreGeneration ? 'on' : 'off')));
 	let recipeTogglesSaving = $state(false);
 	let normalizationRunning = $state(false);
 	let normalizationStatus = $state('');
@@ -59,27 +58,25 @@
 		}
 	}
 
-	async function saveRecipeToggles(patch: { autoTranslateOnImport?: boolean; cookModePreGeneration?: boolean }) {
-		const previous = { autoTranslate, cookModePregen };
-		if (patch.autoTranslateOnImport !== undefined) autoTranslate = patch.autoTranslateOnImport ? 'on' : 'off';
-		if (patch.cookModePreGeneration !== undefined) cookModePregen = patch.cookModePreGeneration ? 'on' : 'off';
+	async function saveRecipeToggles(enabled: boolean) {
+		const previous = autoTranslate;
+		autoTranslate = enabled ? 'on' : 'off';
 		recipeTogglesSaving = true;
 		const ok = await optimistic(
 			() =>
 				fetch(`${base}/api/settings/recipe-toggles`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(patch)
+					body: JSON.stringify({ autoTranslateOnImport: enabled })
 				}),
 			() => {
-				autoTranslate = previous.autoTranslate;
-				cookModePregen = previous.cookModePregen;
+				autoTranslate = previous;
 			},
 			m.settings_recipes_save_failed()
 		);
 		recipeTogglesSaving = false;
 		if (ok) {
-			toast.success(patch.autoTranslateOnImport !== undefined ? m.settings_recipes_saved_autotranslate() : m.settings_recipes_saved_cookmode_pregen());
+			toast.success(m.settings_recipes_saved_autotranslate());
 			await invalidateAll();
 		}
 	}
@@ -173,30 +170,11 @@
 						<SegmentedTabs
 							tabs={onOffTabs}
 							value={autoTranslate}
-							onchange={(v) => saveRecipeToggles({ autoTranslateOnImport: v === 'on' })}
+							onchange={(v) => saveRecipeToggles(v === 'on')}
 						/>
 					</div>
 					<p class="mt-1.5 text-xs text-base-content/50">
 						{m.settings_recipes_autotranslate_hint()}
-					</p>
-				</div>
-				<div class="border-t border-base-300 pt-3">
-					<span class="ui-field-label mb-1.5 block" id="cook-mode-pregen-label"
-						>{m.settings_recipes_cookmode_pregen_label()}</span
-					>
-					<div
-						class:pointer-events-none={recipeTogglesSaving}
-						class:opacity-60={recipeTogglesSaving}
-						aria-labelledby="cook-mode-pregen-label"
-					>
-						<SegmentedTabs
-							tabs={onOffTabs}
-							value={cookModePregen}
-							onchange={(v) => saveRecipeToggles({ cookModePreGeneration: v === 'on' })}
-						/>
-					</div>
-					<p class="mt-1.5 text-xs text-base-content/50">
-						{m.settings_recipes_cookmode_pregen_hint()}
 					</p>
 				</div>
 			</div>

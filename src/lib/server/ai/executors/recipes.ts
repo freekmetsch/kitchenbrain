@@ -12,10 +12,10 @@ import {
 } from '$lib/server/ai/recipe_ingest';
 import { frozenPortionsByRecipe } from '$lib/server/recipe_links';
 import { setFreezerStaple } from '$lib/server/freezer_staple';
-import { createMealRecipe, MealCompositionError } from '$lib/server/meal_recipes';
+import { createMealRecipe, MealCompositionError, subRecipesOf } from '$lib/server/meal_recipes';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';
-import { getAutoTranslateOnImport, getCookModePreGeneration } from '$lib/server/recipes/prefs';
+import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
 import { db as appDb } from '$lib/server/db/index';
 import { updateCanonicalRecipe, type CanonicalRecipeUpdate } from '$lib/server/recipe_mutations';
 import type { DB, ExecutorFn } from './shared';
@@ -182,13 +182,8 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			})
 			.returning()
 			.get();
-		// Both AI-cost triggers are gated on their Settings toggle (Phase 4) —
-		// scoped to this import tool only. create_meal_recipe's and edit_recipe's
-		// own kickCookModeIfAppDb calls elsewhere in this file stay ungated by
-		// design: the toggle's copy promises "on import" specifically, and those
-		// two call sites are meal composition / stale-cache regen on edit, not
-		// recipe import — widening the gate to them is a separate decision.
-		if (input.directions.length > 0 && getCookModePreGeneration()) kickCookModeIfAppDb(db, recipe.slug);
+		// Ordinary cooking steps are projected directly from the saved directions.
+		// Translation remains optional because it creates a separate display cache.
 		if (getAutoTranslateOnImport()) kickTranslateIfAppDb(db, recipe.slug);
 		return { ok: true, slug: recipe.slug, title: recipe.title, needs_review: review.needsReview };
 	},
@@ -309,7 +304,9 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 		});
 		if (!updated) return { ok: false, error: 'Recipe changed during the edit' };
 		if ('ingredients' in updates || 'servings' in updates) reconcileShoppingAfterWrite(db);
-		if (sheetStale) kickCookModeIfAppDb(db, input.slug);
+		if (sheetStale && subRecipesOf(db, recipe.id).length > 0) {
+			kickCookModeIfAppDb(db, input.slug);
+		}
 		return {
 			ok: true,
 			slug: input.slug,

@@ -3,7 +3,8 @@
 
 	Multi-pill stacking is handled by <TimerStack>, which renders one <Timer>
 	per id in `timerEnds` and passes a stable `index` (FIFO oldest-at-bottom).
-	The pill positions itself at `bottom: calc(4.5rem + index * 3.75rem)`.
+	The pill positions itself above the bottom navigation and any temporary
+	bottom-bar clearance supplied by the cooking view.
 
 	Lifecycle is owned by the parent (BenchSheet): the parent holds `timerEnds`,
 	the worker-driven `now`, and the `firedFor` set, and is responsible for
@@ -48,6 +49,7 @@
 		// previous layout (purpose dominant, stepTitle secondary).
 		action?: string | null;
 		location?: string | null;
+		bottomClearanceRem?: number;
 		onDismiss: () => void;
 	};
 	let {
@@ -59,6 +61,7 @@
 		purpose,
 		action = null,
 		location = null,
+		bottomClearanceRem = 0,
 		onDismiss
 	}: Props = $props();
 
@@ -78,8 +81,8 @@
 	// pill only — upper pills inherit the cumulative offset.
 	let bottomCss = $derived(
 		index === 0
-			? `calc(4.5rem + env(safe-area-inset-bottom))`
-			: `calc(4.5rem + env(safe-area-inset-bottom) + ${index * 3.75}rem)`
+			? `calc(4.5rem + env(safe-area-inset-bottom) + ${bottomClearanceRem}rem)`
+			: `calc(4.5rem + env(safe-area-inset-bottom) + ${bottomClearanceRem + index * 3.75}rem)`
 	);
 
 	function snapHorizontal(data: DragEventData) {

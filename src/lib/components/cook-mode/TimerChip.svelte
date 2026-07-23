@@ -1,11 +1,10 @@
 <!--
-	Timer chip — shared right-column affordance for ComponentCard sub-rows and
-	MergeCard. Three states: idle (start button with minute count), active
+	Timer chip — right-column affordance for a cooking step. Three states:
+	idle (start button with minute count), active
 	(live countdown, tap to cancel), done (success badge with reset). Rendered
 	as a SIBLING of the row's toggle button, never inside it — nesting a
 	<button> in a <button> is invalid HTML the browser repairs at parse time,
-	which breaks SSR hydration. All states keep a ≥ 40 px touch target — the
-	chip sits beside the completion control, so every state keeps a 44 px target.
+	which breaks SSR hydration. Every state keeps a 44 px touch target.
 -->
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
@@ -17,14 +16,13 @@
 		done: boolean;
 		// Live remaining seconds while active (worker-driven, second-quantized).
 		remaining?: number | null;
-		hidden?: boolean;
 		onStart: () => void;
 		onReset: () => void;
 	};
-	let { seconds, active, done, remaining = null, hidden = false, onStart, onReset }: Props = $props();
+	let { seconds, active, done, remaining = null, onStart, onReset }: Props = $props();
 </script>
 
-{#if seconds && !hidden}
+{#if seconds}
 	<div class="shrink-0 flex flex-col items-end gap-1">
 		{#if done}
 			<button

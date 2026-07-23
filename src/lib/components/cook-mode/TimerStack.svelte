@@ -21,9 +21,10 @@
 		steps: CookModeStep[];
 		// Worker-driven tick from the parent.
 		now: number;
+		bottomClearanceRem?: number;
 		onDismiss: (id: number) => void;
 	};
-	let { ids, timerEnds, steps, now, onDismiss }: Props = $props();
+	let { ids, timerEnds, steps, now, bottomClearanceRem = 0, onDismiss }: Props = $props();
 
 	const VISIBLE_CAP = 3;
 	let visibleIds = $derived(ids.slice(0, VISIBLE_CAP));
@@ -77,6 +78,7 @@
 			purpose={step.timer_purpose ?? step.goal}
 			action={step.timer_action}
 			location={step.timer_location}
+			{bottomClearanceRem}
 			onDismiss={() => dismiss(id)}
 		/>
 	{/if}
@@ -85,7 +87,7 @@
 {#if overflowCount > 0}
 	<div
 		class="fixed right-3 z-[74] rounded-full bg-amber-500/85 text-white text-[11px] font-semibold px-3 py-1 shadow-lg pointer-events-none"
-		style="bottom: calc(4.5rem + env(safe-area-inset-bottom) + {VISIBLE_CAP * 3.75}rem);"
+		style="bottom: calc(4.5rem + env(safe-area-inset-bottom) + {bottomClearanceRem + VISIBLE_CAP * 3.75}rem);"
 		aria-label={m.cookmode_timerstack_more_aria({ count: overflowCount })}
 	>
 		{m.cookmode_timerstack_more_label({ count: overflowCount })}

@@ -8,9 +8,8 @@ vi.mock('$lib/server/ai/client', () => ({
 	parseModelJson: JSON.parse
 }));
 vi.mock('$lib/server/ai/config', () => ({ getChatModel: () => ({ value: 'test' }), getBackgroundModel: () => ({ value: 'test' }) }));
-vi.mock('$lib/server/ai/cook_mode', () => ({ kickCookModeGeneration: vi.fn() }));
 vi.mock('$lib/server/ai/translate_recipe', () => ({ kickTranslateOnImport: vi.fn() }));
-vi.mock('$lib/server/recipes/prefs', () => ({ getAutoTranslateOnImport: () => false, getCookModePreGeneration: () => false }));
+vi.mock('$lib/server/recipes/prefs', () => ({ getAutoTranslateOnImport: () => false }));
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';

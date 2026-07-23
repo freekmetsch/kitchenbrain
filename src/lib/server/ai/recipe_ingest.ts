@@ -12,9 +12,8 @@ import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { checkDailyCap, createMessage, loadPrompt, logSpend, parseModelJson } from '$lib/server/ai/client';
 import { getChatModel } from '$lib/server/ai/config';
-import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';
-import { getAutoTranslateOnImport, getCookModePreGeneration } from '$lib/server/recipes/prefs';
+import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
 import { normalizeFoodCategory } from '$lib/food_categories';
 import { z } from 'zod';
 import { NewIngredientArraySchema } from '$lib/recipe_ingredient';
@@ -539,10 +538,8 @@ export function insertScrapedRecipe(
 		.returning()
 		.get();
 
-	// Pre-generate the bench sheet now so the first open is instant. Both AI-cost
-	// triggers are gated on their Settings toggle (Phase 4) — default preserves
-	// today's behavior (cook-mode eager/on, translate lazy/off).
-	if (data.directions.length > 0 && getCookModePreGeneration()) kickCookModeGeneration(recipe.slug);
+	// Cooking view renders these saved directions directly. Translation remains
+	// the only optional eager AI job after import.
 	if (getAutoTranslateOnImport()) kickTranslateOnImport(recipe.slug);
 
 	return { slug: recipe.slug, title: recipe.title, ...review };

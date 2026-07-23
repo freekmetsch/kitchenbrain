@@ -31,6 +31,7 @@ export type Recipe = {
 	language: string | null;
 	translationStatus: TranslationStatus;
 	translatedAt: Date | null;
+	updatedAt: Date | null;
 	cookModeJson: StoredCookModeRecipe | null;
 	isFreezerStaple: boolean;
 	targetPortions: number | null;

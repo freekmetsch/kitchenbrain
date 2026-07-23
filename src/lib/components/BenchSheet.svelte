@@ -1,9 +1,9 @@
 <!--
 	Inline bench-sheet — recipe page's primary cooking surface.
 
-	Owns: cook-mode load/regen, beat-toggle state, mise-en-place, timer state,
+	Owns: deterministic cooking steps, current-step state, timer state,
 	timer-fire alarm (Web Audio + vibrate + best-effort SW notification),
-	screen Wake Lock, end-of-cook bench-sheet rating, "I cooked it" footer.
+	screen Wake Lock, end-of-cook bench-sheet rating, finish-cooking footer.
 
 	Phase 2b foreground-locked timer architecture is grounded in §0 of the
 	feature list (FEATURE_LIST_V2_COOKMODE_FLATTEN_AND_TIMER_INFRA.md):
@@ -18,22 +18,20 @@
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
-	import type {
-		BenchSheetRating,
-		CookModeDisplayRecipe,
-		CookModeStep,
-		StoredCookModeRecipe
-	} from '$lib/types';
+	import type { BenchSheetRating, CookModeDisplayRecipe, StoredCookModeRecipe } from '$lib/types';
 	import type { Ingredient } from '$lib/recipe_ingredient';
 	import { projectIngredient } from '$lib/recipe_scale';
-	import ComponentCard from './cook-mode/ComponentCard.svelte';
-	import MergeCard from './cook-mode/MergeCard.svelte';
+	import CookStepCard from './cook-mode/CookStepCard.svelte';
 	import TimerStack from './cook-mode/TimerStack.svelte';
 	import FixedBottomBar from './ui/FixedBottomBar.svelte';
-	import { cookPaletteGraph, fmtClock, paletteFor, type BeatPalette } from './cook-mode/palette';
+	import { fmtClock } from './cook-mode/palette';
 	import { isStaleCookMode, localizeCookMode } from './cook-mode/staleness';
-	import { cookStepKey, normalizeCookProgress, reduceCookProgress } from './cook-mode/cook_progress';
-	import RawDirectionsFallback from './RawDirectionsFallback.svelte';
+	import { cookStepKey, normalizeCookProgress, selectCookStep } from './cook-mode/cook_progress';
+	import {
+		cookingStepsFromDirections,
+		preparationAsFirstStep
+	} from './cook-mode/cooking_steps';
+	import OriginalRecipeView from './OriginalRecipeView.svelte';
 	import TimerWorker from '$lib/timer/worker?worker';
 	import type {
 		ServiceWorkerFireMessage,
@@ -44,9 +42,6 @@
 		resetSession: () => void;
 		hasActiveTimer: boolean;
 		hasProgress: boolean;
-		// Surface so the page can render an inline AI-paused banner above the
-		// raw fallback rather than a centered error block. Null = no fallback.
-		aiPausedReason: string | null;
 	};
 
 	type FallbackContext = {
@@ -63,6 +58,8 @@
 		recipeSlug: string;
 		recipeTitle: string;
 		initial: StoredCookModeRecipe | null;
+		requiresPlan: boolean;
+		progressSignature: string;
 		fallback: FallbackContext;
 		view: 'cook' | 'original';
 		viewLang: 'en' | 'nl';
@@ -76,6 +73,8 @@
 		recipeSlug,
 		recipeTitle,
 		initial,
+		requiresPlan,
+		progressSignature,
 		fallback,
 		view,
 		viewLang,
@@ -85,15 +84,32 @@
 		controller = $bindable<BenchSheetController>()
 	}: Props = $props();
 
-	let storedCookMode = $state<StoredCookModeRecipe | null>(untrack(() => initial));
+	let storedCookMode = $state<StoredCookModeRecipe | null>(
+		untrack(() => (requiresPlan ? initial : null))
+	);
 	let servingDraft = $state(
 		untrack(() => (initial?.version === 3 ? initial.servings : (fallback.servings ?? 4)))
 	);
-	let cookMode = $derived(localizeCookMode(storedCookMode, viewLang, {
-		ingredients: fallback.ingredients,
-		baselineServings: fallback.baselineServings,
-		targetServings: servingDraft
-	}));
+	let localizedPlan = $derived(
+		requiresPlan
+			? localizeCookMode(storedCookMode, viewLang, {
+					ingredients: fallback.ingredients,
+					baselineServings: fallback.baselineServings,
+					targetServings: servingDraft
+				})
+			: null
+	);
+
+	let deterministicCookMode = $derived(
+		cookingStepsFromDirections(fallback.directions, {
+			language: viewLang,
+			recipeTitle,
+			servings: servingDraft
+		})
+	);
+	let cookMode = $derived(
+		requiresPlan ? preparationAsFirstStep(localizedPlan) : deterministicCookMode
+	);
 	let loading = $state(false);
 	let loadError = $state('');
 	// Connection drops and transient server errors are retryable: the server
@@ -108,14 +124,8 @@
 	let cookedSubmitting = $state(false);
 	let cookedDone = $state(false);
 
-	// Generation is non-blocking: while the AI writes the bench sheet the raw
-	// recipe renders below a progress banner, so the cook can read/start and
-	// can navigate away (the server finishes and caches regardless; returning
-	// joins the same in-flight generation). If a raw-view timer is running
-	// when the sheet arrives, it parks in `pendingCookMode` instead of
-	// swapping — unmounting the raw view would kill the timer.
-	let pendingCookMode = $state<StoredCookModeRecipe | null>(null);
-	let rawTimerActive = $state(false);
+	// Only composed meals retain the planning seam. Ordinary recipes always
+	// render their saved directions immediately and never enter this path.
 	let genStartedAt: number | null = null;
 	let genElapsedSec = $state(0);
 
@@ -131,17 +141,9 @@
 		resetCookSession();
 		storedCookMode = cm;
 		if (cm.version === 3) servingDraft = cm.servings;
-		pendingCookMode = null;
-		// The raw view unmounts with the swap, taking its timers — its binding
-		// can't reset this itself, and a stale true would park the next regen.
-		rawTimerActive = false;
 		progressRestored = false;
 	}
 
-	let checked = $state<Record<number, boolean>>({});
-	let mep = $state<Record<number, boolean>>({});
-	let mepExpanded = $state(false);
-	let ingredientChecks = $state<Record<number, boolean>>({});
 	let ingredientsExpanded = $state(false);
 	let currentStepKey = $state<string | null>(null);
 
@@ -308,10 +310,8 @@
 	function onVisibilityChange() {
 		if (typeof document === 'undefined') return;
 		if (document.visibilityState !== 'visible') return;
-		// Coming back to a failed generation: rejoin it. The server-side
-		// in-flight dedup makes this free when the original call is still
-		// running, and instant when it already finished and cached.
-		if (!cookMode && !loading && loadError && loadErrorRetryable) {
+		// A composed-meal plan may still be finishing when the phone returns.
+		if (requiresPlan && !cookMode && !loading && loadError && loadErrorRetryable) {
 			autoRetries = 0;
 			void loadCookMode(false);
 		}
@@ -455,7 +455,9 @@
 	}
 
 	$effect(() => {
-		if (!cookMode && !pendingCookMode && !loading && !loadError) void loadCookMode();
+		if (requiresPlan && !cookMode && !loading && !loadError) {
+			void loadCookMode();
+		}
 	});
 
 	async function loadCookMode(force = false) {
@@ -488,11 +490,7 @@
 					return loadCookMode(true);
 				}
 				autoRetries = 0;
-				if (rawTimerActive || anyTimerRunning || hasProgress) {
-					pendingCookMode = body.cookMode as StoredCookModeRecipe;
-				} else {
-					adoptCookMode(body.cookMode as StoredCookModeRecipe);
-				}
+				adoptCookMode(body.cookMode as StoredCookModeRecipe);
 			} else if (body.reason === 'daily_cap_exceeded') {
 				loadError = m.benchsheet_error_budget_reached();
 			} else if (body.reason === 'no_directions') {
@@ -520,12 +518,6 @@
 		}
 	}
 
-	function regenerate() {
-		regenerating = true;
-		pendingCookMode = null;
-		void loadCookMode(true);
-	}
-
 	function startTimer(idx: number, seconds: number) {
 		ensureAudio();
 		maybeShowNotificationPrimer();
@@ -542,10 +534,6 @@
 		return cm?.steps.map((step, index) => cookStepKey(index, step.stream_id)) ?? [];
 	}
 
-	function completedKeys(cm: CookModeDisplayRecipe, values: Record<number, boolean>): Set<string> {
-		return new Set(currentKeys(cm).filter((_, index) => values[index]));
-	}
-
 	async function centerStep(index: number) {
 		await tick();
 		document.getElementById(`cook-step-${index}`)?.scrollIntoView({
@@ -554,9 +542,8 @@
 		});
 	}
 
-	function applyCookProgress(next: { currentKey: string | null; completed: Set<string> }, shouldCenter: boolean) {
+	function applyCookProgress(next: { currentKey: string | null }, shouldCenter: boolean) {
 		const keys = currentKeys();
-		checked = Object.fromEntries(keys.map((key, index) => [index, next.completed.has(key)]));
 		const previous = currentStepKey;
 		currentStepKey = next.currentKey;
 		if (shouldCenter && currentStepKey && currentStepKey !== previous) {
@@ -569,49 +556,32 @@
 		const keys = currentKeys();
 		const key = keys[idx];
 		if (!key || !cookMode) return;
-		applyCookProgress(reduceCookProgress(keys, {
-			currentKey: currentStepKey,
-			completed: completedKeys(cookMode, checked)
-		}, { type: 'select', key }), true);
-	}
-
-	function toggleStep(idx: number) {
-		const keys = currentKeys();
-		const key = keys[idx];
-		if (!key || !cookMode) return;
-		applyCookProgress(reduceCookProgress(keys, {
-			currentKey: currentStepKey,
-			completed: completedKeys(cookMode, checked)
-		}, { type: 'toggle', key }), true);
+		applyCookProgress(selectCookStep(keys, { currentKey: currentStepKey }, key), true);
 	}
 
 	// ────────── Local progress persistence ──────────
-	// Cook progress (checked beats, mise ticks, running timers) survives
-	// navigation, reload, and PWA eviction via localStorage. Timer end times
+	// Current position and running timers survive navigation, reload, and PWA
+	// eviction via localStorage. Timer end times
 	// are wall-clock, so restore stays honest; a timer that expired while away
-	// restores as done WITHOUT re-firing the alarm (firedFor pre-seeded). A
-	// steps signature guards against restoring progress from a previous
-	// generation after a regen or schema-staleness rewrite.
+	// restores as done without re-firing the alarm.
 	const PROGRESS_KEY = `cookmode-progress:${untrack(() => recipeSlug)}:${untrack(() => planMealId ?? 'direct')}`;
 	let progressRestored = false;
 
 	function stepsSig(cm: CookModeDisplayRecipe): string {
-		return cm.generation_id ?? cm.steps.map((step) => `${step.stream_id}:${step.timer_seconds ?? ''}`).join('|');
+		return cm.generation_id ?? progressSignature;
 	}
 
 	function restoreProgress(cm: CookModeDisplayRecipe) {
-		let restoredKey: string | null = null;
 		try {
 			const raw = localStorage.getItem(PROGRESS_KEY);
 			const saved = raw ? JSON.parse(raw) : null;
 			if (!saved) {
-				const normalized = normalizeCookProgress(currentKeys(cm), new Set(), null);
-				currentStepKey = normalized.currentKey;
+				currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
 				return;
 			}
 			if (saved?.sig !== stepsSig(cm)) {
 				localStorage.removeItem(PROGRESS_KEY);
-				currentStepKey = normalizeCookProgress(currentKeys(cm), new Set(), null).currentKey;
+				currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
 				return;
 			}
 			const t = Date.now();
@@ -624,16 +594,15 @@
 				ends[idx] = end;
 				order.push(idx);
 			}
-			checked = saved.checked ?? {};
-			restoredKey = typeof saved.currentStepKey === 'string' ? saved.currentStepKey : null;
-			mep = saved.mep ?? {};
-			ingredientChecks = saved.ingredientChecks ?? {};
 			timerEnds = ends;
 			timerOrder = order;
-			currentStepKey = normalizeCookProgress(currentKeys(cm), completedKeys(cm, checked), restoredKey).currentKey;
+			currentStepKey = normalizeCookProgress(
+				currentKeys(cm),
+				typeof saved.currentStepKey === 'string' ? saved.currentStepKey : null
+			).currentKey;
 		} catch {
 			// Corrupt or inaccessible storage — start clean.
-			currentStepKey = normalizeCookProgress(currentKeys(cm), new Set(), null).currentKey;
+			currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
 		}
 	}
 
@@ -642,7 +611,7 @@
 			if (!cookMode) return;
 			localStorage.setItem(
 				PROGRESS_KEY,
-				JSON.stringify({ sig: stepsSig(cookMode), checked, currentStepKey, mep, ingredientChecks, timerEnds, timerOrder })
+				JSON.stringify({ sig: stepsSig(cookMode), currentStepKey, timerEnds, timerOrder })
 			);
 		} catch {
 			// Quota / private-mode failures degrade to the old ephemeral behavior.
@@ -657,12 +626,8 @@
 
 	function resetCookSession() {
 		clearProgress();
-		checked = {};
-		mep = {};
-		mepExpanded = false;
-		ingredientChecks = {};
 		ingredientsExpanded = false;
-		currentStepKey = cookMode ? normalizeCookProgress(currentKeys(cookMode), new Set(), null).currentKey : null;
+		currentStepKey = cookMode ? normalizeCookProgress(currentKeys(cookMode), null).currentKey : null;
 		timerEnds = {};
 		timerOrder = [];
 		firedFor.clear();
@@ -731,97 +696,15 @@
 	}
 
 	let steps = $derived(cookMode?.steps ?? []);
-	let totalDone = $derived(steps.filter((_, i) => checked[i]).length);
-	let allDone = $derived(steps.length > 0 && totalDone === steps.length);
 	let currentStepIndex = $derived(currentKeys().indexOf(currentStepKey ?? ''));
-	let mepList = $derived(cookMode?.mise_en_place ?? []);
-	let mepDone = $derived(mepList.filter((_, i) => mep[i]).length);
 	let projectedIngredients = $derived(
 		fallback.ingredients.map((ingredient) => projectIngredient(ingredient, fallback.baselineServings, servingDraft))
 	);
-	let ingredientDone = $derived(projectedIngredients.filter((_, index) => ingredientChecks[index]).length);
-	let hasProgress = $derived(
-		Object.values(checked).some(Boolean) ||
-			Object.values(mep).some(Boolean) ||
-			Object.values(ingredientChecks).some(Boolean) ||
-			timerOrder.length > 0
-	);
-
-	let streams = $derived(cookMode?.streams ?? []);
-	let paletteGraph = $derived(cookPaletteGraph(streams, steps));
-	let streamNameById = $derived(new Map(streams.map((s) => [s.id, s.name])));
+	let hasProgress = $derived(currentStepIndex > 0 || timerOrder.length > 0);
 
 	function changeServings(delta: number) {
 		servingDraft = Math.max(1, Math.min(99, servingDraft + delta));
 	}
-
-	type BeatBase = {
-		step: CookModeStep;
-		globalIdx: number;
-		palette: BeatPalette;
-		firstInStream: boolean;
-		streamName: string;
-		streamId: string;
-	};
-	type SubBeat = BeatBase & { kind: 'sub' };
-	type MergeBeat = BeatBase & {
-		kind: 'merge';
-		mergesFromPalettes: BeatPalette[];
-		streamNames: string[];
-	};
-	type Beat = SubBeat | MergeBeat;
-
-	let beats = $derived.by<Beat[]>(() => {
-		if (!steps.length) return [];
-		const seenStreams = new Set<string>();
-		return steps.map((step, i) => {
-			const isMerge = (step.merges_from?.length ?? 0) >= 2;
-			const sid = step.stream_id;
-			const streamName = streamNameById.get(sid) ?? sid;
-			const palette = paletteGraph[i]?.result ?? paletteFor(0);
-			// Merge beats count for stream introduction too: a stream born AT a
-			// merge (wet + dry → batter) gets its divider above the merge card,
-			// not dangling after it — and absorption merges (already-seen stream)
-			// correctly get none.
-			const firstInStream = !seenStreams.has(sid);
-			seenStreams.add(sid);
-			if (isMerge) {
-				const mergesFromPalettes = paletteGraph[i]?.sources ?? [];
-				const streamNames = step.merges_from
-					.map((id) => streamNameById.get(id))
-					.filter((n): n is string => !!n);
-				return {
-					kind: 'merge',
-					step,
-					globalIdx: i,
-					palette,
-					firstInStream,
-					streamName,
-					streamId: sid,
-					mergesFromPalettes,
-					streamNames
-				};
-			}
-			return {
-				kind: 'sub',
-				step,
-				globalIdx: i,
-				palette,
-				firstInStream,
-				streamName,
-				streamId: sid
-			};
-		});
-	});
-
-	// AI-paused fallback path: no cached cookMode, daily cap reached, but the
-	// raw recipe still has directions. Render <RawDirectionsFallback> so the
-	// cook can still cook. F4 in the plan: this also covers the post-deploy
-	// regen storm — recipes that fail to regen get the raw view, not a dead
-	// error block.
-	let aiPausedReason = $derived(
-		!loading && !cookMode && loadError && fallback.directions.length > 0 ? loadError : null
-	);
 
 	// Guard each write so a per-tick rerun (anyTimerRunning, nowSec) doesn't
 	// fire the parent's reactive graph for unchanged values. The parent
@@ -837,12 +720,9 @@
 	$effect(() => {
 		if (controller.hasProgress !== hasProgress) controller.hasProgress = hasProgress;
 	});
-	$effect(() => {
-		if (controller.aiPausedReason !== aiPausedReason) controller.aiPausedReason = aiPausedReason;
-	});
 </script>
 
-{#if fallback.directions.length > 0 && (view === 'original' || !cookMode)}
+{#if fallback.directions.length > 0 && view === 'original'}
 	<div class="flex min-h-11 items-center gap-2 px-3 py-1.5">
 		<div
 			class="inline-flex min-h-9 items-center rounded-lg border border-base-300 bg-base-100"
@@ -865,89 +745,14 @@
 				onclick={() => changeServings(1)}>+</button
 			>
 		</div>
-		{#if view === 'original'}
-			<button type="button" class="btn btn-sm btn-ghost ml-auto min-h-9" onclick={onEdit}>
-				{m.recipes_edit_heading()}
-			</button>
-		{:else}
-			<button
-				type="button"
-				class="btn btn-sm btn-ghost ml-auto min-h-9"
-				disabled={loading}
-				onclick={regenerate}
-			>
-				{#if loading}<Spinner size="sm" />{/if}
-				{m.benchsheet_regenerate_button()}
-			</button>
-		{/if}
+		<button type="button" class="btn btn-sm btn-ghost ml-auto min-h-9" onclick={onEdit}>
+			{m.recipes_edit_heading()}
+		</button>
 	</div>
 {/if}
 
-{#if cookMode && (loading || pendingCookMode)}
-	<div
-		class="mx-3 mb-2 rounded-xl border {pendingCookMode ? 'border-success/40 bg-success/10' : 'border-base-200 bg-base-100'} px-3 py-2 flex items-center gap-2.5"
-		role="status"
-	>
-		{#if !pendingCookMode}<Spinner size="sm" class="text-primary shrink-0" />{/if}
-		<p class="min-w-0 flex-1 text-xs">
-			{pendingCookMode ? m.benchsheet_ready_title() : m.benchsheet_refreshing_label()}
-		</p>
-		{#if pendingCookMode}
-			<button
-				type="button"
-				class="btn btn-xs btn-success shrink-0"
-				onclick={() => pendingCookMode && adoptCookMode(pendingCookMode)}>{m.benchsheet_switch_button()}</button
-			>
-		{/if}
-	</div>
-{/if}
-
-{#if cookMode && loadError && !loading}
-	<div class="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-warning/35 bg-warning/10 px-3 py-2 text-xs" role="status">
-		<span class="min-w-0 flex-1">{loadError} {m.benchsheet_kept_current_view()}</span>
-		<button type="button" class="btn btn-xs btn-ghost shrink-0" onclick={regenerate}>{m.recipes_retry_cooking_view()}</button>
-	</div>
-{/if}
-
-{#if !cookMode && (loading || pendingCookMode) && fallback.directions.length > 0}
-	<!-- One RawDirectionsFallback instance across generating → ready: swapping
-	     branches would remount it and kill any running raw-view timer — the
-	     exact loss pendingCookMode exists to prevent. Only the banner changes. -->
-	{#if pendingCookMode}
-		<div
-			class="mx-3 mt-3 rounded-xl border border-success/40 bg-success/10 px-3 py-2.5 flex items-center gap-2.5"
-			role="status"
-		>
-			<div class="min-w-0 flex-1">
-				<p class="text-[13px] font-medium">{m.benchsheet_ready_title()}</p>
-				<p class="text-[11px] text-base-content/60 leading-snug">
-					{m.benchsheet_ready_desc()}
-				</p>
-			</div>
-			<button
-				type="button"
-				class="btn btn-xs btn-success shrink-0"
-				onclick={() => pendingCookMode && adoptCookMode(pendingCookMode)}>{m.benchsheet_switch_button()}</button
-			>
-		</div>
-	{:else}
-		<div
-			class="mx-3 mt-3 rounded-xl border border-base-200 bg-base-100 px-3 py-2.5 flex items-center gap-2.5"
-			role="status"
-		>
-			<Spinner size="sm" class="text-primary shrink-0" />
-			<div class="min-w-0 flex-1">
-				<p class="text-[13px] font-medium">
-					{regenerating ? m.benchsheet_refreshing_label() : m.benchsheet_writing_label()}
-					<span class="tabular-nums text-base-content/50">{fmtClock(genElapsedSec)}</span>
-				</p>
-				<p class="text-[11px] text-base-content/60 leading-snug">
-					{m.benchsheet_writing_hint_with_raw()}
-				</p>
-			</div>
-		</div>
-	{/if}
-	<RawDirectionsFallback
+{#if view === 'original'}
+	<OriginalRecipeView
 		directions={fallback.directions}
 		ingredients={fallback.ingredients}
 		ingredientStock={fallback.ingredientStock}
@@ -955,7 +760,6 @@
 		servings={fallback.baselineServings}
 		targetServings={servingDraft}
 		sourceUrl={fallback.sourceUrl}
-		bind:activeTimer={rawTimerActive}
 	/>
 {:else if loading}
 	<div class="flex flex-col items-center justify-center gap-3 text-center p-5 min-h-[40vh]">
@@ -966,39 +770,12 @@
 		</p>
 		<p class="text-xs text-base-content/50">{m.benchsheet_writing_hint_simple()}</p>
 	</div>
-{:else if aiPausedReason}
-	<RawDirectionsFallback
-		directions={fallback.directions}
-		ingredients={fallback.ingredients}
-		ingredientStock={fallback.ingredientStock}
-		viewLang={fallback.viewLang}
-		servings={fallback.baselineServings}
-		targetServings={servingDraft}
-		sourceUrl={fallback.sourceUrl}
-		bannerMessage={m.benchsheet_paused_banner({ reason: aiPausedReason })}
-		onRetry={() => loadCookMode(true)}
-	/>
 {:else if loadError}
 	<div class="flex flex-col items-center justify-center gap-3 text-center p-5 min-h-[40vh]">
 		<p class="text-sm">{loadError}</p>
 		<button class="btn btn-sm btn-primary" onclick={() => loadCookMode(false)}>{m.recipes_retry_cooking_view()}</button>
 	</div>
 {:else if cookMode}
-	{#if fallback.directions.length > 0}
-		<div class={view === 'original' ? '' : 'hidden'}>
-			<RawDirectionsFallback
-				directions={fallback.directions}
-				ingredients={fallback.ingredients}
-				ingredientStock={fallback.ingredientStock}
-				viewLang={fallback.viewLang}
-				servings={fallback.baselineServings}
-				targetServings={servingDraft}
-				sourceUrl={fallback.sourceUrl}
-				bind:activeTimer={rawTimerActive}
-			/>
-		</div>
-	{/if}
-	<div class={view === 'cook' || fallback.directions.length === 0 ? '' : 'hidden'}>
 	{#if notificationPrimerVisible}
 		<div
 			class="px-3 py-2 border-b border-warning/30 bg-warning/10 text-base-content text-[12px] flex items-start gap-2"
@@ -1020,11 +797,12 @@
 		</div>
 	{/if}
 
-	<div class="sticky top-0 z-20 border-y border-base-200 bg-base-100/95 px-3 py-2 shadow-sm backdrop-blur" aria-label={m.cookmode_progress_label({ done: totalDone, total: steps.length })}>
-		<div class="mb-2 flex items-center gap-3">
+	{#if steps.length}
+	<div class="sticky top-0 z-20 border-y border-base-200 bg-base-100/95 px-3 py-2 shadow-sm backdrop-blur" aria-label={m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}>
+		<div class="flex items-center gap-3">
 			<div class="min-w-0 flex-1">
-				<div class="mb-1 flex items-center justify-between gap-2 text-xs font-semibold"><span>{m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}</span><span>{totalDone}/{steps.length}</span></div>
-				<progress class="progress progress-primary h-2 w-full" value={totalDone} max={steps.length}></progress>
+				<div class="mb-1 text-xs font-semibold">{m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}</div>
+				<progress class="progress progress-primary h-2 w-full" value={Math.max(1, currentStepIndex + 1)} max={steps.length}></progress>
 			</div>
 			<div class="inline-flex min-h-11 items-center rounded-lg border border-base-300 bg-base-100" aria-label={m.recipes_fallback_servings_label()}>
 				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_decrease()} disabled={servingDraft <= 1 || loading} onclick={() => changeServings(-1)}>−</button>
@@ -1032,73 +810,26 @@
 				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_increase()} disabled={servingDraft >= 99 || loading} onclick={() => changeServings(1)}>+</button>
 			</div>
 		</div>
-		<div class="flex justify-end"><button type="button" class="btn btn-ghost btn-xs min-h-8" disabled={loading} onclick={regenerate}>{#if loading}<Spinner size="xs" />{/if}{m.benchsheet_regenerate_button()}</button></div>
 	</div>
+	{/if}
 
 	{#if projectedIngredients.length}
 		<section class="border-y border-base-200 bg-base-100">
 			<button class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left" aria-expanded={ingredientsExpanded} onclick={() => (ingredientsExpanded = !ingredientsExpanded)}>
 				<span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-base-content/60">{m.benchsheet_ingredients_label()}</span>
-				<span class="min-w-0 flex-1 text-[11px] text-base-content/70">{ingredientDone}/{projectedIngredients.length}</span>
+				<span class="min-w-0 flex-1 text-[11px] text-base-content/70">{projectedIngredients.length}</span>
 				<span class="text-[10px] text-base-content/40">{ingredientsExpanded ? '▴' : '▾'}</span>
 			</button>
 			{#if ingredientsExpanded}
 				<ul class="grid gap-1 px-3 pb-3">
-					{#each projectedIngredients as ingredient, index}
-						<li>
-							<button class="flex min-h-11 w-full items-start gap-2.5 py-2 text-left text-base" aria-pressed={!!ingredientChecks[index]} onclick={() => (ingredientChecks[index] = !ingredientChecks[index])}>
-								<span class="mt-[1px] flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 text-[10px] {ingredientChecks[index] ? 'border-success bg-success text-success-content' : 'border-base-300'}">{ingredientChecks[index] ? '✓' : ''}</span>
-								<span class="min-w-0 flex-1 {ingredientChecks[index] ? 'line-through text-base-content/40' : ''}">
-									<strong class="font-semibold text-primary">{ingredient.amount}{ingredient.unit ? ` ${ingredient.unit}` : ''}</strong>
-									 {ingredient.name}{ingredient.preparation ? `, ${ingredient.preparation}` : ''}
-									{#if ingredient.optional}<span class="badge badge-ghost badge-xs ml-1">{m.benchsheet_optional_badge()}</span>{/if}
-									{#if ingredient.substitutes?.length}<span class="block text-[11px] text-base-content/50">{m.benchsheet_substitutes_label()}: {ingredient.substitutes.map((substitute) => substitute.name).join(', ')}</span>{/if}
-								</span>
-							</button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</section>
-	{/if}
-
-	{#if mepList.length}
-		<section class="border-y border-base-200 bg-base-100">
-			<button
-				class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left"
-				aria-expanded={mepExpanded}
-				onclick={() => (mepExpanded = !mepExpanded)}
-			>
-				<span class="text-[10px] uppercase tracking-wide font-bold text-base-content/60 shrink-0"
-					>{m.benchsheet_mise_label()}</span
-				>
-				<span class="text-[11px] text-base-content/70 flex-1 min-w-0 truncate">
-					{#if mepExpanded}{m.benchsheet_mise_collapse()}{:else}{m.benchsheet_mise_progress({
-							done: mepDone,
-							total: mepList.length,
-							preview: mepList.slice(0, 3).join(' · ') + (mepList.length > 3 ? '…' : '')
-						})}{/if}
-				</span>
-				<span class="text-[10px] text-base-content/40 shrink-0">{mepExpanded ? '▴' : '▾'}</span>
-			</button>
-			{#if mepExpanded}
-				<ul class="px-3 pb-2 grid gap-1">
-					{#each mepList as item, i}
-						<li>
-							<button
-								class="flex min-h-11 w-full items-start gap-2.5 py-2 text-left text-base"
-								aria-pressed={!!mep[i]}
-								onclick={() => (mep[i] = !mep[i])}
-							>
-								<span
-									class="shrink-0 w-5 h-5 rounded border-2 mt-[1px] flex items-center justify-center text-[10px] {mep[
-										i
-									]
-										? 'bg-success border-success text-success-content'
-										: 'border-base-300'}">{mep[i] ? '✓' : ''}</span
-								>
-								<span class={mep[i] ? 'line-through text-base-content/40' : ''}>{item}</span>
-							</button>
+					{#each projectedIngredients as ingredient}
+						<li class="flex min-h-11 items-start py-2 text-base">
+							<span class="min-w-0 flex-1">
+								<strong class="font-semibold text-primary">{ingredient.amount}{ingredient.unit ? ` ${ingredient.unit}` : ''}</strong>
+								 {ingredient.name}{ingredient.preparation ? `, ${ingredient.preparation}` : ''}
+								{#if ingredient.optional}<span class="badge badge-ghost badge-xs ml-1">{m.benchsheet_optional_badge()}</span>{/if}
+								{#if ingredient.substitutes?.length}<span class="block text-[11px] text-base-content/50">{m.benchsheet_substitutes_label()}: {ingredient.substitutes.map((substitute) => substitute.name).join(', ')}</span>{/if}
+							</span>
 						</li>
 					{/each}
 				</ul>
@@ -1107,74 +838,38 @@
 	{/if}
 
 	<ul class="divide-y divide-base-200 pb-32">
-		{#each beats as beat (beat.globalIdx)}
-			{#if beat.firstInStream}
-				<li class="flex items-center gap-2 px-3 pt-3 pb-1.5">
-					<span class="text-[10px] uppercase tracking-wider font-bold {beat.palette.text}"
-						>{beat.streamName}</span
-					>
-					<span class="flex-1 h-px bg-base-200"></span>
-				</li>
-			{/if}
-			{#if beat.kind === 'merge'}
-				<MergeCard
-					step={beat.step}
-					globalIdx={beat.globalIdx}
-					mergesFromPalettes={beat.mergesFromPalettes}
-					streamNames={beat.streamNames}
-					resultPalette={beat.palette}
-					ingredientChecks={ingredientChecks}
-					onToggleIngredient={(index) => (ingredientChecks[index] = !ingredientChecks[index])}
-					done={!!checked[beat.globalIdx]}
-					current={currentStepKey === cookStepKey(beat.globalIdx, beat.step.stream_id)}
-					timerActive={timerSnapshot.runningIdxs.has(beat.globalIdx)}
-					timerDone={timerSnapshot.doneIdxs.has(beat.globalIdx)}
-					timerRemaining={timerSnapshot.runningIdxs.has(beat.globalIdx)
-						? Math.max(0, Math.ceil((timerEnds[beat.globalIdx] - nowSec * 1000) / 1000))
-						: null}
-					onToggle={() => toggleStep(beat.globalIdx)}
-					onSelect={() => selectStep(beat.globalIdx)}
-					onStartTimer={() => {
-						const seconds = beat.step.timer_seconds;
-						if (seconds) startTimer(beat.globalIdx, seconds);
-					}}
-					onResetTimer={() => cancelTimer(beat.globalIdx)}
-				/>
-			{:else}
-				<ComponentCard
-					step={beat.step}
-					globalIdx={beat.globalIdx}
-					palette={beat.palette}
-					ingredientChecks={ingredientChecks}
-					onToggleIngredient={(index) => (ingredientChecks[index] = !ingredientChecks[index])}
-					done={!!checked[beat.globalIdx]}
-					current={currentStepKey === cookStepKey(beat.globalIdx, beat.step.stream_id)}
-					timerActive={timerSnapshot.runningIdxs.has(beat.globalIdx)}
-					timerDone={timerSnapshot.doneIdxs.has(beat.globalIdx)}
-					timerRemaining={timerSnapshot.runningIdxs.has(beat.globalIdx)
-						? Math.max(0, Math.ceil((timerEnds[beat.globalIdx] - nowSec * 1000) / 1000))
-						: null}
-					onToggle={toggleStep}
-					onSelect={selectStep}
-					onStartTimer={(idx) => {
-						const seconds = steps[idx]?.timer_seconds;
-						if (seconds) startTimer(idx, seconds);
-					}}
-					onResetTimer={cancelTimer}
-				/>
-			{/if}
+		{#each steps as step, index (cookStepKey(index, step.stream_id))}
+			<CookStepCard
+				{step}
+				{index}
+				current={currentStepKey === cookStepKey(index, step.stream_id)}
+				timerActive={timerSnapshot.runningIdxs.has(index)}
+				timerDone={timerSnapshot.doneIdxs.has(index)}
+				timerRemaining={timerSnapshot.runningIdxs.has(index)
+					? Math.max(0, Math.ceil((timerEnds[index] - nowSec * 1000) / 1000))
+					: null}
+				onSelect={() => selectStep(index)}
+				onStartTimer={() => {
+					const seconds = step.timer_seconds;
+					if (seconds) startTimer(index, seconds);
+				}}
+				onResetTimer={() => cancelTimer(index)}
+			/>
 		{/each}
 	</ul>
 
-	</div>
+	<!-- Pass the second-quantized time so pills only re-render on second
+	     changes (4× fewer re-renders than the raw 250 ms `now`). -->
+	<TimerStack
+		ids={timerOrder}
+		{timerEnds}
+		{steps}
+		now={nowSec * 1000}
+		bottomClearanceRem={currentStepIndex === steps.length - 1 ? 6.5 : 0}
+		onDismiss={cancelTimer}
+	/>
 
-	<!-- Outside the view wrapper: running cook-mode timers stay glanceable
-	     even while reading the original recipe. Pass the second-quantized time
-	     so pills only re-render on second changes (4× fewer re-renders than
-	     the raw 250 ms `now`). -->
-	<TimerStack ids={timerOrder} {timerEnds} {steps} now={nowSec * 1000} onDismiss={cancelTimer} />
-
-	{#if allDone && (view === 'cook' || fallback.directions.length === 0)}
+	{#if steps.length > 0 && currentStepIndex === steps.length - 1}
 		<FixedBottomBar contentClass="mx-auto flex max-w-2xl flex-col gap-2 px-3 py-2">
 			{#if !cookedDone && !ratingDismissed}
 				<div class="flex items-center gap-2">

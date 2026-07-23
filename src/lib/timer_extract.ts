@@ -1,9 +1,5 @@
-// Naive timer extraction from raw recipe direction prose.
-//
-// Used by RawDirectionsFallback.svelte when the AI-rewritten bench sheet is
-// paused (daily AI cap hit) and we render the raw directions with tap-to-start
-// timer chips. The bench sheet itself does NOT use this — it gets
-// `timer_seconds` / `timer_action` / `timer_location` straight from the model.
+// Timer extraction from saved recipe direction prose. This keeps ordinary
+// cooking mode deterministic while retaining tap-to-start timer chips.
 //
 // Patterns: matches `\d+ min`, `\d+ minutes`, `\d+ uur`, etc., as long as
 // the resulting duration is ≥ 30s (filters trivially short matches that

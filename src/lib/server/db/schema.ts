@@ -244,8 +244,8 @@ export const prefs = sqliteTable(
 // Household-level (not per-user) key-value store; `prefs` is per-user by design.
 // Keys: chat.reasoning_effort, chat.provider_sort, ai.temperature (tuning.ts);
 // ai.chat_model, ai.chat_fallback_model, ai.vision_model, ai.background_model,
-// ai.chat_daily_cap, ai.background_daily_cap (config.ts); recipes.auto_translate_on_import,
-// recipes.cook_mode_pregeneration (recipes/prefs.ts).
+// ai.chat_daily_cap, ai.background_daily_cap (config.ts);
+// recipes.auto_translate_on_import (recipes/prefs.ts).
 export const householdPrefs = sqliteTable('household_prefs', {
 	key: text('key').primaryKey(),
 	value: text('value').notNull(),

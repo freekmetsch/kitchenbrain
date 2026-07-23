@@ -5,6 +5,7 @@ import { base } from '$app/paths';
 import { db } from '$lib/server/db/index';
 import { recipes } from '$lib/server/db/schema';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
+import { subRecipesOf } from '$lib/server/meal_recipes';
 import { recipeIngredientsEqual } from '$lib/recipe_edit';
 import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
 import type { Actions, PageServerLoad } from './$types';
@@ -154,9 +155,11 @@ export const actions: Actions = {
 		if (!updated) return fail(409, { error: 'This recipe changed while you were editing it. Reload and try again.' });
 		if (ingredientsChanged || current.servings !== payload.servings) reconcileShoppingAfterWrite(db);
 
-		// Start the rewrite now; the recipe page the redirect lands on joins
-		// this same in-flight generation instead of starting its own.
-		if (cookingInputsChanged) kickCookModeGeneration(params.slug);
+		// Only composed meals need an AI-authored coordination plan. Ordinary
+		// recipes render their saved directions directly in cooking mode.
+		if (cookingInputsChanged && subRecipesOf(db, current.id).length > 0) {
+			kickCookModeGeneration(params.slug);
+		}
 
 		redirect(303, `${base}/recipes/${params.slug}`);
 	}

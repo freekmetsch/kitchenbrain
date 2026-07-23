@@ -1,31 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeCookProgress, reduceCookProgress } from './cook_progress';
+import { normalizeCookProgress, selectCookStep } from './cook_progress';
 
-const keys = ['0:a', '1:b', '2:a'];
+const keys = ['0:recipe', '1:recipe', '2:recipe'];
 
 describe('cook progress', () => {
-	it('starts at the first incomplete step and uses the last when all are complete', () => {
-		expect(normalizeCookProgress(keys, new Set(['0:a']), null).currentKey).toBe('1:b');
-		expect(normalizeCookProgress(keys, new Set(keys), null).currentKey).toBe('2:a');
+	it('starts at the first step', () => {
+		expect(normalizeCookProgress(keys, null)).toEqual({ currentKey: '0:recipe' });
 	});
 
-	it('normalizes a restored completed key to the next gap, then wraps', () => {
-		expect(normalizeCookProgress(keys, new Set(['0:a', '1:b']), '1:b').currentKey).toBe('2:a');
-		expect(normalizeCookProgress(keys, new Set(['0:a', '2:a']), '2:a').currentKey).toBe('1:b');
+	it('restores a current step when it still exists', () => {
+		expect(normalizeCookProgress(keys, '2:recipe')).toEqual({ currentKey: '2:recipe' });
 	});
 
-	it('advances only when the current step is completed', () => {
-		const current = { currentKey: '0:a', completed: new Set<string>() };
-		expect(reduceCookProgress(keys, current, { type: 'toggle', key: '0:a' }).currentKey).toBe('1:b');
-		expect(reduceCookProgress(keys, current, { type: 'toggle', key: '2:a' }).currentKey).toBe('0:a');
+	it('resets stale progress to the first step', () => {
+		expect(normalizeCookProgress(keys, '4:old')).toEqual({ currentKey: '0:recipe' });
 	});
 
-	it('selects a reopened step and never completes on manual selection', () => {
-		const state = { currentKey: '1:b', completed: new Set(['0:a']) };
-		const reopened = reduceCookProgress(keys, state, { type: 'toggle', key: '0:a' });
-		expect(reopened.currentKey).toBe('0:a');
-		expect(reopened.completed.has('0:a')).toBe(false);
-		const selected = reduceCookProgress(keys, state, { type: 'select', key: '2:a' });
-		expect(selected.completed).toEqual(state.completed);
+	it('selects without maintaining completion state', () => {
+		expect(selectCookStep(keys, { currentKey: '0:recipe' }, '2:recipe')).toEqual({
+			currentKey: '2:recipe'
+		});
+		expect(selectCookStep(keys, { currentKey: '0:recipe' }, '4:old')).toEqual({
+			currentKey: '0:recipe'
+		});
+	});
+
+	it('handles recipes without directions', () => {
+		expect(normalizeCookProgress([], null)).toEqual({ currentKey: null });
 	});
 });
