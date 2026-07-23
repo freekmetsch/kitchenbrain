@@ -28,6 +28,7 @@ export const POST: RequestHandler = async ({ locals, params, url }) => {
 		return json({
 			status: 'ready',
 			cookMode: result.recipe.cookModeJson,
+			recipeRevision: result.recipe.contentRevision,
 			generated: result.generated
 		});
 	} catch (err) {

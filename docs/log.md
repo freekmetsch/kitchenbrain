@@ -62,3 +62,15 @@ Touched: docs/feature-lists/archive/FEATURE_LIST_UX_LATEST_FEATURES.md, docs/fea
 
 ## 2026-07-22 | shipped | latest-feature UX/UI and cooking focus
 Completed the accepted P1 and P2 shopping, meal-plan, recipe-review, and cooking work. Closed the cooking checklist and translation issue after browser checks in English and Dutch.
+
+## 2026-07-23 | html-artifact | design-shotgun: recipe and cooking
+Touched: docs/artifacts/2026-07-23-design-shotgun-recipe-cooking.html
+
+## 2026-07-23 | html-artifact | plan: recipe kitchen timeline
+Touched: docs/artifacts/2026-07-23-plan-recipe-kitchen-timeline.html
+
+## 2026-07-23 16:17 | archive-scan | 1 feature list, 2 HTMLs archived
+Touched: docs/feature-lists/archive/FEATURE_LIST_RECIPE_COOKING_DESIGN_SHOTGUN.md, docs/artifacts/archive/2026-07-23-design-shotgun-recipe-cooking.html, docs/artifacts/archive/2026-07-23-plan-recipe-kitchen-timeline.html
+
+## 2026-07-23 | shipped | recipe Kitchen Timeline
+Shipped the cooking-first recipe page, immutable source snapshots, stable direction identity, validated v5 AI structure, frozen sessions, counter checks, live swaps, Dutch-canonical saved defaults, numbered responsive timeline, exact scaled step quantities, serving presets, and secondary recipe maintenance. Verification passed with 393 unit tests, Svelte checks, production build, copied-database migration/hash and rollback rehearsals, and phone/wide browser stories without provider spend.

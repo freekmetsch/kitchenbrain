@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
 import { materializeShoppingWeek } from '$lib/server/shopping_entries';
-import { applyShoppingRecipeChoice } from '$lib/server/shopping_recipe_choice';
+import {
+	applyShoppingRecipeChoice,
+	saveRecipeIngredientDefault
+} from '$lib/server/shopping_recipe_choice';
 
 const WEEK = '2026-07-22';
 
@@ -22,6 +25,42 @@ function setup() {
 }
 
 describe('shopping recipe choice', () => {
+	it('saves a Dutch canonical substitute even when English display data exists', () => {
+		const db = createTestDb();
+		const now = new Date();
+		const recipe = db
+			.insert(schema.recipes)
+			.values({
+				slug: 'english-view',
+				title: 'Pasta',
+				ingredients: [
+					{
+						id: 'pasta',
+						name: 'pasta',
+						amount: '400',
+						substitutes: [{ name: 'volkoren pasta' }]
+					}
+				],
+				ingredientsEn: [
+					{ name: 'pasta', substitutes: [{ name: 'whole-wheat pasta' }] }
+				],
+				translationStatus: 'ready',
+				createdAt: now,
+				updatedAt: now
+			})
+			.returning()
+			.get();
+		const updated = saveRecipeIngredientDefault(db, {
+			recipeSlug: recipe.slug,
+			ingredientId: 'pasta',
+			substituteIndex: 0,
+			expectedRecipeRevision: recipe.contentRevision
+		});
+		expect(updated.ingredients[0].name).toBe('volkoren pasta');
+		expect(updated.ingredients[0].substitutes?.[0].name).toBe('pasta');
+		expect(updated.ingredientsEn).toBeNull();
+	});
+
 	it('swaps a saved Dutch alternative through one revision-checked boundary', () => {
 		const { db, recipe, entry } = setup();
 		applyShoppingRecipeChoice(db, { entryId: entry.id, expectedEntryRevision: entry.revision, expectedRecipeRevision: recipe.contentRevision, need: 'required', term: 'penne', useInRecipe: true, actor: 'test', userId: 1 });

@@ -45,13 +45,23 @@ const paletteName = new Map<BeatPalette, string>([
 	[PALETTES[5], 'orange']
 ]);
 
-function blendedPalette(sources: BeatPalette[]): BeatPalette {
+function blendedPalette(sources: BeatPalette[], occupied: BeatPalette[]): BeatPalette {
 	const names = [...new Set(sources.map((palette) => paletteName.get(palette)))].filter(Boolean).sort();
 	const key = names.join('+');
-	if (key === 'amber+sky') return PALETTES[2];
-	if (key === 'amber+rose') return PALETTES[5];
-	if (names.length >= 3) return PALETTES[4];
-	return sources[0] ?? PALETTES[0];
+	const preferred =
+		key === 'amber+sky'
+			? PALETTES[2]
+			: key === 'amber+rose'
+				? PALETTES[5]
+				: names.length >= 3
+					? PALETTES[4]
+					: undefined;
+	if (preferred && !sources.includes(preferred)) return preferred;
+	return (
+		PALETTES.find((palette) => !sources.includes(palette) && !occupied.includes(palette)) ??
+		PALETTES.find((palette) => !sources.includes(palette)) ??
+		PALETTES[0]
+	);
 }
 
 export type CookPaletteAssignment = {
@@ -67,7 +77,7 @@ export function cookPaletteGraph(
 	const current = streamPalette(streams);
 	return steps.map((step) => {
 		const sources = (step.merges_from ?? []).map((id) => current[id]).filter(Boolean);
-		if (sources.length >= 2) current[step.stream_id] = blendedPalette(sources);
+		if (sources.length >= 2) current[step.stream_id] = blendedPalette(sources, Object.values(current));
 		return { result: current[step.stream_id] ?? PALETTES[0], sources };
 	});
 }

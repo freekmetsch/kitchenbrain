@@ -1,5 +1,6 @@
 import { extractTimers } from '$lib/timer_extract';
 import type { CookModeDisplayRecipe, CookModeStep } from '$lib/types';
+import type { Ingredient } from '$lib/recipe_ingredient';
 
 function punctuateInstruction(value: string): string {
 	const trimmed = value.trim();
@@ -7,13 +8,35 @@ function punctuateInstruction(value: string): string {
 	return /[.!?]$/u.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
-function directionStep(direction: string): CookModeStep {
+function normalizedMatch(value: string): string {
+	return value
+		.normalize('NFKD')
+		.toLocaleLowerCase()
+		.replace(/[^\p{L}\p{N}]+/gu, ' ')
+		.trim();
+}
+
+function directionStep(
+	direction: string,
+	options: { directionId?: string; ingredients?: Ingredient[] }
+): CookModeStep {
 	const timer = extractTimers(direction)[0] ?? null;
+	const haystack = ` ${normalizedMatch(direction)} `;
+	const linked = (options.ingredients ?? []).filter((ingredient) => {
+		const name = normalizedMatch(ingredient.name);
+		return name.length >= 2 && haystack.includes(` ${name} `);
+	});
 	return {
+		step_id: options.directionId,
+		direction_id: options.directionId,
 		title: direction,
 		goal: direction,
 		body: direction,
-		ingredients: [],
+		ingredients: linked.map((ingredient) =>
+			[ingredient.amount, ingredient.unit, ingredient.name].filter(Boolean).join(' ')
+		),
+		ingredient_ids: linked.flatMap((ingredient) => (ingredient.id ? [ingredient.id] : [])),
+		ingredient_names: linked.map((ingredient) => ingredient.name),
 		timer_seconds: timer?.seconds ?? null,
 		timer_purpose: timer ? direction : null,
 		timer_action: null,
@@ -29,6 +52,8 @@ export function cookingStepsFromDirections(
 		language: 'en' | 'nl';
 		recipeTitle: string;
 		servings: number | null;
+		directionIds?: string[];
+		ingredients?: Ingredient[];
 	}
 ): CookModeDisplayRecipe {
 	return {
@@ -38,7 +63,12 @@ export function cookingStepsFromDirections(
 		servings: options.servings,
 		mise_en_place: [],
 		streams: [{ id: 'recipe', name: options.recipeTitle }],
-		steps: directions.map(directionStep)
+		steps: directions.map((direction, index) =>
+			directionStep(direction, {
+				directionId: options.directionIds?.[index],
+				ingredients: options.ingredients
+			})
+		)
 	};
 }
 

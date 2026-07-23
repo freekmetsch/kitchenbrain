@@ -68,6 +68,15 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 			translatedComponents[componentIndex]!.map((ingredient) => projectIngredient(ingredient, row.servings, recipe.servings))
 		);
 	const cookingIngredientStock = cookingIngredients.map((ingredient) => stockNames.some((name) => namesMatch(ingredient.name, name)));
+	const cookingDirections = orderedComponents.flatMap((row) => row.directions);
+	const cookingDirectionIds = orderedComponents.flatMap((row) => row.directionIdsJson);
+	const cookingDirectionsEn = orderedComponents.every(
+		(row) => row.language === 'en' || row.directionsEn?.length === row.directions.length
+	)
+		? orderedComponents.flatMap((row) =>
+				row.language === 'en' ? row.directions : (row.directionsEn ?? row.directions)
+			)
+		: null;
 	const planId = Number(url.searchParams.get('plan'));
 	const plannedMeal = Number.isInteger(planId) && planId > 0
 		? db.select().from(mealPlanMeals).where(eq(mealPlanMeals.id, planId)).get()
@@ -92,5 +101,9 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		cookingIngredients,
 		cookingIngredientsEn,
 		cookingIngredientStock
+		,
+		cookingDirections,
+		cookingDirectionsEn,
+		cookingDirectionIds
 	};
 };

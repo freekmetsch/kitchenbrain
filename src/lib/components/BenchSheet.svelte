@@ -3,7 +3,7 @@
 
 	Owns: deterministic cooking steps, current-step state, timer state,
 	timer-fire alarm (Web Audio + vibrate + best-effort SW notification),
-	screen Wake Lock, end-of-cook bench-sheet rating, finish-cooking footer.
+	screen Wake Lock, and an optional history log action.
 
 	Phase 2b foreground-locked timer architecture is grounded in §0 of the
 	feature list (FEATURE_LIST_V2_COOKMODE_FLATTEN_AND_TIMER_INFRA.md):
@@ -22,11 +22,21 @@
 	import type { Ingredient } from '$lib/recipe_ingredient';
 	import { projectIngredient } from '$lib/recipe_scale';
 	import CookStepCard from './cook-mode/CookStepCard.svelte';
+	import CounterBoard from './cook-mode/CounterBoard.svelte';
 	import TimerStack from './cook-mode/TimerStack.svelte';
-	import FixedBottomBar from './ui/FixedBottomBar.svelte';
-	import { fmtClock } from './cook-mode/palette';
+	import { cookPaletteGraph, fmtClock, paletteFor } from './cook-mode/palette';
 	import { isStaleCookMode, localizeCookMode } from './cook-mode/staleness';
 	import { cookStepKey, normalizeCookProgress, selectCookStep } from './cook-mode/cook_progress';
+	import {
+		decodeCookSession,
+		migrateLegacyCookSession,
+		type FrozenCookRecipe
+	} from './cook-mode/cook_session';
+	import {
+		applySessionSwapsToSteps,
+		toggleCounterIngredient,
+		type SessionIngredientSwap
+	} from './cook-mode/cook_counter';
 	import {
 		cookingStepsFromDirections,
 		preparationAsFirstStep
@@ -46,16 +56,25 @@
 
 	type FallbackContext = {
 		directions: string[];
+		directionIds?: string[];
 		ingredients: Ingredient[];
+		canonicalIngredients?: Ingredient[];
 		ingredientStock: boolean[];
 		viewLang: 'en' | 'nl';
 		baselineServings: number | null;
 		servings: number | null;
 		sourceUrl: string | null;
+		scalingMode?: 'scalable' | 'fixed_batch';
+		sourceDirections?: string[];
+		sourceIngredients?: Ingredient[];
+		sourceServings?: number | null;
+		sourceSnapshotUrl?: string | null;
+		sourceProvenance?: 'imported_source' | 'legacy_baseline' | null;
 	};
 
 	type Props = {
 		recipeSlug: string;
+		recipeRevision: number;
 		recipeTitle: string;
 		initial: StoredCookModeRecipe | null;
 		requiresPlan: boolean;
@@ -71,6 +90,7 @@
 
 	let {
 		recipeSlug,
+		recipeRevision,
 		recipeTitle,
 		initial,
 		requiresPlan,
@@ -87,28 +107,44 @@
 	let storedCookMode = $state<StoredCookModeRecipe | null>(
 		untrack(() => (requiresPlan ? initial : null))
 	);
+	let frozenRecipe = $state<FrozenCookRecipe | null>(null);
+	let sessionStarted = $state(false);
+	let activeDirections = $derived(frozenRecipe?.directions ?? fallback.directions);
+	let activeDirectionIds = $derived(frozenRecipe?.directionIds ?? fallback.directionIds ?? []);
+	let activeIngredients = $derived(frozenRecipe?.ingredients ?? fallback.ingredients);
+	let activeCanonicalIngredients = $derived(
+		frozenRecipe?.canonicalIngredients ?? fallback.canonicalIngredients ?? fallback.ingredients
+	);
+	let activeBaselineServings = $derived(
+		frozenRecipe?.baselineServings ?? fallback.baselineServings
+	);
+	let activeStoredCookMode = $derived(frozenRecipe?.storedCookMode ?? storedCookMode);
 	let servingDraft = $state(
 		untrack(() => (initial?.version === 3 ? initial.servings : (fallback.servings ?? 4)))
 	);
 	let localizedPlan = $derived(
 		requiresPlan
-			? localizeCookMode(storedCookMode, viewLang, {
-					ingredients: fallback.ingredients,
-					baselineServings: fallback.baselineServings,
-					targetServings: servingDraft
+			? localizeCookMode(activeStoredCookMode, viewLang, {
+					ingredients: activeIngredients,
+					baselineServings: activeBaselineServings,
+					targetServings: servingDraft,
+					directions: activeDirections,
+					directionIds: activeDirectionIds
 				})
 			: null
 	);
 
 	let deterministicCookMode = $derived(
-		cookingStepsFromDirections(fallback.directions, {
+		cookingStepsFromDirections(activeDirections, {
 			language: viewLang,
 			recipeTitle,
-			servings: servingDraft
+			servings: servingDraft,
+			directionIds: activeDirectionIds,
+			ingredients: activeIngredients
 		})
 	);
 	let cookMode = $derived(
-		requiresPlan ? preparationAsFirstStep(localizedPlan) : deterministicCookMode
+		requiresPlan ? (preparationAsFirstStep(localizedPlan) ?? deterministicCookMode) : deterministicCookMode
 	);
 	let loading = $state(false);
 	let loadError = $state('');
@@ -138,14 +174,18 @@
 	});
 
 	function adoptCookMode(cm: StoredCookModeRecipe) {
-		resetCookSession();
 		storedCookMode = cm;
 		if (cm.version === 3) servingDraft = cm.servings;
-		progressRestored = false;
+		if (!sessionStarted) {
+			progressRestored = false;
+			currentStepKey = null;
+		}
 	}
 
-	let ingredientsExpanded = $state(false);
 	let currentStepKey = $state<string | null>(null);
+	let counterChecks = $state<Record<string, boolean>>({});
+	let sessionSwaps = $state<Record<string, SessionIngredientSwap>>({});
+	let savingIngredientId = $state<string | null>(null);
 
 	// Canonical timer state. `timerEnds` holds wall-clock fire times keyed by
 	// step idx; `timerOrder` holds insertion order so the multi-pill stack can
@@ -164,7 +204,6 @@
 	let nowSec = $derived(Math.floor(now / 1000));
 
 	let benchSheetRating = $state<BenchSheetRating | null>(null);
-	let ratingDismissed = $state(false);
 
 	// In-app notification permission primer. Soft ask before the browser
 	// dialog; if requestPermission() throws (broken browser), the second flag
@@ -311,7 +350,7 @@
 		if (typeof document === 'undefined') return;
 		if (document.visibilityState !== 'visible') return;
 		// A composed-meal plan may still be finishing when the phone returns.
-		if (requiresPlan && !cookMode && !loading && loadError && loadErrorRetryable) {
+		if (requiresPlan && !localizedPlan && !loading && loadError && loadErrorRetryable) {
 			autoRetries = 0;
 			void loadCookMode(false);
 		}
@@ -455,7 +494,7 @@
 	}
 
 	$effect(() => {
-		if (requiresPlan && !cookMode && !loading && !loadError) {
+		if (requiresPlan && !localizedPlan && !loading && !loadError) {
 			void loadCookMode();
 		}
 	});
@@ -483,6 +522,14 @@
 			});
 			const body = await res.json();
 			if (res.ok && body.cookMode) {
+				if (
+					typeof body.recipeRevision === 'number' &&
+					body.recipeRevision > recipeRevision &&
+					!sessionStarted
+				) {
+					location.reload();
+					return;
+				}
 				const incoming = body.cookMode as Partial<StoredCookModeRecipe>;
 				if (!force && isStaleCookMode(incoming)) {
 					regenerating = true;
@@ -513,12 +560,13 @@
 			autoRetries += 1;
 			retryTimer = setTimeout(() => {
 				retryTimer = null;
-				if (!cookMode && !loading && loadError && loadErrorRetryable) void loadCookMode(false);
+				if (!localizedPlan && !loading && loadError && loadErrorRetryable) void loadCookMode(false);
 			}, autoRetries * 5000);
 		}
 	}
 
 	function startTimer(idx: number, seconds: number) {
+		beginSession();
 		ensureAudio();
 		maybeShowNotificationPrimer();
 		timerEnds[idx] = Date.now() + seconds * 1000;
@@ -531,7 +579,11 @@
 		firedFor.delete(idx);
 	}
 	function currentKeys(cm: CookModeDisplayRecipe | null = cookMode): string[] {
-		return cm?.steps.map((step, index) => cookStepKey(index, step.stream_id)) ?? [];
+		return (
+			cm?.steps.map((step, index) =>
+				cookStepKey(index, step.stream_id, step.step_id ?? step.direction_id)
+			) ?? []
+		);
 	}
 
 	async function centerStep(index: number) {
@@ -556,6 +608,7 @@
 		const keys = currentKeys();
 		const key = keys[idx];
 		if (!key || !cookMode) return;
+		beginSession();
 		applyCookProgress(selectCookStep(keys, { currentKey: currentStepKey }, key), true);
 	}
 
@@ -571,35 +624,62 @@
 		return cm.generation_id ?? progressSignature;
 	}
 
+	function copySessionValue<T>(value: T): T {
+		return JSON.parse(JSON.stringify(value)) as T;
+	}
+
+	function currentFrozenRecipe(cm: CookModeDisplayRecipe = cookMode!): FrozenCookRecipe {
+		return {
+			signature: stepsSig(cm),
+			storedCookMode: copySessionValue(storedCookMode),
+			directions: [...fallback.directions],
+			directionIds: [...(fallback.directionIds ?? [])],
+			ingredients: copySessionValue(fallback.ingredients),
+			canonicalIngredients: copySessionValue(
+				fallback.canonicalIngredients ?? fallback.ingredients
+			),
+			baselineServings: fallback.baselineServings
+		};
+	}
+
+	function beginSession() {
+		if (sessionStarted || !cookMode) return;
+		sessionStarted = true;
+		frozenRecipe = currentFrozenRecipe(cookMode);
+	}
+
 	function restoreProgress(cm: CookModeDisplayRecipe) {
 		try {
 			const raw = localStorage.getItem(PROGRESS_KEY);
-			const saved = raw ? JSON.parse(raw) : null;
+			const parsed = raw ? JSON.parse(raw) : null;
+			const saved =
+				decodeCookSession(parsed) ??
+				migrateLegacyCookSession(parsed, cm, stepsSig(cm), currentFrozenRecipe(cm));
 			if (!saved) {
 				currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
 				return;
 			}
-			if (saved?.sig !== stepsSig(cm)) {
-				localStorage.removeItem(PROGRESS_KEY);
-				currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
-				return;
-			}
+			sessionStarted = true;
+			frozenRecipe = saved.frozenRecipe;
+			servingDraft = saved.servings;
+			counterChecks = saved.counterChecks;
+			sessionSwaps = saved.sessionSwaps;
 			const t = Date.now();
 			const ends: Record<number, number> = {};
 			const order: number[] = [];
 			for (const idx of saved.timerOrder ?? []) {
 				const end = saved.timerEnds?.[idx];
-				if (typeof end !== 'number' || idx >= cm.steps.length) continue;
+				if (typeof end !== 'number' || idx < 0) continue;
 				if (end <= t) firedFor.add(idx);
 				ends[idx] = end;
 				order.push(idx);
 			}
 			timerEnds = ends;
 			timerOrder = order;
-			currentStepKey = normalizeCookProgress(
-				currentKeys(cm),
-				typeof saved.currentStepKey === 'string' ? saved.currentStepKey : null
-			).currentKey;
+			currentStepKey =
+				typeof saved.currentStepKey === 'string'
+					? saved.currentStepKey
+					: normalizeCookProgress(currentKeys(cm), null).currentKey;
 		} catch {
 			// Corrupt or inaccessible storage — start clean.
 			currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
@@ -608,10 +688,20 @@
 
 	function saveProgress() {
 		try {
-			if (!cookMode) return;
+			if (!cookMode || !sessionStarted || !frozenRecipe) return;
 			localStorage.setItem(
 				PROGRESS_KEY,
-				JSON.stringify({ sig: stepsSig(cookMode), currentStepKey, timerEnds, timerOrder })
+				JSON.stringify({
+					v: 2,
+					sig: frozenRecipe.signature,
+					currentStepKey,
+					timerEnds,
+					timerOrder,
+					servings: servingDraft,
+					frozenRecipe,
+					counterChecks,
+					sessionSwaps
+				})
 			);
 		} catch {
 			// Quota / private-mode failures degrade to the old ephemeral behavior.
@@ -626,13 +716,15 @@
 
 	function resetCookSession() {
 		clearProgress();
-		ingredientsExpanded = false;
+		frozenRecipe = null;
+		sessionStarted = false;
+		counterChecks = {};
+		sessionSwaps = {};
 		currentStepKey = cookMode ? normalizeCookProgress(currentKeys(cookMode), null).currentKey : null;
 		timerEnds = {};
 		timerOrder = [];
 		firedFor.clear();
 		benchSheetRating = null;
-		ratingDismissed = false;
 		cookedDone = false;
 		cookedSubmitting = false;
 	}
@@ -695,16 +787,116 @@
 		}
 	}
 
-	let steps = $derived(cookMode?.steps ?? []);
+	let ingredientNamesById = $derived(
+		Object.fromEntries(
+			activeIngredients.flatMap((ingredient) =>
+				ingredient.id ? [[ingredient.id, ingredient.name]] : []
+			)
+		)
+	);
+	let steps = $derived(
+		applySessionSwapsToSteps(cookMode?.steps ?? [], sessionSwaps, ingredientNamesById)
+	);
 	let currentStepIndex = $derived(currentKeys().indexOf(currentStepKey ?? ''));
 	let projectedIngredients = $derived(
-		fallback.ingredients.map((ingredient) => projectIngredient(ingredient, fallback.baselineServings, servingDraft))
+		activeIngredients.map((ingredient) => {
+			const projected = projectIngredient(
+				ingredient,
+				activeBaselineServings,
+				servingDraft
+			);
+			const swap = ingredient.id ? sessionSwaps[ingredient.id] : undefined;
+			return swap ? { ...projected, name: swap.displayName } : projected;
+		})
 	);
-	let hasProgress = $derived(currentStepIndex > 0 || timerOrder.length > 0);
+	let hasProgress = $derived(
+		sessionStarted ||
+			currentStepIndex > 0 ||
+			timerOrder.length > 0 ||
+			Object.values(counterChecks).some(Boolean) ||
+			Object.keys(sessionSwaps).length > 0
+	);
+
+	function toggleCounter(ingredientId: string) {
+		beginSession();
+		counterChecks = toggleCounterIngredient(counterChecks, ingredientId);
+	}
+
+	function selectSwap(ingredientId: string, substituteIndex: number) {
+		const display = activeIngredients.find((ingredient) => ingredient.id === ingredientId);
+		const canonical = activeCanonicalIngredients.find(
+			(ingredient) => ingredient.id === ingredientId
+		);
+		const displayName = display?.substitutes?.[substituteIndex]?.name;
+		const canonicalName = canonical?.substitutes?.[substituteIndex]?.name;
+		if (!displayName || !canonicalName) return;
+		beginSession();
+		sessionSwaps = {
+			...sessionSwaps,
+			[ingredientId]: { substituteIndex, displayName, canonicalName }
+		};
+	}
+
+	async function saveSwapDefault(ingredientId: string, substituteIndex: number) {
+		savingIngredientId = ingredientId;
+		try {
+			const response = await fetch(
+				`${base}/api/recipes/${recipeSlug}/ingredient-swap`,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						ingredientId,
+						substituteIndex,
+						expectedRecipeRevision: recipeRevision
+					})
+				}
+			);
+			if (!response.ok) throw new Error();
+			toast.success(m.cookmode_swap_saved());
+			location.reload();
+		} catch {
+			savingIngredientId = null;
+			toast.error(m.cookmode_swap_save_failed());
+		}
+	}
 
 	function changeServings(delta: number) {
+		beginSession();
 		servingDraft = Math.max(1, Math.min(99, servingDraft + delta));
+		void tick().then(saveProgress);
 	}
+
+	function setServingMultiplier(multiplier: number) {
+		beginSession();
+		const baseline = activeBaselineServings ?? fallback.servings ?? 4;
+		servingDraft = Math.max(1, Math.min(99, Math.round(baseline * multiplier)));
+		void tick().then(saveProgress);
+	}
+
+	let palettes = $derived(
+		cookMode
+			? cookPaletteGraph(cookMode.streams, cookMode.steps)
+			: []
+	);
+	let streamNames = $derived(
+		Object.fromEntries((cookMode?.streams ?? []).map((stream) => [stream.id, stream.name]))
+	);
+	let streamLabelsByIngredient = $derived.by<Record<string, string>>(() => {
+		const labels = new Map<string, Set<string>>();
+		for (const step of steps) {
+			const streamName = streamNames[step.stream_id];
+			if (!streamName) continue;
+			for (const ingredientId of step.ingredient_ids ?? []) {
+				const names = labels.get(ingredientId) ?? new Set<string>();
+				names.add(streamName);
+				labels.set(ingredientId, names);
+			}
+		}
+		return Object.fromEntries(
+			[...labels].map(([ingredientId, names]) => [ingredientId, [...names].join(' · ')])
+		);
+	});
 
 	// Guard each write so a per-tick rerun (anyTimerRunning, nowSec) doesn't
 	// fire the parent's reactive graph for unchanged values. The parent
@@ -753,29 +945,27 @@
 
 {#if view === 'original'}
 	<OriginalRecipeView
-		directions={fallback.directions}
-		ingredients={fallback.ingredients}
+		directions={fallback.sourceDirections ?? fallback.directions}
+		ingredients={fallback.sourceIngredients ?? fallback.ingredients}
 		ingredientStock={fallback.ingredientStock}
 		viewLang={fallback.viewLang}
-		servings={fallback.baselineServings}
+		servings={fallback.sourceServings ?? fallback.baselineServings}
 		targetServings={servingDraft}
-		sourceUrl={fallback.sourceUrl}
+		sourceUrl={fallback.sourceSnapshotUrl ?? fallback.sourceUrl}
+		provenance={fallback.sourceProvenance ?? null}
 	/>
-{:else if loading}
-	<div class="flex flex-col items-center justify-center gap-3 text-center p-5 min-h-[40vh]">
-		<Spinner size="lg" />
-		<p class="text-sm text-base-content/70">
-			{regenerating ? m.benchsheet_refreshing_label() : m.benchsheet_writing_label()}
-			<span class="tabular-nums">{fmtClock(genElapsedSec)}</span>
-		</p>
-		<p class="text-xs text-base-content/50">{m.benchsheet_writing_hint_simple()}</p>
-	</div>
-{:else if loadError}
-	<div class="flex flex-col items-center justify-center gap-3 text-center p-5 min-h-[40vh]">
-		<p class="text-sm">{loadError}</p>
-		<button class="btn btn-sm btn-primary" onclick={() => loadCookMode(false)}>{m.recipes_retry_cooking_view()}</button>
-	</div>
 {:else if cookMode}
+	{#if loading}
+		<div class="mx-3 my-2 flex min-h-11 items-center gap-2 rounded-xl border border-info/25 bg-info/5 px-3 py-2 text-xs text-base-content/65" role="status">
+			<Spinner size="xs" />
+			<span>{regenerating ? m.benchsheet_refreshing_label() : m.benchsheet_writing_label()} <span class="tabular-nums">{fmtClock(genElapsedSec)}</span></span>
+		</div>
+	{:else if loadError}
+		<div class="mx-3 my-2 flex min-h-11 items-center gap-2 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-xs">
+			<span class="min-w-0 flex-1">{loadError}</span>
+			<button class="btn btn-xs btn-ghost" onclick={() => loadCookMode(false)}>{m.recipes_retry_cooking_view()}</button>
+		</div>
+	{/if}
 	{#if notificationPrimerVisible}
 		<div
 			class="px-3 py-2 border-b border-warning/30 bg-warning/10 text-base-content text-[12px] flex items-start gap-2"
@@ -798,8 +988,8 @@
 	{/if}
 
 	{#if steps.length}
-	<div class="sticky top-0 z-20 border-y border-base-200 bg-base-100/95 px-3 py-2 shadow-sm backdrop-blur" aria-label={m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}>
-		<div class="flex items-center gap-3">
+	<div class="sticky top-[3.25rem] z-20 border-y border-base-200 bg-base-100/95 px-3 py-2 shadow-sm backdrop-blur" aria-label={m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}>
+		<div class="mx-auto flex max-w-5xl flex-wrap items-center gap-2">
 			<div class="min-w-0 flex-1">
 				<div class="mb-1 text-xs font-semibold">{m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}</div>
 				<progress class="progress progress-primary h-2 w-full" value={Math.max(1, currentStepIndex + 1)} max={steps.length}></progress>
@@ -809,40 +999,50 @@
 				<span class="w-8 text-center text-sm font-semibold tabular-nums">{servingDraft}</span>
 				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_increase()} disabled={servingDraft >= 99 || loading} onclick={() => changeServings(1)}>+</button>
 			</div>
+			{#if fallback.scalingMode !== 'fixed_batch'}
+				<div class="flex min-h-9 items-center gap-1" aria-label={m.recipes_fallback_servings_label()}>
+					{#each [1, 1.5, 2] as multiplier}
+						<button
+							type="button"
+							class="btn btn-xs min-h-9 px-2 {servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier) ? 'btn-primary' : 'btn-ghost'}"
+							aria-pressed={servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier)}
+							onclick={() => setServingMultiplier(multiplier)}
+						>{multiplier === 1.5 ? '1½×' : `${multiplier}×`}</button>
+					{/each}
+				</div>
+			{/if}
 		</div>
 	</div>
 	{/if}
 
+	<div class="mx-auto max-w-5xl px-3 py-3 md:grid md:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)] md:items-start md:gap-5">
 	{#if projectedIngredients.length}
-		<section class="border-y border-base-200 bg-base-100">
-			<button class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left" aria-expanded={ingredientsExpanded} onclick={() => (ingredientsExpanded = !ingredientsExpanded)}>
-				<span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-base-content/60">{m.benchsheet_ingredients_label()}</span>
-				<span class="min-w-0 flex-1 text-[11px] text-base-content/70">{projectedIngredients.length}</span>
-				<span class="text-[10px] text-base-content/40">{ingredientsExpanded ? '▴' : '▾'}</span>
-			</button>
-			{#if ingredientsExpanded}
-				<ul class="grid gap-1 px-3 pb-3">
-					{#each projectedIngredients as ingredient}
-						<li class="flex min-h-11 items-start py-2 text-base">
-							<span class="min-w-0 flex-1">
-								<strong class="font-semibold text-primary">{ingredient.amount}{ingredient.unit ? ` ${ingredient.unit}` : ''}</strong>
-								 {ingredient.name}{ingredient.preparation ? `, ${ingredient.preparation}` : ''}
-								{#if ingredient.optional}<span class="badge badge-ghost badge-xs ml-1">{m.benchsheet_optional_badge()}</span>{/if}
-								{#if ingredient.substitutes?.length}<span class="block text-[11px] text-base-content/50">{m.benchsheet_substitutes_label()}: {ingredient.substitutes.map((substitute) => substitute.name).join(', ')}</span>{/if}
-							</span>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</section>
+		<aside class="mb-3 md:sticky md:top-36 md:mb-0">
+			<CounterBoard
+				ingredients={projectedIngredients}
+				canonicalIngredients={activeCanonicalIngredients}
+				checks={counterChecks}
+				swaps={sessionSwaps}
+				{streamLabelsByIngredient}
+				onToggle={toggleCounter}
+				onSwap={selectSwap}
+				onSaveDefault={(ingredientId, substituteIndex) =>
+					void saveSwapDefault(ingredientId, substituteIndex)}
+				{savingIngredientId}
+			/>
+		</aside>
 	{/if}
 
-	<ul class="divide-y divide-base-200 pb-32">
+	<div class="min-w-0">
+	<ul class="space-y-3 pb-4">
 		{#each steps as step, index (cookStepKey(index, step.stream_id))}
 			<CookStepCard
 				{step}
 				{index}
-				current={currentStepKey === cookStepKey(index, step.stream_id)}
+				palette={palettes[index]?.result ?? paletteFor(index)}
+				streamName={streamNames[step.stream_id] ?? null}
+				mergeNames={(step.merges_from ?? []).map((streamId) => streamNames[streamId]).filter(Boolean)}
+				current={currentStepKey === cookStepKey(index, step.stream_id, step.step_id ?? step.direction_id)}
 				timerActive={timerSnapshot.runningIdxs.has(index)}
 				timerDone={timerSnapshot.doneIdxs.has(index)}
 				timerRemaining={timerSnapshot.runningIdxs.has(index)
@@ -858,6 +1058,26 @@
 		{/each}
 	</ul>
 
+	<details class="mb-8 rounded-xl border border-base-200 bg-base-100">
+		<summary class="min-h-11 cursor-pointer px-3 py-3 text-xs font-semibold text-base-content/55">
+			{m.cookmode_history_actions()}
+		</summary>
+		<div class="border-t border-base-200 p-3">
+			{#if !cookedDone}
+				<div class="mb-2 flex items-center gap-2">
+					<span class="flex-1 text-xs text-base-content/65">{m.benchsheet_rating_prompt()}</span>
+					<button type="button" class="btn btn-xs {benchSheetRating === 'good' ? 'btn-success' : 'btn-ghost'}" aria-label={m.benchsheet_rating_good_aria()} aria-pressed={benchSheetRating === 'good'} onclick={() => (benchSheetRating = benchSheetRating === 'good' ? null : 'good')}>👍</button>
+					<button type="button" class="btn btn-xs {benchSheetRating === 'bad' ? 'btn-error' : 'btn-ghost'}" aria-label={m.benchsheet_rating_bad_aria()} aria-pressed={benchSheetRating === 'bad'} onclick={() => (benchSheetRating = benchSheetRating === 'bad' ? null : 'bad')}>👎</button>
+				</div>
+			{/if}
+			<button class="btn btn-sm btn-ghost w-full" onclick={markCooked} disabled={cookedSubmitting || cookedDone}>
+				{#if cookedDone}{m.benchsheet_cooked_logged()}{:else if cookedSubmitting}…{:else}{m.cookmode_log_cooked()}{/if}
+			</button>
+		</div>
+	</details>
+	</div>
+	</div>
+
 	<!-- Pass the second-quantized time so pills only re-render on second
 	     changes (4× fewer re-renders than the raw 250 ms `now`). -->
 	<TimerStack
@@ -865,50 +1085,7 @@
 		{timerEnds}
 		{steps}
 		now={nowSec * 1000}
-		bottomClearanceRem={currentStepIndex === steps.length - 1 ? 6.5 : 0}
+		bottomClearanceRem={0}
 		onDismiss={cancelTimer}
 	/>
-
-	{#if steps.length > 0 && currentStepIndex === steps.length - 1}
-		<FixedBottomBar contentClass="mx-auto flex max-w-2xl flex-col gap-2 px-3 py-2">
-			{#if !cookedDone && !ratingDismissed}
-				<div class="flex items-center gap-2">
-					<span class="text-[12px] text-base-content/70 flex-1">{m.benchsheet_rating_prompt()}</span>
-					<button
-						type="button"
-						class="btn btn-xs {benchSheetRating === 'good' ? 'btn-success' : 'btn-ghost'} text-base"
-						aria-label={m.benchsheet_rating_good_aria()}
-						aria-pressed={benchSheetRating === 'good'}
-						onclick={() => (benchSheetRating = benchSheetRating === 'good' ? null : 'good')}
-					>
-						👍
-					</button>
-					<button
-						type="button"
-						class="btn btn-xs {benchSheetRating === 'bad' ? 'btn-error' : 'btn-ghost'} text-base"
-						aria-label={m.benchsheet_rating_bad_aria()}
-						aria-pressed={benchSheetRating === 'bad'}
-						onclick={() => (benchSheetRating = benchSheetRating === 'bad' ? null : 'bad')}
-					>
-						👎
-					</button>
-					<button
-						type="button"
-						class="btn btn-ghost btn-xs ml-1 min-h-9 px-2 text-xs font-normal text-base-content/55 underline"
-						onclick={() => {
-							benchSheetRating = null;
-							ratingDismissed = true;
-						}}>{m.benchsheet_rating_skip_button()}</button
-					>
-				</div>
-			{/if}
-			<button
-				class="btn btn-sm w-full btn-success"
-				onclick={markCooked}
-				disabled={cookedSubmitting || cookedDone}
-			>
-				{#if cookedDone}{m.benchsheet_cooked_logged()}{:else if cookedSubmitting}…{:else}{m.benchsheet_cook_button()}{/if}
-			</button>
-		</FixedBottomBar>
-	{/if}
 {/if}

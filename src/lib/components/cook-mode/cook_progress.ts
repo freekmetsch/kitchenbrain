@@ -2,8 +2,8 @@ export type CookProgressState = {
 	currentKey: string | null;
 };
 
-export function cookStepKey(index: number, streamId: string): string {
-	return `${index}:${streamId}`;
+export function cookStepKey(index: number, streamId: string, stableId?: string): string {
+	return stableId || `${index}:${streamId}`;
 }
 
 export function normalizeCookProgress(

@@ -97,6 +97,12 @@ export function serializeDirections(items: DirectionDraft[]): string {
 	return JSON.stringify(items.map((direction) => direction.text.trim()).filter(Boolean));
 }
 
+export function serializeDirectionIds(items: DirectionDraft[]): string {
+	return JSON.stringify(
+		items.filter((direction) => direction.text.trim().length > 0).map((direction) => direction.clientId)
+	);
+}
+
 export function recipeIngredientsEqual(
 	left: PersistedIngredient[],
 	right: PersistedIngredient[]

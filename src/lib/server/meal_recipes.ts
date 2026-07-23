@@ -14,6 +14,7 @@ import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { slugify, uniqueSlug } from '$lib/server/ai/recipe_ingest';
 import { projectIngredient } from '$lib/recipe_scale';
+import { captureRecipeSource } from '$lib/recipe_source_snapshot';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -227,6 +228,17 @@ export function createMealRecipe(
 			title: opts.title,
 			ingredients: [],
 			directions: [],
+			directionIdsJson: [],
+			sourceSnapshotJson: captureRecipeSource(
+				{
+					title: opts.title,
+					servings,
+					sourceUrl: null,
+					ingredients: [],
+					directions: []
+				},
+				{ capturedAt: now.getTime() }
+			),
 			servings,
 			tags: [],
 			createdAt: now,

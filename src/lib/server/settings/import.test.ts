@@ -160,12 +160,46 @@ describe('validateImportFile', () => {
 			expect(legacy.data.recipes[0].scalingMode).toBe('scalable');
 			expect(legacy.data.recipes[0].structureVersion).toBe(1);
 			expect(legacy.data.recipes[0].contentRevision).toBe(1);
+			expect(legacy.data.recipes[0].directionIdsJson).toHaveLength(2);
+			expect(legacy.data.recipes[0].sourceSnapshotJson?.provenance).toBe('legacy_baseline');
 		}
 
 		const invalid = validateImportFile(emptyFile({
 			recipes: [baseRecipe({ ingredients: [{ name: 'kroepoek', amount: '1', origin: 'ai_suggested' }] })]
 		}));
 		expect(invalid.ok).toBe(false);
+	});
+
+	it('round-trips source snapshots and direction IDs', () => {
+		const snapshot = {
+			version: 1 as const,
+			provenance: 'imported_source' as const,
+			capturedAt: 123,
+			title: 'Bron',
+			servings: 2,
+			sourceUrl: 'https://example.test/bron',
+			ingredients: [{ id: 'ui', name: 'ui', amount: '1' }],
+			directions: ['Snijd.']
+		};
+		const validation = validateImportFile(
+			emptyFile({
+				recipes: [
+					baseRecipe({
+						directions: ['Snijd.'],
+						directionIdsJson: ['dir-source'],
+						sourceSnapshotJson: snapshot
+					})
+				]
+			})
+		);
+		expect(validation.ok).toBe(true);
+		if (!validation.ok) return;
+		const db = createTestDb();
+		expect(importBootstrap(db, validation.data).ok).toBe(true);
+		expect(db.select().from(schema.recipes).get()).toMatchObject({
+			directionIdsJson: ['dir-source'],
+			sourceSnapshotJson: snapshot
+		});
 	});
 
 	it('restores trusted ingredient provenance and future fields', () => {

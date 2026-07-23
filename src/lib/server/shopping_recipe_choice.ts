@@ -11,6 +11,87 @@ import { ShoppingMutationError } from '$lib/server/shopping_mutations';
 type DB = BetterSQLite3Database<typeof schema>;
 export type ShoppingNeed = 'required' | 'optional' | 'stocked';
 
+function promotedIngredient(current: Ingredient, term: string): Ingredient {
+	const substitute = current.substitutes?.find((candidate) => candidate.name === term);
+	if (!substitute) {
+		throw new ShoppingMutationError(
+			'invalid_term',
+			'The selected term is not a saved recipe alternative'
+		);
+	}
+	const remaining = (current.substitutes ?? []).filter((candidate) => candidate.name !== term);
+	return {
+		...current,
+		name: term,
+		substitutes: [
+			...remaining,
+			{ name: current.name, kind: substitute.kind, note: substitute.note }
+		]
+	};
+}
+
+export function saveRecipeIngredientDefault(
+	db: DB,
+	input: {
+		recipeSlug: string;
+		ingredientId: string;
+		substituteIndex: number;
+		expectedRecipeRevision: number;
+	}
+) {
+	return db.transaction((tx) => {
+		const executor = tx as unknown as DB;
+		const recipe = executor
+			.select()
+			.from(schema.recipes)
+			.where(eq(schema.recipes.slug, input.recipeSlug))
+			.get();
+		if (!recipe || recipe.contentRevision !== input.expectedRecipeRevision) {
+			throw new ShoppingMutationError(
+				'stale',
+				'Recipe changed; reload before applying this choice'
+			);
+		}
+		const ingredients = recipe.ingredients.map((ingredient) => ({ ...ingredient }));
+		const ingredientIndex = ingredients.findIndex(
+			(ingredient) => ingredient.id === input.ingredientId
+		);
+		if (ingredientIndex < 0) {
+			throw new ShoppingMutationError(
+				'invalid_source',
+				'Ingredient no longer belongs to this recipe'
+			);
+		}
+		const current = ingredients[ingredientIndex];
+		const canonicalTerm = current.substitutes?.[input.substituteIndex]?.name;
+		if (!canonicalTerm) {
+			throw new ShoppingMutationError(
+				'invalid_term',
+				'Choose a saved Dutch recipe alternative'
+			);
+		}
+		ingredients[ingredientIndex] = promotedIngredient(current, canonicalTerm);
+		const updated = updateCanonicalRecipe(executor, {
+			recipeId: recipe.id,
+			expectedRevision: input.expectedRecipeRevision,
+			changes: {
+				ingredients,
+				ingredientsEn: null,
+				translationStatus: 'pending',
+				translatedAt: null
+			}
+		});
+		if (!updated) {
+			throw new ShoppingMutationError(
+				'stale',
+				'Recipe changed; reload before applying this choice'
+			);
+		}
+		reconcileShoppingAfterWrite(executor);
+		return updated;
+	});
+}
+
 export function applyShoppingRecipeChoice(
 	db: DB,
 	input: {
@@ -58,14 +139,7 @@ export function applyShoppingRecipeChoice(
 		let next: Ingredient = { ...current, optional: input.need === 'optional' };
 
 		if (input.useInRecipe && input.term !== current.name) {
-			const substitute = current.substitutes?.find((candidate) => candidate.name === input.term);
-			if (!substitute) throw new ShoppingMutationError('invalid_term', 'The selected term is not a saved recipe alternative');
-			const remaining = (current.substitutes ?? []).filter((candidate) => candidate.name !== input.term);
-			next = {
-				...next,
-				name: input.term,
-				substitutes: [...remaining, { name: current.name, kind: substitute.kind, note: substitute.note }]
-			};
+			next = { ...promotedIngredient(current, input.term), optional: next.optional };
 			shoppingName = input.term;
 			selectedName = null;
 			recipeChanged = true;

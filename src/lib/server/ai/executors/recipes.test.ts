@@ -67,6 +67,30 @@ function recipeBySlug(db: TestDb, slug: string) {
 }
 
 describe('edit_recipe', () => {
+	it('captures source identity for a chat-created recipe', async () => {
+		const db = createTestDb();
+		const result = await executeToolCall(
+			'add_recipe',
+			{
+				title: 'Nieuwe soep',
+				slug: 'nieuwe-soep',
+				servings: 4,
+				ingredients: [{ name: 'Ui', amount: '1' }],
+				directions: ['Snijd de ui.', 'Kook de soep.']
+			},
+			db,
+			1,
+			turnCtx()
+		);
+		expect(isOk(result)).toBe(true);
+		const recipe = recipeBySlug(db, 'nieuwe-soep');
+		expect(recipe.directionIdsJson).toHaveLength(2);
+		expect(recipe.sourceSnapshotJson).toMatchObject({
+			provenance: 'imported_source',
+			title: 'Nieuwe soep'
+		});
+	});
+
 	it('updates servings and notes without accepting ingredient mutation fields', async () => {
 		const db = createTestDb();
 		seedRecipe(

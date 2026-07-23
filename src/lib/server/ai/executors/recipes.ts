@@ -22,6 +22,7 @@ import type { DB, ExecutorFn } from './shared';
 import { NewIngredientSchema } from '$lib/recipe_ingredient';
 import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 import { generateRecipeEnhancement } from '$lib/server/ai/recipe_enhancement';
+import { captureRecipeSource, ensureDirectionIds } from '$lib/recipe_source_snapshot';
 
 // Pre-generate a bench sheet after a chat-side recipe write, so the recipe is
 // ready by the time it's opened. generateCookMode reads the module-level app
@@ -162,6 +163,17 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 		const review = reviewFields(
 			input.needs_review ? (input.review_reason ?? 'flagged_by_ai') : null
 		);
+		const directionIdsJson = ensureDirectionIds(input.directions);
+		const sourceSnapshotJson = captureRecipeSource(
+			{
+				title: input.title,
+				servings: input.servings ?? null,
+				sourceUrl: input.source_url ?? null,
+				ingredients: input.ingredients,
+				directions: input.directions
+			},
+			{ capturedAt: now.getTime() }
+		);
 		const recipe = db
 			.insert(schema.recipes)
 			.values({
@@ -173,6 +185,8 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 				totalTimeMin: input.total_time_min ?? null,
 				ingredients: input.ingredients,
 				directions: input.directions,
+				directionIdsJson,
+				sourceSnapshotJson,
 				tags: [],
 				notes: input.notes ?? null,
 				sourceUrl: input.source_url ?? null,
@@ -183,7 +197,8 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			.returning()
 			.get();
 		// Ordinary cooking steps are projected directly from the saved directions.
-		// Translation remains optional because it creates a separate display cache.
+		// Semantic planning and translation are both non-blocking caches.
+		kickCookModeIfAppDb(db, recipe.slug);
 		if (getAutoTranslateOnImport()) kickTranslateIfAppDb(db, recipe.slug);
 		return { ok: true, slug: recipe.slug, title: recipe.title, needs_review: review.needsReview };
 	},

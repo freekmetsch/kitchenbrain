@@ -26,6 +26,24 @@ describe('deterministic cooking steps', () => {
 		expect(result.steps.map((step) => step.timer_seconds)).toEqual([720, 3600]);
 	});
 
+	it('links truthful source amounts when an ingredient name appears in a fallback direction', () => {
+		const result = cookingStepsFromDirections(['Bak de ui.'], {
+			language: 'nl',
+			recipeTitle: 'Soep',
+			servings: 4,
+			directionIds: ['dir-ui'],
+			ingredients: [
+				{ id: 'ui', name: 'ui', amount: '2' },
+				{ id: 'wortel', name: 'wortel', amount: '1' }
+			]
+		});
+		expect(result.steps[0]).toMatchObject({
+			step_id: 'dir-ui',
+			ingredients: ['2 ui'],
+			ingredient_ids: ['ui']
+		});
+	});
+
 	it('turns preparation into the first normal step', () => {
 		const plan: CookModeDisplayRecipe = {
 			version: 4,

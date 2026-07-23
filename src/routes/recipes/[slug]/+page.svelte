@@ -12,7 +12,6 @@
 	import MealComposition from '$lib/components/recipe-detail/MealComposition.svelte';
 	import FreezerStockPanel from '$lib/components/recipe-detail/FreezerStockPanel.svelte';
 	import RoleCoverage from '$lib/components/recipe-detail/RoleCoverage.svelte';
-	import SubstituteSuggestions from '$lib/components/recipe-detail/SubstituteSuggestions.svelte';
 	import RecipeEnhancementSheet from '$lib/components/recipe-detail/RecipeEnhancementSheet.svelte';
 	import AddToPlanSheet from '$lib/components/recipe-detail/AddToPlanSheet.svelte';
 	import { labelWeeks, type Recipe } from '$lib/components/recipe-detail/types';
@@ -39,6 +38,9 @@
 			cookingIngredients: Recipe['ingredients'];
 			cookingIngredientsEn: Recipe['ingredients'] | null;
 			cookingIngredientStock: boolean[];
+			cookingDirections: string[];
+			cookingDirectionsEn: string[] | null;
+			cookingDirectionIds: string[];
 		};
 	} = $props();
 	const chatAgent = useChatAgent();
@@ -127,17 +129,29 @@
 	let cookingServings = $derived(data.occasionServings ?? recipe.servings ?? 4);
 
 	let benchSheetFallback = $derived({
-		directions: displayDirections,
+		directions: data.subRecipes.length
+			? viewLang === 'en' && data.cookingDirectionsEn
+				? data.cookingDirectionsEn
+				: data.cookingDirections
+			: displayDirections,
+		directionIds: data.subRecipes.length ? data.cookingDirectionIds : recipe.directionIdsJson,
 		ingredients: data.subRecipes.length
 			? viewLang === 'en' && data.cookingIngredientsEn
 				? data.cookingIngredientsEn
 				: data.cookingIngredients
 			: displayIngredients,
+		canonicalIngredients: data.subRecipes.length ? data.cookingIngredients : recipe.ingredients,
 		ingredientStock: data.subRecipes.length ? data.cookingIngredientStock : data.ingredientStock,
 		viewLang,
 		baselineServings: recipe.servings,
 		servings: cookingServings,
-		sourceUrl: recipe.sourceUrl
+		sourceUrl: recipe.sourceUrl,
+		scalingMode: recipe.scalingMode,
+		sourceDirections: recipe.sourceSnapshotJson?.directions,
+		sourceIngredients: recipe.sourceSnapshotJson?.ingredients,
+		sourceServings: recipe.sourceSnapshotJson?.servings,
+		sourceSnapshotUrl: recipe.sourceSnapshotJson?.sourceUrl,
+		sourceProvenance: recipe.sourceSnapshotJson?.provenance ?? null
 	});
 
 	let imageUploading = $state(false);
@@ -309,7 +323,7 @@
 
 <svelte:window onpaste={handleImagePaste} />
 
-<div class="ui-page-shell !max-w-2xl overflow-x-clip">
+<div class="ui-page-shell !max-w-6xl overflow-x-clip">
 
 <RecipeHeader
 	{recipe}
@@ -327,14 +341,6 @@
 	onRetryTranslation={(force) => void requestTranslation(force)}
 />
 
-<RecipeHero
-	imageUrl={recipe.imageUrl}
-	title={displayTitle}
-	uploading={imageUploading}
-	uploadError={imageUploadError}
-	onPickPhoto={() => imageFileInput?.click()}
-/>
-
 {#if recipe.needsReview}
 	<ImportReviewBanner
 		slug={recipe.slug}
@@ -346,26 +352,6 @@
 	/>
 {/if}
 
-<RecipeMetaChips {recipe} {displayCategory} {displayCuisine} />
-
-<MealComposition
-	slug={recipe.slug}
-	subRecipes={data.subRecipes}
-	partOfMeals={data.partOfMeals}
-	{subDisplayTitle}
-/>
-
-{#if !data.roleCoverage.complete}
-	<!-- Incomplete roles stay a visible page-level nudge; once complete the
-	     panel collapses into a quiet header-menu entry instead of occupying
-	     the cooking surface. -->
-	<RoleCoverage slug={recipe.slug} coverage={data.roleCoverage} onAskAi={openRolesAiEdit} />
-{/if}
-
-<SubstituteSuggestions ingredients={displayIngredients} />
-
-<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />
-
 <input
 	bind:this={imageFileInput}
 	type="file"
@@ -373,18 +359,6 @@
 	capture="environment"
 	class="hidden"
 	onchange={onImagePicked}
-/>
-
-<FreezerStockPanel
-	{recipe}
-	frozenPortions={data.frozenPortions}
-	onSaved={(payload) => {
-		recipe = {
-			...recipe,
-			isFreezerStaple: payload.isFreezerStaple,
-			targetPortions: payload.targetPortions
-		};
-	}}
 />
 
 <RecipeViewToolbar
@@ -396,14 +370,14 @@
 
 <BenchSheet
 	recipeSlug={recipe.slug}
+	recipeRevision={recipe.contentRevision}
 	planMealId={data.planMealId}
 	recipeTitle={displayTitle}
-	initial={data.subRecipes.length === 0 ||
-	isStaleCookMode(recipe.cookModeJson) ||
+	initial={isStaleCookMode(recipe.cookModeJson) ||
 	(recipe.cookModeJson?.version === 3 && recipe.cookModeJson.servings !== cookingServings)
 		? null
 		: recipe.cookModeJson}
-	requiresPlan={data.subRecipes.length > 0}
+	requiresPlan={true}
 	progressSignature={`${recipe.slug}:${recipe.updatedAt?.toString() ?? 'saved'}`}
 	fallback={benchSheetFallback}
 	view={recipeView}
@@ -416,27 +390,67 @@
 	bind:controller={benchSheetController}
 />
 
-{#if displayNotes || recipe.tags.length}
-	<!-- Notes and tags live once, at the bottom — reference material, not
-	     orientation. The pb clears the fixed cook bar. -->
-	<section class="px-3 pt-1 pb-32 flex flex-col gap-2">
-		{#if displayNotes}
-			<h2 class="text-[10px] uppercase tracking-wide font-bold text-base-content/50">
-				{m.recipes_notes_heading()}
-			</h2>
-			<p class="rounded-xl bg-base-200/50 px-3 py-2 text-sm leading-snug text-base-content/75">
-				{displayNotes}
-			</p>
+<details class="mx-3 mb-12 rounded-2xl border border-base-300/70 bg-base-100 shadow-sm">
+	<summary class="min-h-12 cursor-pointer px-4 py-3 text-sm font-semibold text-base-content/65">
+		{m.recipes_maintenance_heading()}
+	</summary>
+	<div class="border-t border-base-200 pb-4">
+		<RecipeHero
+			imageUrl={recipe.imageUrl}
+			title={displayTitle}
+			uploading={imageUploading}
+			uploadError={imageUploadError}
+			onPickPhoto={() => imageFileInput?.click()}
+		/>
+
+		<RecipeMetaChips {recipe} {displayCategory} {displayCuisine} />
+
+		<MealComposition
+			slug={recipe.slug}
+			subRecipes={data.subRecipes}
+			partOfMeals={data.partOfMeals}
+			{subDisplayTitle}
+		/>
+
+		{#if !data.roleCoverage.complete}
+			<RoleCoverage slug={recipe.slug} coverage={data.roleCoverage} onAskAi={openRolesAiEdit} />
 		{/if}
-		{#if recipe.tags.length}
-			<div class="flex flex-wrap gap-1.5">
-				{#each recipe.tags as tag}
-					<span class="ui-chip-muted">{tag}</span>
-				{/each}
-			</div>
+
+		<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />
+
+		<FreezerStockPanel
+			{recipe}
+			frozenPortions={data.frozenPortions}
+			onSaved={(payload) => {
+				recipe = {
+					...recipe,
+					isFreezerStaple: payload.isFreezerStaple,
+					targetPortions: payload.targetPortions
+				};
+			}}
+		/>
+
+		{#if displayNotes || recipe.tags.length}
+			<section class="flex flex-col gap-2 px-3 pt-3">
+				{#if displayNotes}
+					<h2 class="text-[10px] font-bold uppercase tracking-wide text-base-content/50">
+						{m.recipes_notes_heading()}
+					</h2>
+					<p class="rounded-xl bg-base-200/50 px-3 py-2 text-sm leading-snug text-base-content/75">
+						{displayNotes}
+					</p>
+				{/if}
+				{#if recipe.tags.length}
+					<div class="flex flex-wrap gap-1.5">
+						{#each recipe.tags as tag}
+							<span class="ui-chip-muted">{tag}</span>
+						{/each}
+					</div>
+				{/if}
+			</section>
 		{/if}
-	</section>
-{/if}
+	</div>
+</details>
 
 </div>
 

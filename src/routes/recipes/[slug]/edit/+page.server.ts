@@ -5,12 +5,12 @@ import { base } from '$app/paths';
 import { db } from '$lib/server/db/index';
 import { recipes } from '$lib/server/db/schema';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
-import { subRecipesOf } from '$lib/server/meal_recipes';
 import { recipeIngredientsEqual } from '$lib/recipe_edit';
 import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
 import type { Actions, PageServerLoad } from './$types';
 import { LiveIngredientSchema, mergeLiveIngredients } from '$lib/recipe_ingredient';
 import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
+import { extractTimers } from '$lib/timer_extract';
 
 const RecipeEditSchema = z.object({
 	title: z.string().trim().min(1, 'title required').max(200),
@@ -26,7 +26,23 @@ const RecipeEditSchema = z.object({
 	contentRevision: z.number().int().positive(),
 	acceptStructureDraft: z.boolean().default(false),
 	ingredients: z.array(LiveIngredientSchema).min(1, 'at least one ingredient'),
-	directions: z.array(z.string().trim().min(1, 'empty direction')).min(1, 'at least one direction')
+	directions: z.array(z.string().trim().min(1, 'empty direction')).min(1, 'at least one direction'),
+	directionIds: z.array(z.string().trim().min(1)).min(1)
+}).superRefine((payload, ctx) => {
+	if (payload.directionIds.length !== payload.directions.length) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ['directionIds'],
+			message: 'direction IDs must match directions'
+		});
+	}
+	if (new Set(payload.directionIds).size !== payload.directionIds.length) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ['directionIds'],
+			message: 'direction IDs must be unique'
+		});
+	}
 });
 
 type FormPayload = z.infer<typeof RecipeEditSchema>;
@@ -36,11 +52,13 @@ function parseFormPayload(form: FormData): FormPayload {
 	// dynamic-length arrays, so a JSON blob is simpler than per-field naming.
 	const rawIngredients = String(form.get('ingredients') ?? '[]');
 	const rawDirections = String(form.get('directions') ?? '[]');
+	const rawDirectionIds = String(form.get('directionIds') ?? '[]');
 	const rawServings = form.get('servings');
 	const rawContentRevision = form.get('contentRevision');
 
 	const ingredients = JSON.parse(rawIngredients);
 	const directions = JSON.parse(rawDirections);
+	const directionIds = JSON.parse(rawDirectionIds);
 
 	return RecipeEditSchema.parse({
 		title: String(form.get('title') ?? ''),
@@ -51,7 +69,8 @@ function parseFormPayload(form: FormData): FormPayload {
 		contentRevision: Number(rawContentRevision),
 		acceptStructureDraft: form.get('acceptStructureDraft') === '1',
 		ingredients,
-		directions
+		directions,
+		directionIds
 	});
 }
 
@@ -107,12 +126,17 @@ export const actions: Actions = {
 		}
 		const sameJson = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 		const ingredientsChanged = !recipeIngredientsEqual(current.ingredients, ingredients);
-		const cookingInputsChanged =
-			current.title !== payload.title ||
-			current.language !== payload.language ||
-			current.servings !== payload.servings ||
-			ingredientsChanged ||
-			!sameJson(current.directions, payload.directions);
+		const ingredientIdsChanged = !sameJson(
+			current.ingredients.map((ingredient) => ingredient.id),
+			ingredients.map((ingredient) => ingredient.id)
+		);
+		const directionStructureChanged = !sameJson(current.directionIdsJson, payload.directionIds);
+		const timerMeaningChanged = !sameJson(
+			current.directions.map((direction) => extractTimers(direction)),
+			payload.directions.map((direction) => extractTimers(direction))
+		);
+		const semanticStructureChanged =
+			ingredientIdsChanged || directionStructureChanged || timerMeaningChanged;
 		const translationInputsChanged =
 			current.title !== payload.title ||
 			current.language !== payload.language ||
@@ -134,7 +158,8 @@ export const actions: Actions = {
 					: {}),
 				ingredients,
 				directions: payload.directions,
-				...(cookingInputsChanged ? { cookModeJson: null, cookModeGeneratedAt: null } : {}),
+				directionIdsJson: payload.directionIds,
+				...(semanticStructureChanged ? { cookModeJson: null, cookModeGeneratedAt: null } : {}),
 				...(translationInputsChanged
 					? {
 							titleEn: null,
@@ -155,9 +180,7 @@ export const actions: Actions = {
 		if (!updated) return fail(409, { error: 'This recipe changed while you were editing it. Reload and try again.' });
 		if (ingredientsChanged || current.servings !== payload.servings) reconcileShoppingAfterWrite(db);
 
-		// Only composed meals need an AI-authored coordination plan. Ordinary
-		// recipes render their saved directions directly in cooking mode.
-		if (cookingInputsChanged && subRecipesOf(db, current.id).length > 0) {
+		if (semanticStructureChanged) {
 			kickCookModeGeneration(params.slug);
 		}
 

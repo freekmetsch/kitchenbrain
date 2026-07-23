@@ -6,9 +6,63 @@ import path from 'node:path';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
 import { addSubRecipe, removeSubRecipe } from '$lib/server/meal_recipes';
-import { updateCanonicalRecipe } from './recipe_mutations';
+import { updateCanonicalRecipe, updateCookModeCache } from './recipe_mutations';
 
 describe('updateCanonicalRecipe', () => {
+	it('writes cook structure without changing canonical revision', () => {
+		const db = createTestDb();
+		const now = new Date();
+		const recipe = db
+			.insert(schema.recipes)
+			.values({ slug: 'cache', title: 'Cache', createdAt: now, updatedAt: now })
+			.returning()
+			.get();
+		const updated = updateCookModeCache(db, {
+			recipeId: recipe.id,
+			expectedRevision: recipe.contentRevision,
+			cookModeJson: null,
+			cookModeGeneratedAt: new Date(now.getTime() + 1)
+		})!;
+		expect(updated.contentRevision).toBe(recipe.contentRevision);
+		expect(
+			updateCookModeCache(db, {
+				recipeId: recipe.id,
+				expectedRevision: recipe.contentRevision + 1,
+				cookModeJson: null,
+				cookModeGeneratedAt: now
+			})
+		).toBeUndefined();
+	});
+
+	it('preserves direction identity through wording edits and reorder', () => {
+		const db = createTestDb();
+		const now = new Date();
+		const recipe = db
+			.insert(schema.recipes)
+			.values({
+				slug: 'direction-identity',
+				title: 'Direction identity',
+				directions: ['Snijd de ui.', 'Bak de ui.'],
+				directionIdsJson: ['dir-a', 'dir-b'],
+				createdAt: now,
+				updatedAt: now
+			})
+			.returning()
+			.get();
+		const copyEdited = updateCanonicalRecipe(db, {
+			recipeId: recipe.id,
+			expectedRevision: recipe.contentRevision,
+			changes: { directions: ['Snijd de rode ui.', 'Bak de ui.'] }
+		})!;
+		expect(copyEdited.directionIdsJson).toEqual(['dir-a', 'dir-b']);
+		const reordered = updateCanonicalRecipe(db, {
+			recipeId: recipe.id,
+			expectedRevision: copyEdited.contentRevision,
+			changes: { directions: ['Bak de ui.', 'Snijd de rode ui.'] }
+		})!;
+		expect(reordered.directionIdsJson).toEqual(['dir-b', 'dir-a']);
+	});
+
 	it('assigns distinct revisions to writes in the same clock tick and rejects stale writers', () => {
 		const db = createTestDb();
 		const fixedTime = new Date('2026-07-22T10:00:00.000Z');

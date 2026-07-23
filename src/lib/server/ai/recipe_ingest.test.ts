@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { eq } from 'drizzle-orm';
+import * as schema from '$lib/server/db/schema';
 
 vi.mock('$lib/server/ai/client', () => ({
 	checkDailyCap: () => ({ exceeded: false, totalEur: 0 }),
@@ -10,7 +12,8 @@ vi.mock('$lib/server/ai/client', () => ({
 vi.mock('$lib/server/ai/config', () => ({ getChatModel: () => ({ value: 'test' }), getBackgroundModel: () => ({ value: 'test' }) }));
 vi.mock('$lib/server/ai/translate_recipe', () => ({ kickTranslateOnImport: vi.fn() }));
 vi.mock('$lib/server/recipes/prefs', () => ({ getAutoTranslateOnImport: () => false }));
-import { validateRecipeEnrichment } from './recipe_ingest';
+import { createTestDb } from '$lib/server/test_db';
+import { insertScrapedRecipe, validateRecipeEnrichment } from './recipe_ingest';
 
 const sourceIngredient = (sourceIndex: number, overrides: Record<string, unknown> = {}) => ({
 	sourceIndex,
@@ -26,6 +29,38 @@ const sourceIngredient = (sourceIndex: number, overrides: Record<string, unknown
 });
 
 describe('recipe enrichment writer gate', () => {
+	it('captures an immutable source snapshot and direction IDs on URL import', () => {
+		const db = createTestDb();
+		const saved = insertScrapedRecipe(db, {
+			title: 'Tomatensoep',
+			category: 'soup',
+			servings: 4,
+			totalTimeMin: 30,
+			sourceUrl: 'https://example.test/tomatensoep',
+			imageUrl: null,
+			ingredients: [{ id: 'tomaat', name: 'tomaat', amount: '4' }],
+			directions: ['Snijd de tomaten.', 'Kook de soep.'],
+			notes: null,
+			language: 'nl',
+			cuisine: null,
+			rawIngredients: ['4 tomaten'],
+			structureVersion: 2,
+			structureDraft: null,
+			enrichmentReviewReason: null
+		});
+		const recipe = db
+			.select()
+			.from(schema.recipes)
+			.where(eq(schema.recipes.slug, saved.slug))
+			.get()!;
+		expect(recipe.directionIdsJson).toHaveLength(2);
+		expect(recipe.sourceSnapshotJson).toMatchObject({
+			provenance: 'imported_source',
+			title: 'Tomatensoep',
+			directions: ['Snijd de tomaten.', 'Kook de soep.']
+		});
+	});
+
 	it('separates preparation from Dutch base names and preserves source coverage', () => {
 		const result = validateRecipeEnrichment({
 			confidence: 'high',

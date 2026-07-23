@@ -18,6 +18,7 @@ import { normalizeFoodCategory } from '$lib/food_categories';
 import { z } from 'zod';
 import { NewIngredientArraySchema } from '$lib/recipe_ingredient';
 import { getBackgroundModel } from '$lib/server/ai/config';
+import { captureRecipeSource, ensureDirectionIds } from '$lib/recipe_source_snapshot';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -510,6 +511,17 @@ export function insertScrapedRecipe(
 	const review = reviewFields(data.enrichmentReviewReason ?? scrapeReview(data));
 	const slug = uniqueSlug(db, slugify(data.title));
 	const now = new Date();
+	const directionIdsJson = ensureDirectionIds(data.directions);
+	const sourceSnapshotJson = captureRecipeSource(
+		{
+			title: data.title,
+			servings: data.servings,
+			sourceUrl: data.sourceUrl,
+			ingredients: data.ingredients,
+			directions: data.directions
+		},
+		{ capturedAt: now.getTime() }
+	);
 
 	const recipe = db
 		.insert(schema.recipes)
@@ -527,6 +539,8 @@ export function insertScrapedRecipe(
 			imageUrl: data.imageUrl,
 			ingredients: data.ingredients,
 			directions: data.directions,
+			directionIdsJson,
+			sourceSnapshotJson,
 			notes: data.notes,
 			rating: null,
 			cuisine: data.cuisine,
@@ -539,7 +553,14 @@ export function insertScrapedRecipe(
 		.get();
 
 	// Cooking view renders these saved directions directly. Translation remains
-	// the only optional eager AI job after import.
+	// optional; semantic planning is non-blocking because the deterministic
+	// cooking projection is already usable.
+	void Promise.all([
+		import('$lib/server/ai/cook_mode'),
+		import('$lib/server/db/index')
+	]).then(([{ kickCookModeGeneration }, { db: appDb }]) => {
+		if (db === appDb) kickCookModeGeneration(recipe.slug);
+	});
 	if (getAutoTranslateOnImport()) kickTranslateOnImport(recipe.slug);
 
 	return { slug: recipe.slug, title: recipe.title, ...review };

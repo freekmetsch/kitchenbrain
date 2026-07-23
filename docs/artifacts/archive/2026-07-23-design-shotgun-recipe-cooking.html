@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>Keukenbrein recipe and cooking design shotgun</title>
+	<style>
+		:root {
+			--ink: #281d18;
+			--muted: #74655d;
+			--paper: #fffdf8;
+			--canvas: #eee8df;
+			--line: #ded3c7;
+			--brand: #b84b21;
+			--brand-deep: #8c3215;
+			--base: #d46a32;
+			--base-wash: #fff0e6;
+			--filling: #9d4c70;
+			--filling-wash: #fbedf3;
+			--topping: #3e7d73;
+			--topping-wash: #eaf5f2;
+			--ok: #2e7258;
+			--shadow: 0 20px 50px #4b2d1b18;
+		}
+		* { box-sizing: border-box; }
+		html { background: var(--canvas); color: var(--ink); font: 16px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+		body { margin: 0; }
+		button, input, textarea { font: inherit; }
+		button { color: inherit; }
+		.shell { width: min(1480px, calc(100% - 28px)); margin: 24px auto 80px; }
+		.hero {
+			position: relative;
+			overflow: hidden;
+			padding: clamp(28px, 5vw, 66px);
+			border: 1px solid #e1cabc;
+			border-radius: 30px;
+			background:
+				radial-gradient(circle at 88% 4%, #f7cab3 0 11%, transparent 11.5%),
+				radial-gradient(circle at 95% 25%, #ead1dc 0 8%, transparent 8.5%),
+				linear-gradient(135deg, #fff8ed, #fffdf9 60%, #f3ece3);
+			box-shadow: var(--shadow);
+		}
+		.eyebrow { margin: 0 0 10px; color: var(--brand); font-size: .75rem; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
+		h1 { max-width: 880px; margin: 0; font: 800 clamp(2.2rem, 6vw, 5.6rem)/.94 Georgia, "Times New Roman", serif; letter-spacing: -.055em; }
+		.lede { max-width: 780px; margin: 22px 0 0; color: #66544a; font-size: clamp(1rem, 1.8vw, 1.25rem); }
+		.boundary {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 12px;
+			margin-top: 26px;
+			max-width: 920px;
+		}
+		.boundary article { padding: 15px 17px; border: 1px solid #e6d9ce; border-radius: 18px; background: #ffffffb8; backdrop-filter: blur(8px); }
+		.boundary strong { display: block; margin-bottom: 4px; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
+		.boundary p { margin: 0; color: var(--muted); font-size: .9rem; }
+		.toolbar {
+			position: sticky;
+			top: 10px;
+			z-index: 20;
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 10px;
+			margin: 18px 0;
+			padding: 10px;
+			border: 1px solid var(--line);
+			border-radius: 18px;
+			background: #fffdf8ed;
+			box-shadow: 0 12px 32px #43281a12;
+			backdrop-filter: blur(12px);
+		}
+		.toolbar-label { margin-right: 2px; color: var(--muted); font-size: .74rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+		.segment { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: #f4eee7; }
+		.segment button, .quiet-button {
+			min-height: 38px;
+			padding: 7px 13px;
+			border: 0;
+			border-radius: 999px;
+			background: transparent;
+			cursor: pointer;
+			font-weight: 750;
+			font-size: .84rem;
+		}
+		.segment button[aria-pressed="true"] { background: white; color: var(--brand-deep); box-shadow: 0 2px 8px #4c2d1b15; }
+		.quiet-button { margin-left: auto; border: 1px solid var(--line); background: white; }
+		.status { margin-left: auto; color: var(--muted); font-size: .78rem; }
+		.concept {
+			margin-top: 24px;
+			padding: clamp(18px, 3vw, 34px);
+			border: 1px solid var(--line);
+			border-radius: 28px;
+			background: var(--paper);
+			box-shadow: 0 12px 34px #4c2d1b0d;
+		}
+		.concept-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: start; margin-bottom: 20px; }
+		.concept-kicker { margin: 0 0 4px; color: var(--brand); font-size: .72rem; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+		.concept h2 { margin: 0; font: 800 clamp(1.6rem, 3vw, 2.6rem)/1 Georgia, "Times New Roman", serif; letter-spacing: -.035em; }
+		.thesis { max-width: 760px; margin: 10px 0 0; color: var(--muted); }
+		.choose {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			min-height: 44px;
+			padding: 9px 14px;
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			background: white;
+			cursor: pointer;
+			font-size: .85rem;
+			font-weight: 800;
+		}
+		.choose:has(input:checked) { border-color: var(--brand); color: white; background: var(--brand); }
+		.choose input { accent-color: var(--brand); }
+		.compare-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 26px; align-items: start; }
+		.preview-wrap { min-width: 0; padding: 22px; border-radius: 22px; background: #e8e1d8; overflow: auto; }
+		.device {
+			position: relative;
+			width: 390px;
+			height: 780px;
+			margin: 0 auto;
+			overflow: hidden;
+			border: 8px solid #2e2926;
+			border-radius: 34px;
+			background: #fff;
+			box-shadow: 0 24px 55px #2f211b30;
+			transition: width .25s ease, height .25s ease;
+		}
+		.device::before {
+			content: "";
+			position: absolute;
+			z-index: 8;
+			top: 7px;
+			left: 50%;
+			width: 82px;
+			height: 17px;
+			border-radius: 999px;
+			background: #2e2926;
+			transform: translateX(-50%);
+			pointer-events: none;
+		}
+		body[data-viewport="tablet"] .device { width: 720px; height: 820px; border-radius: 26px; }
+		.screen { height: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+		.review { position: sticky; top: 92px; }
+		.review-card { padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #faf6f0; }
+		.review-card + .review-card { margin-top: 12px; }
+		.review-card h3 { margin: 0 0 7px; font-size: .82rem; letter-spacing: .06em; text-transform: uppercase; }
+		.review-card p { margin: 0; color: var(--muted); font-size: .86rem; }
+		.review-card .trade { margin-top: 8px; color: #7e4f35; }
+		.review label { display: block; margin-top: 10px; font-size: .78rem; font-weight: 800; }
+		.review textarea {
+			width: 100%;
+			min-height: 88px;
+			margin-top: 6px;
+			padding: 10px;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			background: white;
+			color: var(--ink);
+		}
+		.borrow-list { display: grid; gap: 8px; margin-top: 10px; }
+		.borrow-list label { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-weight: 650; }
+		.borrow-list input { margin-top: 3px; accent-color: var(--brand); }
+
+		/* Shared in-device primitives */
+		.app-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; min-height: 58px; padding: 18px 14px 8px; }
+		.app-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+		.icon-button, .small-button {
+			min-width: 38px;
+			min-height: 38px;
+			border: 1px solid transparent;
+			border-radius: 12px;
+			background: transparent;
+			cursor: pointer;
+			font-size: .78rem;
+			font-weight: 800;
+		}
+		.small-button { padding: 6px 10px; }
+		.mode-row { display: flex; gap: 6px; padding: 6px 14px 10px; }
+		.mode-row button { min-height: 35px; padding: 6px 12px; border: 0; border-radius: 10px; background: transparent; cursor: pointer; font-size: .76rem; font-weight: 800; }
+		.mode-row .active { background: white; box-shadow: 0 2px 9px #4d2d1a15; }
+		.plan-banner { margin: 0 12px 10px; padding: 10px 12px; border: 1px solid #d8b470; border-radius: 12px; background: #fff7df; color: #684d1b; font-size: .74rem; line-height: 1.35; }
+		.plan-banner strong { display: block; }
+		.stream-legend { display: flex; flex-wrap: wrap; gap: 7px; }
+		.legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: .7rem; font-weight: 780; }
+		.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--stream); }
+		.counter-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+		.counter-title strong { font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
+		.counter-title span { color: var(--muted); font-size: .69rem; }
+		.pills { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+		.ingredient-pill {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			min-height: 38px;
+			padding: 6px 10px;
+			border: 1px solid var(--pill-border, var(--line));
+			border-radius: 999px;
+			background: var(--pill-bg, white);
+			cursor: pointer;
+			font-size: .74rem;
+			font-weight: 720;
+		}
+		.ingredient-pill::before { content: ""; width: 14px; height: 14px; border: 1.5px solid currentColor; border-radius: 50%; opacity: .65; }
+		.ingredient-pill[aria-pressed="true"] { color: var(--ok); opacity: .62; }
+		.ingredient-pill[aria-pressed="true"]::before { background: var(--ok); box-shadow: inset 0 0 0 3px white; }
+		.swap-link { padding: 0; border: 0; border-bottom: 1px solid currentColor; background: none; color: var(--filling); cursor: pointer; font: inherit; font-weight: 800; }
+		.progress-line { display: flex; align-items: center; gap: 10px; font-size: .72rem; font-weight: 800; }
+		.progress-track { height: 5px; flex: 1; overflow: hidden; border-radius: 999px; background: #e7ddd4; }
+		.progress-track span { display: block; width: 37.5%; height: 100%; border-radius: inherit; background: var(--brand); }
+		.step-button { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+		.step-body { display: block; margin: 4px 0 0; font-size: .83rem; line-height: 1.45; }
+		.step-body .verb { font-weight: 900; }
+		.step-title { margin: 0; font-size: .92rem; line-height: 1.25; }
+		.step-number { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; font-size: .76rem; font-weight: 900; }
+		.step-stream { display: block; margin-bottom: 3px; color: var(--stream); font-size: .62rem; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+		.inline-token { display: inline-block; padding: 1px 5px; border-radius: 6px; background: var(--token-bg); color: var(--token-ink); font-weight: 800; white-space: nowrap; }
+		.timer-chip { display: inline-flex; align-items: center; min-height: 34px; padding: 6px 9px; border: 1px solid #e39b27; border-radius: 999px; background: #fff8e8; color: #a25b00; font-size: .7rem; font-weight: 850; }
+		.merge-mark { display: flex; height: 4px; overflow: hidden; border-radius: 999px; }
+		.merge-mark span { flex: 1; background: var(--stream); }
+		.finish { margin: 14px; padding: 11px; border: 0; border-radius: 12px; background: #2f7358; color: white; font-weight: 850; width: calc(100% - 28px); }
+		.overlay {
+			position: absolute;
+			z-index: 12;
+			inset: 0;
+			display: grid;
+			align-items: end;
+			background: #1e171190;
+		}
+		.sheet { max-height: 78%; overflow: auto; padding: 18px; border-radius: 22px 22px 0 0; background: white; }
+		.sheet h3 { margin: 0; font-size: 1.05rem; }
+		.sheet p { margin: 5px 0 14px; color: var(--muted); font-size: .78rem; }
+		.option { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: white; text-align: left; cursor: pointer; }
+		.option.selected { border-color: var(--filling); background: var(--filling-wash); }
+		.option span { flex: 1; font-size: .82rem; font-weight: 800; }
+		.save-default { display: flex; align-items: center; gap: 9px; margin: 14px 2px; font-size: .8rem; font-weight: 750; }
+		.save-default input { accent-color: var(--brand); }
+		.apply-swap { width: 100%; min-height: 44px; border: 0; border-radius: 12px; background: var(--filling); color: white; font-weight: 850; cursor: pointer; }
+		.source-copy { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fbf8f3; color: #63564e; font: .8rem/1.5 Georgia, serif; }
+		.details-list { display: grid; gap: 8px; }
+		.details-list button { min-height: 44px; border: 1px solid var(--line); border-radius: 11px; background: white; text-align: left; padding: 9px 11px; font-size: .8rem; font-weight: 760; }
+
+		/* Direction A: Kitchen Timeline */
+		.timeline-screen { background: #fbf8f3; }
+		.timeline-screen .app-top { border-bottom: 1px solid #eadfd4; background: #fbf8f3f2; }
+		.timeline-screen .mode-row { background: #fbf8f3; }
+		.timeline-screen .counter { margin: 4px 12px 10px; padding: 12px; border: 1px solid #e2d5c8; border-radius: 16px; background: white; }
+		.timeline-screen .legend-wrap { padding: 0 14px 10px; }
+		.timeline-screen .progress-wrap { position: sticky; top: 58px; z-index: 4; padding: 9px 14px; border-block: 1px solid #eadfd4; background: #fffdf9ed; backdrop-filter: blur(8px); }
+		.timeline-list { padding: 10px 10px 90px; }
+		.timeline-step { position: relative; margin-bottom: 9px; overflow: hidden; border: 1px solid #e4d9ce; border-radius: 15px; background: white; }
+		.timeline-step::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--stream); }
+		.timeline-step.current { border-color: var(--stream); background: color-mix(in srgb, var(--stream) 8%, white); box-shadow: 0 8px 22px #55332114; }
+		.timeline-step .step-button { display: flex; gap: 10px; padding: 12px 12px 12px 16px; }
+		.timeline-step .step-number { background: color-mix(in srgb, var(--stream) 16%, white); color: var(--stream); }
+		.timeline-step.current .step-number { background: var(--stream); color: white; }
+		.timeline-step .step-content { min-width: 0; flex: 1; }
+		.timeline-step .step-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; }
+		.timeline-step .merge-mark { margin: 0 12px 10px 16px; }
+
+		/* Direction B: Mise-en-Place Board */
+		.board-screen { background: #f5eee5; }
+		.board-screen .app-top { color: #fff8ef; background: #3d281e; }
+		.board-screen .icon-button, .board-screen .small-button { color: inherit; border-color: #ffffff35; }
+		.board-screen .mode-row { color: #f8e9dd; background: #3d281e; }
+		.board-screen .mode-row .active { color: #3d281e; }
+		.board-counter { margin: 10px; overflow: hidden; border-radius: 18px; background: #fffdf8; box-shadow: 0 8px 24px #3c271e14; }
+		.board-counter-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 13px; background: #ead9ca; }
+		.board-counter-head strong { font: 800 1rem Georgia, serif; }
+		.board-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+		.board-group { min-width: 0; padding: 10px; border-right: 1px solid #eadfd4; background: var(--group-wash); }
+		.board-group:last-child { border-right: 0; }
+		.board-group-title { color: var(--stream); font-size: .65rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+		.board-group .pills { display: grid; }
+		.board-group .ingredient-pill { width: 100%; justify-content: flex-start; border-radius: 10px; background: #ffffffb8; white-space: normal; text-align: left; }
+		.board-progress { margin: 0 10px 8px; padding: 10px 12px; border-radius: 12px; background: #3d281e; color: #fff8ef; }
+		.board-list { display: grid; gap: 7px; padding: 0 10px 90px; }
+		.board-step { overflow: hidden; border: 1px solid #ded0c4; border-radius: 12px; background: #fffdf9; }
+		.board-step.current { outline: 3px solid var(--stream); outline-offset: -3px; }
+		.board-step .step-button { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px; }
+		.board-step .step-number { border-radius: 9px; background: var(--stream); color: white; }
+		.board-step .step-title { font-size: .86rem; }
+		.board-step .step-body { font-size: .76rem; }
+		.board-step .merge-mark { margin: 0 10px 9px; }
+
+		/* Direction C: Cook's Notebook */
+		.notebook-screen { background: #fffef9; color: #211b17; }
+		.notebook-screen .app-top { border-bottom: 1px solid #e7ded1; background: #fffef9f2; }
+		.notebook-screen .app-title { font-family: Georgia, serif; font-size: 1rem; }
+		.notebook-screen .mode-row { border-bottom: 1px solid #eee5da; background: #fffef9; }
+		.notebook-intro { padding: 10px 18px 6px; }
+		.notebook-intro h3 { margin: 0; font: 800 1.45rem/1.05 Georgia, serif; letter-spacing: -.03em; }
+		.notebook-intro p { margin: 5px 0 0; color: var(--muted); font: italic .78rem Georgia, serif; }
+		.notebook-counter { margin: 8px 14px 12px; border-block: 1px solid #ded3c7; }
+		.notebook-counter summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; cursor: pointer; list-style: none; font-size: .76rem; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+		.notebook-counter .pills { padding-bottom: 12px; }
+		.notebook-progress { padding: 6px 18px 10px; }
+		.notebook-list { padding: 0 18px 100px; }
+		.notebook-step { position: relative; border-top: 1px solid #e8dfd3; }
+		.notebook-step.current { background: linear-gradient(90deg, color-mix(in srgb, var(--stream) 9%, white), transparent 75%); }
+		.notebook-step.current::before { content: ""; position: absolute; inset: 0 auto 0 -18px; width: 4px; background: var(--stream); }
+		.notebook-step .step-button { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 9px; padding: 15px 0; }
+		.notebook-step .step-number { align-self: start; border-radius: 0; background: none; color: var(--stream); font: 800 1.25rem Georgia, serif; }
+		.notebook-step .step-title { font: 800 1rem Georgia, serif; }
+		.notebook-step .step-body { font: .84rem/1.55 Georgia, serif; }
+		.notebook-step .step-meta { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+		.notebook-step .merge-mark { max-width: 120px; margin-top: 9px; }
+
+		.decision-zone { margin-top: 26px; padding: clamp(20px, 4vw, 38px); border-radius: 26px; background: #2f231d; color: #fffaf5; }
+		.decision-zone h2 { margin: 0; font: 800 clamp(1.5rem, 3vw, 2.5rem) Georgia, serif; }
+		.decision-zone > p { max-width: 760px; color: #d9c9be; }
+		.decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+		.decision-card { padding: 16px; border: 1px solid #ffffff25; border-radius: 16px; background: #ffffff0b; }
+		.decision-card label { display: block; font-size: .78rem; font-weight: 800; }
+		.decision-card textarea { width: 100%; min-height: 100px; margin-top: 7px; padding: 10px; border: 1px solid #ffffff38; border-radius: 12px; background: #211813; color: white; resize: vertical; }
+		.prompt-card { margin-top: 16px; padding: 16px; border-radius: 16px; background: #fffaf5; color: var(--ink); }
+		.prompt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+		.prompt-head h3 { margin: 0; }
+		.copy-button { min-height: 42px; padding: 8px 14px; border: 0; border-radius: 11px; background: var(--brand); color: white; font-weight: 850; cursor: pointer; }
+		.prompt-card pre { max-height: 320px; overflow: auto; white-space: pre-wrap; padding: 13px; border-radius: 12px; background: #f2eae2; font: .78rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+		.prompt-card textarea { position: absolute; left: -10000px; width: 1px; height: 1px; }
+		.foot { margin: 18px 0 0; color: var(--muted); font-size: .78rem; text-align: center; }
+		.foot a { color: var(--brand); }
+		[hidden] { display: none !important; }
+		:focus-visible { outline: 3px solid #1677a7 !important; outline-offset: 3px !important; }
+		@media (max-width: 1000px) {
+			.compare-grid { grid-template-columns: 1fr; }
+			.review { position: static; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+			.review-card + .review-card { margin-top: 0; }
+			.device { margin-inline: auto; }
+		}
+		@media (max-width: 760px) {
+			.shell { width: min(100% - 16px, 1480px); margin-top: 8px; }
+			.hero, .concept { border-radius: 20px; }
+			.boundary, .decision-grid { grid-template-columns: 1fr; }
+			.concept-head { grid-template-columns: 1fr; }
+			.choose { width: fit-content; }
+			.preview-wrap { padding: 10px; }
+			.device { width: min(390px, calc(100vw - 52px)); }
+			body[data-viewport="tablet"] .device { width: 720px; }
+			.review { grid-template-columns: 1fr; }
+			.status { width: 100%; margin-left: 2px; }
+			.quiet-button { margin-left: 0; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+		}
+	</style>
+</head>
+<body data-viewport="phone" data-plan="ready">
+	<main class="shell">
+		<section class="hero">
+			<p class="eyebrow">Keukenbrein design shotgun · 23 July 2026</p>
+			<h1>One recipe. Three ways to cook it.</h1>
+			<p class="lede">Each direction restores numbered steps, counter checking, live swaps, semantic stream colors, timers, merges, source access, and a non-blocking AI state. Only the hierarchy changes.</p>
+			<div class="boundary">
+				<article>
+					<strong>The app owns</strong>
+					<p>Components, colors, layout, current position, counter state, swaps, timers, persistence, fallback, and accessibility.</p>
+				</article>
+				<article>
+					<strong>AI supplies</strong>
+					<p>Clearer instructions, ingredient links, semantic streams, parallel order, merge points, timer context, and suggestions.</p>
+				</article>
+			</div>
+		</section>
+
+		<nav class="toolbar" aria-label="Comparison controls">
+			<span class="toolbar-label">Viewport</span>
+			<div class="segment">
+				<button type="button" data-set-viewport="phone" aria-pressed="true">Phone</button>
+				<button type="button" data-set-viewport="tablet" aria-pressed="false">Tablet</button>
+			</div>
+			<span class="toolbar-label">AI state</span>
+			<div class="segment">
+				<button type="button" data-set-plan="ready" aria-pressed="true">Plan ready</button>
+				<button type="button" data-set-plan="pending" aria-pressed="false">Still preparing</button>
+			</div>
+			<button type="button" class="quiet-button" id="reset-workspace">Reset review</button>
+			<span class="status" id="save-status" role="status">Selections save in this browser</span>
+		</nav>
+
+		<section class="concept" data-concept-section="timeline">
+			<header class="concept-head">
+				<div>
+					<p class="concept-kicker">Direction A · Recommended</p>
+					<h2>Kitchen Timeline</h2>
+					<p class="thesis">A quiet counter tray leads into a generous chronological timeline. Stable colored rails carry streams through every numbered step and combine at merges.</p>
+				</div>
+				<label class="choose"><input type="radio" name="direction" value="timeline" checked> Choose this direction</label>
+			</header>
+			<div class="compare-grid">
+				<div class="preview-wrap"><div class="device"><div class="screen" data-preview="timeline"></div></div></div>
+				<aside class="review">
+					<div class="review-card">
+						<h3>Main strength</h3>
+						<p>The strongest balance of scanability, stream meaning, and low-friction counter use.</p>
+						<p class="trade"><strong>Trade-off:</strong> It still feels like a purposeful application rather than a printed recipe.</p>
+					</div>
+					<div class="review-card">
+						<h3>Review this direction</h3>
+						<label for="notes-timeline">What should change?</label>
+						<textarea id="notes-timeline" data-note="timeline" placeholder="Write feedback about layout, type, color, density, hierarchy, or interaction."></textarea>
+						<div class="borrow-list">
+							<label><input type="checkbox" data-borrow="timeline:rails"> Keep the colored timeline rails</label>
+							<label><input type="checkbox" data-borrow="timeline:counter"> Keep the quiet counter tray</label>
+							<label><input type="checkbox" data-borrow="timeline:current"> Keep the raised current-step treatment</label>
+						</div>
+					</div>
+				</aside>
+			</div>
+		</section>
+
+		<section class="concept" data-concept-section="board">
+			<header class="concept-head">
+				<div>
+					<p class="concept-kicker">Direction B</p>
+					<h2>Mise-en-Place Board</h2>
+					<p class="thesis">Counter readiness is the visual anchor. Ingredients are grouped by semantic stream before the denser numbered execution list begins.</p>
+				</div>
+				<label class="choose"><input type="radio" name="direction" value="board"> Choose this direction</label>
+			</header>
+			<div class="compare-grid">
+				<div class="preview-wrap"><div class="device"><div class="screen" data-preview="board"></div></div></div>
+				<aside class="review">
+					<div class="review-card">
+						<h3>Main strength</h3>
+						<p>Best for gathering ingredients, making substitutions, and seeing parallel recipe parts before work starts.</p>
+						<p class="trade"><strong>Trade-off:</strong> Ingredient-heavy recipes can create a dense opening before step one.</p>
+					</div>
+					<div class="review-card">
+						<h3>Review this direction</h3>
+						<label for="notes-board">What should change?</label>
+						<textarea id="notes-board" data-note="board" placeholder="Write feedback about layout, type, color, density, hierarchy, or interaction."></textarea>
+						<div class="borrow-list">
+							<label><input type="checkbox" data-borrow="board:groups"> Keep ingredients grouped by stream</label>
+							<label><input type="checkbox" data-borrow="board:header"> Keep the dark counter-focused header</label>
+							<label><input type="checkbox" data-borrow="board:density"> Keep the compact execution list</label>
+						</div>
+					</div>
+				</aside>
+			</div>
+		</section>
+
+		<section class="concept" data-concept-section="notebook">
+			<header class="concept-head">
+				<div>
+					<p class="concept-kicker">Direction C</p>
+					<h2>Cook's Notebook</h2>
+					<p class="thesis">The cooking plan reads like a carefully edited recipe. Stream color becomes annotation rather than structure, and the counter tray folds into the page.</p>
+				</div>
+				<label class="choose"><input type="radio" name="direction" value="notebook"> Choose this direction</label>
+			</header>
+			<div class="compare-grid">
+				<div class="preview-wrap"><div class="device"><div class="screen" data-preview="notebook"></div></div></div>
+				<aside class="review">
+					<div class="review-card">
+						<h3>Main strength</h3>
+						<p>The calmest and most editorial reading experience, with almost no dashboard feeling.</p>
+						<p class="trade"><strong>Trade-off:</strong> Counter state, swaps, and parallel streams require more deliberate attention.</p>
+					</div>
+					<div class="review-card">
+						<h3>Review this direction</h3>
+						<label for="notes-notebook">What should change?</label>
+						<textarea id="notes-notebook" data-note="notebook" placeholder="Write feedback about layout, type, color, density, hierarchy, or interaction."></textarea>
+						<div class="borrow-list">
+							<label><input type="checkbox" data-borrow="notebook:type"> Keep the editorial typography</label>
+							<label><input type="checkbox" data-borrow="notebook:tokens"> Keep inline ingredient tokens</label>
+							<label><input type="checkbox" data-borrow="notebook:chrome"> Keep the low-chrome page shell</label>
+						</div>
+					</div>
+				</aside>
+			</div>
+		</section>
+
+		<section class="decision-zone">
+			<h2>Turn the visual review into a precise handoff.</h2>
+			<p>Kitchen Timeline is selected by default. Change the selection, borrow specific elements, and write notes exactly where they apply. Nothing here changes the production app.</p>
+			<div class="decision-grid">
+				<div class="decision-card">
+					<label for="global-notes">Cross-direction clarification</label>
+					<textarea id="global-notes" data-global-note placeholder="What should every direction do differently?"></textarea>
+				</div>
+				<div class="decision-card">
+					<strong>Review checklist</strong>
+					<ul>
+						<li>Tap ingredient pills to mark counter readiness.</li>
+						<li>Open the berry swap and apply it for this cook.</li>
+						<li>Tap any numbered step to make it current.</li>
+						<li>Open Source and Recipe details from each header.</li>
+						<li>Switch the board to the AI-pending state.</li>
+					</ul>
+				</div>
+			</div>
+			<div class="prompt-card">
+				<div class="prompt-head">
+					<h3>Paste-ready design handoff</h3>
+					<button type="button" class="copy-button" id="copy-prompt">Copy handoff</button>
+				</div>
+				<pre id="handoff-prompt"></pre>
+				<textarea id="handoff-fallback" readonly></textarea>
+			</div>
+		</section>
+		<p class="foot">Authoritative brief: <a href="../feature-lists/FEATURE_LIST_RECIPE_COOKING_DESIGN_SHOTGUN.md">FEATURE_LIST_RECIPE_COOKING_DESIGN_SHOTGUN.md</a>. This artifact is a temporary decision workspace.</p>
+	</main>
+
+	<script>
+	(() => {
+		const ARTIFACT_PATH = 'docs/artifacts/2026-07-23-design-shotgun-recipe-cooking.html';
+		const SOURCE_PATH = 'docs/feature-lists/FEATURE_LIST_RECIPE_COOKING_DESIGN_SHOTGUN.md';
+		const STORAGE_KEY = `${ARTIFACT_PATH}:v1`;
+		const streamMeta = {
+			base: { name: 'Cake base', color: '#d46a32', wash: '#fff0e6' },
+			filling: { name: 'Berry filling', color: '#9d4c70', wash: '#fbedf3' },
+			topping: { name: 'Cream topping', color: '#3e7d73', wash: '#eaf5f2' }
+		};
+		const ingredients = [
+			{ id: 'flour', amount: '250 g', name: 'flour', stream: 'base' },
+			{ id: 'butter', amount: '200 g', name: 'butter', stream: 'base' },
+			{ id: 'eggs', amount: '4', name: 'eggs', stream: 'base' },
+			{ id: 'berries', amount: '400 g', name: 'strawberries', stream: 'filling', swappable: true },
+			{ id: 'lemon', amount: '1', name: 'lemon', stream: 'filling' },
+			{ id: 'cream', amount: '250 ml', name: 'cream', stream: 'topping' }
+		];
+		const steps = [
+			{ streams: ['base'], title: 'Heat the oven', body: 'Heat the oven to 175 C. Grease and line the cake tin.', ingredients: ['butter'] },
+			{ streams: ['base'], title: 'Build the batter', body: 'Beat the butter and sugar until pale, then add the eggs one at a time.', ingredients: ['butter', 'eggs'] },
+			{ streams: ['base'], title: 'Fold in the flour', body: 'Fold in the flour gently until no dry streaks remain. Stop as soon as the batter is even so the cake stays light.', ingredients: ['flour'] },
+			{ streams: ['filling'], title: 'Prepare the berries', body: 'Slice the strawberries and toss them with lemon. Leave them to release their juices.', ingredients: ['berries', 'lemon'] },
+			{ streams: ['base'], title: 'Bake the base', body: 'Spread the batter evenly and bake until golden and springy in the centre.', ingredients: [], timer: '25:00' },
+			{ streams: ['topping'], title: 'Whip the cream', body: 'Whip the cream to soft peaks while the cake cools.', ingredients: ['cream'] },
+			{ streams: ['base', 'filling'], title: 'Layer the cake', body: 'Cool the cake completely, split it, and spread the juicy strawberries across the lower layer.', ingredients: ['berries'] },
+			{ streams: ['filling', 'topping'], title: 'Finish and serve', body: 'Spoon over the whipped cream, crown with the remaining strawberries, and serve.', ingredients: ['berries', 'cream'] }
+		];
+		const conceptLabels = {
+			timeline: 'Kitchen Timeline',
+			board: 'Mise-en-Place Board',
+			notebook: "Cook's Notebook"
+		};
+		const borrowLabels = {
+			'timeline:rails': 'colored timeline rails from Kitchen Timeline',
+			'timeline:counter': 'quiet counter tray from Kitchen Timeline',
+			'timeline:current': 'raised current-step treatment from Kitchen Timeline',
+			'board:groups': 'stream-grouped ingredients from Mise-en-Place Board',
+			'board:header': 'dark counter-focused header from Mise-en-Place Board',
+			'board:density': 'compact execution list from Mise-en-Place Board',
+			'notebook:type': "editorial typography from Cook's Notebook",
+			'notebook:tokens': "inline ingredient tokens from Cook's Notebook",
+			'notebook:chrome': "low-chrome page shell from Cook's Notebook"
+		};
+		const uiState = {
+			timeline: { current: 2, checked: new Set(), swap: 'strawberries', overlay: null, swapDraft: 'strawberries', saveDefault: false },
+			board: { current: 2, checked: new Set(), swap: 'strawberries', overlay: null, swapDraft: 'strawberries', saveDefault: false },
+			notebook: { current: 2, checked: new Set(), swap: 'strawberries', overlay: null, swapDraft: 'strawberries', saveDefault: false }
+		};
+		let persistenceAvailable = true;
+		let saved = { direction: 'timeline', notes: {}, borrows: [], globalNote: '' };
+
+		function safeText(value) {
+			return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
+		}
+
+		function ingredientName(id, concept) {
+			if (id === 'berries') return uiState[concept].swap;
+			return ingredients.find(item => item.id === id)?.name ?? id;
+		}
+
+		function streamStyle(stream) {
+			const meta = streamMeta[stream];
+			return `--stream:${meta.color};--group-wash:${meta.wash};--pill-border:${meta.color}66;--pill-bg:${meta.wash}`;
+		}
+
+		function ingredientPill(item, concept) {
+			const state = uiState[concept];
+			const name = item.id === 'berries' ? state.swap : item.name;
+			return `<button type="button" class="ingredient-pill" style="${streamStyle(item.stream)}" data-action="check-ingredient" data-concept="${concept}" data-ingredient-id="${item.id}" aria-pressed="${state.checked.has(item.id)}"><span>${safeText(item.amount)} ${safeText(name)}</span></button>`;
+		}
+
+		function instructionMarkup(step, concept) {
+			const body = safeText(step.body).replaceAll('strawberries', safeText(uiState[concept].swap));
+			return body.replace(/(^|[.!?]\s+)([A-Z][a-z]+)/g, (_match, prefix, verb) => `${prefix}<strong class="verb">${verb}</strong>`);
+		}
+
+		function planBanner() {
+			return document.body.dataset.plan === 'pending'
+				? `<div class="plan-banner" role="status"><strong>Improved cooking plan is still preparing.</strong>These source-derived steps stay usable. An active cook will never switch underneath you.</div>`
+				: '';
+		}
+
+		function legend() {
+			return `<div class="stream-legend">${Object.entries(streamMeta).map(([id, meta]) => `<span class="legend-item" style="--stream:${meta.color}"><span class="dot"></span>${meta.name}</span>`).join('')}</div>`;
+		}
+
+		function header(concept, dark = false) {
+			return `<header class="app-top"><button type="button" class="icon-button" aria-label="Back">Back</button><span class="app-title">Summer berry layer cake</span><button type="button" class="small-button" data-action="source" data-concept="${concept}">Source</button><button type="button" class="icon-button" data-action="details" data-concept="${concept}" aria-label="Recipe details">More</button></header>
+				<nav class="mode-row" aria-label="Recipe state"><button type="button" class="active">Cook</button><button type="button" data-action="source" data-concept="${concept}">Working recipe</button><span style="flex:1"></span><button type="button">4 servings</button></nav>`;
+		}
+
+		function ingredientTokens(step, concept) {
+			if (!step.ingredients.length) return '';
+			return `<div style="margin-top:7px">${step.ingredients.map(id => {
+				const ing = ingredients.find(item => item.id === id);
+				const meta = streamMeta[ing?.stream ?? step.streams[0]];
+				const name = ingredientName(id, concept);
+				return `<span class="inline-token" style="--token-bg:${meta.wash};--token-ink:${meta.color}">${safeText(name)}</span>`;
+			}).join(' ')}</div>`;
+		}
+
+		function mergeMark(step) {
+			return step.streams.length > 1 ? `<div class="merge-mark" aria-label="Streams merge">${step.streams.map(stream => `<span style="--stream:${streamMeta[stream].color}"></span>`).join('')}</div>` : '';
+		}
+
+		function timelineStep(step, index, concept) {
+			const state = uiState[concept];
+			const primary = step.streams[step.streams.length - 1];
+			return `<article class="timeline-step ${state.current === index ? 'current' : ''}" style="--stream:${streamMeta[primary].color}">
+				<button type="button" class="step-button" data-action="select-step" data-concept="${concept}" data-step="${index}" aria-current="${state.current === index ? 'step' : 'false'}">
+					<span class="step-number">${index + 1}</span>
+					<span class="step-content">
+						<span class="step-stream">${step.streams.map(id => streamMeta[id].name).join(' + ')}</span>
+						<span class="step-body">${instructionMarkup(step, concept)}</span>
+						${ingredientTokens(step, concept)}
+						<span class="step-meta">${step.timer ? `<span class="timer-chip">Timer ${step.timer}</span>` : '<span></span>'}</span>
+					</span>
+				</button>${mergeMark(step)}</article>`;
+		}
+
+		function boardStep(step, index, concept) {
+			const state = uiState[concept];
+			const primary = step.streams[step.streams.length - 1];
+			return `<article class="board-step ${state.current === index ? 'current' : ''}" style="--stream:${streamMeta[primary].color}">
+				<button type="button" class="step-button" data-action="select-step" data-concept="${concept}" data-step="${index}" aria-current="${state.current === index ? 'step' : 'false'}">
+					<span class="step-number">${index + 1}</span>
+					<span><span class="step-stream">${step.streams.map(id => streamMeta[id].name).join(' + ')}</span><span class="step-body">${instructionMarkup(step, concept)}</span>${ingredientTokens(step, concept)}</span>
+					${step.timer ? `<span class="timer-chip">${step.timer}</span>` : ''}
+				</button>${mergeMark(step)}</article>`;
+		}
+
+		function notebookStep(step, index, concept) {
+			const state = uiState[concept];
+			const primary = step.streams[step.streams.length - 1];
+			return `<article class="notebook-step ${state.current === index ? 'current' : ''}" style="--stream:${streamMeta[primary].color}">
+				<button type="button" class="step-button" data-action="select-step" data-concept="${concept}" data-step="${index}" aria-current="${state.current === index ? 'step' : 'false'}">
+					<span class="step-number">${index + 1}</span>
+					<span><span class="step-stream">${step.streams.map(id => streamMeta[id].name).join(' + ')}</span><span class="step-body">${instructionMarkup(step, concept)}</span>${ingredientTokens(step, concept)}<span class="step-meta">${step.timer ? `<span class="timer-chip">Bake ${step.timer}</span>` : ''}</span>${mergeMark(step)}</span>
+				</button></article>`;
+		}
+
+		function overlay(concept) {
+			const state = uiState[concept];
+			if (!state.overlay) return '';
+			if (state.overlay === 'source') {
+				return `<div class="overlay"><section class="sheet" aria-label="Source snapshot"><h3>Imported source snapshot</h3><p>Read-only provenance and fallback. The improved working recipe remains separate.</p><div class="source-copy"><strong>Summer berry cake</strong><br>Mix butter, sugar and eggs. Add flour. Bake about 25 minutes. Cut strawberries and put them in the middle with whipped cream.</div><button type="button" class="apply-swap" style="margin-top:14px;background:#5f5149" data-action="close-overlay" data-concept="${concept}">Back to cooking</button></section></div>`;
+			}
+			if (state.overlay === 'details') {
+				return `<div class="overlay"><section class="sheet" aria-label="Recipe details"><h3>Recipe details</h3><p>Maintenance stays available without competing with active cooking.</p><div class="details-list"><button type="button">Edit working recipe</button><button type="button">Improve instructions with AI</button><button type="button">Add to meal plan</button><button type="button">Freezer stock and targets</button><button type="button">Photo, notes, tags, and source</button></div><button type="button" class="apply-swap" style="margin-top:14px;background:#5f5149" data-action="close-overlay" data-concept="${concept}">Back to cooking</button></section></div>`;
+			}
+			return `<div class="overlay"><section class="sheet" aria-label="Ingredient swap"><h3>Swap berries for this cook</h3><p>The selected ingredient updates the counter tray and every linked step immediately.</p>
+				<button type="button" class="option ${state.swapDraft === 'strawberries' ? 'selected' : ''}" data-action="swap-draft" data-concept="${concept}" data-value="strawberries"><span>Strawberries</span><small>Original</small></button>
+				<button type="button" class="option ${state.swapDraft === 'raspberries' ? 'selected' : ''}" data-action="swap-draft" data-concept="${concept}" data-value="raspberries"><span>Raspberries</span><small>Brighter and sharper</small></button>
+				<button type="button" class="option ${state.swapDraft === 'blackberries' ? 'selected' : ''}" data-action="swap-draft" data-concept="${concept}" data-value="blackberries"><span>Blackberries</span><small>Deeper and less sweet</small></button>
+				<label class="save-default"><input type="checkbox" data-action="save-default" data-concept="${concept}" ${state.saveDefault ? 'checked' : ''}> Use this as the working recipe default</label>
+				<button type="button" class="apply-swap" data-action="apply-swap" data-concept="${concept}">Use ${safeText(state.swapDraft)} for this cook</button>
+				<button type="button" class="small-button" style="width:100%;margin-top:8px" data-action="close-overlay" data-concept="${concept}">Cancel</button>
+			</section></div>`;
+		}
+
+		function timeline(concept) {
+			return `<div class="timeline-screen">${header(concept)}${planBanner()}<section class="counter"><div class="counter-title"><strong>On the counter</strong><span>${uiState[concept].checked.size}/${ingredients.length} ready</span></div><div class="pills">${ingredients.map(item => ingredientPill(item, concept)).join('')}</div><button type="button" class="swap-link" style="margin-top:10px;font-size:.72rem" data-action="swap" data-concept="${concept}">Swap ${safeText(uiState[concept].swap)}</button></section><div class="legend-wrap">${legend()}</div><div class="progress-wrap"><div class="progress-line"><span>Step ${uiState[concept].current + 1} of ${steps.length}</span><span class="progress-track"><span></span></span><span>No done state</span></div></div><section class="timeline-list">${steps.map((step, index) => timelineStep(step, index, concept)).join('')}</section><button type="button" class="finish">Finish cooking</button>${overlay(concept)}</div>`;
+		}
+
+		function board(concept) {
+			return `<div class="board-screen">${header(concept, true)}${planBanner()}<section class="board-counter"><div class="board-counter-head"><strong>Set the counter</strong><span style="font-size:.7rem">${uiState[concept].checked.size}/${ingredients.length} ready</span></div><div class="board-groups">${Object.keys(streamMeta).map(stream => `<section class="board-group" style="${streamStyle(stream)}"><div class="board-group-title">${streamMeta[stream].name}</div><div class="pills">${ingredients.filter(item => item.stream === stream).map(item => ingredientPill(item, concept)).join('')}</div>${stream === 'filling' ? `<button type="button" class="swap-link" style="margin-top:8px;font-size:.7rem" data-action="swap" data-concept="${concept}">Swap ${safeText(uiState[concept].swap)}</button>` : ''}</section>`).join('')}</div></section><div class="board-progress"><div class="progress-line"><span>Current ${uiState[concept].current + 1}/${steps.length}</span><span class="progress-track"><span></span></span></div><div style="margin-top:8px">${legend()}</div></div><section class="board-list">${steps.map((step, index) => boardStep(step, index, concept)).join('')}</section><button type="button" class="finish">Finish cooking</button>${overlay(concept)}</div>`;
+		}
+
+		function notebook(concept) {
+			return `<div class="notebook-screen">${header(concept)}${planBanner()}<section class="notebook-intro"><h3>Summer berry layer cake</h3><p>Three parts meet in one calm sequence.</p></section><details class="notebook-counter" open><summary><span>Ingredients on the counter</span><span>${uiState[concept].checked.size}/${ingredients.length}</span></summary><div class="pills">${ingredients.map(item => ingredientPill(item, concept)).join('')}</div><button type="button" class="swap-link" style="margin-bottom:12px;font-size:.72rem" data-action="swap" data-concept="${concept}">Change ${safeText(uiState[concept].swap)}</button></details><div class="notebook-progress"><div class="progress-line"><span>${uiState[concept].current + 1} / ${steps.length}</span><span class="progress-track"><span></span></span></div><div style="margin-top:8px">${legend()}</div></div><section class="notebook-list">${steps.map((step, index) => notebookStep(step, index, concept)).join('')}</section><button type="button" class="finish">Finish cooking</button>${overlay(concept)}</div>`;
+		}
+
+		function renderPreviews() {
+			document.querySelector('[data-preview="timeline"]').innerHTML = timeline('timeline');
+			document.querySelector('[data-preview="board"]').innerHTML = board('board');
+			document.querySelector('[data-preview="notebook"]').innerHTML = notebook('notebook');
+		}
+
+		function saveReview() {
+			saved.direction = document.querySelector('input[name="direction"]:checked')?.value ?? 'timeline';
+			saved.notes = Object.fromEntries([...document.querySelectorAll('[data-note]')].map(input => [input.dataset.note, input.value]));
+			saved.borrows = [...document.querySelectorAll('[data-borrow]:checked')].map(input => input.dataset.borrow);
+			saved.globalNote = document.querySelector('[data-global-note]').value;
+			try {
+				localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+				document.getElementById('save-status').textContent = 'Review saved in this browser';
+			} catch {
+				persistenceAvailable = false;
+				document.getElementById('save-status').textContent = 'Changes are not being saved';
+			}
+			buildHandoff();
+		}
+
+		function restoreReview() {
+			try {
+				const raw = localStorage.getItem(STORAGE_KEY);
+				if (raw) saved = { ...saved, ...JSON.parse(raw) };
+			} catch {
+				persistenceAvailable = false;
+			}
+			const direction = document.querySelector(`input[name="direction"][value="${saved.direction}"]`) ?? document.querySelector('input[name="direction"][value="timeline"]');
+			direction.checked = true;
+			for (const input of document.querySelectorAll('[data-note]')) input.value = saved.notes?.[input.dataset.note] ?? '';
+			for (const input of document.querySelectorAll('[data-borrow]')) input.checked = saved.borrows?.includes(input.dataset.borrow) ?? false;
+			document.querySelector('[data-global-note]').value = saved.globalNote ?? '';
+			if (!persistenceAvailable) document.getElementById('save-status').textContent = 'Changes are not being saved';
+		}
+
+		function buildHandoff() {
+			const direction = document.querySelector('input[name="direction"]:checked')?.value ?? 'timeline';
+			const notes = Object.fromEntries([...document.querySelectorAll('[data-note]')].map(input => [input.dataset.note, input.value]));
+			const borrows = [...document.querySelectorAll('[data-borrow]:checked')].map(input => borrowLabels[input.dataset.borrow]);
+			const globalNote = document.querySelector('[data-global-note]').value;
+			const lines = [
+				`Continue the recipe-page and cooking-mode design workflow. Load ${SOURCE_PATH} as the authoritative brief before planning or implementation.`,
+				'',
+				'Resolved product model:',
+				'- The cooking state is the same-page default; source and maintenance stay secondary.',
+				'- The read-only source snapshot is always usable. The AI-improved working recipe becomes the single editable recipe.',
+				'- AI supplies semantic cooking structure; the app owns constrained UI blocks, colors, interaction, persistence, accessibility, and fallback.',
+				'- Counter readiness contains untouched ingredients only. Preparation actions remain numbered cooking steps.',
+				'- Counter ingredients are checkable. Session swaps update every linked step and may optionally be saved as the working-recipe default.',
+				'- All numbered steps remain readable. Tapping a card only changes the current position; there is no completion, strike-through, or compacted history.',
+				'',
+				`Selected design direction: ${conceptLabels[direction]}.`,
+				direction === 'timeline'
+					? 'This accepts the preselected recommendation: Kitchen Timeline best balances scanability, semantic streams, counter readiness, and phone ergonomics.'
+					: `This overrides the preselected Kitchen Timeline recommendation in favor of ${conceptLabels[direction]}.`,
+				'',
+				'Direction trade-offs reviewed:',
+				'- Kitchen Timeline: strongest overall balance; more application-like.',
+				'- Mise-en-Place Board: strongest ingredient and parallel-work orientation; densest opening.',
+				"- Cook's Notebook: calmest editorial reading; least immediate counter and stream visibility.",
+				'',
+				`Borrowed elements: ${borrows.length ? borrows.join('; ') : 'none selected'}.`,
+				'',
+				'Notes reproduced verbatim:',
+				`Kitchen Timeline: ${notes.timeline || '[none]'}`,
+				`Mise-en-Place Board: ${notes.board || '[none]'}`,
+				`Cook's Notebook: ${notes.notebook || '[none]'}`,
+				`Cross-direction clarification: ${globalNote || '[none]'}`,
+				'',
+				'Evidence and assumptions:',
+				'- Phone-first kitchen counter use.',
+				'- Same Summer berry layer cake fixture was used across all directions: base, filling, topping, counter checks, live berry swap, eight steps, timer, long instruction, and two merges.',
+				'- The AI-pending state was reviewed as a non-blocking source-derived fallback.',
+				'- Visual choice remains user-owned; do not implement a direction that was not selected.',
+				'',
+				'Next action: turn the selected direction and borrowed elements into an execution-ready implementation plan. Preserve the source-snapshot/working-recipe decision as an explicit architecture and migration section.'
+			];
+			const prompt = lines.join('\n');
+			document.getElementById('handoff-prompt').textContent = prompt;
+			document.getElementById('handoff-fallback').value = prompt;
+		}
+
+		document.addEventListener('click', event => {
+			const button = event.target.closest('button');
+			if (!button) return;
+			if (button.dataset.setViewport) {
+				document.body.dataset.viewport = button.dataset.setViewport;
+				document.querySelectorAll('[data-set-viewport]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+				return;
+			}
+			if (button.dataset.setPlan) {
+				document.body.dataset.plan = button.dataset.setPlan;
+				document.querySelectorAll('[data-set-plan]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+				renderPreviews();
+				return;
+			}
+			const concept = button.dataset.concept;
+			const action = button.dataset.action;
+			if (!concept || !action) return;
+			const state = uiState[concept];
+			if (action === 'check-ingredient') {
+				const id = button.dataset.ingredientId;
+				state.checked.has(id) ? state.checked.delete(id) : state.checked.add(id);
+			} else if (action === 'select-step') {
+				state.current = Number(button.dataset.step);
+			} else if (action === 'source') {
+				state.overlay = 'source';
+			} else if (action === 'details') {
+				state.overlay = 'details';
+			} else if (action === 'swap') {
+				state.swapDraft = state.swap;
+				state.overlay = 'swap';
+			} else if (action === 'swap-draft') {
+				state.swapDraft = button.dataset.value;
+			} else if (action === 'apply-swap') {
+				state.swap = state.swapDraft;
+				state.overlay = null;
+			} else if (action === 'close-overlay') {
+				state.overlay = null;
+			}
+			renderPreviews();
+		});
+
+		document.addEventListener('change', event => {
+			const input = event.target;
+			if (input.matches('[data-action="save-default"]')) {
+				uiState[input.dataset.concept].saveDefault = input.checked;
+				return;
+			}
+			if (input.matches('input[name="direction"], [data-borrow]')) saveReview();
+		});
+		document.addEventListener('input', event => {
+			if (event.target.matches('[data-note], [data-global-note]')) saveReview();
+		});
+		document.getElementById('reset-workspace').addEventListener('click', () => {
+			try { localStorage.removeItem(STORAGE_KEY); } catch {}
+			saved = { direction: 'timeline', notes: {}, borrows: [], globalNote: '' };
+			document.querySelector('input[name="direction"][value="timeline"]').checked = true;
+			document.querySelectorAll('[data-note], [data-global-note]').forEach(input => input.value = '');
+			document.querySelectorAll('[data-borrow]').forEach(input => input.checked = false);
+			for (const state of Object.values(uiState)) {
+				state.current = 2;
+				state.checked.clear();
+				state.swap = 'strawberries';
+				state.overlay = null;
+				state.swapDraft = 'strawberries';
+				state.saveDefault = false;
+			}
+			renderPreviews();
+			saveReview();
+		});
+		document.getElementById('copy-prompt').addEventListener('click', async event => {
+			const button = event.currentTarget;
+			const prompt = document.getElementById('handoff-prompt').textContent;
+			try {
+				await navigator.clipboard.writeText(prompt);
+				button.textContent = 'Copied';
+			} catch {
+				const fallback = document.getElementById('handoff-fallback');
+				fallback.style.position = 'fixed';
+				fallback.style.left = '12px';
+				fallback.style.bottom = '12px';
+				fallback.style.width = 'min(700px, calc(100% - 24px))';
+				fallback.style.height = '180px';
+				fallback.focus();
+				fallback.select();
+				button.textContent = 'Selected — copy manually';
+			}
+			setTimeout(() => { button.textContent = 'Copy handoff'; }, 2200);
+		});
+
+		restoreReview();
+		renderPreviews();
+		buildHandoff();
+	})();
+	</script>
+</body>
+</html>

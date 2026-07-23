@@ -12,6 +12,11 @@ import { rowCount } from '$lib/server/settings/reset';
 import { ensureIngredientIds, TrustedRestoreIngredientSchema } from '$lib/recipe_ingredient';
 import { delHouseholdPref } from '$lib/server/db/household_prefs';
 import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/shopping_entries';
+import {
+	RecipeSourceSnapshotSchema,
+	captureRecipeSource,
+	ensureDirectionIds
+} from '$lib/recipe_source_snapshot';
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -81,6 +86,8 @@ const RecipeImport = z.object({
 	imageUrl: z.string().nullable(),
 	ingredients: TrustedIngredientArray,
 	directions: z.array(z.string()),
+	directionIdsJson: z.array(z.string().min(1)).optional().default([]),
+	sourceSnapshotJson: RecipeSourceSnapshotSchema.nullable().optional().default(null),
 	notes: z.string().nullable(),
 	rating: z.number().int().nullable(),
 	cuisine: z.string().nullable(),
@@ -109,7 +116,22 @@ const RecipeImport = z.object({
 	reviewReason: z.string().nullable(),
 	createdAt: zTimestamp,
 	updatedAt: zTimestamp
-});
+}).transform((recipe) => ({
+	...recipe,
+	directionIdsJson: ensureDirectionIds(recipe.directions, recipe.directionIdsJson),
+	sourceSnapshotJson:
+		recipe.sourceSnapshotJson ??
+		captureRecipeSource(
+			{
+				title: recipe.title,
+				servings: recipe.servings,
+				sourceUrl: recipe.sourceUrl,
+				ingredients: recipe.ingredients,
+				directions: recipe.directions
+			},
+			{ provenance: 'legacy_baseline', capturedAt: recipe.updatedAt.getTime() }
+		)
+}));
 
 const MealPlanMealImport = z.object({
 	id: z.number().int(),

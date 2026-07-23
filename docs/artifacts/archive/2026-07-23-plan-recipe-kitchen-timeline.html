@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Kitchen Timeline — implementation plan</title>
+<style>
+  :root{--ink:#24201b;--muted:#6f675d;--paper:#f7f1e7;--card:#fffdf8;--line:#d9cdbd;--berry:#9b315c;--base:#d79034;--cream:#66834e;--merge:#6a50a3;--risk:#ad4b34;--ok:#397452;--shadow:0 12px 36px #4d362116}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+  button,input,textarea{font:inherit}button{cursor:pointer}.shell{width:min(1180px,calc(100% - 32px));margin:auto}
+  header{padding:46px 0 30px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,#fff9ef 0%,#f5ecdf 65%,#eee2d5 100%)}
+  .eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--berry)}h1{font-family:Georgia,serif;font-size:clamp(2.3rem,6vw,5.2rem);line-height:.92;letter-spacing:-.045em;margin:.25em 0 .22em;max-width:900px}
+  .lede{max-width:760px;color:var(--muted);font-size:1.08rem}.status{display:inline-flex;gap:.45rem;align-items:center;margin-top:18px;padding:8px 12px;border:1px solid #b9cdbf;border-radius:999px;background:#eff8ef;color:#285a3c;font-weight:700;font-size:.84rem}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}main{padding:34px 0 72px}.grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.75fr);gap:24px;align-items:start}
+  section,.side-card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}section{padding:28px;margin-bottom:22px}h2{font:700 clamp(1.45rem,3vw,2rem)/1.05 Georgia,serif;margin:0 0 16px}h3{font-size:1rem;margin:0 0 6px}.muted{color:var(--muted)}
+  .principles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.principle{padding:14px;border-left:4px solid var(--base);background:#fbf5eb;border-radius:8px}.principle:nth-child(2){border-color:var(--berry)}.principle:nth-child(3){border-color:var(--cream)}.principle:nth-child(4){border-color:var(--merge)}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:16px}.owned{padding:18px;border-radius:14px;background:#f3f7ef;border:1px solid #c9d5bd}.ai{padding:18px;border-radius:14px;background:#f5f0fa;border:1px solid #d2c6e0}.owned ul,.ai ul{padding-left:20px;margin:10px 0 0}
+  .timeline{position:relative;margin:12px 0 0;padding-left:36px}.timeline:before{content:"";position:absolute;left:12px;top:12px;bottom:12px;width:3px;background:linear-gradient(var(--base) 0 24%,var(--berry) 24% 48%,var(--cream) 48% 70%,var(--merge) 70%)}
+  .phase{position:relative;padding:0 0 22px}.phase:last-child{padding-bottom:0}.phase:before{content:"";position:absolute;left:-31px;top:4px;width:15px;height:15px;border-radius:50%;background:var(--card);border:4px solid var(--berry)}
+  .phase b{display:block}.tickets{font-size:.9rem;color:var(--muted);margin-top:5px}.risk{display:inline-block;margin-left:7px;padding:2px 7px;border-radius:999px;background:#fae6df;color:var(--risk);font-size:.68rem;font-weight:800;vertical-align:2px}
+  .warning{border-left:5px solid var(--risk);background:#fff5f1;padding:16px;border-radius:10px;margin:14px 0}.ok{border-left:5px solid var(--ok);background:#f0f8f2;padding:16px;border-radius:10px}
+  aside{position:sticky;top:16px}.side-card{padding:20px;margin-bottom:16px}.side-card h2{font-size:1.25rem}.decision{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.decision:first-of-type{border-top:0;padding-top:0;margin-top:0}.question{font-weight:750;margin-bottom:8px}.choice{display:flex;gap:10px;align-items:flex-start;padding:9px;border:1px solid transparent;border-radius:10px}.choice:hover{background:#faf3e8}.choice input{margin-top:4px;accent-color:var(--berry)}.choice small{display:block;color:var(--muted);margin-top:2px}
+  textarea{width:100%;min-height:300px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:14px;color:var(--ink);resize:vertical}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.btn{border:1px solid var(--ink);border-radius:999px;padding:9px 14px;background:var(--ink);color:white;font-weight:700}.btn.secondary{background:transparent;color:var(--ink);border-color:var(--line)}.save-state{font-size:.78rem;color:var(--muted);min-height:1.2em;margin-top:8px}
+  .review{display:grid;grid-template-columns:auto 1fr;gap:10px 12px}.review strong{color:var(--risk)}code{background:#efe7da;padding:2px 5px;border-radius:4px;font-size:.86em}
+  details{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}summary{font-weight:750;cursor:pointer}.notes{white-space:pre-wrap;font-size:.88rem;color:var(--muted);margin-top:10px}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}aside{position:static}.principles,.split{grid-template-columns:1fr}header{padding-top:32px}}@media(max-width:520px){.shell{width:min(100% - 20px,1180px)}section{padding:20px;border-radius:14px}.side-card{padding:18px}h1{font-size:2.65rem}}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header>
+  <div class="shell">
+    <div class="eyebrow">Recipe page · implementation plan</div>
+    <h1>Kitchen Timeline</h1>
+    <p class="lede">A cooking-first recipe page with a compact counter tray, numbered steps, semantic streams, live swaps, and a safe source-to-working-recipe migration.</p>
+    <div class="status"><span class="dot"></span>Plan ready · R3 · awaiting /run</div>
+  </div>
+</header>
+<main class="shell">
+  <div class="grid">
+    <div>
+      <section>
+        <h2>The product contract</h2>
+        <div class="principles">
+          <div class="principle"><strong>Cooking is the default.</strong><br><span class="muted">Source and maintenance remain close, but never precede the main kitchen task.</span></div>
+          <div class="principle"><strong>Position, not completion.</strong><br><span class="muted">Selecting a numbered card moves current position and centers it. Nothing is checked off or collapsed.</span></div>
+          <div class="principle"><strong>Counter means untouched.</strong><br><span class="muted">Ingredients can be checked as gathered. Chopping and measuring stay in numbered steps.</span></div>
+          <div class="principle"><strong>Streams can merge.</strong><br><span class="muted">Base, filling, and topping keep stable rails; their merge creates a distinct result color and label.</span></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>One recipe truth, two supporting records</h2>
+        <p>The existing recipe row remains the editable <strong>working recipe</strong>. The migration adds an immutable source snapshot for provenance and stable direction IDs for safe semantic links. <code>cook_mode_json</code> v5 remains validated structure—not a second recipe.</p>
+        <div class="split">
+          <div class="owned"><h3>The app owns</h3><ul><li>UI blocks and responsive layout</li><li>colors and merge rendering</li><li>checks, swaps, current position</li><li>servings, timers, persistence</li><li>validation, fallback, accessibility</li></ul></div>
+          <div class="ai"><h3>AI may author</h3><ul><li>clearer working directions</li><li>semantic streams and merges</li><li>ingredient-to-step allocations</li><li>missing cooking actions</li><li>timer purpose and context</li></ul></div>
+        </div>
+        <div class="warning"><strong>R3 boundary:</strong> canonical AI promotion increments <code>contentRevision</code>; cache-only structure writes validate the revision but do not increment it. Both are compare-and-swap writes.</div>
+        <div class="ok"><strong>Always usable:</strong> pending, failed, invalid, or stale AI output leaves deterministic source-derived numbered cards on screen.</div>
+      </section>
+
+      <section>
+        <h2>Execution sequence</h2>
+        <div class="timeline">
+          <div class="phase"><b>1. Protect recipe truth <span class="risk">R3</span></b><div class="tickets">RCT-1 snapshot + direction identity · RCT-2 v5 contract and dual reader</div></div>
+          <div class="phase"><b>2. Freeze active sessions</b><div class="tickets">RCT-4 ships before canonical AI promotion. An open cook never adopts late directions.</div></div>
+          <div class="phase"><b>3. Enable safe AI planning <span class="risk">R3</span></b><div class="tickets">RCT-3 ordinary + composed recipes · canonical promotion CAS · cache-only CAS</div></div>
+          <div class="phase"><b>4. Restore app-owned interactions</b><div class="tickets">RCT-5 counter checks and session swaps · RCT-6 optional Dutch canonical default</div></div>
+          <div class="phase"><b>5. Apply Kitchen Timeline</b><div class="tickets">RCT-7 cooking-first hierarchy · RCT-8 phone timeline/wide board · RCT-9 servings, timer, reset, logging</div></div>
+          <div class="phase"><b>6. Pass the release gate <span class="risk">R3</span></b><div class="tickets">RCT-10 copied-DB migration rehearsal · old/new backup round trip · EN/NL browser matrix</div></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>What the independent review changed</h2>
+        <div class="review">
+          <strong>P1</strong><span>Moved frozen-session adoption before canonical AI promotion. The server cannot know whether a browser is actively cooking.</span>
+          <strong>P1</strong><span>Separated canonical promotion from cache-only writes so planning metadata cannot corrupt content-revision semantics.</span>
+          <strong>P1</strong><span>Added the direct chat recipe-creation path to source-snapshot capture and tests.</span>
+          <strong>P2</strong><span>Kept stable persisted direction IDs; array indices are display order only.</span>
+          <strong>P2</strong><span>Named old-export defaults, new export round trip, immutable trigger, and legacy provenance tests.</span>
+        </div>
+      </section>
+
+      <section>
+        <h2>Release gate</h2>
+        <p>Before application code consumes the new model, `/run` rehearses the append-only migration on a copied legacy database and compares recipe counts, IDs, foreign keys, and canonical ingredient/direction hashes.</p>
+        <p><strong>Required:</strong> <code>npm run check</code>, <code>npm run test:unit</code>, <code>npm run build</code>, then cost-free browser stories at 375, 768, and 1280 px in Dutch and English.</p>
+        <p class="muted">Rollback keeps the additive columns, stops v5 scheduling, and returns to the deterministic/v4 projection. There is no destructive down migration.</p>
+        <details>
+          <summary>Original selected-direction notes</summary>
+          <div class="notes">For the ingredients in 'on the counter' they can be a little more compact.
+
+For the ingredients in the recipe steps itself these need to have the exact amounts required for that step included and can be in non-bold font. Get rid of the 'No done state' text.
+
+The number of servings/portions should be a +/- counter with steps of 1, 2 and x1.5 etc.
+
+The colored rails olook good, but when two streams combine it should create a new color (not adopt only 1 of the colors).
+
+I also don't nthink we need a finish cooking button (maybe a reset cooking button?)
+
+ALso put the timer pill on the top rigth of the step instead of on the bottom.
+
+When clicking current step it should move the screen to center that step.
+
+adopt the mise en place board for wider screens.</div>
+        </details>
+      </section>
+    </div>
+
+    <aside>
+      <div class="side-card">
+        <h2>Confirm the remaining defaults</h2>
+        <form id="decisions">
+          <div class="decision">
+            <div class="question">Serving shortcuts</div>
+            <label class="choice"><input type="radio" name="servings" value="1×, 1½×, and 2× plus −/+ by one serving" checked><span><b>1× · 1½× · 2×</b><small>Recommended. Fast common choices plus precise −/+.</small></span></label>
+            <label class="choice"><input type="radio" name="servings" value="Only −/+ by one serving"><span><b>Only − / +</b><small>Quieter, but slower for doubling and scaling.</small></span></label>
+          </div>
+          <div class="decision">
+            <div class="question">Cook logging without Finish</div>
+            <label class="choice"><input type="radio" name="logging" value="Keep Log cooked in secondary recipe actions; never infer completion" checked><span><b>Secondary action</b><small>Recommended. Keeps history without adding completion to steps.</small></span></label>
+            <label class="choice"><input type="radio" name="logging" value="Remove cook logging from the recipe page"><span><b>Remove it</b><small>Cleanest surface, but loses an existing useful feature.</small></span></label>
+          </div>
+          <div class="decision">
+            <div class="question">Existing recipe improvement</div>
+            <label class="choice"><input type="radio" name="legacy" value="Generate structure lazily; require preview and acceptance before replacing established directions" checked><span><b>Preview first</b><small>Recommended. Avoids surprising rewrites.</small></span></label>
+            <label class="choice"><input type="radio" name="legacy" value="Never replace established directions; generate semantic structure only"><span><b>Structure only</b><small>Maximum preservation, less instruction improvement.</small></span></label>
+          </div>
+          <div class="decision">
+            <div class="question">R3 migration authority</div>
+            <label class="choice"><input type="radio" name="migration" value="Proceed only after copied-database rehearsal and backup round-trip pass" checked><span><b>Gate then proceed</b><small>Recommended. `/run` stops if rehearsal changes canonical content.</small></span></label>
+            <label class="choice"><input type="radio" name="migration" value="Do not apply the migration; stop after rehearsal evidence"><span><b>Rehearse only</b><small>Produces evidence but leaves implementation blocked.</small></span></label>
+          </div>
+          <div class="decision">
+            <label for="clarification" class="question">Clarification for the next agent</label>
+            <textarea id="clarification" style="min-height:90px" placeholder="Optional note; reproduced verbatim in the handoff."></textarea>
+          </div>
+        </form>
+        <div id="saveState" class="save-state" aria-live="polite"></div>
+      </div>
+      <div class="side-card">
+        <h2>Paste-ready handoff</h2>
+        <textarea id="handoff" readonly aria-label="Generated handoff prompt"></textarea>
+        <div class="actions"><button class="btn" id="copy" type="button">Copy handoff</button><button class="btn secondary" id="reset" type="button">Reset choices</button></div>
+        <div id="copyState" class="save-state" aria-live="polite"></div>
+      </div>
+    </aside>
+  </div>
+</main>
+<script>
+(() => {
+  const KEY = 'docs/artifacts/2026-07-23-plan-recipe-kitchen-timeline.html::v1';
+  const form = document.querySelector('#decisions');
+  const handoff = document.querySelector('#handoff');
+  const clarification = document.querySelector('#clarification');
+  const saveState = document.querySelector('#saveState');
+  const copyState = document.querySelector('#copyState');
+  const get = name => form.querySelector(`input[name="${name}"]:checked`)?.value || '';
+  const prompt = () => `Continue the recipe-page and cooking-mode implementation workflow. Load docs/feature-lists/FEATURE_LIST_RECIPE_COOKING_DESIGN_SHOTGUN.md as the authoritative plan, then use /run.
+
+Selected direction and product contract:
+- Kitchen Timeline is selected. Phone uses a compact counter tray over a numbered timeline; wider screens use the same projection as a left Mise-en-Place Board plus timeline.
+- Cooking is the same-page default; source and maintenance are secondary.
+- The immutable source snapshot stays usable. The AI-improved working recipe is the single editable recipe.
+- AI supplies validated semantic structure. The app owns UI blocks, colors, interaction, persistence, accessibility, quantities, and fallback.
+- Counter readiness is untouched ingredients only. Prep actions are numbered cooking steps.
+- Counter ingredients are checkable. Session swaps update every linked step and may optionally be saved as the working default.
+- Tapping a card only changes and centers current position. All numbered steps remain readable. There is no completion, strike-through, compacted history, or Finish button.
+
+Architecture and safety:
+- Keep the existing recipes row as canonical working recipe. Add immutable versioned source_snapshot_json and stable direction_ids_json with an append-only migration.
+- Treat legacy snapshots as legacy_baseline, never as original provenance.
+- Use v5 cook_mode_json as semantic structure, not a second recipe. Reference stable ingredient and direction IDs.
+- Model per-step amounts as validated all/fraction/remaining/reference allocations; the app computes scaled labels.
+- Ship the frozen-session reader before enabling canonical AI promotion.
+- Use two write seams: canonical promotion CAS increments contentRevision; structure-cache CAS validates revision/fingerprint but does not increment it.
+- Capture snapshots for URL imports, chat-created recipes, and other creation paths.
+- Reuse the Dutch canonical swap behavior in shopping_recipe_choice.ts. English fields remain display-only and must never feed Albert Heijn.
+- Keep dual v4/v5 reads, deterministic fallback, lazy legacy generation, old-export defaults, new export round-trip, and a non-destructive rollback.
+
+Execute in the plan's dependency order:
+RCT-1 source snapshots/direction identity; RCT-2 v5 contract; RCT-4 frozen sessions; RCT-3 safe planning/promotion; RCT-5 counter/session swaps; RCT-6 saved default; RCT-7 hierarchy; RCT-8 responsive timeline; RCT-9 servings/timer/reset/log; RCT-10 release gate.
+
+Accepted defaults:
+- Serving controls: ${get('servings')}.
+- Cook logging: ${get('logging')}.
+- Existing recipes: ${get('legacy')}.
+- Migration: ${get('migration')}.
+
+User clarification reproduced verbatim:
+${clarification.value || '[none]'}
+
+Original selected-direction notes reproduced verbatim:
+For the ingredients in 'on the counter' they can be a little more compact.
+
+For the ingredients in the recipe steps itself these need to have the exact amounts required for that step included and can be in non-bold font. Get rid of the 'No done state' text.
+
+The number of servings/portions should be a +/- counter with steps of 1, 2 and x1.5 etc.
+
+The colored rails olook good, but when two streams combine it should create a new color (not adopt only 1 of the colors).
+
+I also don't nthink we need a finish cooking button (maybe a reset cooking button?)
+
+ALso put the timer pill on the top rigth of the step instead of on the bottom.
+
+When clicking current step it should move the screen to center that step.
+
+adopt the mise en place board for wider screens.
+
+Before modifying application code, rehearse the append-only migration on a copied legacy database and prove canonical hashes, provenance, old/new backup compatibility, and foreign keys. Stop if that gate fails.`;
+  const serialize = () => ({servings:get('servings'),logging:get('logging'),legacy:get('legacy'),migration:get('migration'),clarification:clarification.value});
+  const render = () => { handoff.value = prompt(); };
+  const save = () => {
+    render();
+    try { localStorage.setItem(KEY, JSON.stringify(serialize())); saveState.textContent = 'Choices saved on this device.'; }
+    catch { saveState.textContent = 'Choices are active for this session but could not be saved.'; }
+  };
+  const restore = () => {
+    try {
+      const state = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (state) {
+        for (const name of ['servings','logging','legacy','migration']) {
+          const input = [...form.querySelectorAll(`input[name="${name}"]`)].find(x => x.value === state[name]);
+          if (input) input.checked = true;
+        }
+        clarification.value = state.clarification || '';
+      }
+    } catch { saveState.textContent = 'Saved choices could not be restored; recommendations are active.'; }
+    render();
+  };
+  form.addEventListener('input', save);
+  document.querySelector('#copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(handoff.value); copyState.textContent = 'Handoff copied.'; }
+    catch { handoff.focus(); handoff.select(); copyState.textContent = 'Clipboard access failed. The handoff is selected; copy it manually.'; }
+  });
+  document.querySelector('#reset').addEventListener('click', () => {
+    form.reset(); clarification.value = '';
+    try { localStorage.removeItem(KEY); } catch {}
+    saveState.textContent = 'Recommendations restored.'; copyState.textContent = ''; render();
+  });
+  restore();
+})();
+</script>
+</body>
+</html>

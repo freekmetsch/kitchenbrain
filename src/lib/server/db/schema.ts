@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, real, unique, index, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type { BenchSheetRating, StoredCookModeRecipe } from '$lib/types';
+import type { RecipeSourceSnapshot } from '$lib/recipe_source_snapshot';
 import type { MachineActor } from '$lib/actors';
 import type {
 	Ingredient,
@@ -111,6 +112,8 @@ export const recipes = sqliteTable('recipes', {
 	imageUrl: text('image_url'),
 	ingredients: text('ingredients', { mode: 'json' }).$type<Ingredient[]>().notNull().default([]),
 	directions: text('directions', { mode: 'json' }).$type<string[]>().notNull().default([]),
+	directionIdsJson: text('direction_ids_json', { mode: 'json' }).$type<string[]>().notNull().default([]),
+	sourceSnapshotJson: text('source_snapshot_json', { mode: 'json' }).$type<RecipeSourceSnapshot>(),
 	notes: text('notes'),
 	rating: integer('rating'),
 	cuisine: text('cuisine'),

@@ -14,6 +14,7 @@
 	import {
 		hydrateDirections,
 		hydrateIngredients,
+		serializeDirectionIds,
 		serializeDirections,
 		serializeIngredients,
 		type DirectionDraft,
@@ -45,7 +46,14 @@
 		untrack(() => hydrateIngredients(data.recipe.ingredients as Parameters<typeof hydrateIngredients>[0]))
 	);
 	let directions = $state<DirectionDraft[]>(
-		untrack(() => hydrateDirections(data.recipe.directions as string[]))
+		untrack(() =>
+			hydrateDirections(
+				(data.recipe.directions as string[]).map((text, index) => ({
+					clientId: data.recipe.directionIdsJson[index],
+					text
+				}))
+			)
+		)
 	);
 
 	let submitting = $state(false);
@@ -56,6 +64,7 @@
 
 	let serializedIngredients = $derived(serializeIngredients(ingredients));
 	let serializedDirections = $derived(serializeDirections(directions));
+	let serializedDirectionIds = $derived(serializeDirectionIds(directions));
 
 	function snapshot(): string {
 		return JSON.stringify({
@@ -93,7 +102,10 @@
 			sourceUrl: data.recipe.sourceUrl ?? '',
 			servings: data.recipe.servings,
 			ingredients: data.recipe.ingredients as Parameters<typeof hydrateIngredients>[0],
-			directions: data.recipe.directions as string[]
+			directions: (data.recipe.directions as string[]).map((text, index) => ({
+				clientId: data.recipe.directionIdsJson[index],
+				text
+			}))
 		};
 	}
 
@@ -287,6 +299,7 @@
 
 		<input type="hidden" name="ingredients" value={serializedIngredients} />
 		<input type="hidden" name="directions" value={serializedDirections} />
+		<input type="hidden" name="directionIds" value={serializedDirectionIds} />
 		<input type="hidden" name="contentRevision" value={data.recipe.contentRevision} />
 		<input type="hidden" name="acceptStructureDraft" value={data.reviewingStructureDraft ? '1' : '0'} />
 	</form>

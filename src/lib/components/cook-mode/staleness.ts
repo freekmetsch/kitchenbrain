@@ -12,11 +12,17 @@
 import type {
 	CookModeDisplayRecipe,
 	CookModeRecipe,
+	CookModeIngredientAllocation,
 	LocalizedCookModeText,
 	StoredCookModeRecipe
 } from '$lib/types';
 import type { Ingredient } from '$lib/recipe_ingredient';
-import { occasionMultiplier, scaleAmount } from '$lib/recipe_scale';
+import {
+	formatQuantity,
+	occasionMultiplier,
+	parseQuantity,
+	scaleAmount
+} from '$lib/recipe_scale';
 
 // Action-led form: capitalized verb-led action, em-dash separator (` — `, U+2014),
 // then a target state. Up to 8 words total, with ≥ 2 words before the em-dash
@@ -108,11 +114,113 @@ function isValidV4(cm: any): boolean {
 	return true;
 }
 
+function allocationFraction(
+	allocation: CookModeIngredientAllocation,
+	consumed: number
+): { valid: boolean; fraction: number; consumed: number; terminal: boolean } {
+	if (allocation.kind === 'reference') {
+		return { valid: true, fraction: 1, consumed, terminal: false };
+	}
+	if (allocation.kind === 'all') {
+		return {
+			valid: consumed === 0,
+			fraction: 1,
+			consumed: 1,
+			terminal: true
+		};
+	}
+	if (allocation.kind === 'fraction') {
+		const valid =
+			Number.isInteger(allocation.numerator) &&
+			Number.isInteger(allocation.denominator) &&
+			allocation.numerator > 0 &&
+			allocation.denominator > 0 &&
+			allocation.numerator <= allocation.denominator;
+		const fraction = valid ? allocation.numerator / allocation.denominator : 0;
+		return {
+			valid: valid && consumed + fraction <= 1 + Number.EPSILON,
+			fraction,
+			consumed: consumed + fraction,
+			terminal: false
+		};
+	}
+	const fraction = 1 - consumed;
+	return {
+		valid: fraction > Number.EPSILON,
+		fraction,
+		consumed: 1,
+		terminal: true
+	};
+}
+
+export function isValidCookModeV5(cm: any): boolean {
+	if (typeof cm.generation_id !== 'string' || !cm.generation_id) return false;
+	if (!Number.isInteger(cm.baseline_servings) || cm.baseline_servings < 1) return false;
+	if (!Number.isInteger(cm.content_revision) || cm.content_revision < 1) return false;
+	if (typeof cm.structure_fingerprint !== 'string' || !cm.structure_fingerprint) return false;
+	if (!Array.isArray(cm.streams) || cm.streams.length === 0 || !Array.isArray(cm.steps)) return false;
+	const streamIds = new Set<string>();
+	for (const stream of cm.streams) {
+		if (typeof stream.id !== 'string' || !stream.id || streamIds.has(stream.id)) return false;
+		if (!validLocalizedText(stream.name)) return false;
+		streamIds.add(stream.id);
+	}
+	const stepIds = new Set<string>();
+	const directionIds = new Set<string>();
+	const consumed = new Map<string, number>();
+	const terminal = new Set<string>();
+	for (const step of cm.steps) {
+		if (typeof step.step_id !== 'string' || !step.step_id || stepIds.has(step.step_id)) return false;
+		if (
+			typeof step.direction_id !== 'string' ||
+			!step.direction_id ||
+			directionIds.has(step.direction_id)
+		) return false;
+		if (!streamIds.has(step.stream_id)) return false;
+		if (
+			!Array.isArray(step.merges_from) ||
+			step.merges_from.some(
+				(id: unknown) => typeof id !== 'string' || !streamIds.has(id) || id === step.stream_id
+			) ||
+			new Set(step.merges_from).size !== step.merges_from.length
+		) return false;
+		if (!Array.isArray(step.ingredient_uses)) return false;
+		for (const use of step.ingredient_uses) {
+			if (typeof use.ingredient_id !== 'string' || !use.ingredient_id) return false;
+			if (!use.allocation || typeof use.allocation.kind !== 'string') return false;
+			if (terminal.has(use.ingredient_id) && use.allocation.kind !== 'reference') return false;
+			const result = allocationFraction(
+				use.allocation,
+				consumed.get(use.ingredient_id) ?? 0
+			);
+			if (!result.valid) return false;
+			consumed.set(use.ingredient_id, result.consumed);
+			if (result.terminal) terminal.add(use.ingredient_id);
+		}
+		if (step.timer_seconds != null) {
+			if (!Number.isInteger(step.timer_seconds) || step.timer_seconds < 1) return false;
+			if (
+				!validLocalizedText(step.timer_purpose) ||
+				!validLocalizedText(step.timer_action) ||
+				!validLocalizedText(step.timer_location)
+			) return false;
+		} else if (
+			step.timer_purpose != null ||
+			step.timer_action != null ||
+			step.timer_location != null
+		) return false;
+		stepIds.add(step.step_id);
+		directionIds.add(step.direction_id);
+	}
+	return true;
+}
+
 export function isStaleCookMode(cm: Partial<StoredCookModeRecipe> | null): boolean {
 	if (cm == null) return false;
 	if (cm.version === 2) return !isValidV2(cm as Partial<CookModeRecipe>);
 	if (cm.version === 3) return !isValidV3(cm);
 	if (cm.version === 4) return !isValidV4(cm);
+	if (cm.version === 5) return !isValidCookModeV5(cm);
 	return true;
 }
 
@@ -123,7 +231,7 @@ export function hasCookModeLanguage(
 ): boolean {
 	if (cm == null || isStaleCookMode(cm)) return false;
 	if (cm.version === 2) return language === 'en';
-	if (cm.version === 4) return true;
+	if (cm.version === 4 || cm.version === 5) return true;
 	return 'servings' in cm && cm.servings === servings;
 }
 
@@ -134,6 +242,8 @@ export function localizeCookMode(
 		ingredients: Ingredient[];
 		baselineServings: number | null;
 		targetServings: number;
+		directions?: string[];
+		directionIds?: string[];
 	}
 ): CookModeDisplayRecipe | null {
 	if (cm == null || isStaleCookMode(cm)) return null;
@@ -142,6 +252,81 @@ export function localizeCookMode(
 		return { ...cm, generation_id: null, servings: null };
 	}
 	const pick = (value: LocalizedCookModeText) => value[language];
+	if (cm.version === 5) {
+		const multiplier = occasionMultiplier(
+			quantity?.baselineServings ?? cm.baseline_servings,
+			quantity?.targetServings ?? cm.baseline_servings
+		);
+		const ingredientById = new Map(
+			(quantity?.ingredients ?? []).flatMap((ingredient) =>
+				ingredient.id ? [[ingredient.id, ingredient] as const] : []
+			)
+		);
+		const directionById = new Map(
+			(quantity?.directionIds ?? []).map((id, index) => [id, quantity?.directions?.[index] ?? ''])
+		);
+		const consumed = new Map<string, number>();
+		const ingredientLabel = (
+			ingredientId: string,
+			allocation: CookModeIngredientAllocation
+		): string | null => {
+			const ingredient = ingredientById.get(ingredientId);
+			if (!ingredient) return null;
+			const result = allocationFraction(allocation, consumed.get(ingredientId) ?? 0);
+			if (!result.valid) return null;
+			if (allocation.kind !== 'reference') consumed.set(ingredientId, result.consumed);
+			const scaled = scaleAmount(
+				ingredient.amount,
+				ingredient.name,
+				multiplier,
+				ingredient.scale ?? 'linear',
+				language
+			);
+			const parsed = parseQuantity(scaled);
+			const amount =
+				allocation.kind === 'reference' || !parsed
+					? scaled
+					: formatQuantity(
+							{
+								min: parsed.min * result.fraction,
+								max: parsed.max == null ? undefined : parsed.max * result.fraction
+							},
+							language
+						);
+			return [amount, ingredient.unit, ingredient.name].filter(Boolean).join(' ');
+		};
+		return {
+			version: 5,
+			language,
+			generation_id: cm.generation_id,
+			servings: quantity?.targetServings ?? cm.baseline_servings,
+			mise_en_place: [],
+			streams: cm.streams.map((stream) => ({ id: stream.id, name: pick(stream.name) })),
+			steps: cm.steps.map((step) => {
+				const body = directionById.get(step.direction_id) || step.direction_id;
+				return {
+					step_id: step.step_id,
+					direction_id: step.direction_id,
+					title: body,
+					goal: body,
+					body,
+					ingredients: step.ingredient_uses
+						.map((use) => ingredientLabel(use.ingredient_id, use.allocation))
+						.filter((label): label is string => label != null),
+					ingredient_ids: step.ingredient_uses.map((use) => use.ingredient_id),
+					ingredient_names: step.ingredient_uses
+						.map((use) => ingredientById.get(use.ingredient_id)?.name)
+						.filter((name): name is string => name != null),
+					timer_seconds: step.timer_seconds,
+					timer_purpose: step.timer_purpose == null ? null : pick(step.timer_purpose),
+					timer_action: step.timer_action == null ? null : pick(step.timer_action),
+					timer_location: step.timer_location == null ? null : pick(step.timer_location),
+					stream_id: step.stream_id,
+					merges_from: step.merges_from
+				};
+			})
+		};
+	}
 	if (cm.version === 4) {
 		const multiplier = occasionMultiplier(quantity?.baselineServings ?? cm.baseline_servings, quantity?.targetServings ?? cm.baseline_servings);
 		const ingredientLabel = (index: number) => {

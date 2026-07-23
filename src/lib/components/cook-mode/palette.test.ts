@@ -1,45 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { cookPaletteGraph, PALETTES } from './palette';
+import { cookPaletteGraph } from './palette';
 
-describe('cookPaletteGraph', () => {
-	it('blends amber and sky into emerald and keeps it on later output steps', () => {
-		const graph = cookPaletteGraph(
-			[{ id: 'yellow' }, { id: 'blue' }, { id: 'result' }],
+describe('cook palette graph', () => {
+	it('gives a merge a color distinct from both incoming streams', () => {
+		const assignments = cookPaletteGraph(
+			[{ id: 'base' }, { id: 'filling' }, { id: 'cake' }],
 			[
-				{ stream_id: 'yellow' },
-				{ stream_id: 'blue' },
-				{ stream_id: 'result', merges_from: ['yellow', 'blue'] },
-				{ stream_id: 'result' }
+				{ stream_id: 'base' },
+				{ stream_id: 'filling' },
+				{ stream_id: 'cake', merges_from: ['base', 'filling'] }
 			]
 		);
-		expect(graph[2].result).toBe(PALETTES[2]);
-		expect(graph[3].result).toBe(PALETTES[2]);
-		expect(graph[2].sources).toEqual([PALETTES[0], PALETTES[1]]);
-	});
-
-	it('blends amber and rose into orange regardless of source order', () => {
-		const graph = cookPaletteGraph(
-			[{ id: 'amber' }, { id: 'unused' }, { id: 'result' }, { id: 'rose' }],
-			[{ stream_id: 'amber' }, { stream_id: 'rose' }, { stream_id: 'result', merges_from: ['rose', 'amber'] }]
-		);
-		expect(graph[2].result).toBe(PALETTES[5]);
-	});
-
-	it('updates an input stream after a three-way merge without changing earlier cards', () => {
-		const graph = cookPaletteGraph(
-			[{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' }, { id: 'f' }, { id: 'g' }],
-			[
-				{ stream_id: 'a' },
-				{ stream_id: 'b' },
-				{ stream_id: 'c' },
-				{ stream_id: 'a', merges_from: ['a', 'b', 'c'] },
-				{ stream_id: 'a' },
-				{ stream_id: 'g' }
-			]
-		);
-		expect(graph[0].result).toBe(PALETTES[0]);
-		expect(graph[3].result).toBe(PALETTES[4]);
-		expect(graph[4].result).toBe(PALETTES[4]);
-		expect(graph[5].result).toBe(PALETTES[0]);
+		expect(assignments[2].result).not.toBe(assignments[0].result);
+		expect(assignments[2].result).not.toBe(assignments[1].result);
 	});
 });

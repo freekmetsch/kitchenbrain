@@ -13,6 +13,7 @@
 		servings: number | null;
 		targetServings: number;
 		sourceUrl?: string | null;
+		provenance?: 'imported_source' | 'legacy_baseline' | null;
 	};
 
 	let {
@@ -22,7 +23,8 @@
 		viewLang,
 		servings,
 		targetServings,
-		sourceUrl
+		sourceUrl,
+		provenance = null
 	}: Props = $props();
 
 	let servingsMultiplier = $derived(targetServings / (servings ?? 4));
@@ -34,6 +36,13 @@
 </script>
 
 <div class="px-3 pt-3 pb-32">
+	{#if provenance}
+		<p class="mb-3 rounded-xl bg-base-200/60 px-3 py-2 text-xs leading-relaxed text-base-content/60">
+			{provenance === 'legacy_baseline'
+				? m.recipes_source_snapshot_legacy()
+				: m.recipes_source_snapshot_imported()}
+		</p>
+	{/if}
 	{#if source}
 		<p class="mb-4 text-xs text-base-content/60">
 			{m.recipes_source_label()}

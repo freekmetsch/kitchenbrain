@@ -2,6 +2,7 @@
 // components. Moved out of +page.svelte during the recipe-detail decomposition.
 import type { StoredCookModeRecipe } from '$lib/types';
 import type { Ingredient, TranslatedIngredient, RecipeScalingMode } from '$lib/recipe_ingredient';
+import type { RecipeSourceSnapshot } from '$lib/recipe_source_snapshot';
 
 export type { Ingredient } from '$lib/recipe_ingredient';
 type TranslationStatus = 'pending' | 'ready' | 'error';
@@ -16,12 +17,15 @@ export type Recipe = {
 	servings: number | null;
 	scalingMode: RecipeScalingMode;
 	structureVersion: number;
+	contentRevision: number;
 	totalTimeMin: number | null;
 	sourceUrl: string | null;
 	imageUrl: string | null;
 	ingredients: Ingredient[];
 	ingredientsEn: TranslatedIngredient[] | null;
 	directions: string[];
+	directionIdsJson: string[];
+	sourceSnapshotJson: RecipeSourceSnapshot | null;
 	directionsEn: string[] | null;
 	notes: string | null;
 	notesEn: string | null;
