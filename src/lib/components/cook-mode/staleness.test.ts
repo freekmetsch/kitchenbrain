@@ -5,7 +5,12 @@ import type {
 	LocalizedCookModeRecipeV4,
 	LocalizedCookModeRecipeV5
 } from '$lib/types';
-import { hasCookModeLanguage, isStaleCookMode, localizeCookMode } from './staleness';
+import {
+	hasCookModeLanguage,
+	isCookModeEligibleForNewSession,
+	isStaleCookMode,
+	localizeCookMode
+} from './staleness';
 
 const current: CookModeRecipe = {
 	version: 2,
@@ -131,6 +136,13 @@ describe('cook-mode cache versioning', () => {
 		expect(hasCookModeLanguage(current, 'en', 4)).toBe(true);
 		expect(hasCookModeLanguage(current, 'nl', 4)).toBe(false);
 		expect(localizeCookMode(current, 'nl')).toBeNull();
+	});
+
+	it('starts the Kitchen Timeline only from structured v4 or v5 caches', () => {
+		expect(isCookModeEligibleForNewSession(current, 'en', 4)).toBe(false);
+		expect(isCookModeEligibleForNewSession(bilingual, 'nl', 4)).toBe(false);
+		expect(isCookModeEligibleForNewSession(structured, 'nl', 99)).toBe(true);
+		expect(isCookModeEligibleForNewSession(semantic, 'en', 6)).toBe(true);
 	});
 
 	it('rejects malformed localized leaves', () => {

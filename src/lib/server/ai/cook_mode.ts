@@ -19,8 +19,7 @@ import type {
 	CookModeIngredientAllocation
 } from '$lib/types';
 import {
-	hasCookModeLanguage,
-	isStaleCookMode,
+	isCookModeEligibleForNewSession,
 	isValidCookModeV5,
 	violatesActionState
 } from '$lib/components/cook-mode/staleness';
@@ -410,15 +409,15 @@ async function generateCookModeUncached(
 	const targetServings = normalizedServings(opts.servings, sourceServings);
 	const subRows = loadSubRows(recipe.id);
 
-	if (!opts.force && recipe.cookModeJson && !isStaleCookMode(recipe.cookModeJson)) {
+	if (
+		!opts.force &&
+		isCookModeEligibleForNewSession(recipe.cookModeJson, language, targetServings)
+	) {
 		const generatedAt = recipe.cookModeGeneratedAt?.getTime() ?? 0;
 		const subChanged = subRows.some(
 			(subRecipe) => (subRecipe.updatedAt?.getTime() ?? 0) > generatedAt
 		);
-		if (
-			!subChanged &&
-			hasCookModeLanguage(recipe.cookModeJson, language, targetServings)
-		) {
+		if (!subChanged) {
 			return { recipe, generated: false };
 		}
 	}

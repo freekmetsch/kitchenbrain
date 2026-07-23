@@ -57,7 +57,7 @@
 				<h2 class="text-sm font-semibold">{title}</h2>
 				<button
 					type="button"
-					class="btn btn-ghost btn-sm h-9 min-h-0 w-9 p-0"
+					class="btn btn-ghost btn-sm h-11 min-h-0 w-11 p-0"
 					aria-label={m.ui_bottomsheet_close()}
 					onclick={() => (open = false)}><Icon name="x" class="h-4 w-4" /></button
 				>

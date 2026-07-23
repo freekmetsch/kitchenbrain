@@ -1,13 +1,13 @@
 // Cook-mode cached-payload staleness predicate.
 //
-// `cookModeJson` is cached on the recipe row. Valid v2 English sheets remain
-// renderable; v3 adds one shared graph with bilingual text leaves and servings.
-// This module owns validation and language projection for both formats.
+// `cookModeJson` is cached on the recipe row. Legacy v2/v3 payloads remain
+// structurally readable for rollback and explicit compatibility paths, while
+// only v4/v5 may start a new Kitchen Timeline session.
 //
 // The regex + violatesActionState helpers also gate the AI's emit at
 // validation time (see `cook_mode.ts`). Sharing the helpers here keeps the
-// renderer's "is this old?" check and the server's "is this acceptable?"
-// check in lockstep.
+// renderer and server validation in lockstep without conflating validity with
+// new-session eligibility.
 
 import type {
 	CookModeDisplayRecipe,
@@ -233,6 +233,15 @@ export function hasCookModeLanguage(
 	if (cm.version === 2) return language === 'en';
 	if (cm.version === 4 || cm.version === 5) return true;
 	return 'servings' in cm && cm.servings === servings;
+}
+
+export function isCookModeEligibleForNewSession(
+	cm: Partial<StoredCookModeRecipe> | null,
+	language: 'en' | 'nl',
+	servings: number
+): boolean {
+	if (cm?.version !== 4 && cm?.version !== 5) return false;
+	return hasCookModeLanguage(cm, language, servings);
 }
 
 export function localizeCookMode(

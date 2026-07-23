@@ -25,11 +25,14 @@
 	import CounterBoard from './cook-mode/CounterBoard.svelte';
 	import TimerStack from './cook-mode/TimerStack.svelte';
 	import { cookPaletteGraph, fmtClock, paletteFor } from './cook-mode/palette';
-	import { isStaleCookMode, localizeCookMode } from './cook-mode/staleness';
+	import {
+		isCookModeEligibleForNewSession,
+		localizeCookMode
+	} from './cook-mode/staleness';
+	import { readCookModeFailure } from './cook-mode/cook_mode_recovery';
 	import { cookStepKey, normalizeCookProgress, selectCookStep } from './cook-mode/cook_progress';
 	import {
-		decodeCookSession,
-		migrateLegacyCookSession,
+		readCookSession,
 		type FrozenCookRecipe
 	} from './cook-mode/cook_session';
 	import {
@@ -108,6 +111,7 @@
 		untrack(() => (requiresPlan ? initial : null))
 	);
 	let frozenRecipe = $state<FrozenCookRecipe | null>(null);
+	let frozenViewLang = $state<'en' | 'nl' | null>(null);
 	let sessionStarted = $state(false);
 	let activeDirections = $derived(frozenRecipe?.directions ?? fallback.directions);
 	let activeDirectionIds = $derived(frozenRecipe?.directionIds ?? fallback.directionIds ?? []);
@@ -119,12 +123,11 @@
 		frozenRecipe?.baselineServings ?? fallback.baselineServings
 	);
 	let activeStoredCookMode = $derived(frozenRecipe?.storedCookMode ?? storedCookMode);
-	let servingDraft = $state(
-		untrack(() => (initial?.version === 3 ? initial.servings : (fallback.servings ?? 4)))
-	);
+	let activeViewLang = $derived(frozenViewLang ?? viewLang);
+	let servingDraft = $state(untrack(() => fallback.servings ?? 4));
 	let localizedPlan = $derived(
 		requiresPlan
-			? localizeCookMode(activeStoredCookMode, viewLang, {
+			? localizeCookMode(activeStoredCookMode, activeViewLang, {
 					ingredients: activeIngredients,
 					baselineServings: activeBaselineServings,
 					targetServings: servingDraft,
@@ -136,7 +139,7 @@
 
 	let deterministicCookMode = $derived(
 		cookingStepsFromDirections(activeDirections, {
-			language: viewLang,
+			language: activeViewLang,
 			recipeTitle,
 			servings: servingDraft,
 			directionIds: activeDirectionIds,
@@ -148,20 +151,21 @@
 	);
 	let loading = $state(false);
 	let loadError = $state('');
+	let sessionNotice = $state('');
 	// Connection drops and transient server errors are retryable: the server
 	// finishes and caches the generation even when the phone kills the fetch
 	// (backgrounding, navigation), and a re-POST either joins the in-flight
 	// generation or returns the cached sheet instantly. Budget/no-directions
 	// failures are terminal until the user acts.
-	let loadErrorRetryable = false;
+	let loadErrorRetryable = $state(false);
 	let autoRetries = 0;
 	let retryTimer: ReturnType<typeof setTimeout> | null = null;
 	let regenerating = $state(false);
 	let cookedSubmitting = $state(false);
 	let cookedDone = $state(false);
 
-	// Only composed meals retain the planning seam. Ordinary recipes always
-	// render their saved directions immediately and never enter this path.
+	// Every recipe renders source directions immediately. Structured generation
+	// enhances that fallback without making the cooking surface depend on it.
 	let genStartedAt: number | null = null;
 	let genElapsedSec = $state(0);
 
@@ -175,7 +179,6 @@
 
 	function adoptCookMode(cm: StoredCookModeRecipe) {
 		storedCookMode = cm;
-		if (cm.version === 3) servingDraft = cm.servings;
 		if (!sessionStarted) {
 			progressRestored = false;
 			currentStepKey = null;
@@ -531,20 +534,27 @@
 					return;
 				}
 				const incoming = body.cookMode as Partial<StoredCookModeRecipe>;
-				if (!force && isStaleCookMode(incoming)) {
-					regenerating = true;
-					loading = false;
-					return loadCookMode(true);
+				if (!isCookModeEligibleForNewSession(incoming, viewLang, servingDraft)) {
+					if (!force) {
+						regenerating = true;
+						loading = false;
+						return loadCookMode(true);
+					}
+					loadError = m.benchsheet_error_load_failed();
+					loadErrorRetryable = true;
+				} else {
+					autoRetries = 0;
+					adoptCookMode(body.cookMode as StoredCookModeRecipe);
 				}
-				autoRetries = 0;
-				adoptCookMode(body.cookMode as StoredCookModeRecipe);
-			} else if (body.reason === 'daily_cap_exceeded') {
-				loadError = m.benchsheet_error_budget_reached();
-			} else if (body.reason === 'no_directions') {
-				loadError = m.benchsheet_error_no_directions();
 			} else {
-				loadError = body.message ?? m.benchsheet_error_load_failed();
-				loadErrorRetryable = true;
+				const failure = readCookModeFailure(body);
+				loadError =
+					failure.reason === 'daily_cap_exceeded'
+						? m.benchsheet_error_budget_reached()
+						: failure.reason === 'no_directions'
+							? m.benchsheet_error_no_directions()
+							: m.benchsheet_error_load_failed();
+				loadErrorRetryable = failure.retryable;
 			}
 		} catch {
 			loadError = m.benchsheet_error_connection_failed();
@@ -646,21 +656,31 @@
 		if (sessionStarted || !cookMode) return;
 		sessionStarted = true;
 		frozenRecipe = currentFrozenRecipe(cookMode);
+		frozenViewLang = activeViewLang;
 	}
 
 	function restoreProgress(cm: CookModeDisplayRecipe) {
 		try {
 			const raw = localStorage.getItem(PROGRESS_KEY);
 			const parsed = raw ? JSON.parse(raw) : null;
-			const saved =
-				decodeCookSession(parsed) ??
-				migrateLegacyCookSession(parsed, cm, stepsSig(cm), currentFrozenRecipe(cm));
-			if (!saved) {
+			const result = readCookSession(parsed);
+			if (result.state === 'empty') {
 				currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
 				return;
 			}
+			if (result.state === 'discard') {
+				clearProgress();
+				timerEnds = {};
+				timerOrder = [];
+				firedFor.clear();
+				sessionNotice = m.benchsheet_session_reset_notice();
+				currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
+				return;
+			}
+			const saved = result.session;
 			sessionStarted = true;
 			frozenRecipe = saved.frozenRecipe;
+			frozenViewLang = saved.frozenViewLang;
 			servingDraft = saved.servings;
 			counterChecks = saved.counterChecks;
 			sessionSwaps = saved.sessionSwaps;
@@ -681,7 +701,11 @@
 					? saved.currentStepKey
 					: normalizeCookProgress(currentKeys(cm), null).currentKey;
 		} catch {
-			// Corrupt or inaccessible storage — start clean.
+			clearProgress();
+			timerEnds = {};
+			timerOrder = [];
+			firedFor.clear();
+			sessionNotice = m.benchsheet_session_reset_notice();
 			currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
 		}
 	}
@@ -692,8 +716,9 @@
 			localStorage.setItem(
 				PROGRESS_KEY,
 				JSON.stringify({
-					v: 2,
+					v: 3,
 					sig: frozenRecipe.signature,
+					frozenViewLang: activeViewLang,
 					currentStepKey,
 					timerEnds,
 					timerOrder,
@@ -717,7 +742,9 @@
 	function resetCookSession() {
 		clearProgress();
 		frozenRecipe = null;
+		frozenViewLang = null;
 		sessionStarted = false;
+		sessionNotice = '';
 		counterChecks = {};
 		sessionSwaps = {};
 		currentStepKey = cookMode ? normalizeCookProgress(currentKeys(cookMode), null).currentKey : null;
@@ -955,6 +982,11 @@
 		provenance={fallback.sourceProvenance ?? null}
 	/>
 {:else if cookMode}
+	{#if sessionNotice}
+		<div class="mx-3 my-2 min-h-11 rounded-xl border border-info/25 bg-info/5 px-3 py-2 text-xs text-base-content/70" role="status">
+			{sessionNotice}
+		</div>
+	{/if}
 	{#if loading}
 		<div class="mx-3 my-2 flex min-h-11 items-center gap-2 rounded-xl border border-info/25 bg-info/5 px-3 py-2 text-xs text-base-content/65" role="status">
 			<Spinner size="xs" />
@@ -963,7 +995,9 @@
 	{:else if loadError}
 		<div class="mx-3 my-2 flex min-h-11 items-center gap-2 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-xs">
 			<span class="min-w-0 flex-1">{loadError}</span>
-			<button class="btn btn-xs btn-ghost" onclick={() => loadCookMode(false)}>{m.recipes_retry_cooking_view()}</button>
+			{#if loadErrorRetryable}
+				<button class="btn btn-xs btn-ghost h-11 min-h-0 shrink-0" onclick={() => loadCookMode(false)}>{m.recipes_retry_cooking_view()}</button>
+			{/if}
 		</div>
 	{/if}
 	{#if notificationPrimerVisible}
@@ -976,19 +1010,23 @@
 			</span>
 			<button
 				type="button"
-				class="btn btn-xs btn-warning shrink-0"
+				class="btn btn-xs btn-warning h-11 min-h-0 shrink-0"
 				onclick={acceptNotifications}>{m.benchsheet_notif_allow_button()}</button
 			>
 			<button
 				type="button"
-				class="btn btn-xs btn-ghost shrink-0"
+				class="btn btn-xs btn-ghost h-11 min-h-0 shrink-0"
 				onclick={dismissNotificationPrimer}>{m.benchsheet_notif_not_now_button()}</button
 			>
 		</div>
 	{/if}
 
 	{#if steps.length}
-	<div class="sticky top-[3.25rem] z-20 border-y border-base-200 bg-base-100/95 px-3 py-2 shadow-sm backdrop-blur" aria-label={m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}>
+	<div
+		class="sticky z-20 border-y border-base-200 bg-base-100/95 px-3 py-2 shadow-sm backdrop-blur"
+		style="top: var(--recipe-header-height, 3.25rem)"
+		aria-label={m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}
+	>
 		<div class="mx-auto flex max-w-5xl flex-wrap items-center gap-2">
 			<div class="min-w-0 flex-1">
 				<div class="mb-1 text-xs font-semibold">{m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}</div>
@@ -1000,11 +1038,11 @@
 				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_increase()} disabled={servingDraft >= 99 || loading} onclick={() => changeServings(1)}>+</button>
 			</div>
 			{#if fallback.scalingMode !== 'fixed_batch'}
-				<div class="flex min-h-9 items-center gap-1" aria-label={m.recipes_fallback_servings_label()}>
+				<div class="flex min-h-11 items-center gap-1" aria-label={m.recipes_fallback_servings_label()}>
 					{#each [1, 1.5, 2] as multiplier}
 						<button
 							type="button"
-							class="btn btn-xs min-h-9 px-2 {servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier) ? 'btn-primary' : 'btn-ghost'}"
+							class="btn btn-xs h-11 min-h-0 min-w-11 px-2.5 {servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier) ? 'btn-primary' : 'btn-ghost'}"
 							aria-pressed={servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier)}
 							onclick={() => setServingMultiplier(multiplier)}
 						>{multiplier === 1.5 ? '1½×' : `${multiplier}×`}</button>
@@ -1017,7 +1055,10 @@
 
 	<div class="mx-auto max-w-5xl px-3 py-3 md:grid md:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)] md:items-start md:gap-5">
 	{#if projectedIngredients.length}
-		<aside class="mb-3 md:sticky md:top-36 md:mb-0">
+		<aside
+			class="mb-3 md:sticky md:mb-0"
+			style="top: calc(var(--recipe-header-height, 3.25rem) + 5rem)"
+		>
 			<CounterBoard
 				ingredients={projectedIngredients}
 				canonicalIngredients={activeCanonicalIngredients}
@@ -1066,11 +1107,11 @@
 			{#if !cookedDone}
 				<div class="mb-2 flex items-center gap-2">
 					<span class="flex-1 text-xs text-base-content/65">{m.benchsheet_rating_prompt()}</span>
-					<button type="button" class="btn btn-xs {benchSheetRating === 'good' ? 'btn-success' : 'btn-ghost'}" aria-label={m.benchsheet_rating_good_aria()} aria-pressed={benchSheetRating === 'good'} onclick={() => (benchSheetRating = benchSheetRating === 'good' ? null : 'good')}>👍</button>
-					<button type="button" class="btn btn-xs {benchSheetRating === 'bad' ? 'btn-error' : 'btn-ghost'}" aria-label={m.benchsheet_rating_bad_aria()} aria-pressed={benchSheetRating === 'bad'} onclick={() => (benchSheetRating = benchSheetRating === 'bad' ? null : 'bad')}>👎</button>
+					<button type="button" class="btn btn-xs h-11 min-h-0 w-11 px-0 {benchSheetRating === 'good' ? 'btn-success' : 'btn-ghost'}" aria-label={m.benchsheet_rating_good_aria()} aria-pressed={benchSheetRating === 'good'} onclick={() => (benchSheetRating = benchSheetRating === 'good' ? null : 'good')}>+</button>
+					<button type="button" class="btn btn-xs h-11 min-h-0 w-11 px-0 {benchSheetRating === 'bad' ? 'btn-error' : 'btn-ghost'}" aria-label={m.benchsheet_rating_bad_aria()} aria-pressed={benchSheetRating === 'bad'} onclick={() => (benchSheetRating = benchSheetRating === 'bad' ? null : 'bad')}>−</button>
 				</div>
 			{/if}
-			<button class="btn btn-sm btn-ghost w-full" onclick={markCooked} disabled={cookedSubmitting || cookedDone}>
+			<button class="btn btn-sm btn-ghost min-h-11 w-full" onclick={markCooked} disabled={cookedSubmitting || cookedDone}>
 				{#if cookedDone}{m.benchsheet_cooked_logged()}{:else if cookedSubmitting}…{:else}{m.cookmode_log_cooked()}{/if}
 			</button>
 		</div>

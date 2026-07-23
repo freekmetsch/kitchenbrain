@@ -38,9 +38,10 @@
 
 <li
 	id={`cook-step-${index}`}
-	class="relative scroll-mt-36 overflow-hidden rounded-2xl border border-base-300/70 bg-base-100 transition-all {current
+	class="relative overflow-hidden rounded-2xl border border-base-300/70 bg-base-100 transition-all {current
 		? 'translate-y-[-1px] shadow-lg ring-2 ring-primary/35'
 		: 'shadow-sm'}"
+	style="scroll-margin-top: calc(var(--recipe-header-height, 3.25rem) + 5rem)"
 >
 	<div class="absolute inset-y-0 left-0 w-1.5 {palette.bar}" aria-hidden="true"></div>
 	<button

@@ -1,5 +1,5 @@
 import type { Ingredient } from '$lib/recipe_ingredient';
-import type { CookModeDisplayRecipe, StoredCookModeRecipe } from '$lib/types';
+import type { StoredCookModeRecipe } from '$lib/types';
 import type { SessionIngredientSwap } from './cook_counter';
 
 export type FrozenCookRecipe = {
@@ -12,9 +12,10 @@ export type FrozenCookRecipe = {
 	baselineServings: number | null;
 };
 
-export type CookSessionV2 = {
-	v: 2;
+export type CookSessionV3 = {
+	v: 3;
 	sig: string;
+	frozenViewLang: 'en' | 'nl';
 	currentStepKey: string | null;
 	timerEnds: Record<number, number>;
 	timerOrder: number[];
@@ -24,12 +25,24 @@ export type CookSessionV2 = {
 	sessionSwaps: Record<string, SessionIngredientSwap>;
 };
 
-export function decodeCookSession(value: unknown): CookSessionV2 | null {
-	if (value == null || typeof value !== 'object') return null;
-	const saved = value as Partial<CookSessionV2>;
+export type CookSessionReadResult =
+	| { state: 'empty' }
+	| { state: 'discard' }
+	| { state: 'ready'; session: CookSessionV3 };
+
+export function readCookSession(value: unknown): CookSessionReadResult {
+	if (value == null) return { state: 'empty' };
+	if (typeof value !== 'object') return { state: 'discard' };
+	const saved = value as Partial<CookSessionV3>;
 	const frozen = saved.frozenRecipe;
+	const timerEnds =
+		saved.timerEnds && typeof saved.timerEnds === 'object'
+			? Object.entries(saved.timerEnds)
+			: null;
+	const timerOrder = Array.isArray(saved.timerOrder) ? saved.timerOrder : null;
 	if (
-		saved.v !== 2 ||
+		saved.v !== 3 ||
+		(saved.frozenViewLang !== 'en' && saved.frozenViewLang !== 'nl') ||
 		typeof saved.sig !== 'string' ||
 		!frozen ||
 		typeof frozen.signature !== 'string' ||
@@ -37,70 +50,41 @@ export function decodeCookSession(value: unknown): CookSessionV2 | null {
 		!Array.isArray(frozen.directionIds) ||
 		!Array.isArray(frozen.ingredients) ||
 		!Array.isArray(frozen.canonicalIngredients) ||
-		!Array.isArray(saved.timerOrder) ||
-		saved.timerEnds == null ||
-		typeof saved.timerEnds !== 'object'
-	) return null;
+		timerOrder == null ||
+		timerOrder.some((index) => !Number.isInteger(index) || index < 0) ||
+		new Set(timerOrder).size !== timerOrder.length ||
+		timerEnds == null ||
+		timerEnds.some(
+			([index, end]) =>
+				!/^\d+$/.test(index) ||
+				typeof end !== 'number' ||
+				!Number.isFinite(end) ||
+				!timerOrder.includes(Number(index))
+		) ||
+		timerOrder.some((index) => !timerEnds.some(([savedIndex]) => Number(savedIndex) === index))
+	) return { state: 'discard' };
 	return {
-		v: 2,
-		sig: saved.sig,
-		currentStepKey: typeof saved.currentStepKey === 'string' ? saved.currentStepKey : null,
-		timerEnds: saved.timerEnds,
-		timerOrder: saved.timerOrder.filter((index) => Number.isInteger(index) && index >= 0),
-		servings:
-			Number.isInteger(saved.servings) && (saved.servings as number) >= 1
-				? (saved.servings as number)
-				: frozen.baselineServings ?? 4,
-		frozenRecipe: frozen,
-		counterChecks:
-			saved.counterChecks && typeof saved.counterChecks === 'object'
-				? saved.counterChecks
-				: {},
-		sessionSwaps:
-			saved.sessionSwaps && typeof saved.sessionSwaps === 'object'
-				? saved.sessionSwaps
-				: {}
-	};
-}
-
-export function migrateLegacyCookSession(
-	value: unknown,
-	currentPlan: CookModeDisplayRecipe,
-	signature: string,
-	frozenRecipe: FrozenCookRecipe
-): CookSessionV2 | null {
-	if (value == null || typeof value !== 'object') return null;
-	const saved = value as Record<string, unknown>;
-	if (saved.v === 2 || saved.sig !== signature) return null;
-	const timerEnds =
-		saved.timerEnds && typeof saved.timerEnds === 'object'
-			? (saved.timerEnds as Record<number, number>)
-			: {};
-	const timerOrder = Array.isArray(saved.timerOrder)
-		? saved.timerOrder.filter((index): index is number => Number.isInteger(index) && index >= 0)
-		: [];
-	const currentStepKey =
-		typeof saved.currentStepKey === 'string' ? saved.currentStepKey : null;
-	const firstStep = currentPlan.steps[0];
-	const firstKeys = firstStep
-		? new Set(
-				[
-					firstStep.step_id,
-					firstStep.direction_id,
-					`0:${firstStep.stream_id}`
-				].filter((key): key is string => Boolean(key))
-			)
-		: new Set<string>();
-	if (timerOrder.length === 0 && (!currentStepKey || firstKeys.has(currentStepKey))) return null;
-	return {
-		v: 2,
-		sig: signature,
-		currentStepKey,
-		timerEnds,
-		timerOrder,
-		servings: currentPlan.servings ?? frozenRecipe.baselineServings ?? 4,
-		frozenRecipe: structuredClone(frozenRecipe),
-		counterChecks: {},
-		sessionSwaps: {}
+		state: 'ready',
+		session: {
+			v: 3,
+			sig: saved.sig,
+			frozenViewLang: saved.frozenViewLang,
+			currentStepKey: typeof saved.currentStepKey === 'string' ? saved.currentStepKey : null,
+			timerEnds: saved.timerEnds as Record<number, number>,
+			timerOrder,
+			servings:
+				Number.isInteger(saved.servings) && (saved.servings as number) >= 1
+					? (saved.servings as number)
+					: frozen.baselineServings ?? 4,
+			frozenRecipe: frozen,
+			counterChecks:
+				saved.counterChecks && typeof saved.counterChecks === 'object'
+					? saved.counterChecks
+					: {},
+			sessionSwaps:
+				saved.sessionSwaps && typeof saved.sessionSwaps === 'object'
+					? saved.sessionSwaps
+					: {}
+		}
 	};
 }

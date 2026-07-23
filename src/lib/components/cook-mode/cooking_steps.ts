@@ -8,6 +8,12 @@ function punctuateInstruction(value: string): string {
 	return /[.!?]$/u.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+function actionLeadPreparation(value: string, language: 'en' | 'nl'): string {
+	const trimmed = value.trim();
+	if (!/^(?:\d|[¼½¾⅓⅔⅛])/u.test(trimmed)) return trimmed;
+	return `${language === 'nl' ? 'Bereid' : 'Prepare'} ${trimmed}`;
+}
+
 function normalizedMatch(value: string): string {
 	return value
 		.normalize('NFKD')
@@ -76,7 +82,11 @@ export function preparationAsFirstStep(
 	plan: CookModeDisplayRecipe | null
 ): CookModeDisplayRecipe | null {
 	if (!plan || !plan.mise_en_place.length) return plan;
-	const preparation = plan.mise_en_place.map(punctuateInstruction).filter(Boolean).join(' ');
+	const preparation = plan.mise_en_place
+		.map((task) => actionLeadPreparation(task, plan.language))
+		.map(punctuateInstruction)
+		.filter(Boolean)
+		.join(' ');
 	if (!preparation) return { ...plan, mise_en_place: [] };
 
 	return {

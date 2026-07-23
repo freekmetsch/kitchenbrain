@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Cooking Mode Post-Ship UX/UI Review</title>
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23225f46'/%3E%3Cpath d='M9 17h14v7H9zM11 8h10l2 7H9z' fill='%23fffdf8'/%3E%3C/svg%3E">
+	<style>
+		:root {
+			color-scheme: light;
+			--ink: #172019;
+			--muted: #667269;
+			--paper: #f6f3eb;
+			--panel: #fffdf8;
+			--line: #d8d9cf;
+			--leaf: #225f46;
+			--leaf-soft: #e3efe8;
+			--tomato: #a83d2a;
+			--tomato-soft: #f8e7e2;
+			--amber: #87600d;
+			--amber-soft: #f6edcf;
+			--blue: #385e72;
+			--shadow: 0 18px 50px rgba(23, 32, 25, .08);
+		}
+
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			color: var(--ink);
+			background:
+				linear-gradient(rgba(34, 95, 70, .035) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(34, 95, 70, .035) 1px, transparent 1px),
+				var(--paper);
+			background-size: 24px 24px;
+		}
+
+		button, input, textarea { font: inherit; }
+		button, .control { min-height: 44px; }
+		a { color: var(--leaf); }
+		code { font-family: "SFMono-Regular", Consolas, monospace; font-size: .9em; }
+
+		.shell {
+			width: min(1180px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 32px 0 72px;
+		}
+
+		.masthead {
+			display: grid;
+			grid-template-columns: 1.45fr .55fr;
+			gap: 24px;
+			align-items: end;
+			padding: 30px;
+			border: 1px solid var(--line);
+			border-radius: 28px;
+			background: rgba(255, 253, 248, .94);
+			box-shadow: var(--shadow);
+		}
+
+		.eyebrow {
+			display: inline-flex;
+			align-items: center;
+			min-height: 30px;
+			padding: 0 10px;
+			border-radius: 999px;
+			background: var(--leaf-soft);
+			color: var(--leaf);
+			font-size: 12px;
+			font-weight: 800;
+			letter-spacing: .08em;
+			text-transform: uppercase;
+		}
+
+		h1, h2, h3, p { margin-top: 0; }
+		h1 {
+			max-width: 780px;
+			margin: 18px 0 14px;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(38px, 7vw, 72px);
+			line-height: .96;
+			letter-spacing: -.04em;
+		}
+
+		.lede {
+			max-width: 760px;
+			margin-bottom: 0;
+			color: var(--muted);
+			font-size: 18px;
+			line-height: 1.6;
+		}
+
+		.score {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 10px;
+		}
+
+		.score div {
+			padding: 18px;
+			border: 1px solid var(--line);
+			border-radius: 18px;
+			background: white;
+		}
+
+		.score strong {
+			display: block;
+			font-family: Georgia, serif;
+			font-size: 32px;
+			line-height: 1;
+		}
+
+		.score span {
+			display: block;
+			margin-top: 8px;
+			color: var(--muted);
+			font-size: 12px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: .07em;
+		}
+
+		.section { margin-top: 42px; }
+		.section-heading {
+			display: flex;
+			align-items: baseline;
+			justify-content: space-between;
+			gap: 20px;
+			margin-bottom: 16px;
+		}
+
+		.section-heading h2 {
+			margin-bottom: 0;
+			font-family: Georgia, serif;
+			font-size: 31px;
+			letter-spacing: -.02em;
+		}
+
+		.section-heading p {
+			margin-bottom: 0;
+			color: var(--muted);
+		}
+
+		.evidence {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 14px;
+		}
+
+		.evidence figure {
+			margin: 0;
+			overflow: hidden;
+			border: 1px solid var(--line);
+			border-radius: 20px;
+			background: var(--panel);
+			box-shadow: 0 10px 30px rgba(23, 32, 25, .05);
+		}
+
+		.mock {
+			display: block;
+			width: 100%;
+			aspect-ratio: 4 / 5;
+			position: relative;
+			overflow: hidden;
+			padding: 18px;
+			background: linear-gradient(155deg, #f9f6ed, #e8eee9);
+		}
+
+		.mock-phone {
+			position: relative;
+			height: 100%;
+			padding: 13px;
+			border: 2px solid #29332c;
+			border-radius: 24px;
+			background: #fff;
+			box-shadow: 0 14px 28px rgba(23, 32, 25, .16);
+		}
+
+		.mock-topbar {
+			height: 10px;
+			width: 54%;
+			margin-bottom: 11px;
+			border-radius: 999px;
+			background: #28352c;
+		}
+
+		.mock-status {
+			height: 30px;
+			margin: 0 -13px 10px;
+			background: var(--tomato-soft);
+			border-block: 1px solid #edc4ba;
+		}
+
+		.mock-toolbar {
+			height: 33px;
+			margin: 0 -13px 11px;
+			border-block: 1px solid #cdd6d0;
+			background: rgba(255,255,255,.96);
+		}
+
+		.mock-row {
+			height: 27px;
+			margin: 7px 0;
+			border: 1px solid #d8ded9;
+			border-radius: 10px;
+			background: linear-gradient(90deg, var(--leaf-soft) 26%, #fff 26%);
+		}
+
+		.mock-step {
+			height: 64px;
+			margin: 9px 0;
+			border: 1px solid #d8ded9;
+			border-radius: 13px;
+			background:
+				linear-gradient(#d8ded9, #d8ded9) 42px 16px / 55% 5px no-repeat,
+				linear-gradient(#e8ebe8, #e8ebe8) 42px 30px / 72% 5px no-repeat,
+				linear-gradient(#e8ebe8, #e8ebe8) 42px 43px / 48% 5px no-repeat,
+				white;
+		}
+
+		.mock-step::before {
+			content: "";
+			display: block;
+			width: 24px;
+			height: 24px;
+			margin: 14px 0 0 8px;
+			border-radius: 50%;
+			background: var(--leaf);
+		}
+
+		.mock-popover {
+			position: absolute;
+			top: 96px;
+			left: -62px;
+			width: 205px;
+			padding: 10px;
+			border: 1px solid #c5cec7;
+			border-radius: 13px;
+			background: white;
+			box-shadow: 0 12px 24px rgba(23, 32, 25, .2);
+		}
+
+		.mock-option {
+			height: 34px;
+			margin: 5px 0;
+			border-radius: 8px;
+			background: #edf1ee;
+		}
+
+		.mock-overlap .mock-status { margin-bottom: -24px; position: relative; z-index: 3; }
+		.mock-overlap .mock-toolbar { position: relative; z-index: 2; background: var(--amber-soft); }
+		.mock-caption-line {
+			position: absolute;
+			right: 17px;
+			bottom: 16px;
+			left: 17px;
+			height: 8px;
+			border-radius: 99px;
+			background: rgba(34,95,70,.18);
+		}
+
+		.evidence figcaption {
+			padding: 14px 16px 16px;
+			color: var(--muted);
+			font-size: 13px;
+			line-height: 1.45;
+		}
+
+		.findings {
+			display: grid;
+			gap: 12px;
+		}
+
+		.finding {
+			border: 1px solid var(--line);
+			border-radius: 20px;
+			background: var(--panel);
+			box-shadow: 0 8px 24px rgba(23, 32, 25, .04);
+			overflow: hidden;
+		}
+
+		.finding[data-priority="P1"] { border-left: 5px solid var(--tomato); }
+		.finding[data-priority="P2"] { border-left: 5px solid var(--amber); }
+		.finding[data-priority="P3"] { border-left: 5px solid var(--blue); }
+
+		.finding-summary {
+			display: grid;
+			grid-template-columns: auto 1fr auto;
+			gap: 14px;
+			align-items: center;
+			padding: 14px 16px;
+		}
+
+		.finding-summary input {
+			width: 22px;
+			height: 22px;
+			accent-color: var(--leaf);
+		}
+
+		.finding-title {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			flex-wrap: wrap;
+		}
+
+		.finding-title strong { font-size: 16px; }
+		.badge {
+			display: inline-flex;
+			align-items: center;
+			min-height: 25px;
+			padding: 0 8px;
+			border-radius: 999px;
+			font-size: 11px;
+			font-weight: 800;
+			letter-spacing: .05em;
+		}
+		.badge.p1 { background: var(--tomato-soft); color: var(--tomato); }
+		.badge.p2 { background: var(--amber-soft); color: var(--amber); }
+		.badge.p3 { background: #e5eef2; color: var(--blue); }
+
+		.toggle {
+			border: 0;
+			border-radius: 12px;
+			background: transparent;
+			color: var(--leaf);
+			font-size: 13px;
+			font-weight: 800;
+			cursor: pointer;
+			padding: 0 12px;
+		}
+
+		.finding-body {
+			display: none;
+			grid-template-columns: 1fr 1fr;
+			gap: 18px;
+			padding: 0 18px 18px 54px;
+			color: var(--muted);
+			font-size: 14px;
+			line-height: 1.55;
+		}
+
+		.finding.open .finding-body { display: grid; }
+		.finding-body strong { color: var(--ink); }
+		.finding-body p { margin-bottom: 0; }
+
+		.route {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 12px;
+		}
+
+		.phase {
+			position: relative;
+			min-height: 210px;
+			padding: 20px;
+			border: 1px solid var(--line);
+			border-radius: 20px;
+			background: var(--panel);
+		}
+
+		.phase::before {
+			content: attr(data-step);
+			display: grid;
+			place-items: center;
+			width: 34px;
+			height: 34px;
+			margin-bottom: 28px;
+			border-radius: 50%;
+			background: var(--leaf);
+			color: white;
+			font-weight: 900;
+		}
+
+		.phase:not(:last-child)::after {
+			content: "";
+			position: absolute;
+			top: 36px;
+			right: -13px;
+			width: 13px;
+			border-top: 2px dotted var(--leaf);
+		}
+
+		.phase h3 { margin-bottom: 8px; font-size: 16px; }
+		.phase p { margin-bottom: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+		.controls {
+			position: sticky;
+			bottom: 16px;
+			z-index: 5;
+			display: grid;
+			grid-template-columns: 1fr auto;
+			gap: 16px;
+			align-items: end;
+			margin-top: 42px;
+			padding: 18px;
+			border: 1px solid rgba(34, 95, 70, .25);
+			border-radius: 22px;
+			background: rgba(255, 253, 248, .96);
+			box-shadow: 0 20px 60px rgba(23, 32, 25, .16);
+			backdrop-filter: blur(16px);
+		}
+
+		.prompt-wrap label {
+			display: block;
+			margin-bottom: 7px;
+			font-size: 12px;
+			font-weight: 800;
+			letter-spacing: .06em;
+			text-transform: uppercase;
+			color: var(--muted);
+		}
+
+		textarea {
+			display: block;
+			width: 100%;
+			min-height: 104px;
+			resize: vertical;
+			padding: 12px 14px;
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			background: white;
+			color: var(--ink);
+			line-height: 1.45;
+		}
+
+		.actions { display: grid; gap: 8px; }
+		.actions button {
+			min-width: 140px;
+			padding: 0 16px;
+			border-radius: 12px;
+			border: 1px solid var(--line);
+			background: white;
+			color: var(--ink);
+			font-weight: 800;
+			cursor: pointer;
+		}
+		.actions .primary { background: var(--leaf); color: white; border-color: var(--leaf); }
+		.actions button:hover { transform: translateY(-1px); }
+
+		.note {
+			margin-top: 16px;
+			padding: 15px 18px;
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			background: rgba(255, 253, 248, .72);
+			color: var(--muted);
+			font-size: 14px;
+			line-height: 1.5;
+		}
+
+		.toast {
+			position: fixed;
+			right: 20px;
+			bottom: 20px;
+			z-index: 20;
+			padding: 12px 16px;
+			border-radius: 12px;
+			background: var(--ink);
+			color: white;
+			font-size: 14px;
+			opacity: 0;
+			transform: translateY(8px);
+			pointer-events: none;
+			transition: .18s ease;
+		}
+		.toast.show { opacity: 1; transform: translateY(0); }
+
+		@media (max-width: 850px) {
+			.masthead { grid-template-columns: 1fr; }
+			.evidence { grid-template-columns: 1fr; }
+			.evidence figure { display: grid; grid-template-columns: 160px 1fr; }
+			.mock { aspect-ratio: 1; height: 100%; }
+			.route { grid-template-columns: repeat(2, 1fr); }
+			.phase:nth-child(2)::after { display: none; }
+		}
+
+		@media (max-width: 600px) {
+			.shell { width: min(100% - 20px, 1180px); padding-top: 10px; }
+			.masthead { padding: 22px; border-radius: 20px; }
+			.score { grid-template-columns: repeat(4, 1fr); }
+			.score div { padding: 12px 8px; text-align: center; }
+			.score strong { font-size: 25px; }
+			.score span { font-size: 9px; }
+			.section-heading { display: block; }
+			.section-heading p { margin-top: 6px; }
+			.evidence figure { grid-template-columns: 112px 1fr; }
+			.finding-summary { grid-template-columns: auto 1fr; }
+			.toggle { grid-column: 2; justify-self: start; }
+			.finding-body, .finding.open .finding-body { grid-template-columns: 1fr; padding-left: 52px; }
+			.route { grid-template-columns: 1fr; }
+			.phase { min-height: 0; }
+			.phase:not(:last-child)::after { display: none; }
+			.controls { position: static; grid-template-columns: 1fr; }
+			.actions { grid-template-columns: 1fr 1fr; }
+			.actions .primary { grid-column: 1 / -1; }
+			.actions button { min-width: 0; }
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+		}
+	</style>
+</head>
+<body>
+	<main class="shell">
+		<header class="masthead">
+			<div>
+				<span class="eyebrow">Post-ship review board</span>
+				<h1>Keep the cook moving.</h1>
+				<p class="lede">The Kitchen Timeline's core design holds up. The remaining work is a bounded hardening pass at legacy-session, sticky-layout, mobile-overlay, and recovery seams.</p>
+			</div>
+			<div class="score" aria-label="Audit summary">
+				<div><strong>8</strong><span>Findings</span></div>
+				<div><strong>3</strong><span>P1</span></div>
+				<div><strong>4</strong><span>P2</span></div>
+				<div><strong>1</strong><span>P3</span></div>
+			</div>
+		</header>
+
+		<section class="section" aria-labelledby="evidence-title">
+			<div class="section-heading">
+				<h2 id="evidence-title">What the browser showed</h2>
+				<p>Isolated data, real rendering, no provider spend.</p>
+			</div>
+			<div class="evidence">
+				<figure>
+					<div class="mock" role="img" aria-label="Schematic of a legacy cache mismatch in the cooking timeline">
+						<div class="mock-phone">
+							<div class="mock-topbar"></div>
+							<div class="mock-toolbar"></div>
+							<div class="mock-row"></div>
+							<div class="mock-row"></div>
+							<div class="mock-row"></div>
+							<div class="mock-step"></div>
+							<div class="mock-step"></div>
+						</div>
+						<div class="mock-caption-line"></div>
+					</div>
+					<figcaption><strong>Legacy mismatch.</strong> The counter and timeline derive from different completeness contracts.</figcaption>
+				</figure>
+				<figure>
+					<div class="mock" role="img" aria-label="Schematic of an ingredient swap menu clipped outside a phone viewport">
+						<div class="mock-phone">
+							<div class="mock-topbar"></div>
+							<div class="mock-row"></div>
+							<div class="mock-row"></div>
+							<div class="mock-row"></div>
+							<div class="mock-popover">
+								<div class="mock-option"></div>
+								<div class="mock-option"></div>
+								<div class="mock-option"></div>
+							</div>
+						</div>
+						<div class="mock-caption-line"></div>
+					</div>
+					<figcaption><strong>Off-screen swap.</strong> A right-aligned 256 px disclosure is anchored to a narrow first-row trigger.</figcaption>
+				</figure>
+				<figure>
+					<div class="mock mock-overlap" role="img" aria-label="Schematic of cooking progress controls overlapped by a translation status row">
+						<div class="mock-phone">
+							<div class="mock-topbar"></div>
+							<div class="mock-status"></div>
+							<div class="mock-toolbar"></div>
+							<div class="mock-step"></div>
+							<div class="mock-step"></div>
+							<div class="mock-step"></div>
+						</div>
+						<div class="mock-caption-line"></div>
+					</div>
+					<figcaption><strong>Sticky collision.</strong> The cooking bar assumes a one-row header while status copy adds another row.</figcaption>
+				</figure>
+			</div>
+		</section>
+
+		<section class="section" aria-labelledby="findings-title">
+			<div class="section-heading">
+				<h2 id="findings-title">Recommended repair scope</h2>
+				<p>P1/P2 are selected. P3 polish is optional.</p>
+			</div>
+			<div id="findings" class="findings"></div>
+		</section>
+
+		<section class="section" aria-labelledby="route-title">
+			<div class="section-heading">
+				<h2 id="route-title">Execution route</h2>
+				<p>Small contracts first, visual finish second.</p>
+			</div>
+			<div class="route">
+				<article class="phase" data-step="1">
+					<h3>Restore state contracts</h3>
+					<p>Separate new-session eligibility from active legacy compatibility, then make fallback recovery truthful and localized.</p>
+				</article>
+				<article class="phase" data-step="2">
+					<h3>Repair interaction seams</h3>
+					<p>Measure the sticky header and reuse the existing BottomSheet for ingredient swaps.</p>
+				</article>
+				<article class="phase" data-step="3">
+					<h3>Close access and copy gaps</h3>
+					<p>Enforce cooking-specific targets, deduplicate timer context, and safely normalize preparation display.</p>
+				</article>
+				<article class="phase" data-step="4">
+					<h3>Prove the release</h3>
+					<p>Run focused TDD, full repository checks, and the language/state/responsive browser matrix.</p>
+				</article>
+			</div>
+		</section>
+
+		<p class="note">
+			<strong>Safety boundary:</strong> no schema migration, stored-cache rewrite, AH/shopping change, or live provider verification. Only a versioned session with frozen language/projection may finish unchanged; ambiguous pre-fix sessions clear once to complete fallback. New sessions use complete source fallback until v5 is available.
+			<a href="../../feature-lists/archive/FEATURE_LIST_COOKING_MODE_POST_SHIP_UX_UI.md">Open the authoritative Markdown plan.</a>
+		</p>
+
+		<section class="controls" aria-labelledby="prompt-title">
+			<div class="prompt-wrap">
+				<label id="prompt-title" for="prompt">Generated handoff prompt</label>
+				<textarea id="prompt" readonly></textarea>
+			</div>
+			<div class="actions">
+				<button id="copy" class="primary" type="button">Copy prompt</button>
+				<button id="select-all" type="button">Select all</button>
+				<button id="reset" type="button">Reset</button>
+			</div>
+		</section>
+	</main>
+
+	<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+	<script>
+		const STORAGE_KEY = "keukenbrein:cooking-post-ship-review:v1";
+		const findings = [
+			{
+				id: "legacy",
+				priority: "P1",
+				title: "Keep legacy caches out of new sessions",
+				impact: "v2/v3 can omit ingredients or remap the step graph during a language change.",
+				repair: "Accept v4/v5 for new sessions; version frozen language/projection; clear ambiguous pre-fix sessions once to fallback; use complete source fallback while v5 loads.",
+				tickets: "CUX-1, CUX-2",
+				selected: true,
+				open: true
+			},
+			{
+				id: "swap-viewport",
+				priority: "P1",
+				title: "Move ingredient swaps into the existing BottomSheet",
+				impact: "The first phone dropdown begins outside the viewport, hiding options.",
+				repair: "Use one selected-ingredient state and the shared native-dialog sheet across widths; keep live swap and saved-default actions explicit.",
+				tickets: "CUX-5",
+				selected: true,
+				open: true
+			},
+			{
+				id: "sticky",
+				priority: "P1",
+				title: "Measure the complete sticky recipe header",
+				impact: "Translation status can cover progress and serving controls.",
+				repair: "Publish the actual header extent on the common route ancestor and consume it for cooking toolbar position and scroll margin.",
+				tickets: "CUX-4",
+				selected: true,
+				open: true
+			},
+			{
+				id: "swap-focus",
+				priority: "P2",
+				title: "Give swaps a complete dismissal and focus contract",
+				impact: "Escape does not close the current disclosure and focus return is undefined.",
+				repair: "Verify focus trap, Escape/backdrop cancel, selection close, and trigger focus restoration.",
+				tickets: "CUX-5",
+				selected: true,
+				open: true
+			},
+			{
+				id: "targets",
+				priority: "P2",
+				title: "Meet the 44 px cooking target",
+				impact: "Common phone actions use 36-40 px interactive boxes.",
+				repair: "Increase hit areas for counters, swaps, servings, timer actions, and after-cooking controls without changing unrelated UI.",
+				tickets: "CUX-6",
+				selected: true,
+				open: true
+			},
+			{
+				id: "recovery",
+				priority: "P2",
+				title: "Localize and explain fallback recovery",
+				impact: "Raw English generation errors appear in Dutch while usable fallback steps remain on screen.",
+				repair: "Return bounded API reason codes and map them to truthful EN/NL recovery and retry copy.",
+				tickets: "CUX-3",
+				selected: true,
+				open: true
+			},
+			{
+				id: "projection",
+				priority: "P2",
+				title: "Remove duplicate timer and weak preparation presentation",
+				impact: "The floating timer can repeat one long instruction twice; legacy/v4 preparation may begin with a quantity.",
+				repair: "Suppress exact-equivalent timer context and normalize only safely recognized preparation fragments.",
+				tickets: "CUX-7",
+				selected: true,
+				open: true
+			},
+			{
+				id: "after-cooking",
+				priority: "P3",
+				title: "Rename “Cooking history” to “After cooking”",
+				impact: "The disclosure contains current rating and logging actions, not history.",
+				repair: "Use a plain EN/NL label if it remains a one-line translation-complete change.",
+				tickets: "CUX-7",
+				selected: false,
+				open: false
+			}
+		];
+
+		function savedState() {
+			try {
+				return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+			} catch {
+				return {};
+			}
+		}
+
+		function saveState() {
+			const state = {};
+			for (const item of findings) state[item.id] = { selected: item.selected, open: item.open };
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+		}
+
+		function applySavedState() {
+			const state = savedState();
+			for (const item of findings) {
+				if (state[item.id]) {
+					item.selected = Boolean(state[item.id].selected);
+					item.open = Boolean(state[item.id].open);
+				}
+			}
+		}
+
+		function escapeHtml(value) {
+			return value.replace(/[&<>"']/g, character => ({
+				"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+			})[character]);
+		}
+
+		function render() {
+			const root = document.getElementById("findings");
+			root.innerHTML = findings.map(item => `
+				<article class="finding ${item.open ? "open" : ""}" data-priority="${item.priority}">
+					<div class="finding-summary">
+						<input id="include-${item.id}" data-select="${item.id}" type="checkbox" ${item.selected ? "checked" : ""} aria-label="Include ${escapeHtml(item.title)}">
+						<label class="finding-title" for="include-${item.id}">
+							<span class="badge ${item.priority.toLowerCase()}">${item.priority}</span>
+							<strong>${escapeHtml(item.title)}</strong>
+						</label>
+						<button class="toggle" type="button" data-toggle="${item.id}" aria-expanded="${item.open}">
+							${item.open ? "Hide detail" : "Show detail"}
+						</button>
+					</div>
+					<div class="finding-body">
+						<p><strong>Observed impact</strong><br>${escapeHtml(item.impact)}</p>
+						<p><strong>Planned repair</strong><br>${escapeHtml(item.repair)} <code>${item.tickets}</code></p>
+					</div>
+				</article>
+			`).join("");
+
+			root.querySelectorAll("[data-select]").forEach(input => {
+				input.addEventListener("change", event => {
+					const item = findings.find(candidate => candidate.id === event.target.dataset.select);
+					item.selected = event.target.checked;
+					saveState();
+					updatePrompt();
+				});
+			});
+
+			root.querySelectorAll("[data-toggle]").forEach(button => {
+				button.addEventListener("click", event => {
+					const item = findings.find(candidate => candidate.id === event.currentTarget.dataset.toggle);
+					item.open = !item.open;
+					saveState();
+					render();
+					updatePrompt();
+				});
+			});
+		}
+
+		function updatePrompt() {
+			const included = findings.filter(item => item.selected);
+			const excluded = findings.filter(item => !item.selected);
+			const lines = [
+				"Continue: Execute the Cooking Mode Post-Ship UX/UI plan.",
+				"Read C:\\\\Users\\\\metsc\\\\Cloned_Repositories\\\\household-brain-public\\\\docs\\\\feature-lists\\\\archive\\\\FEATURE_LIST_COOKING_MODE_POST_SHIP_UX_UI.md.",
+				"",
+				"Include:",
+				...included.map(item => `- ${item.priority} ${item.title} (${item.tickets})`),
+				"",
+				"Exclude:",
+				...(excluded.length ? excluded.map(item => `- ${item.priority} ${item.title}`) : ["- Nothing"]),
+				"",
+				"Keep the plan's safety defaults: no migration or stored-cache rewrite; only complete versioned compatibility sessions remain frozen until Reset; ambiguous pre-fix sessions clear once to complete fallback; new legacy-backed sessions use complete source fallback while v5 loads; verification makes no live provider calls."
+			];
+			document.getElementById("prompt").value = lines.join("\n");
+		}
+
+		function reset() {
+			localStorage.removeItem(STORAGE_KEY);
+			for (const item of findings) {
+				item.selected = item.priority !== "P3";
+				item.open = item.priority !== "P3";
+			}
+			render();
+			updatePrompt();
+			notify("Recommended scope restored.");
+		}
+
+		function notify(message) {
+			const toast = document.getElementById("toast");
+			toast.textContent = message;
+			toast.classList.add("show");
+			window.setTimeout(() => toast.classList.remove("show"), 1700);
+		}
+
+		async function copyPrompt() {
+			const prompt = document.getElementById("prompt");
+			try {
+				await navigator.clipboard.writeText(prompt.value);
+				notify("Prompt copied.");
+			} catch {
+				prompt.focus();
+				prompt.select();
+				const copied = document.execCommand("copy");
+				notify(copied ? "Prompt copied." : "Prompt selected. Press Ctrl+C.");
+			}
+		}
+
+		applySavedState();
+		render();
+		updatePrompt();
+		document.getElementById("copy").addEventListener("click", copyPrompt);
+		document.getElementById("select-all").addEventListener("click", () => {
+			const prompt = document.getElementById("prompt");
+			prompt.focus();
+			prompt.select();
+			notify("Prompt selected.");
+		});
+		document.getElementById("reset").addEventListener("click", reset);
+	</script>
+</body>
+</html>

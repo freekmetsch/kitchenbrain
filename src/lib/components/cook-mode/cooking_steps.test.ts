@@ -75,4 +75,20 @@ describe('deterministic cooking steps', () => {
 			'Cook the onion.'
 		]);
 	});
+
+	it('makes quantity-led preparation fragments safely action-led', () => {
+		const plan: CookModeDisplayRecipe = {
+			version: 4,
+			language: 'en',
+			generation_id: 'legacy-v4',
+			servings: 4,
+			mise_en_place: ['400 g chicken breast, cubed', 'Drain the chickpeas'],
+			streams: [{ id: 'main', name: 'Main' }],
+			steps: []
+		};
+
+		expect(preparationAsFirstStep(plan)?.steps[0].body).toBe(
+			'Prepare 400 g chicken breast, cubed. Drain the chickpeas.'
+		);
+	});
 });

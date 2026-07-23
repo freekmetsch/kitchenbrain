@@ -74,3 +74,8 @@ Touched: docs/feature-lists/archive/FEATURE_LIST_RECIPE_COOKING_DESIGN_SHOTGUN.m
 
 ## 2026-07-23 | shipped | recipe Kitchen Timeline
 Shipped the cooking-first recipe page, immutable source snapshots, stable direction identity, validated v5 AI structure, frozen sessions, counter checks, live swaps, Dutch-canonical saved defaults, numbered responsive timeline, exact scaled step quantities, serving presets, and secondary recipe maintenance. Verification passed with 393 unit tests, Svelte checks, production build, copied-database migration/hash and rollback rehearsals, and phone/wide browser stories without provider spend.
+
+## 2026-07-23 | html-artifact | plan: cooking mode post-ship UX/UI
+Touched: docs/artifacts/2026-07-23-plan-cooking-mode-post-ship-ux-ui.html, docs/feature-lists/FEATURE_LIST_COOKING_MODE_POST_SHIP_UX_UI.md, docs/known_issues/current/ISSUE_COOKING_MODE_POST_SHIP_UX_UI_20260723-1653.md
+
+## [2026-07-23 18:03] archive-scan | 1 feature lists, 1 HTMLs archived

@@ -41,7 +41,7 @@
 		// Worker-driven tick from the parent. Drives the per-frame remaining
 		// derivation; advances ~every 250 ms while the worker has a subscriber.
 		now: number;
-		stepTitle: string;
+		stepTitle: string | null;
 		purpose: string;
 		// Action-led label fields. When both are non-null, the pill renders
 		// "{ACTION} · {location}" as the dominant glanceable text and demotes
@@ -76,13 +76,13 @@
 	let remaining = $derived(endsAt != null ? Math.max(0, Math.ceil((endsAt - now) / 1000)) : 0);
 	let done = $derived(endsAt != null && remaining === 0);
 
-	// Stack position: oldest at the bottom, newer pills float up. 3.75rem per
-	// pill = 60 px @ 16 px base (pill + gap), with safe-area-inset on the bottom
+	// Stack position: oldest at the bottom, newer pills float up. 4.25rem per
+	// pill = 68 px @ 16 px base (44 px actions plus breathing room), with safe-area-inset on the bottom
 	// pill only — upper pills inherit the cumulative offset.
 	let bottomCss = $derived(
 		index === 0
 			? `calc(4.5rem + env(safe-area-inset-bottom) + ${bottomClearanceRem}rem)`
-			: `calc(4.5rem + env(safe-area-inset-bottom) + ${bottomClearanceRem + index * 3.75}rem)`
+			: `calc(4.5rem + env(safe-area-inset-bottom) + ${bottomClearanceRem + index * 4.25}rem)`
 	);
 
 	function snapHorizontal(data: DragEventData) {
@@ -162,18 +162,20 @@
 					{#if purpose}
 						<span class="text-[11px] font-semibold truncate">{purpose}</span>
 					{/if}
-					<span class="text-[10px] opacity-80 truncate">{stepTitle}</span>
+					{#if stepTitle}
+						<span class="text-[10px] opacity-80 truncate">{stepTitle}</span>
+					{/if}
 				{/if}
 			</div>
 		{/if}
 
-		<!-- Horizontal 36 px buttons keep the pill under the 3.75 rem stack pitch
-		     (a vertical pair of 36 px buttons would make pills overlap in the
+		<!-- Horizontal 44 px buttons keep the actions kitchen-friendly.
+		     A vertical pair would make pills overlap in the
 		     stack). `.timer-no-drag` excludes them from the drag surface. -->
 		<div class="flex items-center gap-1 pr-2 py-2">
 			<button
 				type="button"
-				class="timer-no-drag w-9 h-9 rounded-full bg-white/15 text-white text-sm hover:bg-white/25 active:scale-95"
+				class="timer-no-drag h-11 w-11 rounded-full bg-white/15 text-white text-sm hover:bg-white/25 active:scale-95"
 				onclick={() => (minimized = !minimized)}
 				aria-label={minimized ? m.cookmode_timer_expand_aria() : m.cookmode_timer_minimize_aria()}
 			>
@@ -181,7 +183,7 @@
 			</button>
 			<button
 				type="button"
-				class="timer-no-drag w-9 h-9 rounded-full bg-white/15 text-white text-sm hover:bg-white/25 active:scale-95"
+				class="timer-no-drag h-11 w-11 rounded-full bg-white/15 text-white text-sm hover:bg-white/25 active:scale-95"
 				onclick={onDismiss}
 				aria-label={done ? m.cookmode_dismiss_timer_aria() : m.cookmode_cancel_timer_aria()}
 			>

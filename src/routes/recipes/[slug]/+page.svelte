@@ -19,7 +19,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { useChatAgent } from '$lib/chat/agent_context';
 	import type { IngredientRoleCoverage } from '$lib/server/recipe_links';
-	import { isStaleCookMode } from '$lib/components/cook-mode/staleness';
+	import { isCookModeEligibleForNewSession } from '$lib/components/cook-mode/staleness';
 
 	let {
 		data
@@ -156,6 +156,7 @@
 
 	let imageUploading = $state(false);
 	let imageUploadError = $state('');
+	let recipeHeaderHeight = $state(52);
 	let imageFileInput: HTMLInputElement | null = $state(null);
 
 	// P4.1 freeze-on-cook prompt
@@ -323,7 +324,10 @@
 
 <svelte:window onpaste={handleImagePaste} />
 
-<div class="ui-page-shell !max-w-6xl overflow-x-clip">
+<div
+	class="ui-page-shell !max-w-6xl overflow-x-clip"
+	style={`--recipe-header-height: ${recipeHeaderHeight}px`}
+>
 
 <RecipeHeader
 	{recipe}
@@ -331,6 +335,7 @@
 	{viewLang}
 	{translationLoading}
 	{translationMessage}
+	bind:stickyHeight={recipeHeaderHeight}
 	onAddToPlan={() => {
 		addToPlanOpen = true;
 	}}
@@ -373,10 +378,9 @@
 	recipeRevision={recipe.contentRevision}
 	planMealId={data.planMealId}
 	recipeTitle={displayTitle}
-	initial={isStaleCookMode(recipe.cookModeJson) ||
-	(recipe.cookModeJson?.version === 3 && recipe.cookModeJson.servings !== cookingServings)
-		? null
-		: recipe.cookModeJson}
+	initial={isCookModeEligibleForNewSession(recipe.cookModeJson, viewLang, cookingServings)
+		? recipe.cookModeJson
+		: null}
 	requiresPlan={true}
 	progressSignature={`${recipe.slug}:${recipe.updatedAt?.toString() ?? 'saved'}`}
 	fallback={benchSheetFallback}
