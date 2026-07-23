@@ -4,6 +4,13 @@ Self-hosted grocery, meal-plan, recipe, and freezer-inventory PWA with an AI cha
 
 This file is the root of the repo; the app itself lives in this directory (SvelteKit).
 
+## App stage
+
+`app_stage: beta`
+
+- The canonical public repository owns development and deployment.
+- Real household data may exist. Treat schema, auth, and destructive data changes as R3.
+
 ## Stack
 
 - **SvelteKit 2 + Svelte 5** (runes), Tailwind v4 + daisyUI, adapter-node.
@@ -14,16 +21,19 @@ This file is the root of the repo; the app itself lives in this directory (Svelt
 ## Local development
 
 ```
-cp .env.example .env   # fill in OPENROUTER_API_KEY at minimum
 npm install
 npm run dev
 ```
+
+Do not copy `.env.example` to a plaintext env file. The standard verification commands below are
+secret-free. Any flow that needs a real provider credential must use the global 1Password contract
+and a committed repository wrapper; do not invent a local fallback.
 
 - `npm run check` — svelte-check (types + template diagnostics).
 - `npm run test:unit` — vitest, no network calls, no cost.
 - `npm run build` — production bundle; also the fastest way to catch a broken Tailwind class or Svelte compile error.
 
-Run all three before opening a PR.
+Run all three before opening a PR. They replace the retired repo-local `verify` skill.
 
 This repo is the canonical dev repo for the app — it's what Railway (or any other deploy target) builds from directly, at the repo root.
 
