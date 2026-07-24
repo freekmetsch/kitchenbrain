@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="data:,">
+	<title>Show, don't tell — Keukenbrein UI plan</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #f5f0e7;
+			--card: #fffdf8;
+			--ink: #17231d;
+			--muted: #667068;
+			--line: #d8d2c6;
+			--green: #255d45;
+			--green-soft: #dcebe1;
+			--orange: #a84c20;
+			--orange-soft: #f7dfcf;
+			--red: #9b2f2f;
+			--red-soft: #f5dddd;
+			--blue: #315f78;
+			--blue-soft: #deebf1;
+			--shadow: 0 18px 45px rgb(35 43 38 / 8%);
+		}
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			background:
+				radial-gradient(circle at 90% 0%, rgb(37 93 69 / 10%), transparent 28rem),
+				var(--paper);
+			color: var(--ink);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			line-height: 1.55;
+		}
+		a { color: var(--green); text-underline-offset: .18em; }
+		code {
+			padding: .12em .38em;
+			border: 1px solid var(--line);
+			border-radius: .4rem;
+			background: #f8f5ee;
+			font-size: .88em;
+		}
+		.wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+		header { padding: 72px 0 42px; }
+		.eyebrow {
+			margin: 0 0 12px;
+			color: var(--green);
+			font-size: .76rem;
+			font-weight: 800;
+			letter-spacing: .12em;
+			text-transform: uppercase;
+		}
+		h1 {
+			max-width: 760px;
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.8rem, 8vw, 6.6rem);
+			font-weight: 500;
+			letter-spacing: -.055em;
+			line-height: .92;
+		}
+		.lede {
+			max-width: 720px;
+			margin: 26px 0 0;
+			color: #39443d;
+			font-size: clamp(1rem, 2vw, 1.24rem);
+		}
+		.status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+		.pill {
+			display: inline-flex;
+			align-items: center;
+			min-height: 30px;
+			padding: 5px 10px;
+			border: 1px solid var(--line);
+			border-radius: 999px;
+			background: rgb(255 253 248 / 70%);
+			font-size: .78rem;
+			font-weight: 750;
+		}
+		.pill.ready { border-color: #9bc4a8; background: var(--green-soft); color: #164d34; }
+		.pill.risk { border-color: #e1b18e; background: var(--orange-soft); color: #763612; }
+		.contradiction {
+			display: grid;
+			grid-template-columns: 1fr auto 1fr;
+			align-items: stretch;
+			gap: 10px;
+			margin: 34px 0 0;
+			padding: 12px;
+			border: 1px solid #e1b18e;
+			border-radius: 22px;
+			background: rgb(255 253 248 / 80%);
+			box-shadow: var(--shadow);
+		}
+		.fact {
+			min-height: 140px;
+			padding: 24px;
+			border-radius: 14px;
+			background: var(--card);
+		}
+		.fact.bad { background: var(--red-soft); }
+		.fact small {
+			display: block;
+			margin-bottom: 8px;
+			color: var(--muted);
+			font-weight: 750;
+			letter-spacing: .06em;
+			text-transform: uppercase;
+		}
+		.fact strong {
+			display: block;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(1.55rem, 4vw, 2.8rem);
+			font-weight: 500;
+			line-height: 1.05;
+		}
+		.arrow { align-self: center; color: var(--orange); font-size: 2rem; font-weight: 800; }
+		nav {
+			position: sticky;
+			z-index: 5;
+			top: 0;
+			border-block: 1px solid rgb(216 210 198 / 88%);
+			background: rgb(245 240 231 / 92%);
+			backdrop-filter: blur(14px);
+		}
+		nav .wrap {
+			display: flex;
+			gap: 20px;
+			overflow-x: auto;
+			padding-block: 11px;
+			scrollbar-width: thin;
+		}
+		nav a {
+			flex: none;
+			color: var(--ink);
+			font-size: .83rem;
+			font-weight: 750;
+			text-decoration: none;
+		}
+		main { padding: 42px 0 80px; }
+		section { scroll-margin-top: 58px; margin-top: 68px; }
+		section:first-child { margin-top: 0; }
+		.section-head {
+			display: grid;
+			grid-template-columns: minmax(0, .65fr) minmax(260px, 1.35fr);
+			gap: 24px;
+			align-items: end;
+			margin-bottom: 22px;
+		}
+		h2 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2rem, 5vw, 3.7rem);
+			font-weight: 500;
+			letter-spacing: -.035em;
+			line-height: 1;
+		}
+		.section-head p { margin: 0; color: var(--muted); }
+		.matrix {
+			overflow: hidden;
+			border: 1px solid var(--line);
+			border-radius: 18px;
+			background: var(--card);
+			box-shadow: var(--shadow);
+		}
+		.row {
+			display: grid;
+			grid-template-columns: 1fr 1.2fr 1.3fr;
+			border-top: 1px solid var(--line);
+		}
+		.row:first-child { border-top: 0; }
+		.row > div { min-width: 0; padding: 17px 18px; }
+		.row > div + div { border-left: 1px solid var(--line); }
+		.row.head {
+			background: #e9e4da;
+			font-size: .72rem;
+			font-weight: 850;
+			letter-spacing: .09em;
+			text-transform: uppercase;
+		}
+		.tell { color: var(--red); font-weight: 750; }
+		.show { color: var(--green); font-weight: 750; }
+		.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+		.card {
+			padding: 22px;
+			border: 1px solid var(--line);
+			border-radius: 17px;
+			background: var(--card);
+			box-shadow: 0 10px 28px rgb(35 43 38 / 5%);
+		}
+		.card h3 { margin: 8px 0 8px; font-size: 1.08rem; line-height: 1.25; }
+		.card p { margin: 0; color: #4c5750; font-size: .92rem; }
+		.rank {
+			display: inline-flex;
+			padding: 3px 7px;
+			border-radius: 999px;
+			background: var(--orange-soft);
+			color: #733410;
+			font-size: .7rem;
+			font-weight: 850;
+			letter-spacing: .08em;
+		}
+		.rank.p3 { background: var(--blue-soft); color: var(--blue); }
+		.good { border-color: #a9cbb3; background: #f7fbf7; }
+		.phase {
+			display: grid;
+			grid-template-columns: 155px 1fr;
+			gap: 24px;
+			padding: 24px 0;
+			border-top: 1px solid var(--line);
+		}
+		.phase:last-child { border-bottom: 1px solid var(--line); }
+		.phase-no {
+			color: var(--green);
+			font-size: .76rem;
+			font-weight: 850;
+			letter-spacing: .1em;
+			text-transform: uppercase;
+		}
+		.phase h3 { margin: 0 0 6px; font-size: 1.25rem; }
+		.phase p { margin: 0 0 14px; color: var(--muted); }
+		.ticket-list { display: grid; gap: 8px; }
+		.ticket {
+			display: grid;
+			grid-template-columns: 66px 1fr auto;
+			gap: 12px;
+			align-items: start;
+			padding: 13px 14px;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			background: var(--card);
+		}
+		.ticket b { color: var(--green); }
+		.ticket span { font-size: .89rem; }
+		.ticket em {
+			color: var(--muted);
+			font-size: .72rem;
+			font-style: normal;
+			font-weight: 800;
+		}
+		.guardrails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+		.guardrail {
+			padding: 18px;
+			border-radius: 14px;
+			background: var(--ink);
+			color: #eef4ef;
+		}
+		.guardrail strong { display: block; margin-bottom: 5px; color: #b9dfc4; }
+		.guardrail p { margin: 0; color: #c7d0ca; font-size: .86rem; }
+		.verify {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 12px;
+		}
+		.verify article {
+			padding: 20px;
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			background: var(--card);
+		}
+		.verify h3 { margin: 0 0 8px; font-size: .98rem; }
+		.verify p { margin: 0; color: var(--muted); font-size: .87rem; }
+		.decision {
+			padding: 28px;
+			border-radius: 20px;
+			background: var(--green);
+			color: white;
+		}
+		.decision h2 { max-width: 720px; }
+		.decision p { max-width: 800px; margin: 16px 0 0; color: #d9e9de; }
+		.decision a { color: white; }
+		.note {
+			margin-top: 16px;
+			padding: 15px 17px;
+			border-left: 4px solid var(--orange);
+			background: var(--orange-soft);
+			color: #5f321b;
+			font-size: .88rem;
+		}
+		footer { padding: 0 0 48px; color: var(--muted); font-size: .82rem; }
+		@media (max-width: 760px) {
+			header { padding-top: 46px; }
+			.contradiction { grid-template-columns: 1fr; }
+			.arrow { justify-self: center; transform: rotate(90deg); }
+			.section-head { grid-template-columns: 1fr; align-items: start; }
+			.cards, .guardrails, .verify { grid-template-columns: 1fr; }
+			.phase { grid-template-columns: 1fr; gap: 8px; }
+			.row { grid-template-columns: 1fr; }
+			.row.head { display: none; }
+			.row > div + div { border-top: 1px dashed var(--line); border-left: 0; }
+			.row > div::before {
+				display: block;
+				margin-bottom: 4px;
+				color: var(--muted);
+				font-size: .65rem;
+				font-weight: 850;
+				letter-spacing: .08em;
+				text-transform: uppercase;
+			}
+			.row:not(.head) > div:nth-child(1)::before { content: "The UI says"; }
+			.row:not(.head) > div:nth-child(2)::before { content: "The UI should show"; }
+			.row:not(.head) > div:nth-child(3)::before { content: "Do not break"; }
+			.ticket { grid-template-columns: 58px 1fr; }
+			.ticket em { grid-column: 2; }
+		}
+		@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+	</style>
+</head>
+<body>
+	<header>
+		<div class="wrap">
+			<p class="eyebrow">Keukenbrein · full UI scan · 24 July 2026</p>
+			<h1>Show the state.<br>Don't explain the state.</h1>
+			<p class="lede">
+				A read-only scan of the authenticated beta found one correctness contradiction and
+				six repeated handoff failures. The chosen plan turns prose into visible choices,
+				destinations, source disclosure, and previews while preserving safety and status copy.
+			</p>
+			<div class="status-row">
+				<span class="pill ready">Plan ready</span>
+				<span class="pill risk">R2 overall</span>
+				<span class="pill">8 tickets</span>
+				<span class="pill">3 phases</span>
+				<span class="pill">No schema change</span>
+				<span class="pill">No provider or AH calls</span>
+			</div>
+			<div class="contradiction" aria-label="The central UI contradiction">
+				<div class="fact">
+					<small>What the freezer choice shows</small>
+					<strong>6 portions ready</strong>
+				</div>
+				<div class="arrow" aria-hidden="true">→</div>
+				<div class="fact bad">
+					<small>What the current client submits</small>
+					<strong>16 servings planned</strong>
+				</div>
+			</div>
+		</div>
+	</header>
+
+	<nav aria-label="Plan sections">
+		<div class="wrap">
+			<a href="#translation">Translation</a>
+			<a href="#findings">Findings</a>
+			<a href="#keep">Keep</a>
+			<a href="#sequence">Sequence</a>
+			<a href="#guardrails">Guardrails</a>
+			<a href="#proof">Proof</a>
+			<a href="#decision">Decision</a>
+		</div>
+	</nav>
+
+	<main class="wrap">
+		<section id="translation">
+			<div class="section-head">
+				<h2>The translation</h2>
+				<p>
+					This is not a copy-deletion exercise. A sentence leaves only when the interface
+					exposes the state, consequence, or action the sentence was compensating for.
+				</p>
+			</div>
+			<div class="matrix">
+				<div class="row head">
+					<div>The UI says</div>
+					<div>The UI should show</div>
+					<div>Invariant to preserve</div>
+				</div>
+				<div class="row">
+					<div class="tell">“6 portions ready”</div>
+					<div class="show">Serve 6 from freezer · Cook 16 fresh</div>
+					<div>Stored occasion servings, source, and fixed-batch semantics</div>
+				</div>
+				<div class="row">
+					<div class="tell">“Updated recipe (needs review)”</div>
+					<div class="show">A Review action on that result card</div>
+					<div>Safe app-local routes and old persisted history</div>
+				</div>
+				<div class="row">
+					<div class="tell">“200g + 200g” beside another flour row</div>
+					<div class="show">The meal/component contributions that cannot combine</div>
+					<div>Exact entry IDs, Dutch lookup terms, bought state, and AH input</div>
+				</div>
+				<div class="row">
+					<div class="tell">“Your week runs Monday to Sunday”</div>
+					<div class="show">A dated week strip with delivery marker</div>
+					<div>Canonical week and weekday helpers</div>
+				</div>
+				<div class="row">
+					<div class="tell">“Reset your data before importing”</div>
+					<div class="show">A blocker checklist linked to each reset group</div>
+					<div>Per-group type-to-confirm safety; no reset-all shortcut</div>
+				</div>
+				<div class="row">
+					<div class="tell">“recipe planned ✕”</div>
+					<div class="show">Linked state · Manage · Clear</div>
+					<div>Current recipe-link mutations and mobile fit</div>
+				</div>
+			</div>
+		</section>
+
+		<section id="findings">
+			<div class="section-head">
+				<h2>Fix now</h2>
+				<p>
+					No P1 was found: all core routes are usable. These P2s create wrong intent,
+					make the user hunt, or hide why an action is blocked.
+				</p>
+			</div>
+			<div class="cards">
+				<article class="card">
+					<span class="rank">P2 · correctness</span>
+					<h3>Freezer quantity contradicts the visible choice</h3>
+					<p>Both meal-plan and recipe-detail callers choose freezer while retaining the fresh recipe yield.</p>
+				</article>
+				<article class="card">
+					<span class="rank">P2 · handoff</span>
+					<h3>Assistant review has no destination</h3>
+					<p>Needs-review cards render a summary, a diff, and Undo—but no View or Review action.</p>
+				</article>
+				<article class="card">
+					<span class="rank">P2 · choice</span>
+					<h3>Fresh/freezer is exposed as duplication and prose</h3>
+					<p>The same recipe appears under two sections, while the planned meal source looks like a descriptive chip.</p>
+				</article>
+				<article class="card">
+					<span class="rank">P2 · provenance</span>
+					<h3>Shopping rows hide why quantities stay separate</h3>
+					<p>The server correctly refuses false merges, but the UI omits the meal/component contributions.</p>
+				</article>
+				<article class="card">
+					<span class="rank">P2 · preview</span>
+					<h3>Meal settings narrate their consequences</h3>
+					<p>Week, delivery, planning mode, horizon, and suggestion settings all have enough local data for one preview.</p>
+				</article>
+				<article class="card">
+					<span class="rank">P2 · recovery</span>
+					<h3>Import blockers are a paragraph above disabled controls</h3>
+					<p>The exact blocking groups already exist farther down the page; surface them as readiness state and links.</p>
+				</article>
+				<article class="card">
+					<span class="rank">P2 · state</span>
+					<h3>Inventory recipe relationship is a tiny mutable phrase</h3>
+					<p>Separate the linked/unlinked state from named Manage and Clear actions.</p>
+				</article>
+				<article class="card">
+					<span class="rank p3">P3 · continuity</span>
+					<h3>Recipe editor explains a hidden post-save refresh</h3>
+					<p>Remove the hint only after the real redirect visibly enters Preparing or Refreshing.</p>
+				</article>
+			</div>
+		</section>
+
+		<section id="keep">
+			<div class="section-head">
+				<h2>Keep the good friction</h2>
+				<p>
+					“Show” is not synonymous with “decorate.” These surfaces already pair the right
+					state with the right action or carry copy the user genuinely needs.
+				</p>
+			</div>
+			<div class="cards">
+				<article class="card good"><h3>Import and Make sheets</h3><p>Direct URL/import and start/already-cooked choices make the outcome concrete.</p></article>
+				<article class="card good"><h3>Empty states</h3><p>Most name the missing object and place its next action nearby.</p></article>
+				<article class="card good"><h3>AI usage chart</h3><p>Daily use is visible without restating every number in prose.</p></article>
+				<article class="card good"><h3>Safety and system status</h3><p>Reset confirmation, assistant context, loading, errors, recovery, and AH connection instructions stay.</p></article>
+			</div>
+			<div class="note">
+				Deferred on purpose: textual recipe-card status pills and repeated cooking-counter
+				labels. They are recent, coherent, and did not block a task in this scan.
+			</div>
+		</section>
+
+		<section id="sequence">
+			<div class="section-head">
+				<h2>Execution sequence</h2>
+				<p>
+					Each ticket is a vertical, reversible slice. Start with the shared source decision
+					so the two planning entry points cannot drift again.
+				</p>
+			</div>
+			<div class="phase">
+				<div class="phase-no">Phase 1</div>
+				<div>
+					<h3>Close broken handoffs and the correctness gap</h3>
+					<p>One decision seam, direct destinations, and honest shopping provenance.</p>
+					<div class="ticket-list">
+						<div class="ticket"><b>SDT-1</b><span>Source-aware freezer/fresh choice in both planning callers</span><em>R2 · M</em></div>
+						<div class="ticket"><b>SDT-2</b><span>Safe Review/View action on assistant result cards</span><em>R2 · M</em></div>
+						<div class="ticket"><b>SDT-3</b><span>Presentation-only source disclosure for incompatible shopping rows</span><em>R2 · M</em></div>
+					</div>
+				</div>
+			</div>
+			<div class="phase">
+				<div class="phase-no">Phase 2</div>
+				<div>
+					<h3>Show consequences before commitment</h3>
+					<p>Use existing page data to preview configuration and expose recovery state.</p>
+					<div class="ticket-list">
+						<div class="ticket"><b>SDT-4</b><span>Live meal-planning settings preview</span><em>R1 · M</em></div>
+						<div class="ticket"><b>SDT-5</b><span>Import-readiness checklist linked to safe reset groups</span><em>R1 · S</em></div>
+						<div class="ticket"><b>SDT-6</b><span>Explicit inventory recipe relationship control</span><em>R1 · M</em></div>
+					</div>
+				</div>
+			</div>
+			<div class="phase">
+				<div class="phase-no">Phase 3</div>
+				<div>
+					<h3>Remove scaffolding only after the UI carries the meaning</h3>
+					<p>Prove post-save continuity, locales, breakpoints, input methods, and failure states.</p>
+					<div class="ticket-list">
+						<div class="ticket"><b>SDT-7</b><span>Recipe-save continuity through real Preparing/Refreshing state</span><em>R1 · S</em></div>
+						<div class="ticket"><b>SDT-8</b><span>Full regression matrix and paired copy cleanup</span><em>R1 · M</em></div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section id="guardrails">
+			<div class="section-head">
+				<h2>Hard guardrails</h2>
+				<p>The visual layer may reveal the model. It may not rewrite the model by accident.</p>
+			</div>
+			<div class="guardrails">
+				<article class="guardrail"><strong>One source helper</strong><p>Fresh and freezer defaults are computed once and tested through both callers.</p></article>
+				<article class="guardrail"><strong>No false shopping merge</strong><p>Grouping is presentational; exact rows, entry IDs, and bought state remain canonical.</p></article>
+				<article class="guardrail"><strong>Dutch stays canonical</strong><p>Shopping and AH continue to read Dutch ingredient terms only.</p></article>
+				<article class="guardrail"><strong>No LLM URLs</strong><p>Assistant actions use typed entity metadata and app-derived, allowlisted local routes.</p></article>
+				<article class="guardrail"><strong>No reset-all</strong><p>Import blockers link to existing per-group, type-to-confirm controls.</p></article>
+				<article class="guardrail"><strong>No fake preview</strong><p>Async cooking regeneration must show its real Preparing/Refreshing state.</p></article>
+			</div>
+		</section>
+
+		<section id="proof">
+			<div class="section-head">
+				<h2>Proof before deploy</h2>
+				<p>
+					All writes use a copied database. Provider and AH stories use fixtures. The real
+					household plan and basket stay untouched.
+				</p>
+			</div>
+			<div class="verify">
+				<article><h3>Repository gates</h3><p><code>npm run test:unit</code><br><code>npm run check</code><br><code>npm run build</code></p></article>
+				<article><h3>Viewport and locale</h3><p>375 and 1280 CSS px, English and Dutch, pointer and keyboard, reduced motion.</p></article>
+				<article><h3>State edges</h3><p>Zero stock, stock shortfall, fixed batch, old chat history, mixed bought rows, week boundaries, blockers, loading, and failure.</p></article>
+			</div>
+			<div class="note">
+				The external model critique route was attempted, but the configured models were
+				unavailable and the account fallback had reached its weekly limit. The authoritative
+				plan records the local failure-mode review and the added guardrails.
+			</div>
+		</section>
+
+		<section id="decision" class="decision">
+			<p class="eyebrow" style="color:#b9dfc4">Recommendation · GO</p>
+			<h2>Fix the contradiction first. Then replace explanations with the state and action they were covering for.</h2>
+			<p>
+				The authoritative, ticket-level plan is
+				<a href="../../feature-lists/archive/FEATURE_LIST_SHOW_DONT_TELL_UI.md">FEATURE_LIST_SHOW_DONT_TELL_UI.md</a>.
+				Shipped on 2026-07-24; use <code>/plan</code> for the next item.
+			</p>
+		</section>
+	</main>
+
+	<footer class="wrap">
+		Read-only audit of the authenticated deployed beta plus source trace. No production write,
+		provider request, destructive reset, or Albert Heijn call was performed.
+	</footer>
+</body>
+</html>

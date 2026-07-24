@@ -5,12 +5,14 @@ import { base } from '$app/paths';
 import { db } from '$lib/server/db/index';
 import { recipes } from '$lib/server/db/schema';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
-import { recipeIngredientsEqual } from '$lib/recipe_edit';
+import {
+	recipeEditChangesCookingStructure,
+	recipeIngredientsEqual
+} from '$lib/recipe_edit';
 import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
 import type { Actions, PageServerLoad } from './$types';
 import { LiveIngredientSchema, mergeLiveIngredients } from '$lib/recipe_ingredient';
 import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
-import { extractTimers } from '$lib/timer_extract';
 
 const RecipeEditSchema = z.object({
 	title: z.string().trim().min(1, 'title required').max(200),
@@ -126,17 +128,18 @@ export const actions: Actions = {
 		}
 		const sameJson = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 		const ingredientsChanged = !recipeIngredientsEqual(current.ingredients, ingredients);
-		const ingredientIdsChanged = !sameJson(
-			current.ingredients.map((ingredient) => ingredient.id),
-			ingredients.map((ingredient) => ingredient.id)
+		const semanticStructureChanged = recipeEditChangesCookingStructure(
+			{
+				ingredientIds: current.ingredients.map((ingredient) => ingredient.id),
+				directionIds: current.directionIdsJson,
+				directions: current.directions
+			},
+			{
+				ingredientIds: ingredients.map((ingredient) => ingredient.id),
+				directionIds: payload.directionIds,
+				directions: payload.directions
+			}
 		);
-		const directionStructureChanged = !sameJson(current.directionIdsJson, payload.directionIds);
-		const timerMeaningChanged = !sameJson(
-			current.directions.map((direction) => extractTimers(direction)),
-			payload.directions.map((direction) => extractTimers(direction))
-		);
-		const semanticStructureChanged =
-			ingredientIdsChanged || directionStructureChanged || timerMeaningChanged;
 		const translationInputsChanged =
 			current.title !== payload.title ||
 			current.language !== payload.language ||

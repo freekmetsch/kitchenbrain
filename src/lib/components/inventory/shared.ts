@@ -68,6 +68,18 @@ export function composeQty(n: number, unit: string | null): string {
 	return `${n}${unit ? ' ' + unit : ''}`;
 }
 
+export type RecipeRelationshipKind = 'linked' | 'planned' | 'not_needed' | 'unresolved';
+
+export function recipeRelationshipKind(
+	item: { recipeStatus: Item['recipeStatus'] },
+	link: { slug: string } | null
+): RecipeRelationshipKind {
+	if (link) return 'linked';
+	if (item.recipeStatus === 'plan_to_add') return 'planned';
+	if (item.recipeStatus === 'no_recipe') return 'not_needed';
+	return 'unresolved';
+}
+
 export function displayQuantity(
 	n: number,
 	unit: string | null,

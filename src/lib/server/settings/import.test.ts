@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '../test_db';
-import { importBootstrap, isBootstrapEligible, validateImportFile } from './import';
+import {
+	getBootstrapBlockers,
+	importBootstrap,
+	isBootstrapEligible,
+	validateImportFile
+} from './import';
 import { getHouseholdPref, setHouseholdPref } from '$lib/server/db/household_prefs';
 import {
 	initializeShoppingSourceData,
@@ -245,6 +250,19 @@ describe('isBootstrapEligible / importBootstrap', () => {
 	it('is eligible on a fresh db', () => {
 		const db = createTestDb();
 		expect(isBootstrapEligible(db)).toBe(true);
+	});
+
+	it('names only reset groups that actually block import', () => {
+		const db = createTestDb();
+		db.insert(schema.chatMessages)
+			.values({ userId: 1, role: 'user', content: 'hello', createdAt: new Date() })
+			.run();
+		expect(getBootstrapBlockers(db)).toEqual([]);
+
+		db.insert(schema.inventoryItems)
+			.values({ name: 'rice', section: 'pantry', createdAt: new Date(), updatedAt: new Date() })
+			.run();
+		expect(getBootstrapBlockers(db)).toEqual(['inventory']);
 	});
 
 	it('imports recipes, meal_sub_recipes, and inventory in FK-safe order', () => {

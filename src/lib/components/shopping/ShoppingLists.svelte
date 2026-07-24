@@ -4,7 +4,7 @@
 	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { itemLabel } from './format';
+	import { itemLabel, sourceContextLabels } from './format';
 	import type { ShoppingListItem, ShoppingListSource } from './types';
 	import SourceDecisionSheet from './SourceDecisionSheet.svelte';
 	import RecurringShoppingList from './RecurringShoppingList.svelte';
@@ -85,9 +85,31 @@
 	{#if visiblePending.length}
 		<ul class="ui-list-card divide-y divide-base-200">
 			{#each visiblePending as item, index (item.name + ':' + index)}
-				<li class="flex min-h-12 items-center gap-3 px-3 py-2 {item.covered ? 'text-base-content/55' : ''}">
+				<li class="flex min-h-12 items-start gap-3 px-3 py-2 {item.covered ? 'text-base-content/55' : ''} {item.incompatibleQuantities ? 'bg-warning/5' : ''}">
 					<input id={`buy-${index}`} data-shopping-key={shoppingKey(item)} type="checkbox" class="checkbox checkbox-md" checked={item.bought} aria-label={m.shopping_mark_bought_aria({ name: item.name })} onchange={() => void toggleBought(item)} />
-					<label for={`buy-${index}`} class="min-w-0 flex-1 cursor-pointer"><span class="block truncate text-sm font-medium">{item.name}</span>{#if itemLabel(item)}<span class="text-xs text-base-content/55">{itemLabel(item)}</span>{/if}</label>
+					<label for={`buy-${index}`} class="min-w-0 flex-1 cursor-pointer">
+						<span class="block truncate text-sm font-medium">{item.name}</span>
+						{#if itemLabel(item)}<span class="text-xs text-base-content/55">{itemLabel(item)}</span>{/if}
+						{#if item.incompatibleQuantities && item.sources?.length}
+							<ul class="mt-1.5 space-y-1 border-l-2 border-warning/35 pl-2" aria-label={m.shopping_quantity_sources_label()}>
+								{#each item.sources as source (source.id)}
+									{@const contexts = sourceContextLabels(source)}
+									<li class="flex flex-wrap items-baseline gap-x-1.5 text-xs text-base-content/65">
+										{#if itemLabel(source)}
+											<span class="font-semibold tabular-nums">{itemLabel(source)}</span>
+										{/if}
+										<span>
+											{contexts.length
+												? contexts.join(' · ')
+												: source.sourceKind === 'weekly'
+													? m.shopping_source_weekly()
+													: m.shopping_source_manual()}
+										</span>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</label>
 					{#if bonusByName[item.name]}<span class="badge badge-error badge-outline badge-sm">{m.shopping_bonus_chip()}</span>{/if}
 					{#if item.sources?.length === 1 && item.sources[0].sourceKind === 'manual'}<button type="button" class="btn btn-ghost btn-sm h-10 w-10 px-0" aria-label={m.shopping_remove_item_aria({ name: item.name })} onclick={() => onDeleteManual(item.sources![0])}><Icon name="x" /></button>{/if}
 				</li>

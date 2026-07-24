@@ -11,6 +11,11 @@
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import MealSourceChoice from '$lib/components/meal-plan/MealSourceChoice.svelte';
+	import {
+		defaultServingsForMealSource,
+		type MealSource
+	} from '$lib/meal_source_choice';
 	import type { Week } from './types';
 
 	let {
@@ -33,7 +38,7 @@
 	} = $props();
 
 	let addToPlanWeek = $state(untrack(() => weeks[0]?.weekStartDate ?? ''));
-	let addToPlanSource = $state<'fresh' | 'freezer'>('fresh');
+	let addToPlanSource = $state<MealSource>('fresh');
 	let addToPlanSubmitting = $state(false);
 	let servings = $state(untrack(() => baselineServings));
 	let batchOverride = $state(false);
@@ -43,10 +48,20 @@
 	$effect(() => {
 		if (open) {
 			addToPlanSource = frozenPortions > 0 ? 'freezer' : 'fresh';
-			servings = baselineServings;
+			servings = defaultServingsForMealSource(
+				addToPlanSource,
+				baselineServings,
+				frozenPortions
+			);
 			batchOverride = false;
 		}
 	});
+
+	function selectSource(source: MealSource) {
+		addToPlanSource = source;
+		servings = defaultServingsForMealSource(source, baselineServings, frozenPortions);
+		batchOverride = false;
+	}
 
 	async function addToPlan() {
 		if (addToPlanSubmitting) return;
@@ -80,37 +95,31 @@
 
 <BottomSheet bind:open title={m.recipes_addplan_sheet_title()}>
 	{#if frozenPortions > 0}
-		<div class="mb-4 flex flex-col gap-1.5">
+		<div class="mb-4">
 			<span class="text-[11px] font-semibold uppercase tracking-wide text-base-content/50"
 				>{m.recipes_addplan_source_label()}</span
 			>
-			<label
-				class="flex items-center gap-2.5 rounded-xl border px-3 py-2 cursor-pointer {addToPlanSource === 'freezer'
-					? 'border-primary bg-primary/5'
-					: 'border-base-300'}"
-			>
-				<input type="radio" class="radio radio-xs radio-primary" bind:group={addToPlanSource} value="freezer" />
-				<span class="text-sm">❄️ {m.recipes_addplan_source_freezer({ count: frozenPortions })}</span>
-			</label>
-			<label
-				class="flex items-center gap-2.5 rounded-xl border px-3 py-2 cursor-pointer {addToPlanSource === 'fresh'
-					? 'border-primary bg-primary/5'
-					: 'border-base-300'}"
-			>
-				<input type="radio" class="radio radio-xs radio-primary" bind:group={addToPlanSource} value="fresh" />
-				<span class="text-sm">🍳 {m.recipes_addplan_source_fresh()}</span>
-			</label>
+			<div class="mt-1.5">
+				<MealSourceChoice
+					source={addToPlanSource}
+					{baselineServings}
+					{frozenPortions}
+					{servings}
+					disabled={addToPlanSubmitting}
+					onselect={selectSource}
+				/>
+			</div>
 		</div>
 	{/if}
 	<div class="mb-4 rounded-xl border border-base-300 p-3">
 		<div class="flex items-center justify-between gap-3">
 			<div>
 				<span class="text-[11px] font-semibold uppercase tracking-wide text-base-content/50">{m.recipes_addplan_servings_label()}</span>
-				{#if scalingMode === 'fixed_batch' && !batchOverride}
+				{#if scalingMode === 'fixed_batch' && addToPlanSource === 'fresh' && !batchOverride}
 					<p class="text-sm font-medium">{m.recipes_addplan_fixed_batch({ count: baselineServings })}</p>
 				{/if}
 			</div>
-			{#if scalingMode === 'fixed_batch' && !batchOverride}
+			{#if scalingMode === 'fixed_batch' && addToPlanSource === 'fresh' && !batchOverride}
 				<button type="button" class="btn btn-ghost btn-xs min-h-9" onclick={() => (batchOverride = true)}>{m.recipes_addplan_change_batch()}</button>
 			{:else}
 				<div class="flex items-center gap-2">

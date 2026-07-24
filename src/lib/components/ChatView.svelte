@@ -18,6 +18,7 @@
 	} from '$lib/stores/chat-agent.svelte';
 	import { MOTION_MICRO_MS } from '$lib/motion';
 	import RecipeEnhancementReview from '$lib/components/chat/RecipeEnhancementReview.svelte';
+	import { toolEntityHref } from '$lib/tool_display';
 
 	let { controller: suppliedController }: { controller?: ChatAgentController } = $props();
 	const controller = untrack(() => suppliedController ?? useChatAgent());
@@ -309,6 +310,7 @@
 								{:else if tool.display}
 									{@const d = tool.display}
 									{@const opId = firstUndoableOp(tool)}
+									{@const entityHref = toolEntityHref(d.entityAction, base)}
 									<div class="flex min-w-0 flex-col gap-1 rounded-md bg-base-100/50 px-2 py-1.5">
 										<div class="flex items-center gap-1.5">
 											{#if tool.pending}
@@ -335,6 +337,20 @@
 														<span class="font-medium">{chip.after ?? '—'}</span>
 													</span>
 												{/each}
+											</div>
+										{/if}
+
+										{#if entityHref}
+											<div class="pl-5">
+												<a
+													href={entityHref}
+													class="btn btn-ghost btn-xs ui-chat-action px-2 text-xs text-primary"
+												>
+													{d.entityAction?.intent === 'review'
+														? m.chat_tool_review_button()
+														: m.chat_tool_view_button()}
+													<Icon name="chevronRight" class="h-3 w-3" />
+												</a>
 											</div>
 										{/if}
 

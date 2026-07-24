@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	hydrateDirections,
 	hydrateIngredients,
+	recipeEditChangesCookingStructure,
 	recipeIngredientsEqual,
 	serializeDirections,
 	serializeIngredients
@@ -55,6 +56,41 @@ describe('recipe edit UI identity', () => {
 				[{ name: 'ui', amount: '1', role: 'cook_in' }],
 				[{ name: 'ui', amount: '1', role: 'cook_in', substitutes: [] }]
 			)
+		).toBe(true);
+	});
+});
+
+describe('recipe edit cooking-view continuity', () => {
+	it('refreshes only when ingredient identity, step identity, or timers change', () => {
+		const current = {
+			ingredientIds: ['onion'],
+			directionIds: ['step-1'],
+			directions: ['Bake for 20 minutes.']
+		};
+
+		expect(
+			recipeEditChangesCookingStructure(current, {
+				...current,
+				directions: ['Bake gently for 20 minutes.']
+			})
+		).toBe(false);
+		expect(
+			recipeEditChangesCookingStructure(current, {
+				...current,
+				directions: ['Bake for 30 minutes.']
+			})
+		).toBe(true);
+		expect(
+			recipeEditChangesCookingStructure(current, {
+				...current,
+				directionIds: ['step-2']
+			})
+		).toBe(true);
+		expect(
+			recipeEditChangesCookingStructure(current, {
+				...current,
+				ingredientIds: ['shallot']
+			})
 		).toBe(true);
 	});
 });

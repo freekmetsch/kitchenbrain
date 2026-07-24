@@ -40,6 +40,7 @@
 		onSetRecipeStatus,
 		onLinkRecipe,
 		onClearRecipeStatus,
+		onClearRecipeLink,
 		onOpenLinkPicker,
 		onOpenPortionEdit,
 		onCommitPortionEdit,
@@ -73,6 +74,7 @@
 		onSetRecipeStatus: (status: 'plan_to_add' | 'no_recipe') => void;
 		onLinkRecipe: (s: RecipeSuggestion) => void;
 		onClearRecipeStatus: () => void;
+		onClearRecipeLink: () => void;
 		onOpenLinkPicker: () => void;
 		onOpenPortionEdit: () => void;
 		onCommitPortionEdit: () => void;
@@ -124,6 +126,7 @@
 			{onOpenLinkPicker}
 			{onSetRecipeStatus}
 			{onClearRecipeStatus}
+			{onClearRecipeLink}
 			{onOpenPortionEdit}
 			{onCommitPortionEdit}
 			{onCancelPortionEdit}

@@ -85,7 +85,11 @@
 
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
-	import { autofocus, foodClassText } from './shared';
+	import {
+		autofocus,
+		foodClassText,
+		recipeRelationshipKind
+	} from './shared';
 	import type { RecipeLink, RecipeMatch, RecipeSuggestion } from './shared';
 
 	let {
@@ -99,6 +103,7 @@
 		onOpenLinkPicker,
 		onSetRecipeStatus,
 		onClearRecipeStatus,
+		onClearRecipeLink,
 		onOpenPortionEdit,
 		onCommitPortionEdit,
 		onCancelPortionEdit,
@@ -118,6 +123,7 @@
 		onOpenLinkPicker: () => void;
 		onSetRecipeStatus: (status: 'plan_to_add' | 'no_recipe') => void;
 		onClearRecipeStatus: () => void;
+		onClearRecipeLink: () => void;
 		onOpenPortionEdit: () => void;
 		onCommitPortionEdit: () => void;
 		onCancelPortionEdit: () => void;
@@ -129,37 +135,44 @@
 	} = $props();
 
 	const exp = $derived(expiryBadge(item.expiryDate));
+	const relationship = $derived(recipeRelationshipKind(item, link));
 </script>
 
 <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-base-content/65">
 	<span class="opacity-70">{item.section === 'freezer' ? '❄️' : '🫙'}</span>
 
 	{#if item.kind === 'leftover'}
-		{#if link}
+		{#if relationship === 'linked' && link}
 			{@const sameName =
 				link.title.toLowerCase() === item.name.toLowerCase() ||
 				link.titleNl.toLowerCase() === item.name.toLowerCase()}
-			<!-- Recipe title usually equals the row name — repeating it is noise
-			     (UX-STOCK-5); keep a compact open-recipe affordance instead. -->
-			<a href="{base}/recipes/{link.slug}" class="max-w-40 truncate text-primary/80 hover:text-primary"
-				>↗ {sameName ? m.inventory_recipe_link_default() : link.title}</a
-			>
-		{:else if item.recipeStatus === 'plan_to_add'}
-			<button
-				type="button"
-				class="inline-flex items-center gap-1 text-base-content/60 hover:text-base-content/80"
-				title={m.inventory_recipe_planned_undo_title()}
-				onclick={() => onClearRecipeStatus()}
-			>
-				<span class="h-1 w-1 rounded-full bg-info/70"></span> {m.inventory_recipe_planned_label()}
-			</button>
-		{:else if item.recipeStatus === 'no_recipe'}
-			<button
-				type="button"
-				class="text-base-content/60 hover:text-base-content/80"
-				title={m.inventory_recipe_planned_undo_title()}
-				onclick={() => onClearRecipeStatus()}>{m.inventory_recipe_no_recipe_label()}</button
-			>
+			<div class="inline-flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-base-300 bg-base-100 px-1.5 py-1" role="group" aria-label={m.inventory_recipe_relationship_label()}>
+				<a href="{base}/recipes/{link.slug}" class="inline-flex max-w-40 items-center gap-1 truncate font-medium text-primary">
+					<Icon name="check" class="h-3 w-3 shrink-0" />
+					{m.inventory_recipe_linked_label({ title: sameName ? m.inventory_recipe_link_default() : link.title })}
+				</a>
+				<button type="button" class="btn btn-ghost btn-xs min-h-8 px-2" onclick={() => onOpenLinkPicker()}>
+					{m.inventory_recipe_manage_button()}
+				</button>
+				<button type="button" class="btn btn-ghost btn-xs min-h-8 px-2 text-error" onclick={() => onClearRecipeLink()}>
+					{m.inventory_recipe_clear_button()}
+				</button>
+			</div>
+		{:else if relationship === 'planned' || relationship === 'not_needed'}
+			<div class="inline-flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-base-300 bg-base-100 px-1.5 py-1" role="group" aria-label={m.inventory_recipe_relationship_label()}>
+				<span class="inline-flex items-center gap-1 font-medium text-base-content/70">
+					<Icon name={relationship === 'planned' ? 'clock' : 'minus'} class="h-3 w-3" />
+					{relationship === 'planned'
+						? m.inventory_recipe_planned_label()
+						: m.inventory_recipe_no_recipe_label()}
+				</span>
+				<button type="button" class="btn btn-ghost btn-xs min-h-8 px-2" onclick={() => onOpenLinkPicker()}>
+					{m.inventory_recipe_manage_button()}
+				</button>
+				<button type="button" class="btn btn-ghost btn-xs min-h-8 px-2 text-error" onclick={() => onClearRecipeStatus()}>
+					{m.inventory_recipe_clear_button()}
+				</button>
+			</div>
 		{:else}
 			<!-- Unlinked meal: suggestion chips are shortcuts; the picker, Plan to
 			     add, and No recipe are always available so no branch dead-ends

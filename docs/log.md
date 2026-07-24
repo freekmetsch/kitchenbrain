@@ -96,3 +96,15 @@ Touched: docs/artifacts/2026-07-23-ui-ux-chat-assistant.html, docs/feature-lists
 Shipped all 21 UX/UI findings and the three recommended defaults: distinct contextual/history entry roles, disclosed one-shot photos, and short reduced-motion-safe dialog transitions. Added live configured-cap recovery, durable interrupted-turn retry, recent-history boundaries, reversible context, destination-revealing navigation, localized server copy, safe focus recovery, settled launcher placement, non-overlapping attachments, 44 px actions, and 16 px conversation text. Verification passed with Svelte checks, 413 unit tests, production build, and English/Dutch browser stories at 375, 768, 1280, and 1536 px without provider spend.
 
 ## [2026-07-23 22:18] archive-scan | 2 feature lists, 1 HTML archived
+
+## 2026-07-24 | html-artifact | plan: show-dont-tell-ui
+
+Touched: docs/artifacts/2026-07-24-plan-show-dont-tell-ui.html, docs/feature-lists/FEATURE_LIST_SHOW_DONT_TELL_UI.md, docs/known_issues/current/ISSUE_FREEZER_MEAL_PORTIONS_20260724-1915.md
+
+## [2026-07-24 21:03] archive-scan | 1 feature lists, 1 HTMLs archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOW_DONT_TELL_UI.md, docs/artifacts/archive/2026-07-24-plan-show-dont-tell-ui.html
+
+## 2026-07-24 | shipped | show, don't tell UI
+
+Shipped source-aware fresh/freezer actions, direct assistant recipe destinations, shopping quantity provenance, a live meal-settings preview, actionable import readiness, explicit inventory recipe relationships, and semantic cooking-view regeneration. Verification passed with 426 unit tests, Svelte checks, a production build, and English/Dutch browser stories at 375 and 1280 px without provider spend or Albert Heijn writes.

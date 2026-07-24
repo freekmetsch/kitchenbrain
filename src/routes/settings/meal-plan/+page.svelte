@@ -9,6 +9,7 @@
 	import { weekdayName, WEEKDAY_OFFSETS } from '$lib/weekday';
 	import { untrack } from 'svelte';
 	import type { PageData } from './$types';
+	import MealPlanSettingsPreview from '$lib/components/settings/MealPlanSettingsPreview.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -78,7 +79,6 @@
 		}
 	}
 
-	let weekEndDay = $derived((weekStartDay + 6) % 7);
 </script>
 
 <svelte:head>
@@ -89,6 +89,16 @@
 	<SettingsPanelHeader title={m.settingsshell_panel_mealplan()} />
 
 	<div class="flex flex-col gap-5">
+		<MealPlanSettingsPreview
+			{weekStartDay}
+			{groceryDay}
+			{planAheadWeeks}
+			dayPlanning={dayPlanning === 'on'}
+			{repeatCycleDays}
+			{suggestCount}
+			{saving}
+		/>
+
 		<section class="ui-form-card">
 			<h2 class="ui-section-label mb-3">{m.settings_mealplan_window_heading()}</h2>
 			<div class="flex flex-col gap-4">
@@ -105,16 +115,12 @@
 							<option value={day}>{weekdayName(day)}</option>
 						{/each}
 					</select>
-					<p class="mt-1.5 text-xs text-base-content/50">
-						{m.settings_mealplan_week_start_hint({ from: weekdayName(weekStartDay), to: weekdayName(weekEndDay) })}
-					</p>
 				</div>
 				<div class="border-t border-base-300 pt-3">
 					<span class="ui-field-label mb-1.5 block" id="plan-ahead-label">{m.settings_mealplan_plan_ahead_label()}</span>
 					<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="plan-ahead-label">
 						<SegmentedTabs tabs={planAheadTabs} value={planAheadWeeks} onchange={(v) => save({ planAheadWeeks: v })} />
 					</div>
-					<p class="mt-1.5 text-xs text-base-content/50">{m.settings_mealplan_plan_ahead_hint()}</p>
 				</div>
 			</div>
 		</section>
@@ -138,7 +144,6 @@
 						<option value={String(day)}>{weekdayName(day)}</option>
 					{/each}
 				</select>
-				<p class="mt-1.5 text-xs text-base-content/50">{m.settings_mealplan_delivery_hint()}</p>
 			</div>
 		</section>
 
@@ -149,7 +154,6 @@
 				<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="day-planning-label">
 					<SegmentedTabs tabs={onOffTabs} value={dayPlanning} onchange={(v) => save({ dayPlanning: v === 'on' })} />
 				</div>
-				<p class="mt-1.5 text-xs text-base-content/50">{m.settings_mealplan_day_planning_hint()}</p>
 			</div>
 		</section>
 
@@ -161,14 +165,12 @@
 					<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="repeat-cycle-label">
 						<SegmentedTabs tabs={repeatCycleTabs} value={repeatCycleDays} onchange={(v) => save({ repeatCycleDays: v })} />
 					</div>
-					<p class="mt-1.5 text-xs text-base-content/50">{m.settings_mealplan_repeat_cycle_hint()}</p>
 				</div>
 				<div class="border-t border-base-300 pt-3">
 					<span class="ui-field-label mb-1.5 block" id="suggest-count-label">{m.settings_mealplan_suggest_count_label()}</span>
 					<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="suggest-count-label">
 						<SegmentedTabs tabs={suggestCountTabs} value={suggestCount} onchange={(v) => save({ suggestCount: v })} />
 					</div>
-					<p class="mt-1.5 text-xs text-base-content/50">{m.settings_mealplan_suggest_count_hint()}</p>
 				</div>
 			</div>
 		</section>

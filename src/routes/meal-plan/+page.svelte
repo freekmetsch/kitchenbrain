@@ -20,6 +20,11 @@
 	import { formatDate } from '$lib/i18n';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 	import { batchServingTarget } from '$lib/meal_batch';
+	import MealSourceChoice from '$lib/components/meal-plan/MealSourceChoice.svelte';
+	import {
+		defaultServingsForMealSource,
+		type MealSource
+	} from '$lib/meal_source_choice';
 
 	type Meal = PageData['weeks'][number]['meals'][number];
 	type Week = PageData['weeks'][number];
@@ -96,21 +101,14 @@
 
 	const DRAWER_CATEGORIES = ['meat', 'vegetarian', 'vegan', 'fish', 'pasta', 'soup', 'dessert'];
 
-	let freezerRecipes = $derived(
-		[...data.recipeList]
-			.filter((recipe) => recipe.onHandPortions > 0)
-			.sort((a, b) => b.onHandPortions - a.onHandPortions || recipeDisplayTitle(a).localeCompare(recipeDisplayTitle(b)))
-	);
-
-	let filteredFreezerRecipes = $derived(
-		freezerRecipes
-			.filter((recipe) => recipeMatchesDrawer(recipe))
-			.slice(0, 12)
-	);
-
 	let filteredRecipes = $derived(
 		data.recipeList
 			.filter((recipe) => recipeMatchesDrawer(recipe))
+			.sort(
+				(a, b) =>
+					b.onHandPortions - a.onHandPortions ||
+					recipeDisplayTitle(a).localeCompare(recipeDisplayTitle(b))
+			)
 			.slice(0, 40)
 	);
 
@@ -406,14 +404,18 @@
 		}
 	}
 
-	// Fresh ↔ freezer service toggle on a planned meal. Server rejects freezer
-	// for recipe-less meals; the chip only renders for linked ones anyway.
-	async function toggleSource(meal: Meal) {
+	async function setMealSource(meal: Meal, newSource: MealSource) {
 		if (pendingSourceToggles[meal.id] || meal.id < 0) return;
-		const newSource = meal.source === 'freezer' ? 'fresh' : 'freezer';
+		const recipe = recipeForMeal(meal);
+		if (!recipe || (newSource === 'freezer' && recipe.onHandPortions <= 0)) return;
+		const servings = defaultServingsForMealSource(
+			newSource,
+			recipe.servings,
+			recipe.onHandPortions
+		);
 		const previous = { ...meal };
 		pendingSourceToggles = { ...pendingSourceToggles, [meal.id]: true };
-		updateMeal({ ...meal, source: newSource });
+		updateMeal({ ...meal, source: newSource, servings });
 
 		let saved: Meal | null = null;
 		const ok = await optimistic(
@@ -421,7 +423,7 @@
 				const res = await fetch(`${base}/api/meal-plan/${meal.id}`, {
 					method: 'PUT',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ source: newSource })
+					body: JSON.stringify({ source: newSource, servings })
 				});
 				if (res.ok) saved = await res.json();
 				return res;
@@ -524,12 +526,16 @@
 		if (ok) toast.undo(m.mealplan_toast_removed({ dinner: meal.dinner }), () => void restoreMeal(meal));
 	}
 
-	async function addMealFromRecipe(recipe: Recipe, source: 'fresh' | 'freezer' = 'fresh') {
+	async function addMealFromRecipe(recipe: Recipe, source: MealSource = 'fresh') {
 		await addMealOptimistic({
 			weekStartDate: drawerWeek,
 			dinner: recipeDisplayTitle(recipe),
 			recipeSlug: recipe.slug,
-			servings: recipe.servings,
+			servings: defaultServingsForMealSource(
+				source,
+				recipe.servings,
+				recipe.onHandPortions
+			),
 			source
 		});
 	}
@@ -782,7 +788,7 @@
 												<span class="px-1 text-xs tabular-nums">{m.mealplan_servings_count({ count: meal.servings })}</span>
 												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={meal.servings >= 99} aria-disabled={!!pendingServings[meal.id] || meal.servings >= 99} aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })} onclick={() => !pendingServings[meal.id] && changeServings(meal, 1)}>+</button>
 											</div>
-											{#if linkedRecipe}
+											{#if linkedRecipe && meal.source !== 'freezer'}
 												<div class="inline-flex items-center gap-1" aria-label={linkedRecipe.scalingMode === 'fixed_batch' ? m.mealplan_batch_fixed() : m.mealplan_batch_scalable()}>
 													{#each [1, 2, 3, 4] as multiplier}
 														{@const target = batchServingTarget(linkedRecipe.servings, multiplier)}
@@ -810,28 +816,20 @@
 									{/if}
 									{#if meal.status !== 'cooked' && meal.recipeSlug && (meal.source === 'freezer' || frozenPortionsFor(meal) > 0)}
 										{@const onHand = frozenPortionsFor(meal)}
-										<!-- Fresh ↔ freezer service toggle: only rendered when the choice
-										     exists (portions on hand, or already set to freezer). -->
-										<button
-											type="button"
-											class="mt-1 {meal.source === 'freezer'
-												? onHand > 0
-													? 'ui-chip-active'
-													: 'ui-chip border-warning/50 bg-warning/10 text-warning'
-												: 'ui-chip'}"
-											disabled={!!pendingSourceToggles[meal.id] || meal.id < 0}
-											aria-pressed={meal.source === 'freezer'}
-											aria-label={m.mealplan_source_toggle_aria({ dinner: meal.dinner })}
-											onclick={() => toggleSource(meal)}
-										>
-											{#if meal.source === 'freezer'}
-												{onHand > 0
-													? `❄️ ${m.mealplan_source_freezer_chip({ count: onHand })}`
-													: `❄️ ${m.mealplan_source_freezer_empty_chip()}`}
-											{:else}
-												🍳 {m.mealplan_source_fresh_chip({ count: onHand })}
-											{/if}
-										</button>
+										{@const linkedForSource = recipeForMeal(meal)}
+										{#if linkedForSource && meal.servings}
+											<div class="mt-1.5">
+												<MealSourceChoice
+													source={meal.source}
+													baselineServings={linkedForSource.servings}
+													frozenPortions={onHand}
+													servings={meal.servings}
+													compact
+													disabled={!!pendingSourceToggles[meal.id] || meal.id < 0}
+													onselect={(source) => setMealSource(meal, source)}
+												/>
+											</div>
+										{/if}
 									{/if}
 								</div>
 								{#if dayPlanning && meal.status !== 'cooked'}
@@ -977,43 +975,6 @@
 		</button>
 	{/if}
 
-	{#if freezerRecipes.length > 0}
-		<section class="mt-5">
-			<div class="mb-2 flex items-baseline justify-between gap-3">
-				<h3 class="ui-section-label">{m.mealplan_from_freezer_heading()}</h3>
-				<span class="ui-chip-muted">{m.mealplan_stocked_chip({ count: freezerRecipes.length })}</span>
-			</div>
-			{#if filteredFreezerRecipes.length > 0}
-				<ul class="ui-list-card divide-y divide-base-200">
-					{#each filteredFreezerRecipes as recipe}
-						{@const title = recipeDisplayTitle(recipe)}
-						{@const key = addKey(drawerWeek, title, recipe.slug)}
-						<li>
-							<button
-								type="button"
-								class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-base-200/60 disabled:opacity-50"
-								onclick={() => addMealFromRecipe(recipe, 'freezer')}
-								disabled={drawerSubmitting || !!pendingAdds[key]}
-							>
-								<span class="min-w-0">
-									<span class="block truncate text-sm font-medium">{title}</span>
-									<span class="text-xs text-base-content/45">
-										{recipe.onHandPortions === 1
-										? m.mealplan_portion_ready_singular({ count: recipe.onHandPortions })
-										: m.mealplan_portions_ready_plural({ count: recipe.onHandPortions })}
-									</span>
-								</span>
-								<span class="ui-chip-active shrink-0">❄️ {m.mealplan_plan_from_freezer_chip()}</span>
-							</button>
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<EmptyState mini title={m.mealplan_no_freezer_matches_title()} description={m.mealplan_no_freezer_matches_desc()} />
-			{/if}
-		</section>
-	{/if}
-
 	<section class="mt-5">
 		<h3 class="ui-section-label mb-2">{m.mealplan_recipe_library_heading()}</h3>
 		{#if filteredRecipes.length === 0}
@@ -1024,25 +985,21 @@
 					{@const title = recipeDisplayTitle(recipe)}
 					{@const cat = recipeDisplayCategory(recipe)}
 					{@const key = addKey(drawerWeek, title, recipe.slug)}
-					<li>
-						<button
-							type="button"
-							class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-base-200/60 disabled:opacity-50"
-							onclick={() => addMealFromRecipe(recipe)}
-							disabled={drawerSubmitting || !!pendingAdds[key]}
-						>
-							<span class="min-w-0">
-								<span class="block truncate text-sm font-medium">{title}</span>
-								{#if cat}
-									<span class="text-xs text-base-content/45">{cat}</span>
-								{/if}
-							</span>
-							{#if recipe.onHandPortions > 0}
-								<span class="ui-chip-active shrink-0">{m.mealplan_in_freezer_chip({ count: recipe.onHandPortions })}</span>
-							{:else}
-								<Icon name="plus" class="h-4 w-4 shrink-0 text-base-content/35" />
+					<li class="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+						<span class="min-w-0">
+							<span class="block truncate text-sm font-medium">{title}</span>
+							{#if cat}
+								<span class="text-xs text-base-content/45">{cat}</span>
 							{/if}
-						</button>
+						</span>
+						<MealSourceChoice
+							baselineServings={recipe.servings}
+							frozenPortions={recipe.onHandPortions}
+							servings={recipe.servings}
+							compact
+							disabled={drawerSubmitting || !!pendingAdds[key]}
+							onselect={(source) => addMealFromRecipe(recipe, source)}
+						/>
 					</li>
 				{/each}
 			</ul>

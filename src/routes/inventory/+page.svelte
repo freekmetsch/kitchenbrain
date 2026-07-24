@@ -362,6 +362,18 @@
 		await invalidateAll();
 	}
 
+	async function clearRecipeLink(item: Item) {
+		const ok = await patch(item, {
+			made_from_recipe_id: null,
+			recipe_status: null
+		});
+		if (!ok) {
+			flashToast(m.inventory_toast_update_failed(), { error: true });
+			return;
+		}
+		await invalidateAll();
+	}
+
 	// ── manual link picker (UX-STOCK-2) ────────────────────────────────────────
 	let linkPickerOpen = $state(false);
 	let linkPickerItem = $state<Item | null>(null);
@@ -684,6 +696,7 @@
 								onSetRecipeStatus={(status) => setRecipeStatus(item, status)}
 								onLinkRecipe={(s) => linkRecipe(item, s)}
 								onClearRecipeStatus={() => clearRecipeStatus(item)}
+								onClearRecipeLink={() => clearRecipeLink(item)}
 								onOpenLinkPicker={() => openLinkPicker(item)}
 								onOpenPortionEdit={() => openPortionEdit(item)}
 								onCommitPortionEdit={() => commitPortionEdit(item)}

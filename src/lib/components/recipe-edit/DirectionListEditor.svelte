@@ -41,7 +41,6 @@
 <section class="ui-form-card !p-3" aria-labelledby="directions-heading">
 	<div class="mb-2 flex flex-wrap items-baseline gap-2">
 		<h2 id="directions-heading" class="ui-section-label">{m.recipes_edit_directions_label()}</h2>
-		<span class="text-[11px] text-base-content/50">{m.recipes_edit_directions_hint()}</span>
 		<button
 			bind:this={addButton}
 			type="button"

@@ -8,7 +8,10 @@
 import { z } from 'zod';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
-import { rowCount } from '$lib/server/settings/reset';
+import {
+	rowCount,
+	type ResetGroupKey
+} from '$lib/server/settings/reset';
 import { ensureIngredientIds, TrustedRestoreIngredientSchema } from '$lib/recipe_ingredient';
 import { delHouseholdPref } from '$lib/server/db/household_prefs';
 import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/shopping_entries';
@@ -326,6 +329,25 @@ export function isBootstrapEligible(db: DB): boolean {
 		rowCount(db, schema.recurringShoppingItems) === 0 &&
 		rowCount(db, schema.shoppingWeekEntries) === 0
 	);
+}
+
+export function getBootstrapBlockers(db: DB): ResetGroupKey[] {
+	const blockers: ResetGroupKey[] = [];
+	if (rowCount(db, schema.inventoryItems) > 0) blockers.push('inventory');
+	if (rowCount(db, schema.recipes) > 0 || rowCount(db, schema.mealSubRecipes) > 0) {
+		blockers.push('recipes');
+	}
+	if (rowCount(db, schema.mealPlanMeals) > 0 || rowCount(db, schema.mealLog) > 0) {
+		blockers.push('meal_history');
+	}
+	if (
+		rowCount(db, schema.shoppingListOverrides) > 0 ||
+		rowCount(db, schema.recurringShoppingItems) > 0 ||
+		rowCount(db, schema.shoppingWeekEntries) > 0
+	) {
+		blockers.push('shopping_data');
+	}
+	return blockers;
 }
 
 export type ImportOutcome = { ok: true; inserted: Record<string, number> } | { ok: false; error: string };

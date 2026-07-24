@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import SettingsPanelHeader from '$lib/components/settings/SettingsPanelHeader.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
@@ -77,6 +78,30 @@
 	// ── Reset (type-the-exact-group-name confirm, re-checked server-side) ──
 	type ResetGroup = PageData['resetGroups'][number];
 
+	function resetGroupLabel(key: ResetGroup['key']): string {
+		switch (key) {
+			case 'inventory': return m.settings_data_group_inventory();
+			case 'recipes': return m.settings_data_group_recipes();
+			case 'meal_history': return m.settings_data_group_meal_history();
+			case 'chat_history': return m.settings_data_group_chat_history();
+			case 'spending_log': return m.settings_data_group_spending_log();
+			case 'shopping_data': return m.settings_data_group_shopping_data();
+			case 'ah_favorites': return m.settings_data_group_ah_favorites();
+		}
+	}
+
+	function resetGroupDescription(key: ResetGroup['key']): string {
+		switch (key) {
+			case 'inventory': return m.settings_data_group_inventory_desc();
+			case 'recipes': return m.settings_data_group_recipes_desc();
+			case 'meal_history': return m.settings_data_group_meal_history_desc();
+			case 'chat_history': return m.settings_data_group_chat_history_desc();
+			case 'spending_log': return m.settings_data_group_spending_log_desc();
+			case 'shopping_data': return m.settings_data_group_shopping_data_desc();
+			case 'ah_favorites': return m.settings_data_group_ah_favorites_desc();
+		}
+	}
+
 	let resetOpen = $state(false);
 	let resetTarget = $state<ResetGroup | null>(null);
 	let resetConfirmText = $state('');
@@ -141,13 +166,32 @@
 
 		<section class="ui-form-card">
 			<h2 class="ui-section-label mb-3">{m.settings_data_import_heading()}</h2>
-			<p class="mb-3 text-xs text-base-content/50">
-				{#if data.importEligible}
-					{m.settings_data_import_desc()}
-				{:else}
-					{data.importIneligibleReason}
-				{/if}
-			</p>
+			<p class="mb-3 text-xs text-base-content/50">{m.settings_data_import_desc()}</p>
+			{#if data.importEligible}
+				<div class="mb-3 flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm font-medium text-success">
+					<Icon name="check" class="h-4 w-4" />
+					{m.settings_data_import_ready()}
+				</div>
+			{:else}
+				<div class="mb-3 rounded-xl border border-warning/30 bg-warning/10 p-3">
+					<p class="text-sm font-semibold">
+						{m.settings_data_import_blocked({ count: data.importBlockerCount })}
+					</p>
+					<ul class="mt-2 flex flex-col gap-1">
+						{#each data.resetGroups.filter((group) => group.blocksImport) as group (group.key)}
+							<li>
+								<a
+									href={`#reset-group-${group.key}`}
+									class="flex min-h-10 items-center justify-between gap-3 rounded-lg bg-base-100 px-3 py-2 text-sm font-medium text-primary"
+								>
+									<span>{resetGroupLabel(group.key)}</span>
+									<span class="badge badge-ghost badge-sm">{group.count}</span>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
 			<input
 				bind:this={importFileInput}
 				type="file"
@@ -187,10 +231,14 @@
 			</p>
 			<div class="flex flex-col divide-y divide-base-300">
 				{#each data.resetGroups as group (group.key)}
-					<div class="flex items-center justify-between gap-3 py-2.5">
+					<div
+						id={`reset-group-${group.key}`}
+						class="flex scroll-mt-20 items-center justify-between gap-3 rounded-lg py-2.5 focus:outline-2 focus:outline-primary"
+						tabindex="-1"
+					>
 						<div class="min-w-0">
-							<p class="text-sm font-medium">{group.label}</p>
-							<p class="text-xs text-base-content/50">{group.description}</p>
+							<p class="text-sm font-medium">{resetGroupLabel(group.key)}</p>
+							<p class="text-xs text-base-content/50">{resetGroupDescription(group.key)}</p>
 						</div>
 						<div class="flex shrink-0 items-center gap-2">
 							<span class="text-xs tabular-nums text-base-content/40">{group.count}</span>
@@ -210,7 +258,11 @@
 	</div>
 </div>
 
-<BottomSheet bind:open={resetOpen} title={resetTarget?.label} onclose={() => (resetTarget = null)}>
+<BottomSheet
+	bind:open={resetOpen}
+	title={resetTarget ? resetGroupLabel(resetTarget.key) : undefined}
+	onclose={() => (resetTarget = null)}
+>
 	{#if resetTarget}
 		<p class="mb-3 text-sm text-base-content/70">
 			{#if resetTarget.count === 1}

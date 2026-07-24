@@ -9,6 +9,11 @@ import {
 
 export type ToolDisplayDiff = { label: string; before: string | null; after: string | null };
 export type ToolDisplayOp = { opId: number; undoable: boolean };
+export type ToolDisplayEntityAction = {
+	kind: 'recipe';
+	id: string;
+	intent: 'view' | 'review';
+};
 export type RecipeEnhancementDisplay = {
 	token: string;
 	recipeSlug: string;
@@ -32,7 +37,17 @@ export type ToolDisplay = {
 	 *  as subsequent write-displays in the same turn complete (P5.2). */
 	steps?: string[];
 	recipeEnhancement?: RecipeEnhancementDisplay;
+	/** A validated entity reference. The client derives the app-local route. */
+	entityAction?: ToolDisplayEntityAction;
 };
+
+export function toolEntityHref(
+	action: ToolDisplayEntityAction | undefined,
+	basePath: string
+): string | null {
+	if (!action || action.kind !== 'recipe' || !action.id.trim()) return null;
+	return `${basePath}/recipes/${encodeURIComponent(action.id)}`;
+}
 
 /** Present-tense "doing" line shown the moment a tool starts, before its result. */
 export function describeToolStart(

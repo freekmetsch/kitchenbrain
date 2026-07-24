@@ -12,7 +12,11 @@ import {
 	type OpSnapshot,
 	type OpType
 } from '$lib/inventory_history';
-import type { ToolDisplay, ToolDisplayDiff } from '$lib/tool_display';
+import type {
+	ToolDisplay,
+	ToolDisplayDiff,
+	ToolDisplayEntityAction
+} from '$lib/tool_display';
 import {
 	inventoryChangeSummary,
 	readToolSummary,
@@ -44,6 +48,30 @@ const READ_TOOLS = new Set([
 	'get_freezer_staples',
 	'get_inventory_history'
 ]);
+
+const RECIPE_ENTITY_TOOLS = new Set([
+	'get_recipe',
+	'add_recipe',
+	'add_recipe_from_url',
+	'edit_recipe',
+	'create_meal_recipe',
+	'set_freezer_staple'
+]);
+
+function recipeEntityAction(
+	name: string,
+	result: Result
+): ToolDisplayEntityAction | undefined {
+	if (!RECIPE_ENTITY_TOOLS.has(name)) return undefined;
+	const recipe = asObj(result.recipe);
+	const id = str(result.slug) ?? str(recipe.slug);
+	if (!id?.trim()) return undefined;
+	return {
+		kind: 'recipe',
+		id,
+		intent: result.needs_review === true ? 'review' : 'view'
+	};
+}
 
 /** Render a committed inventory op (add/update/remove) as a display with inline undo. */
 function inventoryOpDisplay(
@@ -194,9 +222,19 @@ export function buildToolDisplay(
 	}
 
 	if (READ_TOOLS.has(name)) {
-		return { kind: 'read', summary: readToolSummary(name, result, locale) };
+		const entityAction = recipeEntityAction(name, result);
+		return {
+			kind: 'read',
+			summary: readToolSummary(name, result, locale),
+			...(entityAction ? { entityAction } : {})
+		};
 	}
 
 	// Non-inventory writes (recipes, meal plan) — sentence, no inventory undo.
-	return { kind: 'write', summary: writeToolSummary(name, result, locale) };
+	const entityAction = recipeEntityAction(name, result);
+	return {
+		kind: 'write',
+		summary: writeToolSummary(name, result, locale),
+		...(entityAction ? { entityAction } : {})
+	};
 }
