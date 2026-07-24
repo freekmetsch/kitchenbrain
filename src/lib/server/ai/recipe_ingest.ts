@@ -262,6 +262,39 @@ export type ValidatedEnrichment = {
 	reviewReason: string | null;
 };
 
+function normalizedRecipeText(value: string): string {
+	return value.normalize('NFKD').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+const PREPARATION_ACTIONS: Array<[RegExp, string[]]> = [
+	[/\b(chopped|chop|gehakt|fijngehakt|hak)\b/u, ['chop', 'hak', 'snijd']],
+	[/\b(diced|dice|blokjes|dobbelstenen)\b/u, ['dice', 'snijd', 'blok']],
+	[/\b(sliced|slice|gesneden|in plakjes)\b/u, ['slice', 'snijd', 'plak']],
+	[/\b(grated|grate|geraspt|rasp)\b/u, ['grate', 'rasp']],
+	[/\b(minced|mince|fijngehakt)\b/u, ['mince', 'hak', 'snijd']],
+	[/\b(drained|drain|uitgelekt|afgegoten)\b/u, ['drain', 'giet', 'uitgelek']],
+	[/\b(peeled|peel|geschild|schil)\b/u, ['peel', 'schil']],
+	[/\b(crushed|crush|geplet|geperst)\b/u, ['crush', 'plet', 'pers']],
+	[/\b(beaten|beat|losgeklopt)\b/u, ['beat', 'klop']],
+	[/\b(cooked|cooked|voorgegaard|gekookt)\b/u, ['cook', 'kook', 'bak']]
+];
+
+/** Returns a review reason when imported preparation is not visibly covered by a direction. */
+export function preparationCoverageReview(ingredients: Ingredient[], directions: string[]): string | null {
+	const directionText = normalizedRecipeText(directions.join(' '));
+	for (const ingredient of ingredients) {
+		if (!ingredient.preparation) continue;
+		const name = normalizedRecipeText(ingredient.name);
+		const action = PREPARATION_ACTIONS.find(([pattern]) => pattern.test(normalizedRecipeText(ingredient.preparation!)));
+		const actionCovered = action?.[1].some((word) => directionText.includes(word)) ??
+			normalizedRecipeText(ingredient.preparation).split(' ').some((word) => word.length > 3 && directionText.includes(word));
+		if (!directionText.includes(name) || !actionCovered) {
+			return `Preparation for “${ingredient.name}” needs a cooking step: ${ingredient.preparation}.`;
+		}
+	}
+	return null;
+}
+
 /** Deterministic writer gate: every source line appears exactly once. */
 export function validateRecipeEnrichment(raw: unknown, sourceCount: number): ValidatedEnrichment {
 	const parsed = EnrichmentSchema.parse(raw);
@@ -319,13 +352,14 @@ export async function enrichRecipeStructure(data: ScrapedRecipe): Promise<Scrape
 		});
 		logSpend(msg.model, msg.usage, msg.costUsd);
 		const enriched = validateRecipeEnrichment(parseModelJson(msg.text), data.rawIngredients.length);
+		const preparationReviewReason = preparationCoverageReview(enriched.ingredients, data.directions);
 		if (enriched.confidence === 'low') {
 			return {
 				...data,
 				structureDraft: enriched.ingredients,
 				ingredientSourceIndexes: enriched.sourceIndexes,
 				structureVersion: 1,
-				enrichmentReviewReason: enriched.reviewReason ?? 'Check the proposed ingredient structure before applying it.'
+				enrichmentReviewReason: enriched.reviewReason ?? preparationReviewReason ?? 'Check the proposed ingredient structure before applying it.'
 			};
 		}
 		return {
@@ -334,7 +368,7 @@ export async function enrichRecipeStructure(data: ScrapedRecipe): Promise<Scrape
 			ingredientSourceIndexes: enriched.sourceIndexes,
 			structureDraft: null,
 			structureVersion: 2,
-			enrichmentReviewReason: null
+			enrichmentReviewReason: preparationReviewReason
 		};
 	} catch (error) {
 		return {

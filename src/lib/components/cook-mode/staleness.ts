@@ -99,7 +99,6 @@ function isValidV4(cm: any): boolean {
 	if (!cm.prep_tasks.every((task: any) =>
 		validLocalizedText(task.text) &&
 		Array.isArray(task.ingredient_indexes) &&
-		task.ingredient_indexes.length <= 1 &&
 		task.ingredient_indexes.every((index: unknown) => Number.isInteger(index) && (index as number) >= 0)
 	)) return false;
 	for (const stream of cm.streams) if (!validLocalizedText(stream.name)) return false;
@@ -353,7 +352,7 @@ export function localizeCookMode(
 			mise_en_place: cm.prep_tasks.map((task) => pick(task.text)),
 			prep_tasks: cm.prep_tasks.map((task) => ({
 				text: pick(task.text),
-				ingredient_index: task.ingredient_indexes[0] ?? null
+				ingredient_indexes: task.ingredient_indexes
 			})),
 			streams: cm.streams.map((stream) => ({ id: stream.id, name: pick(stream.name) })),
 			steps: cm.steps.map((step) => ({

@@ -372,7 +372,7 @@
 	onchange={onImagePicked}
 />
 
-<div class="grid grid-cols-1 gap-3 px-3 pt-3 md:grid-cols-2">
+<div class="grid grid-cols-2 gap-2 px-3 pt-3 md:gap-4">
 	<FreezerStockPanel
 		{recipe}
 		frozenPortions={data.frozenPortions}

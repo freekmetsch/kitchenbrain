@@ -13,7 +13,7 @@ vi.mock('$lib/server/ai/config', () => ({ getChatModel: () => ({ value: 'test' }
 vi.mock('$lib/server/ai/translate_recipe', () => ({ kickTranslateOnImport: vi.fn() }));
 vi.mock('$lib/server/recipes/prefs', () => ({ getAutoTranslateOnImport: () => false }));
 import { createTestDb } from '$lib/server/test_db';
-import { insertScrapedRecipe, validateRecipeEnrichment } from './recipe_ingest';
+import { insertScrapedRecipe, preparationCoverageReview, validateRecipeEnrichment } from './recipe_ingest';
 
 const sourceIngredient = (sourceIndex: number, overrides: Record<string, unknown> = {}) => ({
 	sourceIndex,
@@ -94,6 +94,16 @@ describe('recipe enrichment writer gate', () => {
 		}, 1);
 		expect(result.ingredients[0].purchaseForm).toBe('preserved');
 		expect(result.ingredients[1]).toMatchObject({ optional: true, origin: 'ai_suggested' });
+	});
+
+	it('flags raw preparation when directions do not show the required action', () => {
+		const result = validateRecipeEnrichment({
+			confidence: 'high',
+			reviewReason: null,
+			ingredients: [sourceIngredient(0, { name: 'prei', preparation: 'fijngehakt' })]
+		}, 1);
+		expect(preparationCoverageReview(result.ingredients, ['Voeg de prei toe aan de pan.'])).toContain('prei');
+		expect(preparationCoverageReview(result.ingredients, ['Hak de prei fijn en voeg hem toe.'])).toBeNull();
 	});
 
 	it.each([

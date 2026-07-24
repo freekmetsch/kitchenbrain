@@ -13,7 +13,7 @@
 	} = $props();
 </script>
 
-{#if recipe.servings || recipe.totalTimeMin || displayNotes || recipe.tags.length}
+{#if recipe.servings || recipe.totalTimeMin || displayNotes}
 	<section
 		class="mx-3 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-base-200 bg-base-100 px-3 py-2.5 text-[13px] text-base-content/75"
 	>
@@ -31,11 +31,6 @@
 		{/if}
 		{#if displayNotes}
 			<p class="basis-full border-t border-base-200 pt-2 text-sm leading-snug text-base-content/70">{displayNotes}</p>
-		{/if}
-		{#if recipe.tags.length}
-			<div class="flex basis-full flex-wrap gap-1.5 border-t border-base-200 pt-2">
-				{#each recipe.tags as tag}<span class="ui-chip-muted">{tag}</span>{/each}
-			</div>
 		{/if}
 	</section>
 {/if}

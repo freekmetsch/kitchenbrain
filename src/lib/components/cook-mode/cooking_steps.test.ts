@@ -68,12 +68,17 @@ describe('deterministic cooking steps', () => {
 			]
 		};
 
-		const result = preparationAsFirstStep(plan);
+		const result = preparationAsFirstStep(plan, [
+			{ id: 'onion', name: 'onion', amount: '1' }
+		]);
 		expect(result?.mise_en_place).toEqual([]);
 		expect(result?.steps.map((step) => step.body)).toEqual([
-			'Chop the onion. Heat the oven.',
+			'Chop the onion.',
+			'Heat the oven.',
 			'Cook the onion.'
 		]);
+		expect(result?.streams.at(-1)).toEqual({ id: 'preparation', name: 'Preparation' });
+		expect(result?.steps[0].ingredients).toEqual(['1 onion']);
 	});
 
 	it('makes quantity-led preparation fragments safely action-led', () => {
@@ -87,8 +92,9 @@ describe('deterministic cooking steps', () => {
 			steps: []
 		};
 
-		expect(preparationAsFirstStep(plan)?.steps[0].body).toBe(
-			'Prepare 400 g chicken breast, cubed. Drain the chickpeas.'
-		);
+		expect(preparationAsFirstStep(plan)?.steps.map((step) => step.body)).toEqual([
+			'Prepare 400 g chicken breast, cubed.',
+			'Drain the chickpeas.'
+		]);
 	});
 });

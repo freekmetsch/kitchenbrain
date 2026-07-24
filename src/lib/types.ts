@@ -131,7 +131,7 @@ export type CookModeDisplayRecipe = {
 	generation_id: string | null;
 	servings: number | null;
 	mise_en_place: string[];
-	prep_tasks?: Array<{ text: string; ingredient_index: number | null }>;
+	prep_tasks?: Array<{ text: string; ingredient_indexes: number[] }>;
 	streams: CookModeStream[];
 	steps: CookModeStep[];
 };

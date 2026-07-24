@@ -164,15 +164,15 @@ describe('cook-mode cache versioning', () => {
 		expect(display?.generation_id).toBe('generation-4');
 	});
 
-	it('regenerates only prep caches that combine several ingredients in one checkbox', () => {
+		it('keeps prep caches that attach several ingredients to one regular step', () => {
 		const multiple = structuredClone(structured);
 		multiple.prep_tasks[0].ingredient_indexes = [0, 1];
-		expect(isStaleCookMode(multiple)).toBe(true);
+		expect(isStaleCookMode(multiple)).toBe(false);
 
 		const none = structuredClone(structured);
 		none.prep_tasks[0].ingredient_indexes = [];
 		expect(isStaleCookMode(none)).toBe(false);
-		expect(localizeCookMode(none, 'en')?.prep_tasks?.[0].ingredient_index).toBeNull();
+		expect(localizeCookMode(none, 'en')?.prep_tasks?.[0].ingredient_indexes).toEqual([]);
 	});
 
 	it('projects v5 directions and exact allocated amounts from stable IDs', () => {

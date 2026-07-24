@@ -916,7 +916,7 @@
 	"shopping_source_weekly": "Every week",
 	"shopping_choice_saved": "Shopping choice saved.",
 	"shopping_mutation_failed": "The shopping list changed. Reload and try again.",
-	"recipe_enhance_button": "Enhance recipe",
+	"recipe_enhance_button": "AI suggestions",
 	"recipe_enhance_working": "Enhancing…",
 	"recipe_enhance_review_button": "Review enhancement",
 	"recipe_enhance_retry_button": "Try enhancement again",

@@ -6,8 +6,6 @@
 		text,
 		timerSeconds = null,
 		timerPurpose = null,
-		timerAction = null,
-		timerLocation = null,
 		timerActive = false,
 		timerDone = false,
 		timerRemaining = null,
@@ -17,8 +15,6 @@
 		text: string;
 		timerSeconds?: number | null;
 		timerPurpose?: string | null;
-		timerAction?: string | null;
-		timerLocation?: string | null;
 		timerActive?: boolean;
 		timerDone?: boolean;
 		timerRemaining?: number | null;
@@ -38,15 +34,12 @@
 
 <div class="grid gap-2 text-lg leading-relaxed text-base-content/90">
 	{#each lines as line, lineIndex}
-		<p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+		<p class="leading-relaxed">
 			{#each line.segments as segment}
 				{#if segment.kind === 'action'}<strong class="font-bold text-base-content">{segment.text}</strong>{:else}{segment.text}{/if}
 			{/each}
 			{#if lineIndex === timerLine}
-				<span class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-base-content/50">
-					{[timerAction, timerLocation].filter(Boolean).join(' · ') || 'Timer'}
-				</span>
-				<TimerChip seconds={timerSeconds} active={timerActive} done={timerDone} remaining={timerRemaining} onStart={onStartTimer} onReset={onResetTimer} />
+				<span class="mx-1 inline-flex align-middle"><TimerChip seconds={timerSeconds} active={timerActive} done={timerDone} remaining={timerRemaining} onStart={onStartTimer} onReset={onResetTimer} /></span>
 			{/if}
 		</p>
 	{/each}

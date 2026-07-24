@@ -72,10 +72,10 @@
 	}
 </script>
 
-<div class="flex h-full flex-col rounded-2xl border border-primary/20 bg-primary/5 p-3">
+<div class="flex h-full min-w-0 flex-col rounded-2xl border border-primary/20 bg-primary/5 p-2 md:p-3">
 	<button
 		type="button"
-		class="btn btn-outline btn-sm min-h-11 w-full border-primary/40 bg-base-100"
+		class="btn btn-outline btn-sm min-h-11 w-full min-w-0 whitespace-normal border-primary/40 bg-base-100 px-2 text-xs md:px-3 md:text-sm"
 		aria-haspopup={proposal ? 'dialog' : undefined}
 		disabled={loading}
 		onclick={openReview}

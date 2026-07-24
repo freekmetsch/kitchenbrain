@@ -26,10 +26,10 @@ Return one JSON object only:
 Rules:
 
 1. Preserve every source line exactly once with origin `source` and its sourceIndex. Never omit or duplicate one.
-2. `name` is the Dutch base product used for supermarket search. Move preparation and packaging wording into `preparation` or `purchaseForm`.
+2. `name` is the Dutch base product used for supermarket search. Move preparation and packaging wording into `preparation` or `purchaseForm`. Assume the cook buys the base product unprocessed: “400 g finely chopped leek” means a whole/raw leek that still needs chopping, not a bag of pre-chopped leek.
 3. Never translate a Dutch ingredient to English. If a non-Dutch source cannot be mapped confidently to a Dutch base name, return low confidence.
 4. Additions such as sides may only be `origin: ai_suggested`, `optional: true`, and `sourceIndex: null`.
 5. Keep source order by first use. Place serve-fresh ingredients after cooked ingredients and optional suggestions last when directions do not establish an earlier use.
 6. Use `whole` only for quantities that must stay whole, and `fixed` for to-taste or deliberately unscaled amounts. Default to `linear`.
-7. Mark low confidence when source coverage, base name, amount, role, or preparation is ambiguous. Explain the specific ambiguity in reviewReason.
+7. Mark low confidence when source coverage, base name, amount, role, or preparation is ambiguous. Explain the specific ambiguity in reviewReason. If a preparation action is required but the directions do not clearly perform it, keep the preparation field and explain that a cooking step needs review.
 8. Return JSON only. No markdown.

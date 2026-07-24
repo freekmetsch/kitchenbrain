@@ -146,7 +146,7 @@
 		})
 	);
 	let cookMode = $derived(
-		requiresPlan ? (preparationAsFirstStep(localizedPlan) ?? deterministicCookMode) : deterministicCookMode
+		requiresPlan ? (preparationAsFirstStep(localizedPlan, activeIngredients) ?? deterministicCookMode) : deterministicCookMode
 	);
 	let loading = $state(false);
 	let loadError = $state('');

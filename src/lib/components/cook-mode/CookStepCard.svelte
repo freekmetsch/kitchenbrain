@@ -75,8 +75,6 @@
 			text={step.body || step.goal || step.title}
 			timerSeconds={step.timer_seconds}
 			timerPurpose={step.timer_purpose}
-			timerAction={step.timer_action}
-			timerLocation={step.timer_location}
 			timerActive={timerActive}
 			timerDone={timerDone}
 			timerRemaining={timerRemaining}

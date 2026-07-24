@@ -85,12 +85,12 @@
 <section class="h-full">
 	<button
 		type="button"
-		class="flex w-full items-center gap-3 rounded-2xl border border-base-200 bg-base-100 p-3 text-left transition-colors hover:bg-base-200/50"
+		class="flex min-h-full w-full min-w-0 items-center gap-2 rounded-2xl border border-base-200 bg-base-100 p-2 text-left transition-colors hover:bg-base-200/50 md:gap-3 md:p-3"
 		aria-label={m.recipes_freezer_open_editor_aria()}
 		onclick={openEditor}
 	>
-		<span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-info/10 text-info">
-			<Icon name="snowflake" class="h-4 w-4" />
+		<span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-info/10 text-info md:h-9 md:w-9">
+			<Icon name="snowflake" class="h-3.5 w-3.5 md:h-4 md:w-4" />
 		</span>
 		<span class="min-w-0 flex-1">
 			<span class="block text-sm font-medium">

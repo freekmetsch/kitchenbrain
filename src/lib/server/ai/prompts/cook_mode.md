@@ -54,7 +54,7 @@ The server adds `generation_id`, `baseline_servings`, `content_revision`, and `s
 
 1. Return every supplied `direction_id` exactly once in `instructions` and exactly once in `steps`.
 2. Improve each saved direction for clarity without changing its meaning. Keep the same action boundary: do not split one direction into several steps, combine directions, omit an action, or invent a new action.
-3. Put preparation such as chopping, draining, cubing, or measuring into the numbered instruction where it happens. There is no separate preparation checklist.
+3. Put preparation such as chopping, draining, cubing, or measuring into the numbered instruction where it happens. Ingredient preparation describes work the cook still needs to do; never imply that a raw ingredient was purchased pre-processed. If a required preparation is absent from the saved directions, the cooking UI will surface it as a separate regular Preparation step.
 4. Each instruction has at most three short sentences and 36 words. Start each sentence with a direct action verb where natural.
 5. Do not write quantities into instruction text. Ingredient quantities come from `ingredient_uses`.
 
