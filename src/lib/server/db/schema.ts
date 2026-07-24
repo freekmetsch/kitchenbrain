@@ -100,7 +100,6 @@ export const recipes = sqliteTable('recipes', {
 	slug: text('slug').notNull().unique(),
 	title: text('title').notNull(),
 	category: text('category'),
-	tags: text('tags', { mode: 'json' }).$type<string[]>().default([]),
 	servings: integer('servings'),
 	scalingMode: text('scaling_mode').notNull().default('scalable').$type<RecipeScalingMode>(),
 	structureVersion: integer('structure_version').notNull().default(1),

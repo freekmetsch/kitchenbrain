@@ -155,6 +155,13 @@
       "when": 1784813762930,
       "tag": "0021_loud_hannibal_king",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1784911675205,
+      "tag": "0022_strong_fat_cobra",
+      "breakpoints": true
     }
   ]
 }

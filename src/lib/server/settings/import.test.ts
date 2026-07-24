@@ -16,7 +16,6 @@ function baseRecipe(overrides: Record<string, unknown> = {}) {
 		slug: 'stamppot',
 		title: 'Stamppot',
 		category: null,
-		tags: [],
 		servings: null,
 		totalTimeMin: null,
 		sourceUrl: null,

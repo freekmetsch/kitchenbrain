@@ -1,6 +1,6 @@
 # Chat Assistant and Cooking Timer — UX Workup
 
-_Status: In flight - 2026-07-24 (safe implementation verified; persisted tag deletion and authenticated visual pass remain pending)_
+_Status: Shipped - 2026-07-24 (cooking page polish, raw-preparation handling, and recipe-tag removal shipped)_
 
 > The assistant-only post-ship findings shipped and are archived in `archive/FEATURE_LIST_UX_ASSISTANT_CHAT.md`. This document remains active only for assistant/timer coexistence and the physical locked-screen timer gate.
 
@@ -139,9 +139,9 @@ The deeper correctness issue is semantic: imported ingredient lines such as “4
 
 ### Scope
 
-In: inline timer copy and wrapping; always-horizontal freezer/AI suggestion actions; renaming the action to “AI suggestions” / “AI-suggesties”; removing tag rendering from recipe detail; rendering notes as an unlabeled recipe summary; making preparation a regular numbered cooking step with a component label and ingredient chips; strengthening ingestion and cook-mode contracts around raw ingredients and preparation coverage; focused tests and browser verification.
+In: inline timer copy and wrapping; always-horizontal freezer/AI suggestion actions; renaming the action to “AI suggestions” / “AI-suggesties”; removing recipe tags from the schema and historical rows; rendering notes as an unlabeled recipe summary; making preparation a regular numbered cooking step with a component label and ingredient chips; strengthening ingestion and cook-mode contracts around raw ingredients and preparation coverage; focused tests and browser verification.
 
-Out: deleting the stored `tags` column or migrating historical recipe rows; changing Albert Heijn lookup fields; replacing the AI provider; introducing a queue or durable enhancement-job table; redesigning the raw recipe editor; changing recipe source snapshots; automatic background enhancement persistence across route changes.
+Out: inventory tags; changing Albert Heijn lookup fields; replacing the AI provider; introducing a queue or durable enhancement-job table; redesigning the raw recipe editor; changing recipe source snapshots; automatic background enhancement persistence across route changes.
 
 ### Existing-system inventory and invariants
 
@@ -152,7 +152,7 @@ Out: deleting the stored `tags` column or migrating historical recipe rows; chan
 - `src/lib/components/cook-mode/staleness.ts` localizes v4/v5 cook-mode caches. V5 already has `prep_tasks`, but its display projection drops the full ingredient index list.
 - `src/lib/server/ai/recipe_ingest.ts` separates canonical Dutch base names from preparation wording and validates source-line coverage before writing. `recipe_enrich.md` is the prompt contract for that boundary; `cook_mode.md` is the later semantic cooking contract.
 - Dutch ingredient names remain authoritative for Albert Heijn search and shopping derivation. Preparation changes must never replace or translate the canonical Dutch `name`.
-- No schema/auth change is required. Existing AI output must continue through Zod validation before recipe or cook-mode cache writes.
+- The recipe schema changes only through append-only Drizzle migrations. Existing AI output must continue through Zod validation before recipe or cook-mode cache writes.
 
 ### Option comparison and chosen approach
 
@@ -161,14 +161,14 @@ Out: deleting the stored `tags` column or migrating historical recipe rows; chan
 | Timer/wrapping | Keep a reserved timer column; render timer inline in normal text flow; split instructions into new block records | Inline timer with ordinary inline text flow. It fixes the screenshot without changing the cache contract. |
 | Narrow action cards | Stack on phones; always use two equal columns with compact controls; use a horizontal scroll rail | Always two equal columns. The user explicitly wants freezer and AI suggestions to share one horizontal row; short labels and `min-w-0` handle narrow widths. |
 | Preparation semantics | Prompt-only instruction; mutate imported directions; preserve preparation metadata and synthesize/dedupe a normal prep step in cook mode | Preserve source data, strengthen ingestion validation, and project a normal prep step from validated preparation metadata. This keeps snapshots faithful while making the cooking experience honest. |
-| Summary/tags | Delete tags; keep rendering tags; hide tags but retain stored values and show notes as plain prose | Remove tag UI now; persisted tag deletion remains a separate beta R3 action requiring an explicit migration/data-clear decision. Render notes as unlabeled prose. |
+| Summary/tags | Delete tags; keep rendering tags; hide tags but retain stored values and show notes as plain prose | Delete recipe tag values and the recipe column in one append-only migration; inventory tags remain independent. Render notes as unlabeled prose. |
 
 Rejected alternatives: a new instruction schema is unnecessary for the wrapping fix; rewriting source directions during ingestion would make the canonical recipe diverge from its immutable source snapshot; prompt-only raw-ingredient handling has no deterministic coverage check and can silently omit chopping/draining actions.
 
 ### Phase plan
 
 1. **Presentation pass:** remove timer label copy, change instruction paragraphs back to inline text flow, rename the action, and make the freezer/AI action row two columns at all supported widths. Verify static UI states and long wrapping first.
-2. **Recipe context pass:** remove tag rendering without deleting stored tags and render notes as unlabeled summary prose. Verify empty, short, and multiline summaries.
+2. **Recipe context pass:** remove recipe tag rendering and delete the obsolete recipe column through an append-only migration; render notes as unlabeled summary prose. Verify empty, short, and multiline summaries and import compatibility.
 3. **Preparation projection pass:** carry all V5 prep-task ingredient indexes through localization, map preparation tasks into a normal labelled step with ingredient chips, and dedupe against directions that already perform the same preparation. Preserve legacy fallback behavior with deterministic matching.
 4. **Ingestion correctness pass:** update `recipe_enrich.md` and its writer validation so raw/base ingredient semantics and preparation coverage are explicit; make cook-mode generation use the preparation signal when a required prep action is absent. Add unit tests for chopped, drained, preserved, and already-prepared ingredients.
 5. **Full verification:** run `npm run check`, `npm run test:unit`, `npm run build`, then Playwright smoke at 375 px and 1280 px for long instructions, action-card layout, preparation chips, timer start/done, and empty/summary states.
@@ -179,7 +179,7 @@ Rejected alternatives: a new instruction schema is unnecessary for the wrapping 
 
 2. **AI suggestions/freezer action row (R1, XS)** — scope: recipe route and enhancement copy. Rename visible action copy to “AI suggestions” / “AI-suggesties”; use a two-column grid at the phone breakpoint with compact equal-height cards and no horizontal overflow. Verification: 375 px and 1280 px default/loading/ready/error states. Rollback: restore the previous labels/grid classes.
 
-3. **Summary and tag visibility (R1, XS)** — scope: `RecipeMetaChips.svelte`, recipe detail route, English/Dutch messages. Remove tag chips from the rendered page and render notes directly as summary prose without a “Notes” or “Summary” heading. Persisted tag deletion is paused at the beta R3 gate; do not clear rows or drop the column in this pass. Verification: empty, one-line, multiline, translated, and long-summary states. Rollback: restore the display-only tag/notes markup.
+3. **Summary and recipe-tag removal (R3, S)** — scope: `RecipeMetaChips.svelte`, recipe route/types, recipe writers/imports, schema, and append-only migration `0022_strong_fat_cobra.sql`. Remove tag chips, remove recipe tag writes/reads, and drop the historical recipe column; inventory tags remain unchanged. Render notes directly as summary prose without a “Notes” or “Summary” heading. Verification: import compatibility, clean and upgraded database migrations, full tests/check/build. Rollback: restore from a database backup and revert the migration in a controlled maintenance window; the migration is intentionally not reversible in-place.
 
 4. **Regular preparation step (R2, M)** — scope: `types.ts`, `staleness.ts`, `cooking_steps.ts`, `CookStepCard.svelte`, focused tests. Preserve all V5 `prep_tasks.ingredient_indexes`, create a normal first step with the “Preparation” component label and the referenced scaled ingredient chips, and dedupe tasks already represented by a direction. Keep legacy `mise_en_place` conversion working with best-effort ingredient matching and explicit empty-chip behavior when no match is safe. Verification: v4/v5 projection tests, ingredient scaling tests, check/build, browser preparation-step smoke. Rollback: revert projection changes; cached cook-mode records remain readable.
 
@@ -193,7 +193,7 @@ Ship the UI tickets and semantic projection behind the existing recipe route in 
 
 ### Risk tier, stage, and verification matrix
 
-Risk: R2. This changes generated cooking semantics and the persisted cook-mode cache contract, but not the database schema, authentication boundary, or external purchase behavior. `requires_stage_gate: false`; beta stage is advisory only for this code/data-shape work.
+Risk: R3. This removes persisted recipe data and changes the SQLite schema; inventory tags, authentication, Dutch shopping fields, and external purchase behavior remain unchanged. Beta approval was explicitly provided in chat; rollback requires a pre-migration database backup and controlled restore.
 
 | Area | Verification | Failure boundary |
 |---|---|---|
@@ -215,14 +215,14 @@ Risk: R2. This changes generated cooking semantics and the persisted cook-mode c
 | Preparation is duplicated | Source direction already says “chop leek” and metadata also requests chopping | Cook repeats an unnecessary prep action | Unit fixture with explicit and implicit prep | Match preparation to direction text and dedupe by ingredient ID/name before projecting | Low |
 | Preparation is omitted | Model output has preparation metadata but no prep task/direction | Cook assumes chopped ingredient was purchased | Ingestion/cook-mode fixture and review state | Require preparation coverage or a review reason; cook-mode generation has a deterministic missing-prep fallback | Medium |
 | Existing cached cook mode has incomplete prep indexes | Older v5 cache or legacy v4 payload | Chips are missing or the cache is rejected | Staleness and projection tests | Preserve backward-compatible nullable/empty handling and regenerate only when eligibility fails | Low |
-| Tag removal breaks an unseen consumer | A future/search path relies on rendered tags | Filtering affordance disappears | Source audit and browser route checks | Hide only display; retain database values and explicitly keep tag deletion out of scope | Low |
+| Tag removal breaks an unseen consumer | A future/search path relies on recipe tags | Filtering affordance disappears | Source audit and migration verification | Recipe tags have no active consumer; inventory tags remain separate | Low |
 | Ingestion changes canonical shopping names | Prompt misreads preparation as base product | Albert Heijn lookup fails or searches processed wording | Dutch ingredient assertions and AH invariant review | Keep `name` as Dutch base product and test it through the writer gate | Low |
 
 Steelman: A prompt-only fix would be faster, but it leaves the most important failure—silently assuming a processed ingredient—dependent on model compliance. Combining a small deterministic projection with the existing validated ingestion fields gives the cook a reliable preparation step without rewriting source recipes or introducing a migration, while the UI changes remain narrowly local.
 
 ### Open Questions
 
-> **Decision: remove tag UI now; persisted tag deletion is explicitly requested but blocked at the beta R3 gate.** Clearing recipe tag values or dropping the schema column is irreversible for real household data. The safe implementation must pause before that migration/data operation and ask for the exact approved target.
+> **Decision resolved: clear persisted recipe tags and drop the `recipes.tags` column.** Implemented in append-only migration `0022_strong_fat_cobra.sql`; inventory tags remain untouched.
 
 > **Q: Should freezer and AI suggestions remain side by side at 375 px?** — Default: yes, use two equal compact columns at every breakpoint. Reason: this is the explicit requested relationship; labels will be shortened and cards will avoid fixed-width content.
 
@@ -232,10 +232,10 @@ Steelman: A prompt-only fix would be faster, but it leaves the most important fa
 
 Goal: polish the cooking instruction surface and make raw-ingredient preparation explicit from ingestion through cooking mode.
 
-Current state: the previous recipe-view phase is committed and pushed; this phase is in flight. Safe UI and cooking-semantics changes are being implemented; persisted tag deletion remains paused at the beta R3 gate.
+Current state: the recipe-view and cooking instruction phases are committed and pushed. Recipe tag persistence is removed through migration `0022_strong_fat_cobra.sql`; only the separate physical locked-screen timer gate and authenticated visual smoke remain operational follow-ups.
 
 First command: `/run`.
 
 First files: `src/lib/components/cook-mode/InstructionLines.svelte`, `src/lib/components/recipe-detail/RecipeEnhancementSheet.svelte`, `src/routes/recipes/[slug]/+page.svelte`, `src/lib/components/cook-mode/staleness.ts`, `src/lib/components/cook-mode/cooking_steps.ts`, `src/lib/server/ai/recipe_ingest.ts`, `src/lib/server/ai/prompts/recipe_enrich.md`, `src/lib/server/ai/prompts/cook_mode.md`.
 
-Verification recorded: `npm run check`, `npm run test:unit` (414 passing), `npm run build`, and `git diff --check` pass. Playwright reaches `/login`, but the recipe route requires an authenticated household session, so 375/1280 recipe screenshots remain runtime-unverified. Persisted tag deletion is paused at the beta R3 gate; the pre-existing physical locked-screen timer gate remains separate.
+Verification recorded: `npm run check`, `npm run test:unit` (414 passing) on both the existing local DB and a fresh DB, `npm run build`, and `git diff --check` pass. Playwright reaches `/login`, but the recipe route requires an authenticated household session, so 375/1280 recipe screenshots remain runtime-unverified. The pre-existing physical locked-screen timer gate remains separate.

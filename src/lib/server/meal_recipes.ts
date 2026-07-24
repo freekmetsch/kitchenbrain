@@ -240,7 +240,6 @@ export function createMealRecipe(
 				{ capturedAt: now.getTime() }
 			),
 			servings,
-			tags: [],
 			createdAt: now,
 			updatedAt: now
 		})

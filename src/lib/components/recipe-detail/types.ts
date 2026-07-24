@@ -13,7 +13,6 @@ export type Recipe = {
 	titleEn: string | null;
 	category: string | null;
 	categoryEn: string | null;
-	tags: string[];
 	servings: number | null;
 	scalingMode: RecipeScalingMode;
 	structureVersion: number;

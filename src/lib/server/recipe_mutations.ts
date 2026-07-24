@@ -11,7 +11,6 @@ export type CanonicalRecipeUpdate = Partial<
 		RecipeInsert,
 		| 'title'
 		| 'category'
-		| 'tags'
 		| 'servings'
 		| 'scalingMode'
 		| 'structureVersion'

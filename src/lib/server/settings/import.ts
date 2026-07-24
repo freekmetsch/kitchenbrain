@@ -71,10 +71,6 @@ const RecipeImport = z.object({
 	slug: z.string().min(1),
 	title: z.string().min(1),
 	category: z.string().nullable(),
-	tags: z
-		.array(z.string())
-		.nullable()
-		.transform((v) => v ?? []),
 	servings: z.number().int().nullable(),
 	scalingMode: z.enum(['scalable', 'fixed_batch']).default('scalable'),
 	structureVersion: z.number().int().min(1).default(1),

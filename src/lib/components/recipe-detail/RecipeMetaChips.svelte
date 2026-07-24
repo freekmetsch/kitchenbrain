@@ -1,4 +1,4 @@
-<!-- Compact recipe context: servings and timing first, with notes/tags kept close to it. -->
+<!-- Compact recipe context: servings, timing, and the recipe summary. -->
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';

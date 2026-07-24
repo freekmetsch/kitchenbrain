@@ -563,7 +563,6 @@ export function insertScrapedRecipe(
 			slug,
 			title: data.title,
 			category: data.category,
-			tags: [],
 			servings: data.servings,
 			structureVersion: data.structureVersion,
 			structureDraft: data.structureDraft,

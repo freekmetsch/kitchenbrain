@@ -68,8 +68,7 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 						.get()
 				: undefined;
 		if (!recipe) return { found: false };
-		const { tags: _tags, ...recipeForAi } = recipe;
-		return { found: true, recipe: recipeForAi };
+		return { found: true, recipe };
 	},
 
 	async search_recipes(raw, db) {
@@ -187,7 +186,6 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 				directions: input.directions,
 				directionIdsJson,
 				sourceSnapshotJson,
-				tags: [],
 				notes: input.notes ?? null,
 				sourceUrl: input.source_url ?? null,
 				...review,
