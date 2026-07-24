@@ -1,10 +1,7 @@
 <!--
-	Micro facet chips under a stock row: section emoji, the meal recipe-link
-	affordances (linked chip / suggestions / picker / plan-to-add / no-recipe —
-	UX-STOCK-2), staple + out/cook-again + best-before badges, the "N recipes"
-	coverage link, and the review-reason strip with its fix affordance
-	(UX-STOCK-1). The page owns the portion-edit state (one open editor at a
-	time) and all writes; this component renders + signals intent.
+	Quiet row metadata: section, one compact meal-recipe state, staple and
+	stock alerts, best-before, recipe coverage, and review recovery. Recipe
+	management itself lives in one sheet so settled rows do not repeat actions.
 -->
 <script module lang="ts">
 	// Static per-component constants + pure helpers live in module scope so they
@@ -90,20 +87,15 @@
 		foodClassText,
 		recipeRelationshipKind
 	} from './shared';
-	import type { RecipeLink, RecipeMatch, RecipeSuggestion } from './shared';
+	import type { RecipeLink, RecipeMatch } from './shared';
 
 	let {
 		item,
 		link,
 		matches,
-		suggestions,
 		portionEditing,
 		portionValue = $bindable(),
-		onLinkRecipe,
 		onOpenLinkPicker,
-		onSetRecipeStatus,
-		onClearRecipeStatus,
-		onClearRecipeLink,
 		onOpenPortionEdit,
 		onCommitPortionEdit,
 		onCancelPortionEdit,
@@ -116,14 +108,9 @@
 		item: Item;
 		link: RecipeLink | null;
 		matches: RecipeMatch[];
-		suggestions: RecipeSuggestion[];
 		portionEditing: boolean;
 		portionValue: string;
-		onLinkRecipe: (s: RecipeSuggestion) => void;
 		onOpenLinkPicker: () => void;
-		onSetRecipeStatus: (status: 'plan_to_add' | 'no_recipe') => void;
-		onClearRecipeStatus: () => void;
-		onClearRecipeLink: () => void;
 		onOpenPortionEdit: () => void;
 		onCommitPortionEdit: () => void;
 		onCancelPortionEdit: () => void;
@@ -136,71 +123,48 @@
 
 	const exp = $derived(expiryBadge(item.expiryDate));
 	const relationship = $derived(recipeRelationshipKind(item, link));
+	const relationshipLabel = $derived(
+		relationship === 'linked'
+			? m.inventory_recipe_linked_label({
+					title: link?.title ?? m.inventory_recipe_link_default()
+				})
+			: relationship === 'planned'
+				? m.inventory_recipe_planned_label()
+				: relationship === 'not_needed'
+					? m.inventory_recipe_no_recipe_label()
+					: m.inventory_recipe_unresolved_label()
+	);
 </script>
 
 <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-base-content/65">
 	<span class="opacity-70">{item.section === 'freezer' ? '❄️' : '🫙'}</span>
 
 	{#if item.kind === 'leftover'}
-		{#if relationship === 'linked' && link}
-			{@const sameName =
-				link.title.toLowerCase() === item.name.toLowerCase() ||
-				link.titleNl.toLowerCase() === item.name.toLowerCase()}
-			<div class="inline-flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-base-300 bg-base-100 px-1.5 py-1" role="group" aria-label={m.inventory_recipe_relationship_label()}>
-				<a href="{base}/recipes/{link.slug}" class="inline-flex max-w-40 items-center gap-1 truncate font-medium text-primary">
-					<Icon name="check" class="h-3 w-3 shrink-0" />
-					{m.inventory_recipe_linked_label({ title: sameName ? m.inventory_recipe_link_default() : link.title })}
-				</a>
-				<button type="button" class="btn btn-ghost btn-xs min-h-8 px-2" onclick={() => onOpenLinkPicker()}>
-					{m.inventory_recipe_manage_button()}
-				</button>
-				<button type="button" class="btn btn-ghost btn-xs min-h-8 px-2 text-error" onclick={() => onClearRecipeLink()}>
-					{m.inventory_recipe_clear_button()}
-				</button>
-			</div>
-		{:else if relationship === 'planned' || relationship === 'not_needed'}
-			<div class="inline-flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-base-300 bg-base-100 px-1.5 py-1" role="group" aria-label={m.inventory_recipe_relationship_label()}>
-				<span class="inline-flex items-center gap-1 font-medium text-base-content/70">
-					<Icon name={relationship === 'planned' ? 'clock' : 'minus'} class="h-3 w-3" />
-					{relationship === 'planned'
-						? m.inventory_recipe_planned_label()
-						: m.inventory_recipe_no_recipe_label()}
-				</span>
-				<button type="button" class="btn btn-ghost btn-xs min-h-8 px-2" onclick={() => onOpenLinkPicker()}>
-					{m.inventory_recipe_manage_button()}
-				</button>
-				<button type="button" class="btn btn-ghost btn-xs min-h-8 px-2 text-error" onclick={() => onClearRecipeStatus()}>
-					{m.inventory_recipe_clear_button()}
-				</button>
-			</div>
-		{:else}
-			<!-- Unlinked meal: suggestion chips are shortcuts; the picker, Plan to
-			     add, and No recipe are always available so no branch dead-ends
-			     (UX-STOCK-2). -->
-			{@const top = suggestions.slice(0, 3)}
-			{#each top as s (s.slug)}
-				<button
-					type="button"
-					class="max-w-36 truncate rounded-full border border-primary/40 bg-primary/10 px-1.5 font-medium text-primary hover:bg-primary/20"
-					onclick={() => onLinkRecipe(s)}>+ {s.title}</button
-				>
-			{/each}
-			<button
-				type="button"
-				class="rounded-full border border-primary/40 px-1.5 font-medium text-primary hover:bg-primary/10"
-				onclick={() => onOpenLinkPicker()}>{m.inventory_recipe_link_picker_button()}</button
-			>
-			<button
-				type="button"
-				class="rounded-full border border-base-300 px-1.5 font-medium text-base-content/60 hover:border-base-content/25 hover:text-base-content"
-				onclick={() => onSetRecipeStatus('plan_to_add')}>{m.inventory_recipe_plan_to_add_button()}</button
-			>
-			<button
-				type="button"
-				class="rounded-full border border-base-300 px-1.5 text-base-content/60 hover:border-base-content/25 hover:text-base-content"
-				onclick={() => onSetRecipeStatus('no_recipe')}>{m.inventory_recipe_no_recipe_button()}</button
-			>
-		{/if}
+		<button
+			type="button"
+			class="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-2 font-medium transition-colors {relationship === 'unresolved'
+				? 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/15'
+				: relationship === 'linked'
+					? 'border-success/30 bg-success/10 text-success hover:bg-success/15'
+					: 'border-base-300/70 bg-base-200/60 text-base-content/60 hover:bg-base-200'}"
+			aria-label={`${relationshipLabel}. ${m.inventory_recipe_manage_button()}`}
+			title={relationshipLabel}
+			onclick={() => onOpenLinkPicker()}
+		>
+			<Icon
+				name={relationship === 'linked'
+					? 'check'
+					: relationship === 'planned'
+						? 'clock'
+						: relationship === 'not_needed'
+							? 'minus'
+							: 'warn'}
+				class="h-3.5 w-3.5 shrink-0"
+			/>
+			{#if relationship === 'unresolved'}
+				<span>{m.inventory_recipe_unresolved_label()}</span>
+			{/if}
+		</button>
 	{:else if item.foodClass}
 		<span class="inline-flex items-center gap-1">{foodClassEmoji(item.foodClass)} {foodClassText(item.foodClass)}</span>
 	{/if}

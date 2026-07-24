@@ -31,8 +31,11 @@
 	]);
 </script>
 
-<div class="sticky top-0 z-20 border-b border-base-300/60 bg-base-100/95 px-4 pb-2 pt-2 backdrop-blur">
-	<div class="ui-scroll-rail flex items-center gap-1.5" use:scrollRail>
+<div class="sticky top-0 z-20 border-b border-base-300/60 bg-base-100/95 px-4 pb-2 pt-2 backdrop-blur lg:static lg:mt-1 lg:rounded-2xl lg:border lg:px-3 lg:py-3 lg:shadow-sm">
+	<div
+		class="ui-scroll-rail flex items-center gap-1.5 lg:flex-wrap lg:overflow-visible lg:[mask-image:none]"
+		use:scrollRail
+	>
 		<div class="shrink-0">
 			<SegmentedTabs tabs={SECTION_TABS} bind:value={sectionFilter} />
 		</div>

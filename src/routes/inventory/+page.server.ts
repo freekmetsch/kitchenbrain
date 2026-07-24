@@ -7,7 +7,6 @@ import { namesMatch } from '$lib/match';
 import {
 	freezerStapleInfoByRecipe,
 	frozenPortionsByRecipe,
-	recipeSuggestionsForName,
 	recipeTitleRows,
 	stapleGhostRows,
 	type RecipeSuggestion
@@ -67,22 +66,12 @@ export const load: PageServerLoad = async () => {
 		}
 	}
 
-	// P4.2 (G10): unlinked leftovers get name-match recipe suggestions so the UI
-	// can offer link-existing / plan-to-add / no-recipe. Skip items already
-	// dismissed as no_recipe. The full title list also ships as `recipeOptions`
-	// so the manual link picker works when zero titles match (UX-STOCK-2).
+	// The relationship sheet searches the complete recipe list, so every meal has
+	// the same link-existing / plan-to-add / no-recipe path.
 	const titleRows = recipeTitleRows(db);
 	const recipeOptions: RecipeSuggestion[] = titleRows
 		.map((r) => ({ id: r.id, slug: r.slug, title: r.titleEn ?? r.title }))
 		.sort((a, b) => a.title.localeCompare(b.title, 'en'));
-	const leftoverSuggestions: Record<number, RecipeSuggestion[]> = {};
-	for (const item of items) {
-		if (item.kind !== 'leftover') continue;
-		if (item.madeFromRecipeId !== null) continue;
-		if (item.recipeStatus === 'no_recipe') continue;
-		const suggestions = recipeSuggestionsForName(item.name, titleRows);
-		if (suggestions.length) leftoverSuggestions[item.id] = suggestions;
-	}
 
 	// "What can I make" — ingredient → recipe coverage (unchanged from the prior page).
 	const recipeRows = db
@@ -148,7 +137,6 @@ export const load: PageServerLoad = async () => {
 		items,
 		recipeLinks,
 		recipeMatches,
-		leftoverSuggestions,
 		recipeOptions,
 		stapleGhosts,
 		currentWeekStart: weekStartFor(todayIso(), getWeekStartDay())

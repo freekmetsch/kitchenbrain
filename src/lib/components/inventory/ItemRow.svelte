@@ -12,13 +12,12 @@
 	import ItemEditor from './ItemEditor.svelte';
 	import QtyControl from './QtyControl.svelte';
 	import { agingBar } from './shared';
-	import type { EditDraft, HistoryEvent, Item, RecipeLink, RecipeMatch, RecipeSuggestion } from './shared';
+	import type { EditDraft, HistoryEvent, Item, RecipeLink, RecipeMatch } from './shared';
 
 	let {
 		item,
 		link,
 		matches,
-		suggestions,
 		editing,
 		qtyEditing,
 		qtyEditVal = $bindable(),
@@ -37,10 +36,6 @@
 		onCancelQtyEdit,
 		onResolveReview,
 		onAddStaple,
-		onSetRecipeStatus,
-		onLinkRecipe,
-		onClearRecipeStatus,
-		onClearRecipeLink,
 		onOpenLinkPicker,
 		onOpenPortionEdit,
 		onCommitPortionEdit,
@@ -52,7 +47,6 @@
 		item: Item;
 		link: RecipeLink | null;
 		matches: RecipeMatch[];
-		suggestions: RecipeSuggestion[];
 		editing: boolean;
 		qtyEditing: boolean;
 		qtyEditVal: string;
@@ -71,10 +65,6 @@
 		onCancelQtyEdit: () => void;
 		onResolveReview: () => void;
 		onAddStaple: () => void;
-		onSetRecipeStatus: (status: 'plan_to_add' | 'no_recipe') => void;
-		onLinkRecipe: (s: RecipeSuggestion) => void;
-		onClearRecipeStatus: () => void;
-		onClearRecipeLink: () => void;
 		onOpenLinkPicker: () => void;
 		onOpenPortionEdit: () => void;
 		onCommitPortionEdit: () => void;
@@ -119,14 +109,9 @@
 			{item}
 			{link}
 			{matches}
-			{suggestions}
 			{portionEditing}
 			bind:portionValue={portionEditVal}
-			{onLinkRecipe}
 			{onOpenLinkPicker}
-			{onSetRecipeStatus}
-			{onClearRecipeStatus}
-			{onClearRecipeLink}
 			{onOpenPortionEdit}
 			{onCommitPortionEdit}
 			{onCancelPortionEdit}

@@ -27,6 +27,7 @@
 	let bubbleInitId = 0;
 	let dialogClosing = $state(false);
 	let dialogClosePromise: Promise<void> | null = null;
+	let collisionSettleTimer: ReturnType<typeof setTimeout> | null = null;
 	const STORAGE_KEY = 'kitchenbrain-agent-position-v1';
 
 	function persistPosition(rect: DOMRect) {
@@ -122,6 +123,56 @@
 		position = { ...position, x: position.x + targetLeft - bubbleRect.left };
 	}
 
+	function resolveControlCollision() {
+		if (!bubble || controller.opened || dragging) return;
+		const bubbleRect = bubble.getBoundingClientRect();
+		const gap = 10;
+		const minTop = 12;
+		const maxTop = maxBubbleTop(bubbleRect.height);
+		const controls = [
+			...document.querySelectorAll<HTMLElement>(
+				'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [role="button"], [role="tab"]'
+			)
+		]
+			.filter(
+				(node) =>
+					node !== bubble &&
+					node.offsetParent !== null &&
+					!node.closest('dialog, nav[aria-label], [data-timer-id]')
+			)
+			.map((node) => node.getBoundingClientRect())
+			.filter(
+				(rect) =>
+					rect.bottom >= minTop &&
+					rect.top <= maxTop + bubbleRect.height &&
+					rect.right + gap > bubbleRect.left &&
+					rect.left - gap < bubbleRect.right
+			);
+
+		const collidesAt = (top: number) =>
+			controls.some(
+				(rect) =>
+					rect.bottom + gap > top &&
+					rect.top - gap < top + bubbleRect.height
+			);
+		if (!collidesAt(bubbleRect.top)) return;
+
+		const candidates = [
+			minTop,
+			maxTop,
+			...controls.flatMap((rect) => [
+				rect.top - bubbleRect.height - gap,
+				rect.bottom + gap
+			])
+		]
+			.map((top) => Math.min(maxTop, Math.max(minTop, top)))
+			.filter((top, index, all) => all.indexOf(top) === index && !collidesAt(top))
+			.sort((a, b) => Math.abs(a - bubbleRect.top) - Math.abs(b - bubbleRect.top));
+		const targetTop = candidates[0];
+		if (targetTop === undefined) return;
+		position = { ...position, y: position.y + targetTop - bubbleRect.top };
+	}
+
 	async function settleBubble() {
 		if (settlingBubble) {
 			settleAgain = true;
@@ -139,6 +190,10 @@
 					position = { ...position, y: position.y + clampedTop - rect.top };
 					await tick();
 				}
+				resolveTimerCollision();
+				await tick();
+				resolveControlCollision();
+				await tick();
 				resolveTimerCollision();
 				await tick();
 				if (bubble) persistPosition(bubble.getBoundingClientRect());
@@ -277,12 +332,22 @@
 		positionPreferenceLoaded = true;
 		if (bubble) void initializeBubble(bubble);
 		const handleResize = () => void placeAtSavedPosition();
+		const handleScroll = () => {
+			if (collisionSettleTimer) clearTimeout(collisionSettleTimer);
+			collisionSettleTimer = setTimeout(() => {
+				collisionSettleTimer = null;
+				void settleBubble();
+			}, 120);
+		};
 		window.addEventListener('resize', handleResize);
+		window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
 		window.addEventListener(COOK_TIMER_LAYOUT_EVENT, settleBubble);
 		return () => {
 			query.removeEventListener('change', updateMode);
 			window.removeEventListener('resize', handleResize);
+			window.removeEventListener('scroll', handleScroll, true);
 			window.removeEventListener(COOK_TIMER_LAYOUT_EVENT, settleBubble);
+			if (collisionSettleTimer) clearTimeout(collisionSettleTimer);
 		};
 	});
 </script>

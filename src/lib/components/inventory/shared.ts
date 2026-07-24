@@ -12,7 +12,6 @@ import { m } from '$lib/paraglide/messages';
 export type Item = PageData['items'][number];
 export type RecipeLink = PageData['recipeLinks'][number];
 export type RecipeMatch = PageData['recipeMatches'][number][number];
-export type RecipeSuggestion = PageData['leftoverSuggestions'][number][number];
 export type RecipeOption = PageData['recipeOptions'][number];
 export type StapleGhost = PageData['stapleGhosts'][number];
 
@@ -78,6 +77,49 @@ export function recipeRelationshipKind(
 	if (item.recipeStatus === 'plan_to_add') return 'planned';
 	if (item.recipeStatus === 'no_recipe') return 'not_needed';
 	return 'unresolved';
+}
+
+export type RecipeCoverage = Record<RecipeRelationshipKind, number>;
+
+export function recipeCoverage(
+	items: Array<{
+		kind: Item['kind'];
+		madeFromRecipeId: Item['madeFromRecipeId'];
+		recipeStatus: Item['recipeStatus'];
+	}>
+): RecipeCoverage {
+	const coverage: RecipeCoverage = {
+		linked: 0,
+		planned: 0,
+		not_needed: 0,
+		unresolved: 0
+	};
+	for (const item of items) {
+		if (item.kind !== 'leftover') continue;
+		if (item.madeFromRecipeId !== null) coverage.linked++;
+		else if (item.recipeStatus === 'plan_to_add') coverage.planned++;
+		else if (item.recipeStatus === 'no_recipe') coverage.not_needed++;
+		else coverage.unresolved++;
+	}
+	return coverage;
+}
+
+function normalizeSearchValue(value: string): string {
+	return value
+		.normalize('NFD')
+		.replace(/\p{Diacritic}/gu, '')
+		.toLocaleLowerCase()
+		.trim();
+}
+
+export function matchesInventoryQuery(
+	query: string,
+	values: Array<string | null | undefined>
+): boolean {
+	const terms = normalizeSearchValue(query).split(/\s+/).filter(Boolean);
+	if (terms.length === 0) return true;
+	const haystack = normalizeSearchValue(values.filter(Boolean).join(' '));
+	return terms.every((term) => haystack.includes(term));
 }
 
 export function displayQuantity(

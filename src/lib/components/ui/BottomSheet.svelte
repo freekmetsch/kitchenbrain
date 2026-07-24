@@ -18,18 +18,28 @@
 	} = $props();
 
 	let dialog = $state<HTMLDialogElement>();
+	let returnFocus = $state<HTMLElement | null>(null);
 
 	// Drive the native <dialog> from `open` — showModal() gives focus-trap +
 	// Escape-to-close for free (the a11y contract this component owns).
 	$effect(() => {
 		if (!dialog) return;
-		if (open && !dialog.open) dialog.showModal();
+		if (open && !dialog.open) {
+			returnFocus =
+				document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			dialog.showModal();
+		}
 		else if (!open && dialog.open) dialog.close();
 	});
 
 	function handleClose() {
 		open = false;
 		onclose?.();
+		const target = returnFocus;
+		returnFocus = null;
+		queueMicrotask(() => {
+			if (target?.isConnected) target.focus();
+		});
 	}
 
 	// Backdrop click (the ::backdrop region maps to the dialog element itself).

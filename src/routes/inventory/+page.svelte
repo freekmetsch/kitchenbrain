@@ -22,7 +22,13 @@
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import ItemRow from '$lib/components/inventory/ItemRow.svelte';
 	import LinkRecipeSheet from '$lib/components/inventory/LinkRecipeSheet.svelte';
-	import { composeQty, daysOld } from '$lib/components/inventory/shared';
+	import {
+		composeQty,
+		daysOld,
+		matchesInventoryQuery,
+		recipeCoverage,
+		recipeRelationshipKind
+	} from '$lib/components/inventory/shared';
 	import type {
 		EditDraft,
 		HistoryEvent,
@@ -61,6 +67,7 @@
 	let sectionFilter = $state<Section | 'all'>('all');
 	let classFilter = $state<string | null>(null);
 	let reviewOnly = $state(false);
+	let searchQuery = $state('');
 
 	let showAddForm = $state(false);
 	let editingId = $state<number | null>(null);
@@ -95,13 +102,35 @@
 
 	// ── derived ────────────────────────────────────────────────────────────────
 	const needsReviewCount = $derived(items.filter((i) => i.needsReview).length);
-
+	const readyMealCount = $derived(
+		items.filter((item) => item.kind === 'leftover' && (item.qtyNum ?? 0) > 0).length
+	);
+	const belowTargetItems = $derived(
+		items.filter((item) => {
+			if (item.kind !== 'leftover') return false;
+			const link = linkFor(item);
+			return (
+				link?.isFreezerStaple === true &&
+				link.targetPortions !== null &&
+				(item.qtyNum ?? 0) < link.targetPortions
+			);
+		})
+	);
 	const filtered = $derived(
 		items.filter(
 			(i) =>
 				(sectionFilter === 'all' || i.section === sectionFilter) &&
 				(classFilter === null || rollsUpTo(i.foodClass, classFilter)) &&
-				(!reviewOnly || i.needsReview)
+				(!reviewOnly || i.needsReview) &&
+				matchesInventoryQuery(searchQuery, [
+					i.name,
+					i.unit,
+					i.section,
+					i.kind,
+					i.foodClass,
+					linkFor(i)?.title,
+					shelfLabel(String(bucket(i)))
+				])
 		)
 	);
 
@@ -116,7 +145,8 @@
 				{ key: 'visibleItems', value: filtered.length },
 				{ key: 'sectionFilter', value: sectionFilter },
 				{ key: 'foodClassFilter', value: classFilter ?? 'all' },
-				{ key: 'reviewOnly', value: reviewOnly }
+				{ key: 'reviewOnly', value: reviewOnly },
+				{ key: 'hasSearch', value: searchQuery.trim().length > 0 }
 			]
 		})
 	);
@@ -129,7 +159,13 @@
 	// only when no filter excludes them (UX-STOCK-14).
 	const ghostsVisible = $derived(
 		(sectionFilter === 'all' || sectionFilter === 'freezer') && classFilter === null && !reviewOnly
-			? data.stapleGhosts
+			? data.stapleGhosts.filter((ghost) =>
+					matchesInventoryQuery(searchQuery, [
+						ghost.title,
+						m.inventory_shelf_meals(),
+						m.inventory_section_freezer()
+					])
+				)
 			: []
 	);
 
@@ -330,9 +366,20 @@
 	}
 
 	// ── recipe status resolver (P4.2 G10) ─────────────────────────────────────────
-	async function setRecipeStatus(item: Item, status: 'plan_to_add' | 'no_recipe') {
-		const ok = await patch(item, { recipe_status: status });
-		if (!ok) flashToast(m.inventory_toast_update_failed(), { error: true });
+	async function setRecipeStatus(
+		item: Item,
+		status: 'plan_to_add' | 'no_recipe'
+	): Promise<boolean> {
+		const ok = await patch(item, {
+			made_from_recipe_id: null,
+			recipe_status: status
+		});
+		if (!ok) {
+			flashToast(m.inventory_toast_update_failed(), { error: true });
+			return false;
+		}
+		await invalidateAll();
+		return true;
 	}
 
 	// P6.1: link an unlinked leftover to a suggested recipe IN PLACE. The old UI
@@ -353,31 +400,39 @@
 	// P6.4 #3: reverse a plan-to-add / no-recipe dismissal so the link options come
 	// back. Clearing the status re-opens name-match suggestions (recomputed server-
 	// side), so re-run the loader.
-	async function clearRecipeStatus(item: Item) {
+	async function clearRecipeStatus(item: Item): Promise<boolean> {
 		const ok = await patch(item, { recipe_status: null });
 		if (!ok) {
 			flashToast(m.inventory_toast_update_failed(), { error: true });
-			return;
+			return false;
 		}
 		await invalidateAll();
+		return true;
 	}
 
-	async function clearRecipeLink(item: Item) {
+	async function clearRecipeLink(item: Item): Promise<boolean> {
 		const ok = await patch(item, {
 			made_from_recipe_id: null,
 			recipe_status: null
 		});
 		if (!ok) {
 			flashToast(m.inventory_toast_update_failed(), { error: true });
-			return;
+			return false;
 		}
 		await invalidateAll();
+		return true;
 	}
 
 	// ── manual link picker (UX-STOCK-2) ────────────────────────────────────────
 	let linkPickerOpen = $state(false);
 	let linkPickerItem = $state<Item | null>(null);
 	let linkSearch = $state('');
+	const linkPickerLink = $derived(linkPickerItem ? linkFor(linkPickerItem) : null);
+	const linkPickerRelationship = $derived(
+		linkPickerItem
+			? recipeRelationshipKind(linkPickerItem, linkPickerLink)
+			: ('unresolved' as const)
+	);
 	function openLinkPicker(item: Item) {
 		linkPickerItem = item;
 		linkSearch = '';
@@ -387,6 +442,17 @@
 		const item = linkPickerItem;
 		linkPickerOpen = false;
 		if (item) await linkRecipe(item, option);
+	}
+	async function setPickerRecipeStatus(
+		status: 'plan_to_add' | 'no_recipe'
+	): Promise<boolean> {
+		return linkPickerItem ? setRecipeStatus(linkPickerItem, status) : false;
+	}
+	async function clearPickerRecipeChoice(): Promise<boolean> {
+		if (!linkPickerItem) return false;
+		return linkPickerItem.madeFromRecipeId !== null
+			? clearRecipeLink(linkPickerItem)
+			: clearRecipeStatus(linkPickerItem);
 	}
 
 	// ── review fix: set-portions editor (UX-STOCK-1) ───────────────────────────
@@ -633,105 +699,249 @@
 		sectionFilter = 'all';
 		classFilter = null;
 		reviewOnly = false;
+		searchQuery = '';
 	}
 </script>
 
 <svelte:head><title>{m.inventory_title()}</title></svelte:head>
 
 <!-- ── page ─────────────────────────────────────────────────────────────────────── -->
-<div class="ui-page-shell">
-	<!-- header -->
-	<div class="flex items-center justify-between gap-3 px-4 pb-1 pt-4">
-		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.inventory_heading()}</h1>
-		<div class="flex items-center gap-1.5">
-			<button type="button" class="btn btn-ghost btn-sm h-9 w-9 p-0" aria-label={m.inventory_activity_aria()} onclick={openActivity}><Icon name="clock" class="h-4 w-4" /></button>
-			<button type="button" class="btn btn-primary btn-sm h-9 gap-1.5 rounded-lg px-3.5" aria-expanded={showAddForm} onclick={() => (showAddForm = !showAddForm)}>
-				<Icon name="plus" class="h-3.5 w-3.5" /> {m.inventory_add_button()}
-			</button>
-		</div>
-	</div>
+<div class="mx-auto max-w-6xl pb-[calc(var(--ui-fixed-bar-height)+1.5rem)]">
+	<div class="lg:grid lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-8 lg:px-6 lg:pt-6">
+		<aside class="contents lg:block lg:self-start">
+			<div class="contents lg:sticky lg:top-4 lg:block">
+				<header class="px-4 pb-1 pt-4 lg:px-0 lg:pt-0">
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0">
+							<p class="mb-1 ui-section-label">{m.inventory_heading()}</p>
+							<h1 class="text-2xl font-semibold leading-tight tracking-tight">
+								{m.inventory_radar_heading()}
+							</h1>
+							<p class="mt-1 max-w-sm text-sm leading-relaxed text-base-content/60">
+								{m.inventory_radar_description()}
+							</p>
+						</div>
+						<div class="flex shrink-0 items-center gap-1">
+							<button
+								type="button"
+								class="btn btn-ghost btn-sm h-11 min-h-0 w-11 p-0"
+								aria-label={m.inventory_activity_aria()}
+								onclick={openActivity}
+							>
+								<Icon name="clock" class="h-4 w-4" />
+							</button>
+							<button
+								type="button"
+								class="btn btn-primary btn-sm h-11 min-h-0 gap-1.5 rounded-xl px-3.5"
+								aria-expanded={showAddForm}
+								onclick={() => (showAddForm = !showAddForm)}
+							>
+								<Icon name="plus" class="h-3.5 w-3.5" />
+								{m.inventory_add_button()}
+							</button>
+						</div>
+					</div>
+				</header>
 
-	<!-- sticky facet bar (P2.2) -->
-	<FacetBar bind:sectionFilter bind:classFilter bind:reviewOnly {needsReviewCount} />
-
-	<!-- add form -->
-	<AddItemForm open={showAddForm} onCancel={() => (showAddForm = false)} onAdded={onItemAdded} {flashToast} />
-
-	<!-- shelves -->
-	<div class="px-4">
-		{#each shelves as shelf (shelf.kind)}
-			<section class="mt-5">
-				<div class="mb-2 flex items-baseline justify-between px-1">
-					<h2 class="ui-section-label">
-						{shelf.label} <span class="ml-1 font-normal">{shelf.items.length}</span>
-					</h2>
-					{#if shelf.hint}<span class="text-xs text-base-content/55">{shelf.hint}</span>{/if}
+				<div class="grid grid-cols-2 gap-2 px-4 py-3 lg:px-0">
+					<div class="rounded-2xl border border-primary/20 bg-primary/8 p-3 shadow-sm">
+						<div class="flex items-center gap-2 text-primary">
+							<span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+								<Icon name="pot" class="h-4 w-4" />
+							</span>
+							<strong class="text-2xl font-semibold tabular-nums">{readyMealCount}</strong>
+						</div>
+						<p class="mt-1 text-xs font-medium text-base-content/65">
+							{m.inventory_radar_meals_label()}
+						</p>
+					</div>
+					<div
+						class="rounded-2xl border p-3 shadow-sm {belowTargetItems.length > 0
+							? 'border-warning/30 bg-warning/10'
+							: 'border-base-300/60 bg-base-100'}"
+					>
+						<div
+							class="flex items-center gap-2 {belowTargetItems.length > 0
+								? 'text-warning'
+								: 'text-base-content/55'}"
+						>
+							<span class="flex h-8 w-8 items-center justify-center rounded-full bg-current/10">
+								<Icon name="warn" class="h-4 w-4" />
+							</span>
+							<strong class="text-2xl font-semibold tabular-nums">{belowTargetItems.length}</strong>
+						</div>
+						<p class="mt-1 text-xs font-medium text-base-content/65">
+							{m.inventory_radar_below_target_label()}
+						</p>
+					</div>
 				</div>
-				<ul class="ui-list-card divide-y divide-base-200">
-					{#each shelf.items as item (item.id)}
-						<li id="inventory-item-{item.id}" class="relative overflow-hidden" transition:slide={{ duration: MOTION_MICRO_MS }}>
-							<ItemRow
-								{item}
-								link={linkFor(item)}
-								matches={data.recipeMatches[item.id] ?? []}
-								suggestions={data.leftoverSuggestions[item.id] ?? []}
-								editing={editingId === item.id}
-								qtyEditing={qtyEditId === item.id}
-								bind:qtyEditVal
-								portionEditing={portionEditId === item.id}
-								bind:portionEditVal
-								history={historyByItem[item.id]}
-								bind:draft={editDraft}
-								saving={editSaving}
-								onOpenEdit={() => openEdit(item)}
-								onDelete={() => deleteItem(item)}
-								onStepQty={(delta) => stepQty(item, delta)}
-								onOpenQtyEdit={() => openQtyEdit(item)}
-								onCommitQtyEdit={() => commitQtyEdit(item)}
-								onCancelQtyEdit={() => (qtyEditId = null)}
-								onResolveReview={() => resolveReview(item)}
-								stapleAdded={stapleAdded.includes(item.id)}
-								stapleBusy={stapleOutBusy === item.id}
-								onAddStaple={() => stapleOut(item)}
-								onSetRecipeStatus={(status) => setRecipeStatus(item, status)}
-								onLinkRecipe={(s) => linkRecipe(item, s)}
-								onClearRecipeStatus={() => clearRecipeStatus(item)}
-								onClearRecipeLink={() => clearRecipeLink(item)}
-								onOpenLinkPicker={() => openLinkPicker(item)}
-								onOpenPortionEdit={() => openPortionEdit(item)}
-								onCommitPortionEdit={() => commitPortionEdit(item)}
-								onCancelPortionEdit={() => (portionEditId = null)}
-								onSaveEdit={() => saveEdit(item)}
-								onCancelEdit={() => (editingId = null)}
-								onUndoEvent={undoEvent}
-							/>
-						</li>
-					{/each}
-					{#if shelf.kind === 'leftover'}
-						<!-- Ghost rows (UX-STOCK-14): keep-stocked recipes with no live row. -->
-						<GhostRows ghosts={ghostsVisible} {flashToast} />
-					{/if}
-				</ul>
-			</section>
-		{/each}
 
-		{#if filtered.length === 0}
-			{#if items.length === 0}
-				<EmptyState iconName="jar" title={m.inventory_empty_title()}>
-					{#snippet action()}
-						<button type="button" class="btn btn-primary btn-sm" onclick={() => (showAddForm = true)}>
-							{m.inventory_empty_add_first_button()}
-						</button>
-					{/snippet}
-				</EmptyState>
-			{:else}
-				<EmptyState title={m.inventory_empty_filtered_title()}>
-					{#snippet action()}
-						<button type="button" class="btn btn-ghost btn-sm h-8 min-h-0 text-primary" onclick={clearFilters}>{m.inventory_clear_filters_button()}</button>
-					{/snippet}
-				</EmptyState>
-			{/if}
-		{/if}
+				<div class="px-4 pb-3 lg:px-0">
+					<label class="block">
+						<span class="sr-only">{m.inventory_search_label()}</span>
+						<span class="relative block">
+							<svg
+								viewBox="0 0 16 16"
+								class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-base-content/45"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.5"
+								aria-hidden="true"
+							>
+								<path d="M11.25 11.25 14 14" />
+								<circle cx="7.25" cy="7.25" r="5" />
+							</svg>
+							<input
+								type="search"
+								class="input input-bordered h-12 w-full rounded-xl bg-base-100 pl-10 pr-11 shadow-sm"
+								placeholder={m.inventory_search_placeholder()}
+								bind:value={searchQuery}
+							/>
+							{#if searchQuery}
+								<button
+									type="button"
+									class="btn btn-ghost btn-sm absolute right-0.5 top-1/2 h-11 min-h-0 w-11 -translate-y-1/2 p-0"
+									aria-label={m.inventory_search_clear()}
+									onclick={() => (searchQuery = '')}
+								>
+									<Icon name="x" class="h-3.5 w-3.5" />
+								</button>
+							{/if}
+						</span>
+					</label>
+				</div>
+
+				<FacetBar bind:sectionFilter bind:classFilter bind:reviewOnly {needsReviewCount} />
+			</div>
+		</aside>
+
+		<main class="min-w-0">
+			<AddItemForm
+				open={showAddForm}
+				onCancel={() => (showAddForm = false)}
+				onAdded={onItemAdded}
+				{flashToast}
+			/>
+
+			<div class="px-4 lg:px-0">
+				{#each shelves as shelf (shelf.kind)}
+					{@const shelfRecipeCoverage = recipeCoverage(shelf.items)}
+					<section class="mt-5 lg:first:mt-0">
+						<div class="mb-2 flex items-baseline justify-between px-1">
+							<h2 class="ui-section-label">
+								{shelf.label} <span class="ml-1 font-normal">{shelf.items.length}</span>
+							</h2>
+							{#if shelf.hint}<span class="text-xs text-base-content/55">{shelf.hint}</span>{/if}
+						</div>
+
+						{#if shelf.kind === 'leftover' && shelf.items.length > 0}
+							<div
+								class="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-base-300/60 bg-base-200/45 px-3 py-2 text-[11px] text-base-content/60"
+								aria-label={m.inventory_recipe_coverage_label()}
+							>
+								<span class="font-semibold uppercase tracking-[0.06em]">
+									{m.inventory_recipe_coverage_label()}
+								</span>
+								<span class="inline-flex items-center gap-1">
+									<span class="h-1.5 w-1.5 rounded-full bg-success"></span>
+									{m.inventory_recipe_coverage_linked({ count: shelfRecipeCoverage.linked })}
+								</span>
+								<span class="inline-flex items-center gap-1">
+									<span class="h-1.5 w-1.5 rounded-full bg-primary"></span>
+									{m.inventory_recipe_coverage_planned({ count: shelfRecipeCoverage.planned })}
+								</span>
+								<span class="inline-flex items-center gap-1">
+									<span class="h-1.5 w-1.5 rounded-full bg-base-content/35"></span>
+									{m.inventory_recipe_coverage_not_needed({
+										count: shelfRecipeCoverage.not_needed
+									})}
+								</span>
+								{#if shelfRecipeCoverage.unresolved > 0}
+									<span class="inline-flex items-center gap-1 font-medium text-warning">
+										<span class="h-1.5 w-1.5 rounded-full bg-warning"></span>
+										{m.inventory_recipe_coverage_unresolved({
+											count: shelfRecipeCoverage.unresolved
+										})}
+									</span>
+								{/if}
+							</div>
+						{/if}
+
+						<ul class="ui-list-card divide-y divide-base-200">
+							{#each shelf.items as item (item.id)}
+								<li
+									id="inventory-item-{item.id}"
+									class="relative overflow-hidden"
+									transition:slide={{ duration: MOTION_MICRO_MS }}
+								>
+									<ItemRow
+										{item}
+										link={linkFor(item)}
+										matches={data.recipeMatches[item.id] ?? []}
+										editing={editingId === item.id}
+										qtyEditing={qtyEditId === item.id}
+										bind:qtyEditVal
+										portionEditing={portionEditId === item.id}
+										bind:portionEditVal
+										history={historyByItem[item.id]}
+										bind:draft={editDraft}
+										saving={editSaving}
+										onOpenEdit={() => openEdit(item)}
+										onDelete={() => deleteItem(item)}
+										onStepQty={(delta) => stepQty(item, delta)}
+										onOpenQtyEdit={() => openQtyEdit(item)}
+										onCommitQtyEdit={() => commitQtyEdit(item)}
+										onCancelQtyEdit={() => (qtyEditId = null)}
+										onResolveReview={() => resolveReview(item)}
+										stapleAdded={stapleAdded.includes(item.id)}
+										stapleBusy={stapleOutBusy === item.id}
+										onAddStaple={() => stapleOut(item)}
+										onOpenLinkPicker={() => openLinkPicker(item)}
+										onOpenPortionEdit={() => openPortionEdit(item)}
+										onCommitPortionEdit={() => commitPortionEdit(item)}
+										onCancelPortionEdit={() => (portionEditId = null)}
+										onSaveEdit={() => saveEdit(item)}
+										onCancelEdit={() => (editingId = null)}
+										onUndoEvent={undoEvent}
+									/>
+								</li>
+							{/each}
+							{#if shelf.kind === 'leftover'}
+								<GhostRows ghosts={ghostsVisible} {flashToast} />
+							{/if}
+						</ul>
+					</section>
+				{/each}
+
+				{#if filtered.length === 0 && ghostsVisible.length === 0}
+					{#if items.length === 0}
+						<EmptyState iconName="jar" title={m.inventory_empty_title()}>
+							{#snippet action()}
+								<button
+									type="button"
+									class="btn btn-primary btn-sm"
+									onclick={() => (showAddForm = true)}
+								>
+									{m.inventory_empty_add_first_button()}
+								</button>
+							{/snippet}
+						</EmptyState>
+					{:else}
+						<EmptyState title={m.inventory_empty_filtered_title()}>
+							{#snippet action()}
+								<button
+									type="button"
+									class="btn btn-ghost btn-sm h-11 min-h-0 text-primary"
+									onclick={clearFilters}
+								>
+									{m.inventory_clear_filters_button()}
+								</button>
+							{/snippet}
+						</EmptyState>
+					{/if}
+				{/if}
+			</div>
+		</main>
 	</div>
 </div>
 
@@ -739,9 +949,13 @@
 <LinkRecipeSheet
 	bind:open={linkPickerOpen}
 	item={linkPickerItem}
+	link={linkPickerLink}
+	relationship={linkPickerRelationship}
 	bind:search={linkSearch}
 	options={data.recipeOptions}
 	onPick={pickLinkRecipe}
+	onSetStatus={setPickerRecipeStatus}
+	onClear={clearPickerRecipeChoice}
 />
 
 <!-- ── activity drawer (P2.3) ──────────────────────────────────────────────────────── -->
