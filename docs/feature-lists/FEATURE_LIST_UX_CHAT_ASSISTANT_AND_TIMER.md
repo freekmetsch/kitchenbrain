@@ -1,6 +1,6 @@
 # Chat Assistant and Cooking Timer — UX Workup
 
-_Status: In flight — selected assistant packages shipped; physical timer-device gate remains (2026-07-23)_
+_Status: In flight - Phase 2 of 2 (paused 2026-07-24)_
 
 > The assistant-only post-ship findings shipped and are archived in `archive/FEATURE_LIST_UX_ASSISTANT_CHAT.md`. This document remains active only for assistant/timer coexistence and the physical locked-screen timer gate.
 
@@ -53,6 +53,72 @@ Guardrails:
 2. **CHAT-UX-2 (S, completed):** separate “Go to…” actions from “Ask…” actions with verbs and grouping.
 3. **CHAT-UX-3 (S, completed):** apply 44 px touch targets and semantic live feedback.
 4. **TIMER-UX-1 (device gate):** test a 2-minute timer with screen locked on the household's actual iPhone and Android device; record lock, notification, silent-mode, media-volume, and force-close outcomes.
+
+## Phase: Recipe cooking page streamlining
+
+### Problem framing
+
+The recipe page currently makes the cook carry too much persistent chrome: a sticky recipe header, a sticky step-progress/servings bar, a floating timer stack, a post-cook feedback prompt, and a collapsed maintenance section. Enhancement also blocks the page behind an AI loading sheet, while the cooking cards reserve horizontal space for a timer even when the instruction text does not need it.
+
+The target is a calm, scrollable cooking surface for one household cook on a phone or kitchen tablet: recipe context is visible once, controls stay beside the content they affect, background work can be dismissed without losing its result, and each instruction uses the available width.
+
+### Scope
+
+In: non-sticky recipe header and cooking layout; removal of step progress chrome; inline serving controls; freezer/enhancement action pairing; background enhancement status and later review; top-level recipe notes/tags and reduced metadata; original-recipe toggle; inline instruction timers; component color continuity; removal of cooking-view feedback and floating timer UI; concise cook-log action.
+
+Out: database schema changes; AI enhancement API changes; multi-user behavior; timer persistence contract; locked-screen device verification; redesign of the raw recipe editor.
+
+### Chosen approach
+
+Use existing Svelte components and primitives. Keep the server enhancement proposal contract, but make the first click start generation and return immediately to the page; retain the in-memory proposal for review once ready. Render the existing timer state inside the instruction line that owns it and remove only the floating presentation layer. Replace hand-rolled cooking/original view buttons with the existing `SegmentedTabs` primitive.
+
+Rejected alternatives: a new job table or notification system would exceed the requested UI change and create schema/deployment work; keeping the modal open while generating preserves the current ambiguity; a new timer data model is unnecessary for the existing one-timer-per-step payload and would expand the cache contract.
+
+### Execution tickets
+
+1. **Flow chrome and metadata (R1, S)** — remove sticky classes and step-progress bar, remove sticky counter rail, keep servings adjustment in the cooking flow, convert original/cooking control to `SegmentedTabs`, move notes/tags to the top metadata strip, and remove the bottom maintenance section. Verify `npm run check` plus 375/1280 viewport smoke checks. Rollback: restore the affected component markup/classes.
+2. **Background enhancement and action pairing (R2, M)** — place freezer and enhancement actions side by side, start enhancement without opening the sheet, expose busy/ready/error status, and allow review/apply once the proposal is ready. Verify dismissing the review surface does not cancel generation and that failure is announced. Rollback: revert component-only interaction changes; API remains unchanged.
+3. **Inline timer and component density (R2, M)** — remove `TimerStack` rendering, attach the timer chip/label to its instruction line, remove timer-driven padding from the whole card, and preserve start/cancel/done behavior. Restore stream palette cues in the counter and improve swap affordance. Verify timer start/cancel/done and long instruction wrapping at 375/1280. Rollback: restore the existing stack renderer.
+4. **Cook completion simplification (R1, XS)** — remove cooking-view rating feedback and make the sole bottom action the cook log button. Verify direct recipe and planned-meal logging still submit and show success. Rollback: restore the feedback block only if product needs it again.
+
+### Risk and verification matrix
+
+Risk: R2 (client interaction/state changes; no schema or auth boundary).
+
+| Area | Verification |
+|---|---|
+| Responsive layout | Browser smoke at 375 px and 1280 px; no sticky header/progress, no horizontal clipping, instructions use full width. |
+| Enhancement states | Source review plus browser pass for idle, busy, ready-review, apply, and failure; status uses `role=status`/toast. |
+| Timer behavior | Unit tests remain green; browser pass for inline start, countdown, cancel, done/reset, and page background behavior where available. |
+| Data/API invariants | Existing `npm run check`, `npm run test:unit`, and `npm run build`; no API/schema files changed. |
+
+### Failure-mode critique
+
+| Failure mode | Trigger | Impact | Detectability | Mitigation | Residual risk |
+|---|---|---|---|---|---|
+| Enhancement result is lost after navigation | User leaves before review | Generated proposal cannot be reviewed later | Visible only after leaving the route | Keep busy/ready/error status explicit; leave durable proposal persistence out of scope | Medium; requires a later API/schema decision if cross-route resume is needed |
+| Timer affordance is not discoverable | Timer label is attached to a long/multiline instruction | Cook misses or cannot reach the timer | Browser pass with long instruction text | Render chip inline beside the matched sentence with a clear action/location label and 44 px target | Low |
+| Step selection regresses during card refactor | Click target/focus semantics change | Current-step highlighting or resume behavior breaks | Unit/build plus keyboard smoke | Preserve `selectStep` and card-level labelled selection control | Low |
+| Removing feedback changes direct-cook request shape | Rating is removed from the client body | Server may reject or mis-handle logging | Unit/build and direct-cook smoke | Send an empty JSON object for the existing endpoint; keep planned-meal status payload unchanged | Low |
+| Palette cues disappear on narrow screens | Counter remains neutral or hides component labels | Multi-component recipes become harder to scan | 375 px visual smoke | Apply the stream palette to each ingredient row and retain a compact component label | Low |
+
+Steelman: Keeping a modal open during enhancement would be simpler mechanically, but it directly preserves the user’s reported ambiguity and blocks the cooking page during metered AI work. Starting the same existing request from the button, exposing a status, and reusing the current review/apply sheet gives the user control without inventing a second server contract; the remaining cross-route persistence risk is explicit and isolated rather than silently implied.
+
+### Open Questions
+
+> **Q: Should a completed enhancement survive leaving the recipe page?** — Default: keep the current in-memory proposal for this task and make the status explicit; persisting staged proposals is an API/schema decision outside this UI pass. Reason: it delivers dismissible background work without introducing a new durable job contract.
+
+### Resume pack
+
+Goal: streamline the recipe cooking page around vertical flow, local controls, and resumable enhancement.
+
+Current state: active implementation task; existing page has sticky header/progress, floating timer stack, modal-blocking enhancement, bottom maintenance, and feedback controls.
+
+First command: `/run`.
+
+First files: `src/routes/recipes/[slug]/+page.svelte`, `src/lib/components/BenchSheet.svelte`, `src/lib/components/cook-mode/CookStepCard.svelte`, `src/lib/components/cook-mode/InstructionLines.svelte`, `src/lib/components/recipe-detail/RecipeEnhancementSheet.svelte`.
+
+Pending verification: standard check, unit, build, then responsive browser smoke if a seeded local session is available.
 
 ## Acceptance checks
 

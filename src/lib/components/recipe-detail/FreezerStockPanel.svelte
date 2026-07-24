@@ -82,7 +82,7 @@
 	}
 </script>
 
-<section class="px-3 pt-3">
+<section class="h-full">
 	<button
 		type="button"
 		class="flex w-full items-center gap-3 rounded-2xl border border-base-200 bg-base-100 p-3 text-left transition-colors hover:bg-base-200/50"

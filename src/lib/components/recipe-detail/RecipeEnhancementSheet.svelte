@@ -15,6 +15,7 @@
 	let { slug, ingredients }: Props = $props();
 	let open = $state(false);
 	let loading = $state(false);
+	let status = $state<'idle' | 'loading' | 'ready' | 'error'>('idle');
 	let applying = $state(false);
 	let proposal = $state<Proposal | null>(null);
 	let selectedAdditions = $state<Record<string, boolean>>({});
@@ -23,8 +24,9 @@
 	let ingredientNames = $derived(new Map(ingredients.map((ingredient) => [ingredient.id, ingredient.name])));
 
 	async function generate() {
-		open = true;
+		if (loading) return;
 		loading = true;
+		status = 'loading';
 		proposal = null;
 		try {
 			const response = await fetch(`${base}/api/recipes/${slug}/enhance`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'generate' }) });
@@ -33,7 +35,9 @@
 			selectedAdditions = Object.fromEntries(proposal!.additions.map((addition) => [addition.id, false]));
 			needs = Object.fromEntries(proposal!.additions.map((addition) => [addition.id, 'optional']));
 			selectedSubstitutes = Object.fromEntries(proposal!.substitutes.map((substitute) => [substitute.id, false]));
-		} catch { toast.error(m.recipe_enhance_failed()); open = false; }
+			status = 'ready';
+			toast.success(m.recipe_enhance_ready());
+		} catch { status = 'error'; toast.error(m.recipe_enhance_failed()); }
 		finally { loading = false; }
 	}
 
@@ -57,6 +61,7 @@
 			if (!response.ok) { toast.error(response.status === 409 ? m.recipe_enhance_stale() : m.recipe_enhance_failed()); return; }
 			open = false;
 			proposal = null;
+			status = 'idle';
 			toast.success(m.recipe_enhance_applied());
 			await invalidateAll();
 		} catch {
@@ -67,14 +72,24 @@
 	}
 </script>
 
-<button
-	type="button"
-	class="btn btn-outline btn-sm mx-3 mb-4 mt-3 min-h-11"
-	aria-haspopup="dialog"
-	onclick={openReview}
->
-	{m.recipe_enhance_button()}
-</button>
+<div class="flex h-full flex-col rounded-2xl border border-primary/20 bg-primary/5 p-3">
+	<button
+		type="button"
+		class="btn btn-outline btn-sm min-h-11 w-full border-primary/40 bg-base-100"
+		aria-haspopup={proposal ? 'dialog' : undefined}
+		disabled={loading}
+		onclick={openReview}
+	>
+		{#if loading}{m.recipe_enhance_working()}{:else if proposal}{m.recipe_enhance_review_button()}{:else if status === 'error'}{m.recipe_enhance_retry_button()}{:else}{m.recipe_enhance_button()}{/if}
+	</button>
+	{#if loading}
+		<p class="mt-2 flex items-center gap-2 text-xs text-base-content/65" role="status"><Spinner size="xs" />{m.recipe_enhance_background_status()}</p>
+	{:else if status === 'ready'}
+		<p class="mt-2 text-xs text-success" role="status">{m.recipe_enhance_ready()}</p>
+	{:else if status === 'error'}
+		<p class="mt-2 text-xs text-error" role="status">{m.recipe_enhance_failed()}</p>
+	{/if}
+</div>
 
 <BottomSheet bind:open title={m.recipe_enhance_title()}>
 	{#if loading}

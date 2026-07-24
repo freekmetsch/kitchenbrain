@@ -90,8 +90,6 @@
 	let showTranslated = $derived(viewLang === 'en' && englishDisplayReady && recipe.language !== 'en');
 	let displayTitle = $derived(showTranslated ? recipe.titleEn! : recipe.title);
 	let displayNotes = $derived(showTranslated ? recipe.notesEn : recipe.notes);
-	let displayCategory = $derived(showTranslated ? recipe.categoryEn : recipe.category);
-	let displayCuisine = $derived(showTranslated ? recipe.cuisineEn : recipe.cuisine);
 	let displayDirections = $derived(
 		showTranslated ? recipe.directionsEn! : recipe.directions
 	);
@@ -156,7 +154,6 @@
 
 	let imageUploading = $state(false);
 	let imageUploadError = $state('');
-	let recipeHeaderHeight = $state(52);
 	let imageFileInput: HTMLInputElement | null = $state(null);
 
 	// P4.1 freeze-on-cook prompt
@@ -327,7 +324,6 @@
 
 <div
 	class="ui-page-shell !max-w-6xl overflow-x-clip"
-	style={`--recipe-header-height: ${recipeHeaderHeight}px`}
 >
 
 <RecipeHeader
@@ -336,7 +332,6 @@
 	{viewLang}
 	{translationLoading}
 	{translationMessage}
-	bind:stickyHeight={recipeHeaderHeight}
 	onAddToPlan={() => {
 		addToPlanOpen = true;
 	}}
@@ -354,6 +349,8 @@
 	uploadError={imageUploadError}
 	onPickPhoto={() => imageFileInput?.click()}
 />
+
+<RecipeMetaChips {recipe} {displayNotes} />
 
 {#if recipe.needsReview}
 	<ImportReviewBanner
@@ -375,19 +372,20 @@
 	onchange={onImagePicked}
 />
 
-<FreezerStockPanel
-	{recipe}
-	frozenPortions={data.frozenPortions}
-	onSaved={(payload) => {
-		recipe = {
-			...recipe,
-			isFreezerStaple: payload.isFreezerStaple,
-			targetPortions: payload.targetPortions
-		};
-	}}
-/>
-
-<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />
+<div class="grid grid-cols-1 gap-3 px-3 pt-3 md:grid-cols-2">
+	<FreezerStockPanel
+		{recipe}
+		frozenPortions={data.frozenPortions}
+		onSaved={(payload) => {
+			recipe = {
+				...recipe,
+				isFreezerStaple: payload.isFreezerStaple,
+				targetPortions: payload.targetPortions
+			};
+		}}
+	/>
+	<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />
+</div>
 
 <RecipeViewToolbar
 	bind:view={recipeView}
@@ -417,45 +415,18 @@
 	bind:controller={benchSheetController}
 />
 
-<details class="mx-3 mb-12 rounded-2xl border border-base-300/70 bg-base-100 shadow-sm">
-	<summary class="min-h-12 cursor-pointer px-4 py-3 text-sm font-semibold text-base-content/65">
-		{m.recipes_maintenance_heading()}
-	</summary>
-	<div class="border-t border-base-200 pb-4">
-		<RecipeMetaChips {recipe} {displayCategory} {displayCuisine} />
+<MealComposition
+	slug={recipe.slug}
+	subRecipes={data.subRecipes}
+	partOfMeals={data.partOfMeals}
+	{subDisplayTitle}
+/>
 
-		<MealComposition
-			slug={recipe.slug}
-			subRecipes={data.subRecipes}
-			partOfMeals={data.partOfMeals}
-			{subDisplayTitle}
-		/>
+{#if !data.roleCoverage.complete}
+	<RoleCoverage slug={recipe.slug} coverage={data.roleCoverage} onAskAi={openRolesAiEdit} />
+{/if}
 
-		{#if !data.roleCoverage.complete}
-			<RoleCoverage slug={recipe.slug} coverage={data.roleCoverage} onAskAi={openRolesAiEdit} />
-		{/if}
-
-		{#if displayNotes || recipe.tags.length}
-			<section class="flex flex-col gap-2 px-3 pt-3">
-				{#if displayNotes}
-					<h2 class="text-[10px] font-bold uppercase tracking-wide text-base-content/50">
-						{m.recipes_notes_heading()}
-					</h2>
-					<p class="rounded-xl bg-base-200/50 px-3 py-2 text-sm leading-snug text-base-content/75">
-						{displayNotes}
-					</p>
-				{/if}
-				{#if recipe.tags.length}
-					<div class="flex flex-wrap gap-1.5">
-						{#each recipe.tags as tag}
-							<span class="ui-chip-muted">{tag}</span>
-						{/each}
-					</div>
-				{/if}
-			</section>
-		{/if}
-	</div>
-</details>
+<div class="mb-12"></div>
 
 </div>
 

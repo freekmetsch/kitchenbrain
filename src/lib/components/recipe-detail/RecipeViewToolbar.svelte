@@ -16,19 +16,15 @@
 </script>
 
 <div class="mx-auto flex max-w-5xl items-center justify-between gap-2 px-3 py-2">
-	<div class="flex min-h-9 items-center gap-1.5" aria-label={m.benchsheet_view_label()}>
-		{#if view === 'cook'}
-			<span class="px-2 text-sm font-semibold">{m.benchsheet_view_cooking()}</span>
-			<button type="button" class="btn btn-ghost btn-xs min-h-9 text-base-content/55" onclick={() => (view = 'original')}>
-				{m.benchsheet_view_original()}
-			</button>
-		{:else}
-			<button type="button" class="btn btn-primary btn-xs min-h-9" onclick={() => (view = 'cook')}>
-				{m.benchsheet_view_cooking()}
-			</button>
-			<span class="px-2 text-sm font-semibold">{m.benchsheet_view_original()}</span>
-		{/if}
-	</div>
+	<SegmentedTabs
+		tabs={[
+			{ value: 'cook', label: m.benchsheet_view_cooking() },
+			{ value: 'original', label: m.benchsheet_view_original() }
+		]}
+		value={view}
+		ariaLabel={m.benchsheet_view_label()}
+		onchange={(next) => (view = next)}
+	/>
 	{#if languageSwitchable}
 		<SegmentedTabs
 			tabs={[

@@ -2,7 +2,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { CookModeStep } from '$lib/types';
 	import InstructionLines from './InstructionLines.svelte';
-	import TimerChip from './TimerChip.svelte';
 	import type { BeatPalette } from './palette';
 
 	type Props = {
@@ -41,19 +40,18 @@
 	class="relative overflow-hidden rounded-2xl border border-base-300/70 bg-base-100 transition-all {current
 		? 'translate-y-[-1px] shadow-lg ring-2 ring-primary/35'
 		: 'shadow-sm'}"
-	style="scroll-margin-top: calc(var(--recipe-header-height, 3.25rem) + 5rem)"
+	style="scroll-margin-top: 1rem"
 >
 	<div class="absolute inset-y-0 left-0 w-1.5 {palette.bar}" aria-hidden="true"></div>
 	<button
 		type="button"
-		class="min-h-20 w-full px-4 py-4 pl-5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {step.timer_seconds
-			? 'pr-28'
-			: ''}"
+		class="absolute inset-0 z-0 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		aria-current={current ? 'step' : undefined}
 		aria-label={m.cookmode_select_step_aria({ number: index + 1, goal: step.body })}
 		onclick={onSelect}
-	>
-		<div class="mb-2 flex items-center gap-2 pr-20">
+	></button>
+	<div class="relative z-10 pointer-events-none min-h-20 px-4 py-4 pl-5 text-left">
+		<div class="mb-2 flex items-center gap-2">
 			<span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-bold tabular-nums {palette.soft} {palette.text}">
 				{index + 1}
 			</span>
@@ -73,18 +71,17 @@
 				{/each}
 			</div>
 		{/if}
-		<InstructionLines text={step.body || step.goal || step.title} />
-	</button>
-	{#if step.timer_seconds}
-		<div class="absolute right-3 top-3">
-			<TimerChip
-				seconds={step.timer_seconds}
-				active={timerActive}
-				done={timerDone}
-				remaining={timerRemaining}
-				onStart={onStartTimer}
-				onReset={onResetTimer}
-			/>
-		</div>
-	{/if}
+		<InstructionLines
+			text={step.body || step.goal || step.title}
+			timerSeconds={step.timer_seconds}
+			timerPurpose={step.timer_purpose}
+			timerAction={step.timer_action}
+			timerLocation={step.timer_location}
+			timerActive={timerActive}
+			timerDone={timerDone}
+			timerRemaining={timerRemaining}
+			onStartTimer={onStartTimer}
+			onResetTimer={onResetTimer}
+		/>
+	</div>
 </li>

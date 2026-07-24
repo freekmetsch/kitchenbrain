@@ -1,5 +1,4 @@
-<!-- Sticky recipe task header. Primary actions stay visible; the overflow only
-     exists when a cooking session or stored photo makes a secondary action relevant. -->
+<!-- Recipe context and primary actions. This header scrolls with the page so the cooking surface stays calm. -->
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
@@ -21,8 +20,7 @@
 		hasCookProgress,
 		onResetCookProgress,
 		onRemovePhoto,
-		onRetryTranslation,
-		stickyHeight = $bindable(52)
+		onRetryTranslation
 	}: {
 		recipe: Recipe;
 		displayTitle: string;
@@ -35,10 +33,8 @@
 		onResetCookProgress: () => void;
 		onRemovePhoto: () => void;
 		onRetryTranslation: (force: boolean) => void;
-		stickyHeight?: number;
 	} = $props();
 
-	let headerElement: HTMLElement | null = $state(null);
 	let menuOpen = $state(false);
 	let menuButton: HTMLButtonElement | null = $state(null);
 	let editButton: HTMLButtonElement | null = $state(null);
@@ -88,17 +84,6 @@
 		if (!menuOpen) void toggleMenu();
 	}
 
-	$effect(() => {
-		if (!headerElement) return;
-		const updateHeight = () => {
-			const next = Math.ceil(headerElement?.getBoundingClientRect().height ?? 52);
-			if (next > 0 && next !== stickyHeight) stickyHeight = next;
-		};
-		updateHeight();
-		const observer = new ResizeObserver(updateHeight);
-		observer.observe(headerElement);
-		return () => observer.disconnect();
-	});
 </script>
 
 <svelte:window
@@ -109,7 +94,7 @@
 	}}
 />
 
-<header bind:this={headerElement} class="sticky top-0 z-30 border-b border-base-200 bg-base-100/95 backdrop-blur">
+<header class="border-b border-base-200 bg-base-100">
 	<div class="flex items-center gap-1.5 px-3 py-2">
 		<a
 			href="{base}/recipes"

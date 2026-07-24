@@ -17,13 +17,12 @@
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
-	import type { BenchSheetRating, CookModeDisplayRecipe, StoredCookModeRecipe } from '$lib/types';
+	import type { CookModeDisplayRecipe, StoredCookModeRecipe } from '$lib/types';
 	import type { Ingredient } from '$lib/recipe_ingredient';
 	import { projectIngredient } from '$lib/recipe_scale';
 	import CookStepCard from './cook-mode/CookStepCard.svelte';
 	import CounterBoard from './cook-mode/CounterBoard.svelte';
-	import TimerStack from './cook-mode/TimerStack.svelte';
-	import { cookPaletteGraph, fmtClock, paletteFor } from './cook-mode/palette';
+	import { cookPaletteGraph, fmtClock, paletteFor, type BeatPalette } from './cook-mode/palette';
 	import {
 		isCookModeEligibleForNewSession,
 		localizeCookMode
@@ -206,7 +205,6 @@
 	let now = $state(Date.now());
 	let nowSec = $derived(Math.floor(now / 1000));
 
-	let benchSheetRating = $state<BenchSheetRating | null>(null);
 
 	// In-app notification permission primer. Soft ask before the browser
 	// dialog; if requestPermission() throws (broken browser), the second flag
@@ -764,7 +762,6 @@
 		timerOrder = [];
 		backgroundTimerAudio?.stopAll();
 		firedFor.clear();
-		benchSheetRating = null;
 		cookedDone = false;
 		cookedSubmitting = false;
 	}
@@ -806,7 +803,7 @@
 			const res = await fetch(planMealId ? `${base}/api/meal-plan/${planMealId}` : `${base}/api/recipes/${recipeSlug}/cook`, {
 				method: planMealId ? 'PUT' : 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(planMealId ? { status: 'cooked' } : { benchSheetRating })
+				body: JSON.stringify(planMealId ? { status: 'cooked' } : {})
 			});
 			if (!res.ok) {
 				toast.error(m.benchsheet_cook_failed());
@@ -839,7 +836,6 @@
 	let steps = $derived(
 		applySessionSwapsToSteps(cookMode?.steps ?? [], sessionSwaps, ingredientNamesById)
 	);
-	let currentStepIndex = $derived(currentKeys().indexOf(currentStepKey ?? ''));
 	let projectedIngredients = $derived(
 		activeIngredients.map((ingredient) => {
 			const projected = projectIngredient(
@@ -853,7 +849,7 @@
 	);
 	let hasProgress = $derived(
 		sessionStarted ||
-			currentStepIndex > 0 ||
+			(currentStepKey != null && currentStepKey !== currentKeys()[0]) ||
 			timerOrder.length > 0 ||
 			Object.values(counterChecks).some(Boolean) ||
 			Object.keys(sessionSwaps).length > 0
@@ -938,6 +934,15 @@
 		return Object.fromEntries(
 			[...labels].map(([ingredientId, names]) => [ingredientId, [...names].join(' · ')])
 		);
+	});
+	let paletteByIngredient = $derived.by<Record<string, BeatPalette>>(() => {
+		const result: Record<string, BeatPalette> = {};
+		for (const step of steps) {
+			const palette = palettes[steps.indexOf(step)]?.result;
+			if (!palette) continue;
+			for (const ingredientId of step.ingredient_ids ?? []) result[ingredientId] ??= palette;
+		}
+		return result;
 	});
 
 	// Guard each write so a per-tick rerun (anyTimerRunning, nowSec) doesn't
@@ -1037,17 +1042,9 @@
 	{/if}
 
 	{#if steps.length}
-	<div
-		class="sticky z-20 border-y border-base-200 bg-base-100/95 px-3 py-2 shadow-sm backdrop-blur"
-		style="top: var(--recipe-header-height, 3.25rem)"
-		aria-label={m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}
-	>
-		<div class="mx-auto flex max-w-5xl flex-wrap items-center gap-2">
-			<div class="min-w-0 flex-1">
-				<div class="mb-1 text-xs font-semibold">{m.cookmode_progress_position({ current: Math.max(1, currentStepIndex + 1), total: steps.length })}</div>
-				<progress class="progress progress-primary h-2 w-full" value={Math.max(1, currentStepIndex + 1)} max={steps.length}></progress>
-			</div>
-			<div class="inline-flex min-h-11 items-center rounded-lg border border-base-300 bg-base-100" aria-label={m.recipes_fallback_servings_label()}>
+		<div class="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-3 py-2">
+			<span class="text-xs font-semibold text-base-content/55">{m.recipes_fallback_servings_label()}</span>
+			<div class="inline-flex min-h-11 items-center rounded-lg border border-base-300 bg-base-100">
 				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_decrease()} disabled={servingDraft <= 1 || loading} onclick={() => changeServings(-1)}>−</button>
 				<span class="w-8 text-center text-sm font-semibold tabular-nums">{servingDraft}</span>
 				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_increase()} disabled={servingDraft >= 99 || loading} onclick={() => changeServings(1)}>+</button>
@@ -1055,31 +1052,23 @@
 			{#if fallback.scalingMode !== 'fixed_batch'}
 				<div class="flex min-h-11 items-center gap-1" aria-label={m.recipes_fallback_servings_label()}>
 					{#each [1, 1.5, 2] as multiplier}
-						<button
-							type="button"
-							class="btn btn-xs h-11 min-h-0 min-w-11 px-2.5 {servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier) ? 'btn-primary' : 'btn-ghost'}"
-							aria-pressed={servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier)}
-							onclick={() => setServingMultiplier(multiplier)}
-						>{multiplier === 1.5 ? '1½×' : `${multiplier}×`}</button>
+						<button type="button" class="btn btn-xs h-11 min-h-0 min-w-11 px-2.5 {servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier) ? 'btn-primary' : 'btn-ghost'}" aria-pressed={servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier)} onclick={() => setServingMultiplier(multiplier)}>{multiplier === 1.5 ? '1½×' : `${multiplier}×`}</button>
 					{/each}
 				</div>
 			{/if}
 		</div>
-	</div>
 	{/if}
 
 	<div class="mx-auto max-w-5xl px-3 py-3 md:grid md:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)] md:items-start md:gap-5">
 	{#if projectedIngredients.length}
-		<aside
-			class="mb-3 md:sticky md:mb-0"
-			style="top: calc(var(--recipe-header-height, 3.25rem) + 5rem)"
-		>
+		<aside class="mb-3 md:mb-0">
 			<CounterBoard
 				ingredients={projectedIngredients}
 				canonicalIngredients={activeCanonicalIngredients}
 				checks={counterChecks}
 				swaps={sessionSwaps}
 				{streamLabelsByIngredient}
+				{paletteByIngredient}
 				onToggle={toggleCounter}
 				onSwap={selectSwap}
 				onSaveDefault={(ingredientId, substituteIndex) =>
@@ -1114,34 +1103,11 @@
 		{/each}
 	</ul>
 
-	<details class="mb-8 rounded-xl border border-base-200 bg-base-100">
-		<summary class="min-h-11 cursor-pointer px-3 py-3 text-xs font-semibold text-base-content/55">
-			{m.cookmode_history_actions()}
-		</summary>
-		<div class="border-t border-base-200 p-3">
-			{#if !cookedDone}
-				<div class="mb-2 flex items-center gap-2">
-					<span class="flex-1 text-xs text-base-content/65">{m.benchsheet_rating_prompt()}</span>
-					<button type="button" class="btn btn-xs h-11 min-h-0 w-11 px-0 {benchSheetRating === 'good' ? 'btn-success' : 'btn-ghost'}" aria-label={m.benchsheet_rating_good_aria()} aria-pressed={benchSheetRating === 'good'} onclick={() => (benchSheetRating = benchSheetRating === 'good' ? null : 'good')}>+</button>
-					<button type="button" class="btn btn-xs h-11 min-h-0 w-11 px-0 {benchSheetRating === 'bad' ? 'btn-error' : 'btn-ghost'}" aria-label={m.benchsheet_rating_bad_aria()} aria-pressed={benchSheetRating === 'bad'} onclick={() => (benchSheetRating = benchSheetRating === 'bad' ? null : 'bad')}>−</button>
-				</div>
-			{/if}
-			<button class="btn btn-sm btn-ghost min-h-11 w-full" onclick={markCooked} disabled={cookedSubmitting || cookedDone}>
-				{#if cookedDone}{m.benchsheet_cooked_logged()}{:else if cookedSubmitting}…{:else}{m.cookmode_log_cooked()}{/if}
-			</button>
-		</div>
-	</details>
+	<div class="mb-8 border-t border-base-200 pt-4">
+		<button class="btn btn-primary min-h-12 w-full" onclick={markCooked} disabled={cookedSubmitting || cookedDone}>
+			{#if cookedDone}{m.benchsheet_cooked_logged()}{:else if cookedSubmitting}…{:else}{m.cookmode_log_cooked()}{/if}
+		</button>
 	</div>
 	</div>
-
-	<!-- Pass the second-quantized time so pills only re-render on second
-	     changes (4× fewer re-renders than the raw 250 ms `now`). -->
-	<TimerStack
-		ids={timerOrder}
-		{timerEnds}
-		{steps}
-		now={nowSec * 1000}
-		bottomClearanceRem={0}
-		onDismiss={cancelTimer}
-	/>
+	</div>
 {/if}

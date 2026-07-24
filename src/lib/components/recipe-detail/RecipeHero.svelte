@@ -1,5 +1,5 @@
 <!--
-	Full-width photo section under the sticky header. The image is the primary
+	Full-width photo section under the recipe header. The image is the primary
 	photo affordance (tap = replace, camera chip signals it); the no-photo state
 	stays a compact add-photo row instead of a hollow hero block. Remove-photo
 	lives in the header's overflow menu.

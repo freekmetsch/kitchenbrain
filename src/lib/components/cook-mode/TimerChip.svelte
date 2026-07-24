@@ -23,7 +23,7 @@
 </script>
 
 {#if seconds}
-	<div class="shrink-0 flex flex-col items-end gap-1">
+	<div class="pointer-events-auto shrink-0 flex flex-col items-end gap-1">
 		{#if done}
 			<button
 				type="button"
