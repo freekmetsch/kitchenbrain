@@ -294,15 +294,15 @@
 		use:prepareBubble
 		use:draggable={dragOptions}
 		type="button"
-		class="ui-z-agent fixed right-3 flex h-12 min-w-12 touch-none select-none items-center justify-center gap-2 rounded-full bg-primary/95 px-3 text-primary-content shadow-lg transition-[box-shadow,opacity] duration-[var(--motion-micro)] hover:bg-primary hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {bubbleReady ? 'opacity-100' : 'pointer-events-none opacity-0'} {dragging ? 'ring-4 ring-primary/25' : ''}"
+		class="ui-z-agent fixed right-3 flex h-12 w-12 touch-none select-none items-center justify-center rounded-full bg-primary/95 text-primary-content shadow-lg transition-[box-shadow,opacity] duration-[var(--motion-micro)] hover:bg-primary hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {bubbleReady ? 'opacity-100' : 'pointer-events-none opacity-0'} {dragging ? 'ring-4 ring-primary/25' : ''}"
 		style="bottom: var(--ui-overlay-bottom)"
 		aria-label={m.agent_open_aria()}
+		title={m.agent_title()}
 		aria-keyshortcuts="ArrowUp ArrowDown"
 		onkeydown={repositionWithKeyboard}
 		onclick={openAgent}
 	>
 		<Icon name="pot" class="h-6 w-6" />
-		<span class="max-w-36 text-left text-xs font-semibold leading-tight">{m.agent_contextual_open_label()}</span>
 		{#if controller.unread > 0}
 			<span class="absolute -right-0.5 -top-0.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-error px-1 text-[10px] font-bold text-error-content"
 				>{controller.unread}</span

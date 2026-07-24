@@ -27,7 +27,9 @@
 {#if imageUrl}
 	<button
 		type="button"
-		class="relative block w-full aspect-[16/9] overflow-hidden bg-base-200 text-left"
+		class="relative block aspect-[16/9] w-full overflow-hidden bg-base-200 text-left sm:max-h-96 disabled:cursor-wait disabled:opacity-70"
+		disabled={uploading}
+		aria-busy={uploading}
 		onclick={onPickPhoto}
 		aria-label={m.recipes_header_replace_photo()}
 	>
@@ -42,7 +44,9 @@
 {:else}
 	<button
 		type="button"
-		class="mx-3 mt-3 flex min-h-11 w-[calc(100%-1.5rem)] items-center justify-center gap-2 rounded-xl border border-dashed border-base-300 bg-base-200/40 px-3 py-2.5 text-sm text-base-content/60"
+		class="mx-3 mt-3 flex min-h-11 w-[calc(100%-1.5rem)] items-center justify-center gap-2 rounded-xl border border-dashed border-base-300 bg-base-200/40 px-3 py-2.5 text-sm text-base-content/60 disabled:cursor-wait disabled:opacity-70"
+		disabled={uploading}
+		aria-busy={uploading}
 		onclick={onPickPhoto}
 	>
 		{#if uploading}<Spinner size="xs" />{:else}<span aria-hidden="true">📷</span>{/if}
@@ -50,5 +54,5 @@
 	</button>
 {/if}
 {#if uploadError}
-	<p class="px-3 pt-2 text-[11px] text-error">{uploadError}</p>
+	<p class="px-3 pt-2 text-[11px] text-error" role="alert" aria-atomic="true">{uploadError}</p>
 {/if}

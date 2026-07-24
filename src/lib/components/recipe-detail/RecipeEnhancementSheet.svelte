@@ -67,7 +67,14 @@
 	}
 </script>
 
-<button type="button" class="btn btn-outline btn-sm mb-4" onclick={openReview}>{m.recipe_enhance_button()}</button>
+<button
+	type="button"
+	class="btn btn-outline btn-sm mx-3 mb-4 mt-3 min-h-11"
+	aria-haspopup="dialog"
+	onclick={openReview}
+>
+	{m.recipe_enhance_button()}
+</button>
 
 <BottomSheet bind:open title={m.recipe_enhance_title()}>
 	{#if loading}

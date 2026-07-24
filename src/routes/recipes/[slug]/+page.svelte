@@ -163,6 +163,7 @@
 	let freezeOpen = $state(false);
 
 	async function uploadImage(file: File) {
+		if (imageUploading) return;
 		imageUploadError = '';
 		if (file.size > 5 * 1024 * 1024) {
 			imageUploadError = m.recipes_toast_image_too_large();
@@ -346,6 +347,14 @@
 	onRetryTranslation={(force) => void requestTranslation(force)}
 />
 
+<RecipeHero
+	imageUrl={recipe.imageUrl}
+	title={displayTitle}
+	uploading={imageUploading}
+	uploadError={imageUploadError}
+	onPickPhoto={() => imageFileInput?.click()}
+/>
+
 {#if recipe.needsReview}
 	<ImportReviewBanner
 		slug={recipe.slug}
@@ -365,6 +374,20 @@
 	class="hidden"
 	onchange={onImagePicked}
 />
+
+<FreezerStockPanel
+	{recipe}
+	frozenPortions={data.frozenPortions}
+	onSaved={(payload) => {
+		recipe = {
+			...recipe,
+			isFreezerStaple: payload.isFreezerStaple,
+			targetPortions: payload.targetPortions
+		};
+	}}
+/>
+
+<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />
 
 <RecipeViewToolbar
 	bind:view={recipeView}
@@ -399,14 +422,6 @@
 		{m.recipes_maintenance_heading()}
 	</summary>
 	<div class="border-t border-base-200 pb-4">
-		<RecipeHero
-			imageUrl={recipe.imageUrl}
-			title={displayTitle}
-			uploading={imageUploading}
-			uploadError={imageUploadError}
-			onPickPhoto={() => imageFileInput?.click()}
-		/>
-
 		<RecipeMetaChips {recipe} {displayCategory} {displayCuisine} />
 
 		<MealComposition
@@ -419,20 +434,6 @@
 		{#if !data.roleCoverage.complete}
 			<RoleCoverage slug={recipe.slug} coverage={data.roleCoverage} onAskAi={openRolesAiEdit} />
 		{/if}
-
-		<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />
-
-		<FreezerStockPanel
-			{recipe}
-			frozenPortions={data.frozenPortions}
-			onSaved={(payload) => {
-				recipe = {
-					...recipe,
-					isFreezerStaple: payload.isFreezerStaple,
-					targetPortions: payload.targetPortions
-				};
-			}}
-		/>
 
 		{#if displayNotes || recipe.tags.length}
 			<section class="flex flex-col gap-2 px-3 pt-3">
