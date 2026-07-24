@@ -3,6 +3,7 @@ import { invalidateAll } from '$app/navigation';
 import { m } from '$lib/paraglide/messages';
 import { getLocale } from '$lib/paraglide/runtime';
 import type { ChatActionV1 } from '$lib/chat/actions';
+import { promptStarterDraft } from '$lib/chat/prompt_starters';
 import type { ScreenContextV1 } from '$lib/chat/screen_context';
 import type { ToolDisplay } from '$lib/tool_display';
 import { looksLikeJsonArtifact } from '$lib/chat_sanitize';
@@ -72,6 +73,7 @@ export class ChatAgentController {
 	hydrationError = $state(false);
 	screenContext = $state<ScreenContextV1 | undefined>();
 	contextEnabled = $state(true);
+	promptStartersCollapsed = $state(false);
 	focusRequest = $state(0);
 	unread = $state(0);
 
@@ -84,6 +86,7 @@ export class ChatAgentController {
 	private returnFocus: HTMLElement | null = null;
 	private invalidateTimer: ReturnType<typeof setTimeout> | null = null;
 	private availabilityTimer: ReturnType<typeof setTimeout> | null = null;
+	private promptStarterPreferenceHydrated = false;
 
 	constructor(username: string) {
 		this.username = username;
@@ -232,6 +235,36 @@ export class ChatAgentController {
 
 	setContextEnabled(enabled: boolean): void {
 		this.contextEnabled = enabled;
+	}
+
+	private promptStarterStorageKey(): string {
+		return `kitchenbrain.chat.prompt-starters-collapsed.v1:${encodeURIComponent(this.username)}`;
+	}
+
+	hydratePromptStarterPreference(): void {
+		if (this.promptStarterPreferenceHydrated || typeof window === 'undefined') return;
+		this.promptStarterPreferenceHydrated = true;
+		try {
+			this.promptStartersCollapsed =
+				window.localStorage.getItem(this.promptStarterStorageKey()) === 'true';
+		} catch {
+			// Keep the default expanded state when browser storage is unavailable.
+		}
+	}
+
+	setPromptStartersCollapsed(collapsed: boolean): void {
+		this.promptStarterPreferenceHydrated = true;
+		this.promptStartersCollapsed = collapsed;
+		if (typeof window === 'undefined') return;
+		try {
+			window.localStorage.setItem(this.promptStarterStorageKey(), String(collapsed));
+		} catch {
+			// The in-memory preference still works for this session.
+		}
+	}
+
+	applyPromptStarter(text: string): void {
+		this.input = promptStarterDraft(text);
 	}
 
 	private async loadImage(file: File): Promise<HTMLImageElement> {

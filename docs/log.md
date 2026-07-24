@@ -108,3 +108,20 @@ Touched: docs/feature-lists/archive/FEATURE_LIST_SHOW_DONT_TELL_UI.md, docs/arti
 ## 2026-07-24 | shipped | show, don't tell UI
 
 Shipped source-aware fresh/freezer actions, direct assistant recipe destinations, shopping quantity provenance, a live meal-settings preview, actionable import readiness, explicit inventory recipe relationships, and semantic cooking-view regeneration. Verification passed with 426 unit tests, Svelte checks, a production build, and English/Dutch browser stories at 375 and 1280 px without provider spend or Albert Heijn writes.
+
+## 2026-07-24 | html-artifact | plan: contextual chat prompts
+
+Touched: docs/artifacts/2026-07-24-plan-contextual-chat-prompts.html, docs/feature-lists/FEATURE_LIST_CONTEXTUAL_CHAT_PROMPTS.md
+
+## 2026-07-24 | shipped | contextual chat sentence starters
+
+Replaced the visible composer label and old generic Ask actions with localized, route-aware
+sentence starters that fill and focus without sending. Added persistent per-user collapse,
+context-disabled and dirty-edit fallbacks, and cap/stream authority. Verification passed with
+Svelte checks, 449 unit tests, a production build, and authenticated English/Dutch browser stories
+at 375, 768, 1280, and an effective 200% layout without provider calls.
+
+## 2026-07-24 | archive | contextual chat prompts
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_CONTEXTUAL_CHAT_PROMPTS.md,
+docs/artifacts/archive/2026-07-24-plan-contextual-chat-prompts.html

@@ -82,4 +82,40 @@ describe('ChatAgentController state integrity', () => {
 		controller.setContextEnabled(true);
 		expect(controller.contextEnabled).toBe(true);
 	});
+
+	it('shares and persists the collapsed prompt-starter preference per user', () => {
+		const stored = new Map<string, string>([
+			['kitchenbrain.chat.prompt-starters-collapsed.v1:freek', 'true']
+		]);
+		vi.stubGlobal('window', {
+			localStorage: {
+				getItem: (key: string) => stored.get(key) ?? null,
+				setItem: (key: string, value: string) => stored.set(key, value)
+			}
+		});
+
+		try {
+			const controller = new ChatAgentController('freek');
+			controller.hydratePromptStarterPreference();
+			expect(controller.promptStartersCollapsed).toBe(true);
+
+			controller.setPromptStartersCollapsed(false);
+			expect(controller.promptStartersCollapsed).toBe(false);
+			expect(stored.get('kitchenbrain.chat.prompt-starters-collapsed.v1:freek')).toBe('false');
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('turns a prompt starter into an editable draft without making a request', () => {
+		const controller = new ChatAgentController('freek');
+		const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+		controller.applyPromptStarter('Help me cook with');
+
+		expect(controller.input).toBe('Help me cook with ');
+		expect(controller.messages).toHaveLength(0);
+		expect(fetchSpy).not.toHaveBeenCalled();
+		fetchSpy.mockRestore();
+	});
 });

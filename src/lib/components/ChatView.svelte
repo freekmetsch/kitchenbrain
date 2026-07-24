@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { fly } from 'svelte/transition';
 	import { base } from '$app/paths';
@@ -9,6 +9,10 @@
 	import { getLocale } from '$lib/paraglide/runtime';
 	import type { IconName } from '$lib/components/ui/icons/paths';
 	import { looksLikeJsonArtifact, ARTIFACT_FALLBACK } from '$lib/chat_sanitize';
+	import {
+		promptStarterIds,
+		promptStarterText
+	} from '$lib/chat/prompt_starters';
 	import { displayName } from '$lib/actors';
 	import { useChatAgent } from '$lib/chat/agent_context';
 	import type {
@@ -28,6 +32,13 @@
 	let capExceeded = $derived(controller.capExceeded);
 	let attachments = $derived(controller.attachments);
 	let attachError = $derived(controller.attachError);
+	let promptStarters = $derived(
+		promptStarterIds(controller.screenContext, controller.contextEnabled).map((id) => ({
+			id,
+			text: promptStarterText(id)
+		}))
+	);
+	let isAssistantTab = $derived(controller.screenContext?.routeId === '/');
 	const username = controller.username;
 	let messageListEl = $state<HTMLElement>();
 	let textareaEl = $state<HTMLTextAreaElement>();
@@ -42,6 +53,8 @@
 	const MAX_IMAGES = 2;
 	let fileInput = $state<HTMLInputElement>();
 
+	onMount(() => controller.hydratePromptStarterPreference());
+
 	async function onFilesSelected(e: Event) {
 		const el = e.currentTarget as HTMLInputElement;
 		const files = Array.from(el.files ?? []);
@@ -53,19 +66,12 @@
 		controller.removeAttachment(id);
 	}
 
-	// Nav chips deep-link straight to the destination page — no AI round trip, no
-	// daily-cap risk. AI chips stay chat sends because they need a model turn
-	// (freezer lookup, write action) rather than just opening a screen that
-	// already does the job (meal-plan has its own per-week Suggest button).
-	type QuickChip =
-		| { kind: 'nav'; label: string; href: string; icon: IconName }
-		| { kind: 'ai'; label: string; prompt: string };
+	// These links open screens directly, without spending an AI turn.
+	type NavigationChip = { label: string; href: string; icon: IconName };
 
-	const QUICK_CHIPS: QuickChip[] = [
-		{ kind: 'nav', label: m.chat_chip_shopping_list(), href: `${base}/shopping`, icon: 'cart' },
-		{ kind: 'nav', label: m.chat_chip_meal_plan(), href: `${base}/meal-plan`, icon: 'calendar' },
-		{ kind: 'ai', label: m.chat_chip_freezer_question(), prompt: m.chat_chip_freezer_question() },
-		{ kind: 'ai', label: m.chat_chip_add_freezer(), prompt: m.chat_chip_add_freezer() }
+	const NAVIGATION_CHIPS: NavigationChip[] = [
+		{ label: m.chat_chip_shopping_list(), href: `${base}/shopping`, icon: 'cart' },
+		{ label: m.chat_chip_meal_plan(), href: `${base}/meal-plan`, icon: 'calendar' }
 	];
 
 	// Stick-to-bottom scrolling: streaming keeps the view pinned only while the
@@ -214,6 +220,17 @@
 			e.preventDefault();
 			void send(controller.input, false, true);
 		}
+	}
+
+	async function usePromptStarter(text: string) {
+		controller.applyPromptStarter(text);
+		await tick();
+		if (!textareaEl) return;
+		textareaEl.style.height = 'auto';
+		textareaEl.style.height = Math.min(textareaEl.scrollHeight, 128) + 'px';
+		textareaEl.focus();
+		const end = textareaEl.value.length;
+		textareaEl.setSelectionRange(end, end);
 	}
 
 	async function openScreen(event: MouseEvent, href: string) {
@@ -454,10 +471,10 @@
 		</div>
 	{/if}
 
-	<!-- Quick chips — only when no messages -->
-	{#if messages.length === 0 && !isStreaming}
+	<!-- Screen shortcuts only belong to the empty Assistant tab. -->
+	{#if messages.length === 0 && !isStreaming && isAssistantTab}
 		<div
-			class="flex flex-col gap-2 px-3 pb-2"
+			class="px-3 pb-2"
 			role="group"
 			aria-label={m.chat_quick_actions_label()}
 		>
@@ -466,36 +483,67 @@
 					{m.chat_quick_open_label()}
 				</span>
 				<div class="flex min-w-0 flex-1 flex-wrap gap-2">
-					{#each QUICK_CHIPS.filter((chip) => chip.kind === 'nav') as chip}
+					{#each NAVIGATION_CHIPS as chip}
 						<a
 							href={chip.href}
 							onclick={(event) => void openScreen(event, chip.href)}
 							class="btn btn-sm h-11 min-h-0 gap-1.5 border-base-300 bg-base-200/60 px-3 text-xs hover:bg-base-200"
 						>
-						<Icon name={chip.icon} class="h-3.5 w-3.5" />
-						{chip.label}
+							<Icon name={chip.icon} class="h-3.5 w-3.5" />
+							{chip.label}
 						</a>
 					{/each}
 				</div>
 			</div>
-			<div class="flex items-start gap-2" role="group" aria-label={m.chat_quick_ask_group()}>
-				<span class="w-10 shrink-0 pt-3 text-[10px] font-bold uppercase tracking-wide text-primary/70">
-					{m.chat_quick_ask_label()}
-				</span>
-				<div class="flex min-w-0 flex-1 flex-wrap gap-2">
-					{#each QUICK_CHIPS.filter((chip) => chip.kind === 'ai') as chip}
+		</div>
+	{/if}
+
+	<!-- Context-aware sentence starters stay available above any empty composer. -->
+	{#if !input.trim() && !isStreaming}
+		{#if controller.promptStartersCollapsed}
+			<div class="flex justify-end px-3 pb-2">
+				<button
+					type="button"
+					class="btn btn-ghost btn-sm h-11 min-h-0 gap-1.5 px-3 text-xs"
+					aria-expanded="false"
+					aria-label={m.chat_prompt_starters_show()}
+					title={m.chat_prompt_starters_show()}
+					onclick={() => controller.setPromptStartersCollapsed(false)}
+				>
+					<Icon name="chevronRight" class="h-4 w-4 -rotate-90" />
+					{m.chat_prompt_starters_show()}
+				</button>
+			</div>
+		{:else}
+			<div
+				class="flex items-end gap-2 px-3 pb-2"
+				role="group"
+				aria-label={m.chat_prompt_starters_group()}
+			>
+				<div class="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
+					{#each promptStarters as starter (starter.id)}
 						<button
-							class="btn btn-sm btn-outline btn-primary h-11 min-h-0 gap-1.5 px-3 text-xs"
+							type="button"
+							class="btn btn-sm btn-outline btn-primary h-auto min-h-11 min-w-44 max-w-56 flex-none justify-start whitespace-normal px-3 text-left text-xs leading-tight"
 							disabled={capExceeded}
-							onclick={() => send(chip.prompt)}
+							onclick={() => void usePromptStarter(starter.text)}
 						>
-							<Icon name="pot" class="h-3.5 w-3.5" />
-							{chip.label}
+							{starter.text}<span aria-hidden="true">…</span>
 						</button>
 					{/each}
 				</div>
+				<button
+					type="button"
+					class="btn btn-square btn-ghost btn-sm h-11 min-h-0 w-11 shrink-0"
+					aria-expanded="true"
+					aria-label={m.chat_prompt_starters_hide()}
+					title={m.chat_prompt_starters_hide()}
+					onclick={() => controller.setPromptStartersCollapsed(true)}
+				>
+					<Icon name="chevronRight" class="h-4 w-4 rotate-90" />
+				</button>
 			</div>
-		</div>
+		{/if}
 	{/if}
 
 	<!-- Input bar -->
@@ -549,7 +597,7 @@
 			</button>
 
 			<label class="min-w-0 flex-1">
-				<span class="mb-1 block text-[11px] font-medium leading-none text-base-content/55">
+				<span class="sr-only">
 					{m.chat_composer_label()}
 				</span>
 				<textarea
