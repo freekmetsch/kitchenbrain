@@ -7,12 +7,16 @@
 		open = $bindable(false),
 		title,
 		desktopCentered = false,
+		desktopSide = false,
+		dismissible = true,
 		children,
 		onclose
 	}: {
 		open?: boolean;
 		title?: string;
 		desktopCentered?: boolean;
+		desktopSide?: boolean;
+		dismissible?: boolean;
 		children: Snippet;
 		onclose?: () => void;
 	} = $props();
@@ -44,7 +48,11 @@
 
 	// Backdrop click (the ::backdrop region maps to the dialog element itself).
 	function handleClick(e: MouseEvent) {
-		if (e.target === dialog) open = false;
+		if (dismissible && e.target === dialog) open = false;
+	}
+
+	function handleCancel(e: Event) {
+		if (!dismissible) e.preventDefault();
 	}
 </script>
 
@@ -52,6 +60,8 @@
 	bind:this={dialog}
 	onclose={handleClose}
 	onclick={handleClick}
+	oncancel={handleCancel}
+	class:desktop-side={desktopSide}
 	class="ui-z-sheet m-0 mx-auto mt-auto mb-0 w-full max-w-2xl bg-transparent p-0 {desktopCentered
 		? 'sm:m-auto sm:max-w-md'
 		: ''}"
@@ -69,6 +79,7 @@
 					type="button"
 					class="btn btn-ghost btn-sm h-11 min-h-0 w-11 p-0"
 					aria-label={m.ui_bottomsheet_close()}
+					disabled={!dismissible}
 					onclick={() => (open = false)}><Icon name="x" class="h-4 w-4" /></button
 				>
 			</div>
@@ -116,6 +127,22 @@
 	@starting-style {
 		dialog[open]::backdrop {
 			background-color: rgb(0 0 0 / 0);
+		}
+	}
+
+	@media (min-width: 48rem) {
+		dialog.desktop-side {
+			width: min(32rem, 100%);
+			max-width: 32rem;
+			height: 100dvh;
+			max-height: 100dvh;
+			margin: 0 0 0 auto;
+		}
+
+		dialog.desktop-side > div {
+			min-height: 100dvh;
+			max-height: 100dvh;
+			border-radius: 1rem 0 0 1rem;
 		}
 	}
 </style>

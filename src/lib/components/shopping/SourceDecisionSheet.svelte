@@ -38,7 +38,7 @@
 	}
 </script>
 
-<BottomSheet bind:open title={m.shopping_source_title()}>
+<BottomSheet bind:open title={m.shopping_source_title()} desktopSide>
 	{#if source}
 		<div class="space-y-4">
 			<div>

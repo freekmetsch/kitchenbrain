@@ -133,7 +133,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}).where(eq(schema.shoppingPushHistory.id, historyId!)).run();
 			return successful.map((item) => item.ref);
 		});
-		return json({ ok: failed.length === 0, reason, productsPushed, freetextPushed, failed, destination, markedBoughtRefs, accountName: getAHStatus().memberName });
+		return json({ ok: failed.length === 0, uncertain: false, reason, productsPushed, freetextPushed, failed, destination, markedBoughtRefs, accountName: getAHStatus().memberName });
 	} catch (cause) {
 		const definite = cause instanceof AHNotConnectedError;
 		reason = definite ? AH_NOT_CONNECTED : 'AH may have received part of this push. Review the basket before trying again.';
@@ -169,6 +169,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				}).where(eq(schema.shoppingPushHistory.id, historyId!)).run();
 			});
 		}
-		return json({ ok: false, reason, productsPushed, freetextPushed, failed, destination, markedBoughtRefs: [], accountName: getAHStatus().memberName });
+		return json({
+			ok: false,
+			uncertain: !definite,
+			reason,
+			productsPushed,
+			freetextPushed,
+			failed,
+			destination,
+			markedBoughtRefs: [...successfulRefs],
+			accountName: getAHStatus().memberName
+		});
 	}
 };

@@ -30,7 +30,7 @@
 			{#if t.action}
 				<button
 					type="button"
-					class="min-h-9 shrink-0 px-1 font-semibold underline-offset-2 hover:underline"
+					class="min-h-11 min-w-11 shrink-0 px-1 font-semibold underline-offset-2 hover:underline"
 					onclick={() => runAction(t.action)}>{t.action.label}</button
 				>
 			{/if}

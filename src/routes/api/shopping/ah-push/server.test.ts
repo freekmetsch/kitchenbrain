@@ -106,7 +106,8 @@ describe('AH push attempt state', () => {
 	it('records an ambiguous response as uncertain and never redispatches it', async () => {
 		const { user, previewToken } = setup();
 		state.addProductItems.mockResolvedValue({ ok: false, status: 500, uncertain: true });
-		await push(user, previewToken);
+		const response = await push(user, previewToken);
+		expect(await response.json()).toMatchObject({ ok: false, uncertain: true });
 		expect(state.addProductItems).toHaveBeenCalledTimes(1);
 		expect(state.db.select().from(schema.shoppingPushHistory).get()).toMatchObject({ attemptStatus: 'uncertain' });
 		expect(state.db.select().from(schema.shoppingPushItems).get()).toMatchObject({ status: 'uncertain' });
@@ -122,12 +123,16 @@ describe('AH push attempt state', () => {
 	});
 
 	it('recovers a local finalization failure as uncertain after AH accepted the write', async () => {
-		const { user, previewToken } = setup();
+		const { user, entry, previewToken } = setup();
 		state.addProductItems.mockResolvedValue({ ok: true, status: 200, uncertain: false });
 		vi.spyOn(state.db, 'transaction').mockImplementationOnce(() => {
 			throw new Error('local finalization failed');
 		});
-		await push(user, previewToken);
+		const response = await push(user, previewToken);
+		expect(await response.json()).toMatchObject({
+			uncertain: true,
+			markedBoughtRefs: [`entries:${entry.id}`]
+		});
 		expect(state.addProductItems).toHaveBeenCalledTimes(1);
 		expect(state.db.select().from(schema.shoppingPushHistory).get()).toMatchObject({ attemptStatus: 'uncertain' });
 		expect(state.db.select().from(schema.shoppingPushItems).get()).toMatchObject({ status: 'success' });

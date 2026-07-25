@@ -26,11 +26,11 @@
 </script>
 
 {#if noticeCount > 0}
-	<details class="ui-list-card mb-3">
-		<summary class="flex min-h-11 cursor-pointer list-none items-center gap-2.5 px-3 text-sm">
+	<details class="market-notices">
+		<summary>
 			<Icon name="warn" class="h-4 w-4 shrink-0 {hasWarning ? 'text-warning' : 'text-info'}" />
 			<span class="flex-1 font-medium">{m.shopping_notes_heading()}</span>
-			<span class="badge badge-ghost badge-sm">{noticeCount}</span>
+			<span class="market-notice-count">{noticeCount}</span>
 			<span aria-hidden="true" class="text-base-content/50">⌄</span>
 		</summary>
 		<ul class="divide-y divide-base-200 border-t border-base-200 text-sm">
@@ -39,7 +39,7 @@
 					<span class="min-w-0 flex-1 text-base-content/70">
 						{m.shopping_ah_not_connected_banner()}
 					</span>
-					<a href="{base}/settings/connections" class="btn btn-ghost btn-xs shrink-0">{m.shopping_connect_settings_link()}</a>
+					<a href="{base}/settings/connections" class="btn btn-ghost min-h-11 shrink-0">{m.shopping_connect_settings_link()}</a>
 				</li>
 			{/if}
 			{#if mealsWithoutRecipe.length}
@@ -71,3 +71,44 @@
 		</ul>
 	</details>
 {/if}
+
+<style>
+	.market-notices {
+		overflow: hidden;
+		margin-bottom: 0.55rem;
+		border: 1px solid color-mix(in oklab, var(--color-warning) 42%, var(--color-base-300));
+		border-radius: 0.75rem;
+		background: color-mix(in oklab, var(--color-warning) 8%, var(--color-base-100));
+		color: color-mix(in oklab, var(--color-warning) 55%, var(--color-base-content));
+	}
+
+	.market-notices summary {
+		display: flex;
+		min-height: 2.75rem;
+		cursor: pointer;
+		list-style: none;
+		align-items: center;
+		gap: 0.55rem;
+		padding: 0 0.7rem;
+		font-size: 0.72rem;
+	}
+
+	.market-notices summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.market-notice-count {
+		display: inline-grid;
+		min-width: 1.35rem;
+		height: 1.35rem;
+		place-items: center;
+		border-radius: 999px;
+		background: color-mix(in oklab, var(--color-warning) 14%, var(--color-base-100));
+		font-size: 0.62rem;
+		font-weight: 800;
+	}
+
+	.market-notices :global(a) {
+		min-height: 2.75rem;
+	}
+</style>

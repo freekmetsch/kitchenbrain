@@ -56,7 +56,7 @@
 		</div>
 		<button
 			type="button"
-			class="btn btn-ghost btn-xs shrink-0"
+			class="btn btn-ghost min-h-11 shrink-0"
 			onclick={() => onToggleExclude()}
 		>
 			{mode === 'exclude' ? m.shopping_ah_undo_button() : m.shopping_ah_skip_button()}
@@ -96,9 +96,9 @@
 		<div class="mt-2 flex items-center justify-between gap-3 rounded-xl bg-base-200/60 px-2 py-1.5">
 			<span class="text-xs text-base-content/60">{m.shopping_ah_pack_quantity()}</span>
 			<div class="join" role="group" aria-label={m.shopping_ah_pack_quantity()}>
-				<button type="button" class="btn btn-sm join-item" disabled={(dec?.qty ?? 1) <= 1} onclick={() => onQuantityChange((dec?.qty ?? 1) - 1)}>−</button>
-				<input class="input input-sm join-item w-14 text-center tabular-nums" type="number" min="1" max="99" value={dec?.qty ?? 1} onchange={(event) => onQuantityChange(Number(event.currentTarget.value))} />
-				<button type="button" class="btn btn-sm join-item" disabled={(dec?.qty ?? 1) >= 99} onclick={() => onQuantityChange((dec?.qty ?? 1) + 1)}>+</button>
+				<button type="button" class="btn join-item h-11 min-h-11 w-11 p-0" disabled={(dec?.qty ?? 1) <= 1} onclick={() => onQuantityChange((dec?.qty ?? 1) - 1)}>−</button>
+				<input class="input join-item h-11 min-h-11 w-14 text-center tabular-nums" type="number" min="1" max="99" value={dec?.qty ?? 1} onchange={(event) => onQuantityChange(Number(event.currentTarget.value))} />
+				<button type="button" class="btn join-item h-11 min-h-11 w-11 p-0" disabled={(dec?.qty ?? 1) >= 99} onclick={() => onQuantityChange((dec?.qty ?? 1) + 1)}>+</button>
 			</div>
 		</div>
 		{#if sel.pricePerCount != null}
@@ -111,7 +111,7 @@
 			{#if item.candidates.length > 1}
 				<button
 					type="button"
-					class="py-1.5 text-primary"
+					class="min-h-11 text-primary"
 					onclick={() => onToggleExpanded()}
 				>
 					{expanded ? m.shopping_ah_hide_options() : m.shopping_ah_other_options({ count: item.candidates.length - 1 })}
@@ -126,7 +126,7 @@
 			>
 				{favoriteId === sel.id ? '★' : '☆'}
 			</button>
-			<button type="button" class="py-1.5 text-base-content/50" onclick={() => onDemoteToText()}>{m.shopping_ah_send_as_text()}</button>
+			<button type="button" class="min-h-11 text-base-content/50" onclick={() => onDemoteToText()}>{m.shopping_ah_send_as_text()}</button>
 		</div>
 		{#if expanded}
 			<ul class="mt-2 max-h-64 space-y-1 overflow-y-auto border-t border-base-200 pt-2" transition:slide={{ duration: MOTION_MICRO_MS }}>
@@ -134,7 +134,7 @@
 					<li class="flex items-center gap-1">
 						<button
 							type="button"
-							class="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-base-200 {idx === pick ? 'bg-base-200' : ''}"
+							class="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-base-200 {idx === pick ? 'bg-base-200' : ''}"
 							onclick={() => onPickProduct(idx)}
 						>
 							<span class="text-xs {idx === pick ? 'text-primary' : 'text-base-content/30'}">
@@ -177,7 +177,7 @@
 		{#if item.candidates.length}
 			<button
 				type="button"
-				class="mt-1 text-xs text-primary"
+				class="mt-1 min-h-11 text-xs text-primary"
 				onclick={() => onPickProduct(0)}
 			>
 				{m.shopping_ah_use_product_instead()}

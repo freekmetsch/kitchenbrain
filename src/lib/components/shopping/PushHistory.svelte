@@ -18,8 +18,9 @@
 
 	type Props = {
 		pushHistory: Push[];
+		compact?: boolean;
 	};
-	let { pushHistory }: Props = $props();
+	let { pushHistory, compact = false }: Props = $props();
 
 	function formatPushTime(value: string | Date): string {
 		return new Date(value).toLocaleString(getLocale() === 'nl' ? 'nl-NL' : 'en-GB', {
@@ -41,7 +42,7 @@
 </script>
 
 {#if pushHistory.length}
-	<section class="mt-4">
+	<section class="push-history mt-4" class:compact>
 		<h2 class="ui-section-label mb-2">{m.shopping_sent_to_ah_heading()}</h2>
 		<div class="ui-list-card divide-y divide-base-200">
 			{#each pushHistory as push}
@@ -103,3 +104,18 @@
 		</div>
 	</section>
 {/if}
+
+<style>
+	.push-history.compact {
+		margin-top: 0.65rem;
+	}
+
+	.push-history.compact :global(.ui-list-card) {
+		border-radius: 0.85rem;
+		box-shadow: 0 6px 18px rgb(48 75 58 / 5%);
+	}
+
+	.push-history.compact :global(.ui-chip-muted) {
+		min-height: 2rem;
+	}
+</style>

@@ -41,6 +41,7 @@
 	let expanded = $state<Record<string, boolean>>({});
 	let previewToken = $state('');
 	let ahError = $state('');
+	let ahStale = $state(false);
 	let ahNotConnected = $state(false);
 	let ahPushing = $state(false);
 	let ahResult = $state<AhPushOutcome | null>(null);
@@ -60,6 +61,7 @@
 		previewToken = '';
 		favorites = {};
 		ahError = '';
+		ahStale = false;
 		ahNotConnected = false;
 		ahResult = null;
 	}
@@ -228,50 +230,87 @@
 
 		const weekAtPush = weekStart;
 		ahPushing = true;
-		const r = await fetch(`${base}/api/shopping/ah-push`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ previewToken, decisions: pushDecisions })
-		});
-		ahPushing = false;
-		// The push itself already landed server-side by this point -- only skip
-		// applying its result to local state if the visible week has since
-		// changed, so we never mark the wrong week's items bought.
-		if (weekStart !== weekAtPush) return;
-		if (!r.ok) {
-			ahError = m.shopping_ah_error_push_failed();
-			toast.error(m.shopping_toast_ah_push_failed());
-			return;
-		}
-		const d = await r.json();
-		if (weekStart !== weekAtPush) return;
-		if (d.reason === 'not_connected') {
-			ahNotConnected = true;
-			ahItems = null;
-			return;
-		}
-		const pushed = (d.productsPushed ?? 0) + (d.freetextPushed ?? 0);
-		if (d.ok || pushed > 0) {
-			const markedRefs = new Set<string>(d.markedBoughtRefs ?? []);
-			if (markedRefs.size) {
-				onMarkedBought(markedRefs);
+		ahError = '';
+		ahStale = false;
+		try {
+			const r = await fetch(`${base}/api/shopping/ah-push`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ previewToken, decisions: pushDecisions })
+			});
+			// The push may already have landed server-side. Ignore the response
+			// after a week switch so the wrong week's rows are never reconciled.
+			if (weekStart !== weekAtPush) return;
+			if (r.status === 409) {
+				ahStale = true;
+				ahItems = null;
+				return;
 			}
+			if (!r.ok) {
+				// An unexpected HTTP failure does not prove the AH write failed.
+				// Do not offer a retry that could duplicate external items.
+				ahResult = {
+					pushed: 0,
+					accountName: null,
+					destination: 'list',
+					failed: [],
+					markedBought: 0,
+					uncertain: true,
+					reason: m.shopping_ah_error_push_failed()
+				};
+				ahItems = null;
+				return;
+			}
+			const d = await r.json();
+			if (weekStart !== weekAtPush) return;
+			const pushed = (d.productsPushed ?? 0) + (d.freetextPushed ?? 0);
+			const markedRefs = new Set<string>(d.markedBoughtRefs ?? []);
+			if (d.reason === 'not_connected' && pushed === 0 && markedRefs.size === 0) {
+				ahNotConnected = true;
+				ahItems = null;
+				return;
+			}
+			if (d.ok || d.uncertain || pushed > 0) {
+				if (markedRefs.size) onMarkedBought(markedRefs);
+				ahResult = {
+					pushed,
+					accountName: d.accountName ?? null,
+					destination: d.destination ?? 'list',
+					failed: d.failed ?? [],
+					markedBought: markedRefs.size,
+					uncertain: d.uncertain === true,
+					reason: d.reason
+				};
+				ahItems = null;
+			} else {
+				ahError = d.reason ?? m.shopping_ah_error_push_failed_generic();
+			}
+		} catch {
+			if (weekStart !== weekAtPush) return;
+			// A lost client response is ambiguous even when the request reached
+			// the server. Guide the household to inspect AH before any retry.
 			ahResult = {
-				pushed,
-				accountName: d.accountName ?? null,
-				destination: d.destination ?? 'list',
-				failed: d.failed ?? [],
-				markedBought: markedRefs.size,
-				reason: d.reason
+				pushed: 0,
+				accountName: null,
+				destination: 'list',
+				failed: [],
+				markedBought: 0,
+				uncertain: true,
+				reason: m.shopping_ah_error_connection_failed()
 			};
 			ahItems = null;
-		} else {
-			ahError = d.reason ?? m.shopping_ah_error_push_failed_generic();
+		} finally {
+			if (weekStart === weekAtPush) ahPushing = false;
 		}
 	}
 </script>
 
-<BottomSheet bind:open={ahOpen} title={m.shopping_review_ah_order()}>
+<BottomSheet
+	bind:open={ahOpen}
+	title={ahPushing ? m.shopping_ah_sending_title() : m.shopping_review_ah_order()}
+	desktopSide
+	dismissible={!ahPushing}
+>
 	{#if ahLoading}
 		<div class="space-y-2 py-1" aria-label={m.shopping_ah_matching_products_aria()} role="status">
 			<div class="flex items-center gap-2 px-1 pb-1 text-sm text-base-content/60">
@@ -291,6 +330,16 @@
 				</div>
 			{/each}
 		</div>
+	{:else if ahPushing}
+		<div class="ah-sending" aria-live="polite" aria-busy="true" role="status">
+			<Spinner />
+			<h3>{m.shopping_ah_sending_title()}</h3>
+			<p>{m.shopping_ah_sending_body()}</p>
+		</div>
+		<div class="ah-info">
+			<Icon name="clock" class="h-5 w-5 shrink-0" />
+			<p>{m.shopping_ah_sending_lock()}</p>
+		</div>
 	{:else if ahNotConnected}
 		<div class="rounded-2xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm" role="status">
 			<div class="flex gap-2">
@@ -302,8 +351,8 @@
 			{m.shopping_ah_connect_first()}
 		</p>
 		<div class="mt-4 flex justify-end gap-2">
-			<button type="button" class="btn btn-ghost" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
-			<a href="{base}/settings" class="btn btn-primary">{m.shopping_open_settings_button()}</a>
+			<button type="button" class="btn btn-ghost min-h-11" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
+			<a href="{base}/settings/connections" class="btn btn-primary min-h-11">{m.shopping_open_settings_button()}</a>
 		</div>
 	{:else if ahResult}
 		<AhPushResult
@@ -313,10 +362,19 @@
 				ahResult = null;
 			}}
 		/>
+	{:else if ahStale}
+		<div class="ah-alert" role="alert">
+			<Icon name="warn" class="h-5 w-5 shrink-0" />
+			<p>{m.shopping_ah_error_review_changed()}</p>
+		</div>
+		<div class="mt-4 flex justify-end gap-2">
+			<button type="button" class="btn min-h-11" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
+			<button type="button" class="btn btn-primary min-h-11" onclick={() => void openAhModal()}>{m.shopping_ah_review_again()}</button>
+		</div>
 	{:else if ahError}
 		<div class="rounded-2xl border border-error/30 bg-error/10 px-3 py-2 text-sm" role="alert">{ahError}</div>
 		<div class="mt-4 flex justify-end">
-			<button type="button" class="btn" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
+			<button type="button" class="btn min-h-11" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
 		</div>
 	{:else if ahItems}
 		<ul class="mb-4 max-h-[55vh] space-y-2 overflow-y-auto" in:fade={{ duration: MOTION_MICRO_MS }}>
@@ -342,10 +400,10 @@
 				: m.shopping_ah_summary_products_plural({ count: pushSummary.products })}, {m.shopping_ah_summary_as_text({ count: pushSummary.text })}{#if pushSummary.excluded}, {m.shopping_ah_summary_skipped({ count: pushSummary.excluded })}{/if}
 		</div>
 		<div class="flex justify-end gap-2">
-			<button type="button" class="btn btn-ghost" onclick={() => (ahOpen = false)}>{m.shopping_cancel_button()}</button>
+			<button type="button" class="btn btn-ghost min-h-11" onclick={() => (ahOpen = false)}>{m.shopping_cancel_button()}</button>
 			<button
 				type="button"
-				class="btn btn-primary"
+				class="btn btn-primary min-h-11"
 				onclick={confirmPush}
 				disabled={ahPushing || (pushSummary.products === 0 && pushSummary.text === 0)}
 			>
@@ -359,3 +417,41 @@
 		</div>
 	{/if}
 </BottomSheet>
+
+<style>
+	.ah-sending {
+		display: grid;
+		justify-items: center;
+		gap: 0.55rem;
+		padding: 2rem 1rem;
+		text-align: center;
+	}
+
+	.ah-sending h3 {
+		font-family: Georgia, 'Times New Roman', serif;
+		font-size: 1.25rem;
+	}
+
+	.ah-sending p,
+	.ah-info p,
+	.ah-alert p {
+		color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+		font-size: 0.82rem;
+		line-height: 1.5;
+	}
+
+	.ah-info,
+	.ah-alert {
+		display: flex;
+		gap: 0.65rem;
+		border: 1px solid color-mix(in oklab, var(--color-warning) 35%, transparent);
+		border-radius: 0.8rem;
+		padding: 0.8rem;
+		background: color-mix(in oklab, var(--color-warning) 10%, transparent);
+	}
+
+	.ah-info {
+		border-color: color-mix(in oklab, var(--color-info) 30%, transparent);
+		background: color-mix(in oklab, var(--color-info) 8%, transparent);
+	}
+</style>

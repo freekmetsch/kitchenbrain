@@ -60,5 +60,6 @@ export type AhPushOutcome = {
 	destination: 'order' | 'list';
 	failed: { term: string; kind: 'product' | 'freetext' }[];
 	markedBought: number;
+	uncertain: boolean;
 	reason?: string;
 };

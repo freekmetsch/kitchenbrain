@@ -16,15 +16,15 @@
 					<p class="text-sm font-semibold">{item.name}</p>
 					{#if item.amount || item.unit}<p class="text-xs text-base-content/60">{[item.amount, item.unit].filter(Boolean).join(' ')}</p>{/if}
 					{#if item.candidates.length}
-						<select class="select select-sm mt-2 w-full" value={selections[item.id]} onchange={(event) => (selections[item.id] = Number(event.currentTarget.value))}>
+						<select class="select mt-2 min-h-11 w-full" value={selections[item.id]} onchange={(event) => (selections[item.id] = Number(event.currentTarget.value))}>
 							<option value="">—</option>
 							{#each item.candidates as candidate}<option value={candidate.id}>{candidate.label}</option>{/each}
 						</select>
 					{/if}
 					<div class="mt-2 flex flex-wrap gap-2">
-						{#if item.candidates.length}<button type="button" class="btn btn-primary btn-xs" disabled={!selections[item.id]} onclick={() => onResolve(item, 'attach', selections[item.id])}>{m.shopping_legacy_attach()}</button>{/if}
-						<button type="button" class="btn btn-outline btn-xs" onclick={() => onResolve(item, 'manual')}>{m.shopping_legacy_manual()}</button>
-						<button type="button" class="btn btn-ghost btn-xs" onclick={() => onResolve(item, 'dismiss')}>{m.shopping_legacy_dismiss()}</button>
+						{#if item.candidates.length}<button type="button" class="btn btn-primary min-h-11" disabled={!selections[item.id]} onclick={() => onResolve(item, 'attach', selections[item.id])}>{m.shopping_legacy_attach()}</button>{/if}
+						<button type="button" class="btn btn-outline min-h-11" onclick={() => onResolve(item, 'manual')}>{m.shopping_legacy_manual()}</button>
+						<button type="button" class="btn btn-ghost min-h-11" onclick={() => onResolve(item, 'dismiss')}>{m.shopping_legacy_dismiss()}</button>
 					</div>
 				</li>
 			{/each}

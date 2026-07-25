@@ -1,12 +1,11 @@
 <!--
-	Manual add form — name/qty/unit inputs plus submit. Owns the field drafts
-	and the source-owned manual POST; on success it hands the created row to the page
-	via `onAdded` so the page's items state stays the single source of truth.
+	Source-owned one-off item form. The Market Run page opens it from the fixed
+	action dock; drafts stay in this component and survive a failed write.
 -->
 <script lang="ts">
 	import { base } from '$app/paths';
+	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
-	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { tick } from 'svelte';
@@ -14,18 +13,20 @@
 
 	type Props = {
 		weekStart: string;
-		onAdded: (item: ShoppingListItem) => void;
+		onAdded: (item: ShoppingListItem) => void | Promise<void>;
 	};
-	let { weekStart, onAdded }: Props = $props();
 
+	let { weekStart, onAdded }: Props = $props();
 	let addName = $state('');
 	let addAmount = $state('');
 	let addUnit = $state('');
 	let addSubmitting = $state(false);
+	let addError = $state('');
 	let open = $state(false);
-	let nameInput: HTMLInputElement | null = $state(null);
+	let nameInput = $state<HTMLInputElement | null>(null);
 
-	async function openForm() {
+	export async function openAddModal() {
+		addError = '';
 		open = true;
 		await tick();
 		nameInput?.focus();
@@ -33,24 +34,19 @@
 
 	async function addManual() {
 		const name = addName.trim();
-		if (!name) return;
+		if (!name || addSubmitting) return;
 		addSubmitting = true;
+		addError = '';
 		const amount = addAmount.trim() || null;
 		const unit = addUnit.trim() || null;
 		try {
-			const r = await fetch(`${base}/api/shopping`, {
+			const response = await fetch(`${base}/api/shopping`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'add_source_manual',
-					weekStart,
-					name,
-					amount,
-					unit
-				})
+				body: JSON.stringify({ action: 'add_source_manual', weekStart, name, amount, unit })
 			});
-			if (!r.ok) throw new Error(`HTTP ${r.status}`);
-			onAdded({
+			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			await onAdded({
 				name,
 				amount,
 				unit,
@@ -68,78 +64,91 @@
 			addUnit = '';
 			open = false;
 		} catch {
-			toast.error(m.shopping_toast_add_failed());
+			addError = m.shopping_toast_add_failed();
+			toast.error(addError);
 		} finally {
 			addSubmitting = false;
 		}
 	}
 </script>
 
-{#if open}
-	<section class="ui-form-card mt-4">
+<BottomSheet bind:open title={m.shopping_add_one_off_title()} desktopSide>
+	<p class="mb-4 text-sm text-base-content/70">{m.shopping_add_one_off_help()}</p>
 	<form
-		onsubmit={(e) => {
-			e.preventDefault();
-			addManual();
+		onsubmit={(event) => {
+			event.preventDefault();
+			void addManual();
 		}}
-		class="flex items-center gap-2"
 	>
-		<input
-			bind:this={nameInput}
-			type="text"
-			class="input input-bordered input-sm min-w-0 flex-1"
-			placeholder={m.shopping_additem_name_placeholder()}
-			aria-label={m.shopping_additem_name_aria()}
-			autocomplete="off"
-			bind:value={addName}
-		/>
-		<input
-			type="text"
-			inputmode="decimal"
-			class="input input-bordered input-sm w-14"
-			placeholder={m.shopping_additem_qty_placeholder()}
-			aria-label={m.shopping_additem_qty_aria()}
-			autocomplete="off"
-			bind:value={addAmount}
-		/>
-		<input
-			type="text"
-			class="input input-bordered input-sm w-14"
-			placeholder={m.shopping_additem_unit_placeholder()}
-			aria-label={m.shopping_additem_unit_aria()}
-			autocomplete="off"
-			bind:value={addUnit}
-		/>
-		<button
-			type="submit"
-			class="btn btn-outline btn-sm btn-square shrink-0"
-			disabled={addSubmitting || !addName.trim()}
-			aria-label={m.shopping_additem_submit_aria()}
-		>
-			{#if addSubmitting}
-				<Spinner size="xs" />
-			{:else}
-				<Icon name="plus" />
-			{/if}
-		</button>
-		<button
-			type="button"
-			class="btn btn-ghost btn-sm btn-square shrink-0"
-			aria-label={m.ui_bottomsheet_close()}
-			onclick={() => (open = false)}
-		>
-			<Icon name="x" />
-		</button>
+		<div class="market-add-grid">
+			<label class="grid min-w-0 gap-1 text-xs font-semibold">
+				{m.shopping_recurring_name()}
+				<input
+					bind:this={nameInput}
+					type="text"
+					class="input min-h-11 min-w-0"
+					placeholder={m.shopping_additem_name_placeholder()}
+					autocomplete="off"
+					maxlength="256"
+					required
+					disabled={addSubmitting}
+					aria-describedby={addError ? 'shopping-add-error' : undefined}
+					bind:value={addName}
+				/>
+			</label>
+			<label class="grid min-w-0 gap-1 text-xs font-semibold">
+				{m.shopping_recurring_amount()}
+				<input
+					type="text"
+					inputmode="decimal"
+					class="input min-h-11 min-w-0"
+					placeholder={m.shopping_additem_qty_placeholder()}
+					autocomplete="off"
+					maxlength="64"
+					disabled={addSubmitting}
+					bind:value={addAmount}
+				/>
+			</label>
+			<label class="grid min-w-0 gap-1 text-xs font-semibold">
+				{m.shopping_recurring_unit()}
+				<input
+					type="text"
+					class="input min-h-11 min-w-0"
+					placeholder={m.shopping_additem_unit_placeholder()}
+					autocomplete="off"
+					maxlength="64"
+					disabled={addSubmitting}
+					bind:value={addUnit}
+				/>
+			</label>
+		</div>
+
+		{#if addError}
+			<p id="shopping-add-error" class="mt-2 text-sm text-error" role="alert">{addError}</p>
+		{/if}
+
+		<div class="mt-4 flex justify-end gap-2">
+			<button type="button" class="btn btn-ghost min-h-11" disabled={addSubmitting} onclick={() => (open = false)}>
+				{m.shopping_cancel_button()}
+			</button>
+			<button type="submit" class="btn btn-primary min-h-11" disabled={addSubmitting || !addName.trim()}>
+				{#if addSubmitting}<Spinner size="xs" />{/if}
+				{addSubmitting ? m.shopping_saving_label() : m.shopping_additem_submit_aria()}
+			</button>
+		</div>
 	</form>
-	</section>
-{:else}
-	<button
-		type="button"
-		class="mt-4 flex w-full items-center gap-2 rounded-xl border border-dashed border-base-300 px-3 py-2.5 text-left text-sm text-base-content/55 hover:border-primary/40 hover:text-primary"
-		aria-expanded="false"
-		onclick={openForm}
-	>
-		<Icon name="plus" class="h-4 w-4" />
-		{m.shopping_additem_name_placeholder()}
-	</button>
-{/if}
+</BottomSheet>
+
+<style>
+	.market-add-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 4.75rem 4.75rem;
+		gap: 0.5rem;
+	}
+
+	@media (max-width: 20rem) {
+		.market-add-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+</style>

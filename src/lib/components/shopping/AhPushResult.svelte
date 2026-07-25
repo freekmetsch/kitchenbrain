@@ -17,33 +17,44 @@
 </script>
 
 <div
-	class="rounded-2xl border {result.failed.length ? 'border-warning/30 bg-warning/10' : 'border-success/30 bg-success/10'} px-3 py-2"
-	role="status"
+	class="rounded-2xl border {result.uncertain || result.failed.length
+		? 'border-warning/30 bg-warning/10'
+		: 'border-success/30 bg-success/10'} px-3 py-3"
+	role={result.uncertain ? 'alert' : 'status'}
 	in:fade={{ duration: MOTION_MICRO_MS }}
 >
-	<div class="flex gap-2">
+	<div class="flex gap-2.5">
 		<Icon
-			name={result.failed.length ? 'warn' : 'check'}
-			class="mt-0.5 h-5 w-5 shrink-0 {result.failed.length ? 'text-warning' : 'text-success'}"
+			name={result.uncertain || result.failed.length ? 'warn' : 'check'}
+			class="mt-0.5 h-5 w-5 shrink-0 {result.uncertain || result.failed.length ? 'text-warning' : 'text-success'}"
 		/>
-		<span>
-			{result.pushed === 1
-				? m.shopping_ah_result_added_singular({
-						count: result.pushed,
-						account: result.accountName ? m.shopping_ah_account_named({ name: result.accountName }) : m.shopping_ah_account_default(),
-						destination: result.destination === 'order' ? m.shopping_ah_destination_order() : m.shopping_ah_destination_list()
-					})
-				: m.shopping_ah_result_added_plural({
-						count: result.pushed,
-						account: result.accountName ? m.shopping_ah_account_named({ name: result.accountName }) : m.shopping_ah_account_default(),
-						destination: result.destination === 'order' ? m.shopping_ah_destination_order() : m.shopping_ah_destination_list()
-					})}
+		<span class="text-sm leading-relaxed">
+			{#if result.uncertain}
+				<strong class="block">{m.shopping_ah_uncertain_heading()}</strong>
+				{m.shopping_ah_uncertain_body()}
+			{:else}
+				{result.pushed === 1
+					? m.shopping_ah_result_added_singular({
+							count: result.pushed,
+							account: result.accountName ? m.shopping_ah_account_named({ name: result.accountName }) : m.shopping_ah_account_default(),
+							destination: result.destination === 'order' ? m.shopping_ah_destination_order() : m.shopping_ah_destination_list()
+						})
+					: m.shopping_ah_result_added_plural({
+							count: result.pushed,
+							account: result.accountName ? m.shopping_ah_account_named({ name: result.accountName }) : m.shopping_ah_account_default(),
+							destination: result.destination === 'order' ? m.shopping_ah_destination_order() : m.shopping_ah_destination_list()
+						})}
+			{/if}
 		</span>
 	</div>
 </div>
 {#if result.markedBought > 0}
 	<p class="mt-3 text-sm text-base-content/60">
 		{m.shopping_ah_marked_bought({ count: result.markedBought })}
+	</p>
+{:else if result.uncertain}
+	<p class="mt-3 text-sm text-base-content/60">
+		{m.shopping_ah_uncertain_none_marked()}
 	</p>
 {/if}
 {#if result.failed.length}
@@ -56,11 +67,11 @@
 			</li>
 		{/each}
 	</ul>
-	{#if result.reason}
+	{#if result.reason && !result.uncertain}
 		<p class="mt-2 text-xs text-base-content/50">{result.reason}</p>
 	{/if}
 {/if}
-<div class="mt-4 flex justify-end gap-2">
-	<a href="https://www.ah.nl" target="_blank" rel="noopener noreferrer" class="btn btn-outline">{m.shopping_ah_open_button()}</a>
-	<button type="button" class="btn" onclick={() => onClose()}>{m.ui_bottomsheet_close()}</button>
+<div class="mt-4 flex flex-wrap justify-end gap-2">
+	<button type="button" class="btn min-h-11" onclick={() => onClose()}>{m.ui_bottomsheet_close()}</button>
+	<a href="https://www.ah.nl" target="_blank" rel="noopener noreferrer" class="btn btn-primary min-h-11">{m.shopping_ah_open_button()}</a>
 </div>
