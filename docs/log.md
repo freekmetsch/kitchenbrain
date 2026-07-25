@@ -125,3 +125,25 @@ at 375, 768, 1280, and an effective 200% layout without provider calls.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_CONTEXTUAL_CHAT_PROMPTS.md,
 docs/artifacts/archive/2026-07-24-plan-contextual-chat-prompts.html
+
+## 2026-07-25 | html-artifact | design shotgun: meal plan density refinement
+
+Touched: docs/artifacts/2026-07-25-design-shotgun-meal-plan-density.html,
+docs/feature-lists/FEATURE_LIST_MEAL_PLAN_DENSITY_REFINEMENT.md
+
+## 2026-07-25 | shipped | meal plan one-week focus
+
+Shipped one selected planning week behind real Previous and Next links, one
+Shopping/Suggest/Add toolbar, low-frequency Past and Settings overflow, compact title-row Remove,
+and toggleable `×2`/`×3`/`×4` batch shortcuts without visible `×1`. Verification passed with zero
+Svelte diagnostics, 73 test files / 460 tests, a production build, and isolated authenticated
+English/Dutch browser stories at 375, 768, 1280, and an effective 200% layout without provider,
+source, delete, or household-data writes.
+
+## 2026-07-25 17:45 | archive-scan | 1 feature list, 1 HTML archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_MEAL_PLAN_DENSITY_REFINEMENT.md,
+docs/artifacts/archive/2026-07-25-design-shotgun-meal-plan-density.html
+
+The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
+validated inline fallback and the repo remains a candidate for the shared archive-script rollout.

@@ -1,0 +1,1459 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="data:," />
+	<title>Meal plan density — design shotgun</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #fffdf9;
+			--canvas: #f2ede6;
+			--ink: #352b26;
+			--muted: #776b63;
+			--line: #ded4ca;
+			--line-strong: #cbbcaf;
+			--surface: #f9f5ef;
+			--surface-2: #eee6dc;
+			--primary: #a9431b;
+			--primary-soft: #f6e4da;
+			--sage: #3d6550;
+			--sage-soft: #e7efe9;
+			--shadow: 0 18px 54px rgba(61, 43, 31, 0.09);
+		}
+
+		* { box-sizing: border-box; }
+		html { background: var(--canvas); scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			color: var(--ink);
+			background:
+				linear-gradient(180deg, rgba(255,255,255,0.76), transparent 34rem),
+				var(--canvas);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			line-height: 1.5;
+		}
+
+		button, textarea, input { font: inherit; }
+		button { color: inherit; }
+		a { color: var(--primary); text-underline-offset: 0.18em; }
+		:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 48%, white); outline-offset: 3px; }
+
+		.shell {
+			width: min(1540px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 56px 0 88px;
+		}
+
+		.hero {
+			display: grid;
+			grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr);
+			gap: 52px;
+			align-items: end;
+			padding-bottom: 38px;
+			border-bottom: 1px solid var(--line-strong);
+		}
+
+		.eyebrow {
+			margin: 0 0 12px;
+			color: var(--primary);
+			font-size: 0.76rem;
+			font-weight: 850;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+		}
+
+		h1 {
+			max-width: 900px;
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.7rem, 5.7vw, 6.2rem);
+			font-weight: 500;
+			letter-spacing: -0.052em;
+			line-height: 0.94;
+		}
+
+		.hero-copy {
+			max-width: 760px;
+			margin: 22px 0 0;
+			color: var(--muted);
+			font-size: clamp(1rem, 1.35vw, 1.18rem);
+		}
+
+		.fixed {
+			padding: 4px 0 4px 26px;
+			border-left: 3px solid var(--primary);
+		}
+
+		.fixed h2,
+		.section-label {
+			margin: 0;
+			font-size: 0.78rem;
+			font-weight: 850;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+		}
+
+		.fixed ul {
+			margin: 14px 0 0;
+			padding-left: 1.1rem;
+			color: var(--muted);
+			font-size: 0.94rem;
+		}
+
+		.fixed li + li { margin-top: 7px; }
+
+		.evidence {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 1px;
+			margin: 40px 0 0;
+			overflow: hidden;
+			border: 1px solid var(--line-strong);
+			border-radius: 22px;
+			background: var(--line-strong);
+		}
+
+		.evidence article {
+			min-height: 172px;
+			padding: 24px;
+			background: rgba(255,253,249,0.84);
+		}
+
+		.evidence strong {
+			display: block;
+			margin-bottom: 7px;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 2.25rem;
+			font-weight: 500;
+			line-height: 1;
+		}
+
+		.evidence h2 {
+			margin: 0 0 8px;
+			font-size: 0.95rem;
+		}
+
+		.evidence p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.9rem;
+		}
+
+		.gallery {
+			display: grid;
+			gap: 52px;
+			margin-top: 56px;
+		}
+
+		.direction {
+			padding: 34px;
+			border: 1px solid var(--line-strong);
+			border-radius: 28px;
+			background: rgba(255,253,249,0.88);
+			box-shadow: var(--shadow);
+		}
+
+		.direction-head {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+			gap: 34px;
+			align-items: end;
+			margin-bottom: 28px;
+		}
+
+		.direction-kicker {
+			margin: 0 0 9px;
+			color: var(--primary);
+			font-size: 0.76rem;
+			font-weight: 850;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+		}
+
+		.direction h2 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2rem, 3vw, 3.35rem);
+			font-weight: 500;
+			letter-spacing: -0.035em;
+			line-height: 1;
+		}
+
+		.thesis {
+			margin: 13px 0 0;
+			color: var(--muted);
+			font-size: 1rem;
+		}
+
+		.verdict {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 7px 14px;
+			margin: 0;
+			padding: 18px 20px;
+			border-radius: 18px;
+			background: var(--surface);
+			font-size: 0.88rem;
+		}
+
+		.verdict dt { font-weight: 800; }
+		.verdict dd { margin: 0; color: var(--muted); }
+
+		.previews {
+			display: grid;
+			grid-template-columns: minmax(390px, 0.58fr) minmax(690px, 1fr);
+			gap: 24px;
+			align-items: start;
+		}
+
+		.preview-wrap {
+			min-width: 0;
+			overflow: auto;
+			padding: 18px;
+			border: 1px solid var(--line);
+			border-radius: 22px;
+			background:
+				linear-gradient(135deg, rgba(255,255,255,0.58), transparent),
+				var(--surface-2);
+		}
+
+		.preview-label {
+			display: flex;
+			justify-content: space-between;
+			gap: 12px;
+			margin: 0 0 12px;
+			color: var(--muted);
+			font-size: 0.72rem;
+			font-weight: 800;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.screen {
+			position: relative;
+			display: flex;
+			flex-direction: column;
+			margin: 0 auto;
+			overflow: hidden;
+			border: 1px solid #d7cec5;
+			border-radius: 20px;
+			background: #fffdf9;
+			box-shadow: 0 12px 34px rgba(62, 43, 30, 0.12);
+			font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+			color: #352b26;
+		}
+
+		.screen.phone { width: 375px; height: 720px; }
+		.screen.wide { width: 672px; height: 590px; }
+
+		.app-body {
+			flex: 1;
+			min-height: 0;
+			overflow: hidden;
+			padding: 16px 16px 70px;
+		}
+
+		.app-titlebar {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			margin-bottom: 13px;
+		}
+
+		.app-title {
+			margin: 0;
+			font-size: 23px;
+			font-weight: 700;
+			letter-spacing: -0.025em;
+			line-height: 1.05;
+		}
+
+		.quiet-link,
+		.mock-icon,
+		.mock-text,
+		.mock-primary,
+		.multiplier,
+		.stepper,
+		.source-pill,
+		.week-tab {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 44px;
+			border-radius: 9px;
+			font-size: 12px;
+			font-weight: 650;
+			white-space: nowrap;
+		}
+
+		.quiet-link {
+			gap: 6px;
+			border: 0;
+			color: #8c482f;
+			background: transparent;
+		}
+
+		.mock-icon {
+			width: 44px;
+			border: 1px solid #d7cec5;
+			background: transparent;
+			font-size: 17px;
+		}
+
+		.mock-text {
+			padding: 0 12px;
+			border: 0;
+			background: transparent;
+		}
+
+		.mock-primary {
+			min-width: 44px;
+			padding: 0 13px;
+			border: 1px solid #a9431b;
+			color: white;
+			background: #a9431b;
+			box-shadow: 0 3px 8px rgba(169,67,27,0.24);
+			font-size: 17px;
+		}
+
+		.week-card {
+			overflow: hidden;
+			border: 1px solid rgba(169,67,27,0.46);
+			border-radius: 17px;
+			background: #fffefb;
+			box-shadow: 0 2px 8px rgba(76,53,38,0.06);
+		}
+
+		.week-head {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 10px;
+			padding: 11px 12px;
+			border-bottom: 1px solid #eee7e0;
+		}
+
+		.week-identity {
+			min-width: 0;
+			padding-top: 2px;
+		}
+
+		.week-line {
+			display: flex;
+			align-items: center;
+			gap: 7px;
+			font-size: 13px;
+			font-weight: 750;
+		}
+
+		.now {
+			display: inline-flex;
+			align-items: center;
+			min-height: 28px;
+			padding: 0 9px;
+			border: 1px solid #dfc8bb;
+			border-radius: 999px;
+			color: #9a4e32;
+			background: #f8ece5;
+			font-size: 10px;
+			font-weight: 700;
+		}
+
+		.meta {
+			margin-top: 3px;
+			color: #7e726a;
+			font-size: 10px;
+			line-height: 1.35;
+		}
+
+		.week-actions {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
+
+		.meal-list { display: grid; }
+
+		.meal {
+			padding: 11px 12px 12px;
+			border-top: 1px solid #eee7e0;
+		}
+
+		.meal:first-child { border-top: 0; }
+
+		.meal-title-row {
+			display: grid;
+			grid-template-columns: 28px minmax(0, 1fr) 44px;
+			gap: 8px;
+			align-items: center;
+			min-height: 44px;
+		}
+
+		.check {
+			width: 24px;
+			height: 24px;
+			border: 1px solid #d6d0c8;
+			border-radius: 50%;
+			background: #fffefb;
+		}
+
+		.meal-name {
+			min-width: 0;
+			overflow: hidden;
+			font-size: 13px;
+			font-weight: 700;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.remove {
+			display: inline-grid;
+			width: 44px;
+			height: 44px;
+			place-items: center;
+			border-radius: 9px;
+			color: #b44a42;
+			font-size: 18px;
+		}
+
+		.meal-controls {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+			margin-left: 36px;
+		}
+
+		.stepper {
+			display: grid;
+			grid-template-columns: 32px minmax(60px, 1fr) 32px;
+			width: 128px;
+			overflow: hidden;
+			border: 1px solid #ddd5cc;
+			background: #fffefb;
+			font-weight: 500;
+		}
+
+		.stepper span {
+			display: grid;
+			height: 42px;
+			place-items: center;
+			font-size: 11px;
+		}
+
+		.stepper span:nth-child(2) { font-variant-numeric: tabular-nums; }
+
+		.multiplier {
+			width: 44px;
+			border: 1px solid #ddd5cc;
+			background: #fffefb;
+			font-weight: 700;
+		}
+
+		.multiplier.on {
+			border-color: #a9431b;
+			color: white;
+			background: #a9431b;
+			box-shadow: 0 3px 8px rgba(169,67,27,0.2);
+		}
+
+		.sources {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 5px;
+			margin: 6px 0 0 36px;
+		}
+
+		.source-pill {
+			min-height: 38px;
+			padding: 0 10px;
+			border: 1px solid #ddd5cc;
+			background: #fffefb;
+			font-size: 10px;
+		}
+
+		.source-pill.on {
+			border-color: #a9431b;
+			color: white;
+			background: #a9431b;
+		}
+
+		.nav {
+			position: absolute;
+			right: 0;
+			bottom: 0;
+			left: 0;
+			display: grid;
+			grid-template-columns: repeat(6, 1fr);
+			height: 58px;
+			border-top: 1px solid #e8e0d8;
+			background: rgba(255,253,249,0.98);
+		}
+
+		.nav span {
+			display: grid;
+			place-items: center;
+			color: #6f655f;
+			font-size: 9px;
+		}
+
+		.nav .active { color: #a9431b; font-weight: 800; }
+
+		.screen.wide .app-body { padding-inline: 20px; }
+		.screen.wide .meal-title-row { grid-template-columns: 28px minmax(0, 1fr) 44px; }
+		.screen.wide .meal {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 0 14px;
+		}
+		.screen.wide .meal-title-row { grid-column: 1 / -1; }
+		.screen.wide .meal-controls { grid-column: 1; }
+		.screen.wide .sources { grid-column: 2; margin-left: 0; align-self: center; }
+
+		/* Direction B */
+		.focus-app .app-titlebar { margin-bottom: 9px; }
+		.focus-switcher {
+			display: grid;
+			grid-template-columns: 44px 1fr 44px;
+			align-items: center;
+			gap: 7px;
+			margin-bottom: 9px;
+		}
+
+		.focus-week {
+			display: grid;
+			min-height: 58px;
+			place-items: center;
+			border: 1px solid #d5c9bf;
+			border-radius: 14px;
+			background: #fffefb;
+			text-align: center;
+		}
+
+		.focus-week strong { font-family: Georgia, "Times New Roman", serif; font-size: 19px; font-weight: 600; }
+		.focus-week span { color: #7e726a; font-size: 10px; }
+
+		.focus-toolbar {
+			display: grid;
+			grid-template-columns: 1fr 1fr 1.15fr;
+			gap: 6px;
+			margin-bottom: 11px;
+		}
+
+		.focus-toolbar span {
+			display: inline-flex;
+			min-height: 44px;
+			align-items: center;
+			justify-content: center;
+			border: 1px solid #d8cec5;
+			border-radius: 10px;
+			background: #fffefb;
+			font-size: 11px;
+			font-weight: 700;
+		}
+
+		.focus-toolbar .add {
+			border-color: #3d6550;
+			color: white;
+			background: #3d6550;
+		}
+
+		.focus-app .week-card {
+			border-color: #d8cec5;
+			border-radius: 14px;
+			box-shadow: none;
+		}
+
+		.focus-app .week-head {
+			padding-block: 9px;
+			background: #f5f0e9;
+		}
+
+		.focus-app .week-head strong { font-size: 11px; }
+		.focus-next {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-top: 11px;
+			padding: 12px;
+			border-top: 1px solid #e7ded6;
+			color: #71655e;
+			font-size: 11px;
+		}
+
+		.screen.wide.focus-app .focus-top {
+			display: grid;
+			grid-template-columns: 1.15fr 0.85fr;
+			gap: 10px;
+		}
+		.screen.wide.focus-app .focus-toolbar { margin-top: 0; }
+
+		/* Direction C */
+		.agenda-app .app-titlebar { margin-bottom: 8px; }
+		.week-rail {
+			display: grid;
+			grid-template-columns: 52px repeat(4, 1fr);
+			gap: 4px;
+			margin-bottom: 8px;
+			padding-bottom: 8px;
+			border-bottom: 1px solid #ddd4ca;
+		}
+
+		.week-tab {
+			min-width: 0;
+			border: 0;
+			border-radius: 999px;
+			color: #766a63;
+			background: transparent;
+			font-size: 11px;
+		}
+
+		.week-tab.on {
+			color: #2f5944;
+			background: #e7efe9;
+			box-shadow: inset 0 0 0 1px #bfd0c3;
+		}
+
+		.agenda-toolbar {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			margin-bottom: 5px;
+			padding: 8px 2px;
+		}
+
+		.agenda-toolbar .delivery {
+			min-width: 0;
+			color: #73675f;
+			font-size: 10px;
+		}
+
+		.agenda-actions { display: flex; gap: 3px; }
+
+		.agenda-list {
+			border-top: 1px solid #d8cec5;
+			border-bottom: 1px solid #d8cec5;
+		}
+
+		.agenda-list .meal {
+			border-color: #e0d8cf;
+			padding-inline: 4px;
+		}
+
+		.agenda-app .meal-title-row { grid-template-columns: 28px minmax(0, 1fr) 44px; }
+		.agenda-app .meal-controls,
+		.agenda-app .sources { margin-left: 36px; }
+		.agenda-app .source-pill {
+			min-height: 34px;
+			border: 0;
+			color: #3d6550;
+			background: #e7efe9;
+		}
+
+		.agenda-caption {
+			margin: 12px 2px 6px;
+			color: #80736b;
+			font-size: 10px;
+			font-weight: 800;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+		}
+
+		.screen.wide.agenda-app .agenda-list .meal {
+			grid-template-columns: minmax(0, 1fr) auto;
+		}
+		.screen.wide.agenda-app .agenda-app .sources { margin-left: 0; }
+
+		.compare {
+			margin-top: 56px;
+			padding-top: 42px;
+			border-top: 1px solid var(--line-strong);
+		}
+
+		.compare h2,
+		.decide h2 {
+			margin: 10px 0 14px;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.1rem, 4vw, 4.2rem);
+			font-weight: 500;
+			letter-spacing: -0.04em;
+			line-height: 1;
+		}
+
+		.compare-copy {
+			max-width: 750px;
+			margin: 0 0 24px;
+			color: var(--muted);
+		}
+
+		.table-wrap {
+			overflow-x: auto;
+			border: 1px solid var(--line-strong);
+			border-radius: 20px;
+			background: var(--paper);
+		}
+
+		table {
+			width: 100%;
+			min-width: 800px;
+			border-collapse: collapse;
+		}
+
+		th, td {
+			padding: 18px 20px;
+			border-bottom: 1px solid var(--line);
+			text-align: left;
+			vertical-align: top;
+		}
+
+		th {
+			background: var(--surface);
+			font-size: 0.78rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		td { color: var(--muted); font-size: 0.91rem; }
+		td:first-child { color: var(--ink); font-weight: 800; }
+		tr:last-child td { border-bottom: 0; }
+
+		.decide {
+			display: grid;
+			grid-template-columns: minmax(0, 0.72fr) minmax(420px, 1.28fr);
+			gap: 48px;
+			margin-top: 56px;
+			padding: 42px;
+			border-radius: 28px;
+			background: #342c27;
+			color: #fffaf5;
+			box-shadow: var(--shadow);
+		}
+
+		.decide p { color: #cfc2b8; }
+
+		.choice-list {
+			display: grid;
+			gap: 10px;
+			margin: 0;
+			padding: 0;
+			border: 0;
+		}
+
+		.choice {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 11px;
+			padding: 15px;
+			border: 1px solid #5c5048;
+			border-radius: 14px;
+			background: #40362f;
+			cursor: pointer;
+		}
+
+		.choice:has(input:checked) {
+			border-color: #d57a54;
+			background: #4a382f;
+			box-shadow: inset 4px 0 0 #d57a54;
+		}
+
+		.choice input { margin-top: 4px; accent-color: #d8683d; }
+		.choice strong { display: block; }
+		.choice small { display: block; margin-top: 3px; color: #cdbfb5; }
+
+		.field {
+			display: grid;
+			gap: 8px;
+			margin-top: 16px;
+		}
+
+		.field label {
+			font-size: 0.76rem;
+			font-weight: 800;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		textarea {
+			width: 100%;
+			min-height: 116px;
+			padding: 13px;
+			resize: vertical;
+			border: 1px solid #6a5a50;
+			border-radius: 12px;
+			color: #fffaf5;
+			background: #2b2420;
+		}
+
+		.handoff textarea {
+			min-height: 320px;
+			color: #2d2723;
+			background: #fffaf5;
+		}
+
+		.actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 9px;
+			margin-top: 12px;
+		}
+
+		.actions button {
+			min-height: 44px;
+			padding: 0 15px;
+			border: 1px solid #7c695e;
+			border-radius: 10px;
+			color: #fffaf5;
+			background: transparent;
+			font-weight: 800;
+			cursor: pointer;
+		}
+
+		.actions .copy {
+			border-color: #d8683d;
+			background: #b54b24;
+		}
+
+		.save-status {
+			min-height: 1.5em;
+			margin: 10px 0 0;
+			color: #cdbfb5;
+			font-size: 0.82rem;
+		}
+
+		@media (max-width: 1080px) {
+			.hero,
+			.direction-head,
+			.decide { grid-template-columns: 1fr; }
+			.previews { grid-template-columns: 1fr; }
+			.evidence { grid-template-columns: 1fr; }
+			.evidence article { min-height: auto; }
+		}
+
+		@media (max-width: 620px) {
+			.shell { width: min(100% - 20px, 1540px); padding-top: 28px; }
+			.hero { gap: 28px; }
+			h1 { font-size: 2.8rem; }
+			.fixed { padding-left: 18px; }
+			.direction { padding: 18px 12px; border-radius: 21px; }
+			.direction-head { gap: 20px; }
+			.preview-wrap { padding: 10px 6px 14px; border-radius: 16px; }
+			.preview-label { padding-inline: 4px; }
+			.decide { padding: 24px 18px; border-radius: 22px; }
+		}
+	</style>
+</head>
+<body>
+	<main class="shell">
+		<header class="hero">
+			<div>
+				<p class="eyebrow">Meal plan · Design shotgun · 25 July 2026</p>
+				<h1>Less chrome. More actual planning.</h1>
+				<p class="hero-copy">
+					Three ways to make the meal plan calmer while preserving exact portions,
+					batch shortcuts, fresh/freezer choices, and week-specific shopping.
+				</p>
+			</div>
+			<aside class="fixed">
+				<h2>Fixed in every direction</h2>
+				<ul>
+					<li>No visible ×1 button; no selected multiplier means the recipe baseline.</li>
+					<li>×2, ×3, and ×4 sit beside portions and toggle back to baseline.</li>
+					<li>Remove sits beside the meal title instead of owning a full-height column.</li>
+					<li>Page-level Shopping and Settings are treated as duplicates.</li>
+				</ul>
+			</aside>
+		</header>
+
+		<section class="evidence" aria-label="Current UI evidence">
+			<article>
+				<strong>3</strong>
+				<h2>control bands per linked meal</h2>
+				<p>Portions, batch multipliers, and source choices stack on phones before the next meal begins.</p>
+			</article>
+			<article>
+				<strong>4</strong>
+				<h2>batch buttons where three suffice</h2>
+				<p>×1 restates the default and is the difference between wrapping and fitting beside portions.</p>
+			</article>
+			<article>
+				<strong>2×</strong>
+				<h2>page-level navigation duplicates</h2>
+				<p>Shopping and Settings are already persistent destinations; each week also owns its shopping context.</p>
+			</article>
+		</section>
+
+		<section class="gallery" aria-label="Design directions">
+			<article class="direction" id="direction-a">
+				<header class="direction-head">
+					<div>
+						<p class="direction-kicker">Direction A · Recommended</p>
+						<h2>Quiet week cards</h2>
+						<p class="thesis">
+							Keep the familiar multi-week page, but strip duplicate page actions and compress
+							each week into one clean identity-and-action header.
+						</p>
+					</div>
+					<dl class="verdict">
+						<dt>Strength</dt><dd>Biggest improvement with the least relearning.</dd>
+						<dt>Trade-off</dt><dd>Future week cards and their headers still repeat.</dd>
+						<dt>Optimizes for</dt><dd>Quick weekly scanning on a phone.</dd>
+					</dl>
+				</header>
+				<div class="previews">
+					<div class="preview-wrap">
+						<p class="preview-label"><span>Phone</span><span>375 px</span></p>
+						<div class="screen phone quiet-app" aria-label="Quiet week cards phone mockup">
+							<div class="app-body">
+								<div class="app-titlebar">
+									<h3 class="app-title">Meal plan</h3>
+									<span class="quiet-link">Past weeks</span>
+								</div>
+								<div class="week-card">
+									<div class="week-head">
+										<div class="week-identity">
+											<div class="week-line">Week 30 <span class="now">Now</span></div>
+											<div class="meta">22–28 Jul · Delivery 21 Jul</div>
+										</div>
+										<div class="week-actions">
+											<span class="mock-icon" title="Shopping list">List</span>
+											<span class="mock-text">Suggest</span>
+											<span class="mock-primary">+</span>
+										</div>
+									</div>
+									<div class="meal-list">
+										<div class="meal">
+											<div class="meal-title-row">
+												<span class="check"></span>
+												<span class="meal-name">Lemon chickpea pasta</span>
+												<span class="remove" aria-label="Remove">×</span>
+											</div>
+											<div class="meal-controls">
+												<span class="stepper"><span>−</span><span>8 portions</span><span>+</span></span>
+												<span class="multiplier on">×2</span>
+												<span class="multiplier">×3</span>
+												<span class="multiplier">×4</span>
+											</div>
+											<div class="sources">
+												<span class="source-pill">Serve 3 from freezer</span>
+												<span class="source-pill on">Cook 4 fresh</span>
+											</div>
+										</div>
+										<div class="meal">
+											<div class="meal-title-row">
+												<span class="check"></span>
+												<span class="meal-name">Miso-glazed aubergine</span>
+												<span class="remove" aria-label="Remove">×</span>
+											</div>
+											<div class="meal-controls">
+												<span class="stepper"><span>−</span><span>4 portions</span><span>+</span></span>
+												<span class="multiplier">×2</span>
+												<span class="multiplier">×3</span>
+												<span class="multiplier">×4</span>
+											</div>
+										</div>
+										<div class="meal">
+											<div class="meal-title-row">
+												<span class="check"></span>
+												<span class="meal-name">Plum crumble bars with toasted almonds</span>
+												<span class="remove" aria-label="Remove">×</span>
+											</div>
+											<div class="meal-controls">
+												<span class="stepper"><span>−</span><span>12 portions</span><span>+</span></span>
+												<span class="multiplier">×2</span>
+												<span class="multiplier">×3</span>
+												<span class="multiplier">×4</span>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="nav">
+								<span>Assistant</span><span>Stock</span><span class="active">Plan</span>
+								<span>Groceries</span><span>Recipes</span><span>Settings</span>
+							</div>
+						</div>
+					</div>
+					<div class="preview-wrap">
+						<p class="preview-label"><span>Wide content column</span><span>672 px inside 1280 px</span></p>
+						<div class="screen wide quiet-app" aria-label="Quiet week cards wide mockup">
+							<div class="app-body">
+								<div class="app-titlebar">
+									<h3 class="app-title">Meal plan</h3>
+									<span class="quiet-link">Past weeks</span>
+								</div>
+								<div class="week-card">
+									<div class="week-head">
+										<div class="week-identity">
+											<div class="week-line">Week 30 <span class="now">Now</span></div>
+											<div class="meta">22–28 Jul · Delivery 21 Jul</div>
+										</div>
+										<div class="week-actions">
+											<span class="mock-icon">List</span>
+											<span class="mock-text">Suggest</span>
+											<span class="mock-primary">+</span>
+										</div>
+									</div>
+									<div class="meal-list">
+										<div class="meal">
+											<div class="meal-title-row">
+												<span class="check"></span><span class="meal-name">Lemon chickpea pasta</span><span class="remove">×</span>
+											</div>
+											<div class="meal-controls">
+												<span class="stepper"><span>−</span><span>8 portions</span><span>+</span></span>
+												<span class="multiplier on">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span>
+											</div>
+											<div class="sources"><span class="source-pill">Serve 3 from freezer</span><span class="source-pill on">Cook 4 fresh</span></div>
+										</div>
+										<div class="meal">
+											<div class="meal-title-row">
+												<span class="check"></span><span class="meal-name">Miso-glazed aubergine</span><span class="remove">×</span>
+											</div>
+											<div class="meal-controls">
+												<span class="stepper"><span>−</span><span>4 portions</span><span>+</span></span>
+												<span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span>
+											</div>
+										</div>
+										<div class="meal">
+											<div class="meal-title-row">
+												<span class="check"></span><span class="meal-name">Plum crumble bars with toasted almonds</span><span class="remove">×</span>
+											</div>
+											<div class="meal-controls">
+												<span class="stepper"><span>−</span><span>12 portions</span><span>+</span></span>
+												<span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="nav">
+								<span>Assistant</span><span>Stock</span><span class="active">Plan</span>
+								<span>Groceries</span><span>Recipes</span><span>Settings</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</article>
+
+			<article class="direction" id="direction-b">
+				<header class="direction-head">
+					<div>
+						<p class="direction-kicker">Direction B</p>
+						<h2>One-week focus</h2>
+						<p class="thesis">
+							Replace the long stack of week cards with a week switcher and one deliberate
+							planning canvas.
+						</p>
+					</div>
+					<dl class="verdict">
+						<dt>Strength</dt><dd>The calmest screen and strongest meal focus.</dd>
+						<dt>Trade-off</dt><dd>Cross-week comparison takes more taps.</dd>
+						<dt>Optimizes for</dt><dd>Planning one delivery cycle at a time.</dd>
+					</dl>
+				</header>
+				<div class="previews">
+					<div class="preview-wrap">
+						<p class="preview-label"><span>Phone</span><span>375 px</span></p>
+						<div class="screen phone focus-app" aria-label="One-week focus phone mockup">
+							<div class="app-body">
+								<div class="app-titlebar">
+									<h3 class="app-title">Meal plan</h3>
+									<span class="mock-icon" aria-label="More options">···</span>
+								</div>
+								<div class="focus-switcher">
+									<span class="mock-icon">‹</span>
+									<div class="focus-week"><strong>Week 30</strong><span>22–28 Jul · Delivery 21 Jul</span></div>
+									<span class="mock-icon">›</span>
+								</div>
+								<div class="focus-toolbar">
+									<span>Shopping</span><span>Suggest</span><span class="add">Add meal</span>
+								</div>
+								<div class="week-card">
+									<div class="week-head"><strong>This week · 3 meals</strong><span class="now">Now</span></div>
+									<div class="meal-list">
+										<div class="meal">
+											<div class="meal-title-row">
+												<span class="check"></span><span class="meal-name">Lemon chickpea pasta</span><span class="remove">×</span>
+											</div>
+											<div class="meal-controls">
+												<span class="stepper"><span>−</span><span>8 portions</span><span>+</span></span>
+												<span class="multiplier on">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span>
+											</div>
+											<div class="sources"><span class="source-pill">Serve 3 from freezer</span><span class="source-pill on">Cook 4 fresh</span></div>
+										</div>
+										<div class="meal">
+											<div class="meal-title-row">
+												<span class="check"></span><span class="meal-name">Miso-glazed aubergine</span><span class="remove">×</span>
+											</div>
+											<div class="meal-controls">
+												<span class="stepper"><span>−</span><span>4 portions</span><span>+</span></span>
+												<span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span>
+											</div>
+										</div>
+										<div class="meal">
+											<div class="meal-title-row">
+												<span class="check"></span><span class="meal-name">Plum crumble bars with toasted almonds</span><span class="remove">×</span>
+											</div>
+											<div class="meal-controls">
+												<span class="stepper"><span>−</span><span>12 portions</span><span>+</span></span>
+												<span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span>
+											</div>
+										</div>
+									</div>
+								</div>
+								<div class="focus-next"><span>Week 31 · 1 meal</span><strong>Plan next week ›</strong></div>
+							</div>
+							<div class="nav">
+								<span>Assistant</span><span>Stock</span><span class="active">Plan</span>
+								<span>Groceries</span><span>Recipes</span><span>Settings</span>
+							</div>
+						</div>
+					</div>
+					<div class="preview-wrap">
+						<p class="preview-label"><span>Wide content column</span><span>672 px inside 1280 px</span></p>
+						<div class="screen wide focus-app" aria-label="One-week focus wide mockup">
+							<div class="app-body">
+								<div class="app-titlebar"><h3 class="app-title">Meal plan</h3><span class="mock-icon">···</span></div>
+								<div class="focus-top">
+									<div class="focus-switcher">
+										<span class="mock-icon">‹</span>
+										<div class="focus-week"><strong>Week 30</strong><span>22–28 Jul · Delivery 21 Jul</span></div>
+										<span class="mock-icon">›</span>
+									</div>
+									<div class="focus-toolbar"><span>Shopping</span><span>Suggest</span><span class="add">Add meal</span></div>
+								</div>
+								<div class="week-card">
+									<div class="week-head"><strong>This week · 3 meals</strong><span class="now">Now</span></div>
+									<div class="meal-list">
+										<div class="meal">
+											<div class="meal-title-row"><span class="check"></span><span class="meal-name">Lemon chickpea pasta</span><span class="remove">×</span></div>
+											<div class="meal-controls"><span class="stepper"><span>−</span><span>8 portions</span><span>+</span></span><span class="multiplier on">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span></div>
+											<div class="sources"><span class="source-pill">Serve 3 from freezer</span><span class="source-pill on">Cook 4 fresh</span></div>
+										</div>
+										<div class="meal">
+											<div class="meal-title-row"><span class="check"></span><span class="meal-name">Miso-glazed aubergine</span><span class="remove">×</span></div>
+											<div class="meal-controls"><span class="stepper"><span>−</span><span>4 portions</span><span>+</span></span><span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span></div>
+										</div>
+										<div class="meal">
+											<div class="meal-title-row"><span class="check"></span><span class="meal-name">Plum crumble bars with toasted almonds</span><span class="remove">×</span></div>
+											<div class="meal-controls"><span class="stepper"><span>−</span><span>12 portions</span><span>+</span></span><span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span></div>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="nav">
+								<span>Assistant</span><span>Stock</span><span class="active">Plan</span>
+								<span>Groceries</span><span>Recipes</span><span>Settings</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</article>
+
+			<article class="direction" id="direction-c">
+				<header class="direction-head">
+					<div>
+						<p class="direction-kicker">Direction C</p>
+						<h2>Week rail and lean agenda</h2>
+						<p class="thesis">
+							Keep nearby weeks visible, but replace nested cards with a compact rail and flatter
+							agenda rows.
+						</p>
+					</div>
+					<dl class="verdict">
+						<dt>Strength</dt><dd>Highest density without hiding nearby weeks.</dd>
+						<dt>Trade-off</dt><dd>Less containment and another horizontal rail.</dd>
+						<dt>Optimizes for</dt><dd>Frequent multi-week planning.</dd>
+					</dl>
+				</header>
+				<div class="previews">
+					<div class="preview-wrap">
+						<p class="preview-label"><span>Phone</span><span>375 px</span></p>
+						<div class="screen phone agenda-app" aria-label="Week rail and lean agenda phone mockup">
+							<div class="app-body">
+								<div class="app-titlebar"><h3 class="app-title">Meal plan</h3></div>
+								<div class="week-rail">
+									<span class="week-tab">Past</span><span class="week-tab on">W30</span>
+									<span class="week-tab">W31</span><span class="week-tab">W32</span><span class="week-tab">W33</span>
+								</div>
+								<div class="agenda-toolbar">
+									<div class="delivery"><strong>22–28 Jul</strong><br />Delivery 21 Jul</div>
+									<div class="agenda-actions"><span class="mock-icon">List</span><span class="mock-text">Suggest</span><span class="mock-primary">+</span></div>
+								</div>
+								<p class="agenda-caption">3 meals · current week</p>
+								<div class="agenda-list">
+									<div class="meal">
+										<div class="meal-title-row"><span class="check"></span><span class="meal-name">Lemon chickpea pasta</span><span class="remove">×</span></div>
+										<div class="meal-controls"><span class="stepper"><span>−</span><span>8 portions</span><span>+</span></span><span class="multiplier on">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span></div>
+										<div class="sources"><span class="source-pill">Cook fresh · freezer also available</span></div>
+									</div>
+									<div class="meal">
+										<div class="meal-title-row"><span class="check"></span><span class="meal-name">Miso-glazed aubergine</span><span class="remove">×</span></div>
+										<div class="meal-controls"><span class="stepper"><span>−</span><span>4 portions</span><span>+</span></span><span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span></div>
+									</div>
+									<div class="meal">
+										<div class="meal-title-row"><span class="check"></span><span class="meal-name">Plum crumble bars with toasted almonds</span><span class="remove">×</span></div>
+										<div class="meal-controls"><span class="stepper"><span>−</span><span>12 portions</span><span>+</span></span><span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span></div>
+									</div>
+								</div>
+							</div>
+							<div class="nav">
+								<span>Assistant</span><span>Stock</span><span class="active">Plan</span>
+								<span>Groceries</span><span>Recipes</span><span>Settings</span>
+							</div>
+						</div>
+					</div>
+					<div class="preview-wrap">
+						<p class="preview-label"><span>Wide content column</span><span>672 px inside 1280 px</span></p>
+						<div class="screen wide agenda-app" aria-label="Week rail and lean agenda wide mockup">
+							<div class="app-body">
+								<div class="app-titlebar"><h3 class="app-title">Meal plan</h3></div>
+								<div class="week-rail">
+									<span class="week-tab">Past</span><span class="week-tab on">W30</span>
+									<span class="week-tab">W31</span><span class="week-tab">W32</span><span class="week-tab">W33</span>
+								</div>
+								<div class="agenda-toolbar">
+									<div class="delivery"><strong>22–28 Jul</strong> · Delivery 21 Jul</div>
+									<div class="agenda-actions"><span class="mock-icon">List</span><span class="mock-text">Suggest</span><span class="mock-primary">+</span></div>
+								</div>
+								<p class="agenda-caption">3 meals · current week</p>
+								<div class="agenda-list">
+									<div class="meal">
+										<div class="meal-title-row"><span class="check"></span><span class="meal-name">Lemon chickpea pasta</span><span class="remove">×</span></div>
+										<div class="meal-controls"><span class="stepper"><span>−</span><span>8 portions</span><span>+</span></span><span class="multiplier on">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span></div>
+										<div class="sources"><span class="source-pill">Cook fresh · freezer also available</span></div>
+									</div>
+									<div class="meal">
+										<div class="meal-title-row"><span class="check"></span><span class="meal-name">Miso-glazed aubergine</span><span class="remove">×</span></div>
+										<div class="meal-controls"><span class="stepper"><span>−</span><span>4 portions</span><span>+</span></span><span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span></div>
+									</div>
+									<div class="meal">
+										<div class="meal-title-row"><span class="check"></span><span class="meal-name">Plum crumble bars with toasted almonds</span><span class="remove">×</span></div>
+										<div class="meal-controls"><span class="stepper"><span>−</span><span>12 portions</span><span>+</span></span><span class="multiplier">×2</span><span class="multiplier">×3</span><span class="multiplier">×4</span></div>
+									</div>
+								</div>
+							</div>
+							<div class="nav">
+								<span>Assistant</span><span>Stock</span><span class="active">Plan</span>
+								<span>Groceries</span><span>Recipes</span><span>Settings</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</article>
+		</section>
+
+		<section class="compare">
+			<p class="section-label">Comparison</p>
+			<h2>What changes, and what it costs</h2>
+			<p class="compare-copy">
+				Every direction includes the requested meal-row fix. The real choice is how aggressively
+				to simplify the repeated page and week headers.
+			</p>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr><th>Direction</th><th>Header calm</th><th>Multi-week scan</th><th>Change cost</th><th>Main risk</th></tr>
+					</thead>
+					<tbody>
+						<tr><td>A · Quiet week cards</td><td>High</td><td>Preserved</td><td>Low</td><td>Repeated empty week cards remain.</td></tr>
+						<tr><td>B · One-week focus</td><td>Highest</td><td>Hidden behind Previous and Next</td><td>Medium</td><td>Households may lose useful cross-week awareness.</td></tr>
+						<tr><td>C · Week rail</td><td>High</td><td>Fast, but rail-based</td><td>Medium</td><td>Horizontal navigation and flatter rows may feel less obvious.</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<section class="decide" id="decision">
+			<div>
+				<p class="section-label">Decision</p>
+				<h2>Pick the planning shape.</h2>
+				<p>
+					A is preselected because it removes the clearest duplication without changing how nearby
+					weeks are scanned. Override it if the visual evidence makes a stronger case for focus or density.
+				</p>
+				<form id="decision-form">
+					<fieldset class="choice-list">
+						<label class="choice">
+							<input type="radio" name="direction" value="A — Quiet week cards" checked />
+							<span><strong>A — Quiet week cards</strong><small>Recommended: calm header, familiar multi-week page.</small></span>
+						</label>
+						<label class="choice">
+							<input type="radio" name="direction" value="B — One-week focus" />
+							<span><strong>B — One-week focus</strong><small>Calmest canvas; adjacent weeks move behind navigation.</small></span>
+						</label>
+						<label class="choice">
+							<input type="radio" name="direction" value="C — Week rail and lean agenda" />
+							<span><strong>C — Week rail and lean agenda</strong><small>Highest scan density with a compact week rail.</small></span>
+						</label>
+					</fieldset>
+					<div class="field">
+						<label for="notes">What should change in the selected direction?</label>
+						<textarea id="notes" placeholder="Example: Keep A, but use the compact week rail only for past weeks."></textarea>
+					</div>
+				</form>
+				<p id="save-status" class="save-status" role="status"></p>
+			</div>
+			<div class="handoff">
+				<div class="field">
+					<label for="handoff">Generated handoff for the next agent</label>
+					<textarea id="handoff" readonly></textarea>
+				</div>
+				<div class="actions">
+					<button type="button" class="copy" id="copy">Copy handoff</button>
+					<button type="button" id="reset">Reset to recommendation</button>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+		(() => {
+			const schemaVersion = 1;
+			const storageKey = `${location.pathname}::meal-plan-density::${schemaVersion}`;
+			const form = document.getElementById('decision-form');
+			const notes = document.getElementById('notes');
+			const handoff = document.getElementById('handoff');
+			const status = document.getElementById('save-status');
+			const copy = document.getElementById('copy');
+			const reset = document.getElementById('reset');
+			let persistenceAvailable = true;
+
+			const directionDetails = {
+				'A — Quiet week cards': {
+					outcome: 'Keep the familiar multi-week card stack, remove page-level Shopping and Settings, fold Past weeks into the title bar, compress week range and delivery into one metadata line, keep week-specific Shopping tertiary, Suggest secondary, and Add primary.',
+					consequence: 'Households retain direct multi-week scanning and get the requested row-density improvement with minimal relearning.',
+					tradeoff: 'Repeated week headers and empty future-week cards remain visible.'
+				},
+				'B — One-week focus': {
+					outcome: 'Show one week at a time behind Previous and Next controls, place Shopping, Suggest, and Add in one toolbar, and move Past weeks and Settings to low-frequency overflow.',
+					consequence: 'The screen becomes substantially calmer and every visit centers the selected delivery cycle.',
+					tradeoff: 'Comparing or planning adjacent weeks requires more interaction.'
+				},
+				'C — Week rail and lean agenda': {
+					outcome: 'Use a compact week rail, a slim delivery/action toolbar, and flatter divided meal rows with restrained source status.',
+					consequence: 'Nearby weeks remain one tap away and more meals fit in the viewport.',
+					tradeoff: 'The page gains a horizontal rail and loses some card containment.'
+				}
+			};
+
+			function selectedDirection() {
+				return form.querySelector('input[name="direction"]:checked').value;
+			}
+
+			function buildPrompt() {
+				const selected = selectedDirection();
+				const detail = directionDetails[selected];
+				const userNotes = notes.value;
+				return `Continue the meal-plan density refinement workflow.
+
+Load the authoritative source:
+docs/feature-lists/FEATURE_LIST_MEAL_PLAN_DENSITY_REFINEMENT.md
+
+Decision:
+- Question: After the fixed meal-row optimizations, how much of the repeated page and week header should be removed or reorganized?
+- Options considered: A — Quiet week cards; B — One-week focus; C — Week rail and lean agenda.
+- Selected outcome: ${selected}.
+- Selected layout: ${detail.outcome}
+- Practical consequence: ${detail.consequence}
+- Trade-off accepted: ${detail.tradeoff}
+- Recommendation in the source: A — Quiet week cards, because it fixes every reported issue and removes clear duplicates without changing multi-week scanning.
+- Recommendation status: ${selected === 'A — Quiet week cards' ? 'accepted' : 'overridden'}.
+
+Fixed decisions that apply regardless of direction:
+- Remove the visible ×1 batch button.
+- Keep ×2, ×3, and ×4 beside portions as aria-pressed shortcuts.
+- No selected multiplier represents the recipe baseline.
+- Clicking an active multiplier returns portions to the recipe baseline and clears the pressed state.
+- Custom non-multiple portions leave all three shortcuts unpressed.
+- Move Remove into the meal-title row so it does not reserve a trailing full-height column.
+- Keep week-specific Shopping context, exact portions, fresh/freezer choice, pending-state authority, 44 px targets, and the Dutch-canonical shopping seam.
+- Remove page-level Shopping and Settings as duplicate navigation in the selected design.
+
+Evidence:
+- Authenticated live browser checks at 360 × 640 and 372 × 806 showed the portion control, four batch buttons, and source choice stacking into three bands.
+- Source evidence: src/routes/meal-plan/+page.svelte:785 owns the portion and batch row; the [1, 2, 3, 4] loop starts at line 793; Remove is the trailing outer-flex sibling at line 846; the duplicate page header actions start at line 674; Show past weeks owns a separate row at line 689.
+- At 1098 × 881 the controls fit, so the primary failure is narrow-screen hierarchy.
+
+Assumptions:
+- Persistent bottom navigation remains.
+- Week-specific Shopping is more valuable than duplicate current-week Shopping in the page header.
+- Suggest remains a visible text action because it can spend provider credit.
+- Fresh/freezer choice remains conditional on linked frozen stock.
+
+Uncertainty:
+- The audit did not trigger multiplier, source, delete, or Suggest writes.
+- Authenticated Chrome could not reach a full 1280 CSS-pixel viewport; the board renders the app's 672 px maximum content width directly.
+- One-week focus may be better if the household rarely compares adjacent weeks.
+
+User-written note under the design decision, reproduced verbatim:
+${userNotes || '(No additional note.)'}
+
+Next requested work:
+- Confirm this selected direction once.
+- Route it through /plan, then /run.
+- Implement only the approved direction and the fixed meal-row behavior.
+- Verify populated, empty, cooked, linked, unlinked, long-title, fixed-batch, pending, custom-portion, and unavailable-over-99 states in English and Dutch at 375, 768, and 1280 px plus an effective 200% layout.
+- Run npm run check, npm run test:unit, and npm run build.
+`;
+			}
+
+			function save() {
+				const state = { schemaVersion, direction: selectedDirection(), notes: notes.value };
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state));
+					status.textContent = 'Your selection and note are saved in this browser.';
+				} catch {
+					persistenceAvailable = false;
+					status.textContent = 'Changes are kept for this visit, but this browser could not save them.';
+				}
+				handoff.value = buildPrompt();
+			}
+
+			function restore() {
+				try {
+					const raw = localStorage.getItem(storageKey);
+					if (!raw) return;
+					const state = JSON.parse(raw);
+					if (state.schemaVersion !== schemaVersion) return;
+					const radio = [...form.elements.direction].find((item) => item.value === state.direction);
+					if (radio) radio.checked = true;
+					notes.value = typeof state.notes === 'string' ? state.notes : '';
+				} catch {
+					persistenceAvailable = false;
+				}
+			}
+
+			form.addEventListener('input', save);
+			copy.addEventListener('click', async () => {
+				handoff.value = buildPrompt();
+				try {
+					await navigator.clipboard.writeText(handoff.value);
+					status.textContent = 'Handoff copied.';
+				} catch {
+					handoff.focus();
+					handoff.select();
+					status.textContent = 'Copy was blocked. The handoff is selected; copy it with Ctrl+C or Cmd+C.';
+				}
+			});
+			reset.addEventListener('click', () => {
+				form.querySelector('input[value="A — Quiet week cards"]').checked = true;
+				notes.value = '';
+				try { localStorage.removeItem(storageKey); } catch { persistenceAvailable = false; }
+				save();
+				status.textContent = persistenceAvailable
+					? 'Reset to the recommended direction.'
+					: 'Reset for this visit; browser saving is unavailable.';
+			});
+
+			restore();
+			handoff.value = buildPrompt();
+			status.textContent = persistenceAvailable
+				? 'Your selection and note are saved in this browser.'
+				: 'Changes are kept for this visit, but this browser could not save them.';
+		})();
+	</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { slide } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
@@ -19,7 +19,12 @@
 	import { useChatAgent } from '$lib/chat/agent_context';
 	import { formatDate } from '$lib/i18n';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
-	import { batchServingTarget } from '$lib/meal_batch';
+	import { batchServingTarget, batchServingToggleTarget } from '$lib/meal_batch';
+	import {
+		adjacentMealPlanWeeks,
+		mealPlanWeekHref,
+		selectedMealPlanWeek
+	} from '$lib/meal_plan_navigation';
 	import MealSourceChoice from '$lib/components/meal-plan/MealSourceChoice.svelte';
 	import {
 		defaultServingsForMealSource,
@@ -36,20 +41,6 @@
 	let weeks = $state<Week[]>(untrack(() => data.weeks.map((w) => ({ ...w, meals: w.meals.map((m) => ({ ...m })) }))));
 	const currentWeekStart = untrack(() => data.currentWeekStart);
 
-	$effect(() =>
-		chatAgent.publishScreen({
-			v: 1,
-			routeId: '/meal-plan',
-			label: m.mealplan_heading(),
-			entity: { kind: 'meal-plan', id: currentWeekStart, label: currentWeekStart },
-			facts: [
-				{ key: 'currentWeekStart', value: currentWeekStart },
-				{ key: 'weeksVisible', value: weeks.length },
-				{ key: 'plannedMeals', value: weeks.reduce((total, week) => total + week.meals.length, 0) }
-			]
-		})
-	);
-
 	// "Show past weeks" / "Hide past weeks" (?past=1) is a same-route navigation
 	// -- load reruns and data.weeks gets a fresh identity, but local `weeks`
 	// (which carries optimistic add/toggle/remove edits) does not resync on its
@@ -61,6 +52,30 @@
 	$effect(() => {
 		const next = data.weeks;
 		weeks = next.map((w) => ({ ...w, meals: w.meals.map((m) => ({ ...m })) }));
+	});
+
+	let selectedWeek = $derived(
+		selectedMealPlanWeek(weeks, data.focusWeek, data.currentWeekStart)
+	);
+	let adjacentWeeks = $derived(
+		adjacentMealPlanWeeks(weeks, selectedWeek?.weekStartDate ?? null)
+	);
+
+	$effect(() => {
+		const week = selectedWeek;
+		if (!week) return;
+		chatAgent.publishScreen({
+			v: 1,
+			routeId: '/meal-plan',
+			label: m.mealplan_heading(),
+			entity: { kind: 'meal-plan', id: week.weekStartDate, label: week.weekStartDate },
+			facts: [
+				{ key: 'currentWeekStart', value: currentWeekStart },
+				{ key: 'selectedWeekStart', value: week.weekStartDate },
+				{ key: 'weeksVisible', value: 1 },
+				{ key: 'plannedMeals', value: week.meals.length }
+			]
+		});
 	});
 
 	let drawerOpen = $state(false);
@@ -657,12 +672,6 @@
 		setApplyingSuggestion(key, false);
 	}
 
-	onMount(() => {
-		// A ?week= deep link (e.g. from the shopping page) outranks the default
-		// scroll-to-current-week behavior.
-		const el = document.getElementById(`week-${data.focusWeek ?? currentWeekStart}`);
-		el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	});
 </script>
 
 <svelte:head>
@@ -673,92 +682,162 @@
 	<p class="sr-only" aria-live="polite">{servingsStatus}</p>
 	<header class="mb-3 flex items-center justify-between gap-3">
 		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.mealplan_heading()}</h1>
-		<div class="flex shrink-0 items-center gap-1.5">
-			<a href="{base}/shopping?week={currentWeekStart}" class="btn btn-outline btn-sm gap-1.5">
-				<Icon name="cart" />
-				{m.mealplan_shopping_link()}
-			</a>
-			<a
-				href="{base}/settings/meal-plan"
-				class="btn btn-ghost btn-sm h-9 min-h-0 w-9 px-0"
-				aria-label={m.mealplan_settings_aria()}
-			>
-				<Icon name="settings" class="h-4 w-4" />
-			</a>
-		</div>
+		{#if selectedWeek}
+			<details class="dropdown dropdown-end">
+				<summary
+					class="btn btn-ghost btn-sm h-11 min-h-11 w-11 list-none px-0 text-lg tracking-[0.12em]"
+					aria-label={m.mealplan_more_options_aria()}
+				>
+					<span aria-hidden="true">•••</span>
+				</summary>
+				<ul
+					class="menu dropdown-content z-10 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg"
+				>
+					{#if data.hasPastWeeks || data.showPastWeeks}
+						<li>
+							<a
+								href={mealPlanWeekHref(
+									base,
+									selectedWeek.weekStartDate,
+									!data.showPastWeeks
+								)}
+							>
+								<Icon name="clock" class="h-4 w-4" />
+								{data.showPastWeeks
+									? m.mealplan_hide_past_weeks()
+									: m.mealplan_show_past_weeks()}
+							</a>
+						</li>
+					{/if}
+					<li>
+						<a href="{base}/settings/meal-plan">
+							<Icon name="settings" class="h-4 w-4" />
+							{m.mealplan_settings_aria()}
+						</a>
+					</li>
+				</ul>
+			</details>
+		{/if}
 	</header>
 
-	{#if data.hasPastWeeks || data.showPastWeeks}
-		<div class="mb-3">
-			{#if data.showPastWeeks}
-				<a class="text-sm text-primary" href="{base}/meal-plan">{m.mealplan_hide_past_weeks()}</a>
+	{#if selectedWeek}
+		{@const week = selectedWeek}
+		<div
+			class="mb-3 grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2"
+			aria-label={m.mealplan_week_navigation_aria()}
+		>
+			{#if adjacentWeeks.previous}
+				<a
+					href={mealPlanWeekHref(
+						base,
+						adjacentWeeks.previous.weekStartDate,
+						data.showPastWeeks
+					)}
+					class="btn btn-outline h-11 min-h-11 w-11 px-0"
+					aria-label={m.mealplan_previous_week_aria()}
+				>
+					<Icon name="chevronLeft" />
+				</a>
 			{:else}
-				<a class="text-sm text-primary" href="{base}/meal-plan?past=1">{m.mealplan_show_past_weeks()}</a>
+				<button
+					type="button"
+					class="btn btn-outline h-11 min-h-11 w-11 px-0"
+					aria-label={m.mealplan_previous_week_aria()}
+					disabled
+				>
+					<Icon name="chevronLeft" />
+				</button>
+			{/if}
+
+			<div class="min-w-0 text-center">
+				<div class="flex items-center justify-center gap-2">
+					<h2 class="text-lg font-semibold leading-tight">
+						{m.mealplan_week_heading({ number: week.weekNumber })}
+					</h2>
+					{#if week.weekStartDate === currentWeekStart}
+						<span
+							class="inline-flex min-h-7 items-center rounded-full border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary"
+						>
+							{m.mealplan_now_chip()}
+						</span>
+					{/if}
+				</div>
+				<p class="mt-0.5 text-xs text-base-content/50">{formatWeekRange(week.weekStartDate)}</p>
+				{#if week.deliveryDate}
+					<p class="mt-0.5 inline-flex items-center justify-center gap-1 text-xs text-base-content/50">
+						<Icon name="cart" class="h-3 w-3" />
+						{m.mealplan_delivery_label({ date: deliveryLabel(week.deliveryDate) })}
+					</p>
+				{/if}
+			</div>
+
+			{#if adjacentWeeks.next}
+				<a
+					href={mealPlanWeekHref(
+						base,
+						adjacentWeeks.next.weekStartDate,
+						data.showPastWeeks
+					)}
+					class="btn btn-outline h-11 min-h-11 w-11 px-0"
+					aria-label={m.mealplan_next_week_aria()}
+				>
+					<Icon name="chevronRight" />
+				</a>
+			{:else}
+				<button
+					type="button"
+					class="btn btn-outline h-11 min-h-11 w-11 px-0"
+					aria-label={m.mealplan_next_week_aria()}
+					disabled
+				>
+					<Icon name="chevronRight" />
+				</button>
 			{/if}
 		</div>
-	{/if}
 
-	<div class="flex flex-col gap-4">
-		{#each weeks as week (week.weekStartDate)}
+		<div class="mb-3 grid grid-cols-[1fr_1fr_1.15fr] gap-1.5">
+			<a
+				href="{base}/shopping?week={week.weekStartDate}"
+				class="btn btn-outline h-11 min-h-11 px-2 text-xs sm:text-sm"
+			>
+				<Icon name="cart" class="h-4 w-4" />
+				{m.mealplan_shopping_link()}
+			</a>
+			<button
+				type="button"
+				class="btn btn-ghost h-11 min-h-11 px-2 text-xs sm:text-sm"
+				onclick={() => startSuggest(week.weekStartDate)}
+				disabled={suggestLoading && suggestActive === week.weekStartDate}
+			>
+				{suggestLoading && suggestActive === week.weekStartDate
+					? m.mealplan_thinking_label()
+					: m.mealplan_suggest_button()}
+			</button>
+			<button
+				type="button"
+				class="btn btn-primary h-11 min-h-11 px-2 text-xs sm:text-sm"
+				onclick={() => openAddDrawer(week.weekStartDate)}
+			>
+				<Icon name="plus" class="h-4 w-4" />
+				{m.mealplan_add_meal()}
+			</button>
+		</div>
+
+		<div>
 			<section
 				id="week-{week.weekStartDate}"
 				class="ui-list-card {week.weekStartDate === currentWeekStart ? 'border-primary/60' : ''}"
 			>
-				<div class="border-b border-base-200 px-3 py-3">
-					<div class="flex items-start justify-between gap-3">
-						<div class="min-w-0">
-							<div class="flex items-center gap-2">
-								<h2 class="text-sm font-semibold">{m.mealplan_week_heading({ number: week.weekNumber })}</h2>
-								{#if week.weekStartDate === currentWeekStart}
-									<span class="ui-chip-active">{m.mealplan_now_chip()}</span>
-								{/if}
-							</div>
-							<p class="mt-0.5 text-xs text-base-content/50">{formatWeekRange(week.weekStartDate)}</p>
-							{#if week.deliveryDate}
-								<p class="mt-0.5 inline-flex items-center gap-1 text-xs text-base-content/50">
-									<Icon name="cart" class="h-3 w-3" />
-									{m.mealplan_delivery_label({ date: deliveryLabel(week.deliveryDate) })}
-								</p>
-							{/if}
-						</div>
-						<div class="flex shrink-0 gap-1.5">
-							<a
-								href="{base}/shopping?week={week.weekStartDate}"
-								class="btn btn-outline btn-sm h-9 min-h-0 w-9 px-0"
-								aria-label={m.mealplan_open_shopping_aria({ number: week.weekNumber })}
-							>
-								<Icon name="cart" />
-							</a>
-							<button
-								type="button"
-								class="btn btn-ghost btn-sm"
-								onclick={() => startSuggest(week.weekStartDate)}
-								disabled={suggestLoading && suggestActive === week.weekStartDate}
-							>
-								{suggestLoading && suggestActive === week.weekStartDate ? m.mealplan_thinking_label() : m.mealplan_suggest_button()}
-							</button>
-							<button
-								type="button"
-								class="btn btn-primary btn-sm h-9 min-h-0 w-9 px-0"
-								onclick={() => openAddDrawer(week.weekStartDate)}
-								aria-label={m.mealplan_add_meal()}
-							>
-								<Icon name="plus" />
-							</button>
-						</div>
-					</div>
-				</div>
-
 				{#if week.meals.length > 0}
 					<ul class="divide-y divide-base-200">
 						{#each displayMeals(week) as meal (meal.id)}
 							{@const linkedRecipe = recipeForMeal(meal)}
 							<li
-								class="flex min-h-14 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-base-200/60"
+								class="grid min-h-14 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 px-3 py-2.5 transition-colors hover:bg-base-200/60"
 								transition:slide={{ duration: MOTION_MICRO_MS }}
 								animate:flip={{ duration: MOTION_CONTENT_MS }}
 							>
-								<label class="-m-2 flex shrink-0 cursor-pointer items-center p-2">
+								<label class="-mx-2 -mb-2 flex shrink-0 cursor-pointer items-center p-2">
 									<input
 										type="checkbox"
 										class="checkbox checkbox-md"
@@ -768,18 +847,43 @@
 										onchange={() => toggleCooked(meal)}
 									/>
 								</label>
-								<div class="min-w-0 flex-1">
-									{#if meal.recipeSlug}
-										<a
-											href="{base}/recipes/{meal.recipeSlug}?plan={meal.id}{meal.servings ? `&servings=${meal.servings}` : ''}"
-											class="block truncate text-sm font-medium {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}"
+								<div class="min-w-0">
+									<div class="flex min-h-11 items-center gap-2">
+										{#if meal.recipeSlug}
+											<a
+												href="{base}/recipes/{meal.recipeSlug}?plan={meal.id}{meal.servings ? `&servings=${meal.servings}` : ''}"
+												class="min-w-0 flex-1 truncate text-sm font-medium {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}"
+											>
+												{meal.dinner}
+											</a>
+										{:else}
+											<span class="min-w-0 flex-1 truncate text-sm font-medium {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}">
+												{meal.dinner}
+											</span>
+										{/if}
+										<button
+											type="button"
+											class="btn btn-ghost h-11 min-h-11 w-11 shrink-0 px-0 text-error"
+											onclick={() => removeMeal(meal)}
+											disabled={!!pendingDeletes[meal.id]}
+											aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
 										>
-											{meal.dinner}
-										</a>
-									{:else}
-										<span class="block truncate text-sm font-medium {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}">
-											{meal.dinner}
-										</span>
+											<Icon name="trash" />
+										</button>
+									</div>
+									{#if dayPlanning && meal.status !== 'cooked'}
+										<select
+											class="select select-bordered select-xs mt-1 w-24 {meal.plannedDate ? '' : 'text-base-content/40'}"
+											value={meal.plannedDate ?? ''}
+											disabled={!!pendingToggles[meal.id] || meal.id < 0}
+											aria-label={m.mealplan_day_picker_aria({ dinner: meal.dinner })}
+											onchange={(e) => setPlannedDate(meal, e.currentTarget.value || null)}
+										>
+											<option value="">{m.mealplan_day_unplanned()}</option>
+											{#each weekDayOptions(week.weekStartDate) as day (day.date)}
+												<option value={day.date}>{day.label}</option>
+											{/each}
+										</select>
 									{/if}
 									{#if meal.status !== 'cooked' && meal.recipeSlug && meal.servings}
 										<div class="mt-1 flex flex-wrap items-center gap-1.5">
@@ -790,16 +894,36 @@
 											</div>
 											{#if linkedRecipe && meal.source !== 'freezer'}
 												<div class="inline-flex items-center gap-1" aria-label={linkedRecipe.scalingMode === 'fixed_batch' ? m.mealplan_batch_fixed() : m.mealplan_batch_scalable()}>
-													{#each [1, 2, 3, 4] as multiplier}
+													{#each [2, 3, 4] as multiplier}
 														{@const target = batchServingTarget(linkedRecipe.servings, multiplier)}
+														{@const pressed = target === meal.servings}
+														{@const toggleTarget = batchServingToggleTarget(
+															linkedRecipe.servings,
+															multiplier,
+															meal.servings
+														)}
 														<button
 															type="button"
-															class="btn btn-xs h-11 min-h-0 min-w-11 px-2 {target === meal.servings ? 'btn-primary' : 'btn-ghost border border-base-300'}"
-													disabled={target == null}
-													aria-disabled={target == null || !!pendingServings[meal.id]}
-													aria-label={target == null ? m.mealplan_batch_unavailable_aria({ multiplier, dinner: meal.dinner }) : m.mealplan_batch_aria({ multiplier, count: target, dinner: meal.dinner })}
-															aria-pressed={target === meal.servings}
-													onclick={() => target != null && !pendingServings[meal.id] && setServings(meal, target)}
+															class="btn btn-xs h-11 min-h-0 min-w-11 px-2 {pressed ? 'btn-primary' : 'btn-ghost border border-base-300'}"
+															disabled={toggleTarget == null}
+															aria-disabled={toggleTarget == null || !!pendingServings[meal.id]}
+															aria-label={target == null
+																? m.mealplan_batch_unavailable_aria({ multiplier, dinner: meal.dinner })
+																: pressed && toggleTarget != null
+																	? m.mealplan_batch_reset_aria({
+																			count: toggleTarget,
+																			dinner: meal.dinner
+																		})
+																	: m.mealplan_batch_aria({
+																			multiplier,
+																			count: target,
+																			dinner: meal.dinner
+																		})}
+															aria-pressed={pressed}
+															onclick={() =>
+																toggleTarget != null &&
+																!pendingServings[meal.id] &&
+																setServings(meal, toggleTarget)}
 														>
 															×{multiplier}
 														</button>
@@ -832,41 +956,12 @@
 										{/if}
 									{/if}
 								</div>
-								{#if dayPlanning && meal.status !== 'cooked'}
-									<select
-										class="select select-bordered select-xs w-20 shrink-0 {meal.plannedDate ? '' : 'text-base-content/40'}"
-										value={meal.plannedDate ?? ''}
-										disabled={!!pendingToggles[meal.id] || meal.id < 0}
-										aria-label={m.mealplan_day_picker_aria({ dinner: meal.dinner })}
-										onchange={(e) => setPlannedDate(meal, e.currentTarget.value || null)}
-									>
-										<option value="">{m.mealplan_day_unplanned()}</option>
-										{#each weekDayOptions(week.weekStartDate) as day (day.date)}
-											<option value={day.date}>{day.label}</option>
-										{/each}
-									</select>
-								{/if}
-								<button
-									type="button"
-									class="btn btn-ghost btn-sm h-10 min-h-0 w-10 shrink-0 px-0 text-error"
-									onclick={() => removeMeal(meal)}
-									disabled={!!pendingDeletes[meal.id]}
-									aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
-								>
-									<Icon name="trash" />
-								</button>
 							</li>
 						{/each}
 					</ul>
 				{:else}
 					<div class="p-3">
-						<EmptyState mini title={m.mealplan_no_meals_title()}>
-							{#snippet action()}
-								<button type="button" class="btn btn-primary btn-xs" onclick={() => openAddDrawer(week.weekStartDate)}>
-									{m.mealplan_add_meal()}
-								</button>
-							{/snippet}
-						</EmptyState>
+						<EmptyState mini title={m.mealplan_no_meals_title()} />
 					</div>
 				{/if}
 
@@ -927,8 +1022,8 @@
 					</div>
 				{/if}
 			</section>
-		{/each}
-	</div>
+		</div>
+	{/if}
 </div>
 
 <BottomSheet bind:open={drawerOpen} title={m.mealplan_add_meal_sheet_title()}>

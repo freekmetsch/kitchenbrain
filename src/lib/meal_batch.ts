@@ -15,3 +15,15 @@ export function batchServingTarget(
 	const target = recipeServings * multiplier;
 	return target <= 99 ? target : null;
 }
+
+export function batchServingToggleTarget(
+	recipeServings: number | null,
+	multiplier: number,
+	currentServings: number | null
+): number | null {
+	const target = batchServingTarget(recipeServings, multiplier);
+	if (target == null) return null;
+	return currentServings === target
+		? batchServingTarget(recipeServings, 1)
+		: target;
+}
