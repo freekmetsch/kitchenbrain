@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="data:," />
+	<title>Chat starter rail — design shotgun</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #fffdf9;
+			--canvas: #f3eee7;
+			--ink: #352b26;
+			--muted: #746961;
+			--line: #ddd4ca;
+			--line-strong: #c9bcb0;
+			--surface: #f8f4ef;
+			--surface-2: #efe7dd;
+			--primary: #a94418;
+			--primary-soft: #f7e3d8;
+			--green: #38624d;
+			--shadow: 0 18px 50px rgba(58, 42, 31, 0.09);
+		}
+
+		* { box-sizing: border-box; }
+
+		html { background: var(--canvas); }
+
+		body {
+			margin: 0;
+			color: var(--ink);
+			background:
+				linear-gradient(180deg, rgba(255,255,255,0.72), transparent 32rem),
+				var(--canvas);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			line-height: 1.5;
+		}
+
+		button, textarea, input { font: inherit; }
+		button { color: inherit; }
+		a { color: var(--primary); text-underline-offset: 0.18em; }
+		:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 45%, white); outline-offset: 3px; }
+
+		.shell {
+			width: min(1500px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 56px 0 80px;
+		}
+
+		.hero {
+			display: grid;
+			grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.55fr);
+			gap: 48px;
+			align-items: end;
+			padding: 0 0 36px;
+			border-bottom: 1px solid var(--line-strong);
+		}
+
+		.eyebrow {
+			margin: 0 0 12px;
+			color: var(--primary);
+			font-size: 0.76rem;
+			font-weight: 800;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+		}
+
+		h1 {
+			max-width: 880px;
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.4rem, 5vw, 5.6rem);
+			font-weight: 500;
+			letter-spacing: -0.045em;
+			line-height: 0.96;
+		}
+
+		.hero-copy {
+			max-width: 720px;
+			margin: 22px 0 0;
+			color: var(--muted);
+			font-size: clamp(1rem, 1.4vw, 1.18rem);
+		}
+
+		.hero-fixed {
+			padding: 20px 0 4px 24px;
+			border-left: 3px solid var(--primary);
+		}
+
+		.hero-fixed h2, .section-title {
+			margin: 0;
+			font-size: 0.82rem;
+			font-weight: 850;
+			letter-spacing: 0.11em;
+			text-transform: uppercase;
+		}
+
+		.hero-fixed ul {
+			margin: 12px 0 0;
+			padding-left: 1.1rem;
+			color: var(--muted);
+			font-size: 0.92rem;
+		}
+
+		.hero-fixed li + li { margin-top: 6px; }
+
+		.decision {
+			display: grid;
+			grid-template-columns: 0.55fr 1.45fr;
+			gap: 42px;
+			padding: 42px 0;
+			border-bottom: 1px solid var(--line-strong);
+		}
+
+		.decision-intro p {
+			max-width: 42ch;
+			margin: 12px 0 0;
+			color: var(--muted);
+		}
+
+		.choice-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 12px;
+		}
+
+		.choice {
+			position: relative;
+			display: block;
+			min-height: 144px;
+			padding: 18px;
+			border: 1px solid var(--line);
+			background: rgba(255,255,255,0.52);
+			cursor: pointer;
+		}
+
+		.choice:has(input:checked) {
+			border-color: var(--primary);
+			background: var(--paper);
+			box-shadow: 0 0 0 1px var(--primary);
+		}
+
+		.choice input {
+			position: absolute;
+			top: 18px;
+			right: 18px;
+			width: 20px;
+			height: 20px;
+			accent-color: var(--primary);
+		}
+
+		.choice strong {
+			display: block;
+			max-width: calc(100% - 32px);
+			font-size: 1rem;
+		}
+
+		.choice small {
+			display: block;
+			margin-top: 9px;
+			color: var(--muted);
+			font-size: 0.82rem;
+			line-height: 1.4;
+		}
+
+		.choice .recommended {
+			display: inline-block;
+			margin-top: 14px;
+			color: var(--green);
+			font-size: 0.72rem;
+			font-weight: 800;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.compare-heading {
+			display: flex;
+			justify-content: space-between;
+			gap: 30px;
+			align-items: end;
+			padding: 48px 0 22px;
+		}
+
+		.compare-heading h2 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2rem, 3vw, 3.2rem);
+			font-weight: 500;
+			letter-spacing: -0.035em;
+		}
+
+		.compare-heading p {
+			max-width: 56ch;
+			margin: 0;
+			color: var(--muted);
+			text-align: right;
+		}
+
+		.directions {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 18px;
+		}
+
+		.direction {
+			min-width: 0;
+			padding: 20px;
+			border-top: 5px solid var(--line-strong);
+			background: rgba(255,255,255,0.48);
+		}
+
+		.direction[data-selected="true"] {
+			border-top-color: var(--primary);
+			background: var(--paper);
+			box-shadow: var(--shadow);
+		}
+
+		.direction-head {
+			min-height: 214px;
+			padding-bottom: 18px;
+			border-bottom: 1px solid var(--line);
+		}
+
+		.direction-index {
+			color: var(--primary);
+			font-size: 0.74rem;
+			font-weight: 850;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+		}
+
+		.direction h3 {
+			margin: 8px 0 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.75rem;
+			font-weight: 500;
+			letter-spacing: -0.025em;
+		}
+
+		.thesis {
+			margin: 8px 0 0;
+			color: var(--muted);
+			font-size: 0.92rem;
+		}
+
+		.balance {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 12px;
+			margin-top: 18px;
+			font-size: 0.78rem;
+		}
+
+		.balance b {
+			display: block;
+			margin-bottom: 3px;
+			font-size: 0.7rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.balance span { color: var(--muted); }
+
+		.mock-label {
+			margin: 20px 0 9px;
+			color: var(--muted);
+			font-size: 0.68rem;
+			font-weight: 800;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+		}
+
+		.phone {
+			position: relative;
+			width: 100%;
+			height: 590px;
+			overflow: hidden;
+			border: 1px solid #cfc4ba;
+			border-radius: 26px;
+			background: var(--paper);
+			box-shadow: 0 10px 28px rgba(54, 39, 29, 0.08);
+		}
+
+		.phone::before {
+			content: "";
+			position: absolute;
+			z-index: 3;
+			top: 9px;
+			left: 50%;
+			width: 54px;
+			height: 4px;
+			border-radius: 999px;
+			background: #d3cbc4;
+			transform: translateX(-50%);
+		}
+
+		.greeting {
+			position: absolute;
+			top: 35%;
+			left: 16px;
+			right: 16px;
+			text-align: center;
+			transform: translateY(-50%);
+		}
+
+		.greeting strong {
+			display: block;
+			font-size: 0.98rem;
+			letter-spacing: -0.01em;
+		}
+
+		.greeting span {
+			display: block;
+			margin-top: 5px;
+			color: var(--muted);
+			font-size: 0.72rem;
+		}
+
+		.dock {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 42px;
+		}
+
+		.starter-zone { padding: 0 10px 8px; }
+
+		.starter-head {
+			display: flex;
+			min-height: 22px;
+			align-items: center;
+			justify-content: space-between;
+			color: var(--muted);
+			font-size: 0.65rem;
+		}
+
+		.text-action {
+			display: inline-grid;
+			place-items: center;
+			min-width: 24px;
+			min-height: 24px;
+			padding: 2px 0 2px 8px;
+			border: 0;
+			background: transparent;
+			color: inherit;
+			font-size: inherit;
+			font-weight: 700;
+		}
+
+		.composer {
+			display: grid;
+			grid-template-columns: 36px minmax(0, 1fr) 36px;
+			gap: 7px;
+			align-items: center;
+			padding: 9px 10px 10px;
+			border-top: 1px solid var(--line);
+			background: var(--paper);
+		}
+
+		.icon-button, .send-button {
+			display: grid;
+			width: 36px;
+			height: 36px;
+			padding: 0;
+			place-items: center;
+			border: 0;
+			border-radius: 9px;
+			background: transparent;
+			font-weight: 700;
+		}
+
+		.send-button { background: #e8e5e1; color: #aaa29a; }
+
+		.input {
+			display: flex;
+			height: 38px;
+			align-items: center;
+			padding: 0 12px;
+			border: 1px solid #d6cec6;
+			border-radius: 10px;
+			color: #948a82;
+			font-size: 0.76rem;
+		}
+
+		.bottom-nav {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			display: grid;
+			height: 42px;
+			grid-template-columns: repeat(6, 1fr);
+			align-items: center;
+			border-top: 1px solid var(--line);
+			background: var(--paper);
+			color: var(--muted);
+			font-size: 0.46rem;
+			text-align: center;
+		}
+
+		.bottom-nav b { color: var(--primary); font-weight: 800; }
+
+		.shelf-track {
+			display: flex;
+			gap: 6px;
+			overflow: hidden;
+		}
+
+		.shelf-card {
+			display: flex;
+			width: 46%;
+			min-width: 46%;
+			height: 44px;
+			align-items: center;
+			padding: 0 9px;
+			border: 1px solid #e2dad2;
+			border-radius: 12px;
+			background: var(--surface);
+			font-size: 0.69rem;
+			font-weight: 650;
+			line-height: 1.18;
+		}
+
+		.shelf-card.third {
+			width: 46%;
+			min-width: 46%;
+		}
+
+		.reading-list {
+			border-top: 1px solid var(--line);
+		}
+
+		.reading-row {
+			display: flex;
+			min-height: 42px;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			border-bottom: 1px solid var(--line);
+			color: var(--ink);
+			font-size: 0.7rem;
+			font-weight: 650;
+		}
+
+		.reading-row span:last-child {
+			color: var(--muted);
+			font-weight: 800;
+		}
+
+		.deck-card {
+			display: grid;
+			min-height: 62px;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 10px;
+			align-items: center;
+			padding: 10px 11px;
+			border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line));
+			border-radius: 13px;
+			background: color-mix(in srgb, var(--primary-soft) 66%, white);
+		}
+
+		.deck-card strong {
+			display: block;
+			font-size: 0.73rem;
+			line-height: 1.25;
+		}
+
+		.deck-card small {
+			display: block;
+			margin-top: 4px;
+			color: var(--muted);
+			font-size: 0.61rem;
+		}
+
+		.deck-next {
+			display: grid;
+			place-items: center;
+			min-width: 44px;
+			min-height: 44px;
+			padding: 0 8px;
+			border: 0;
+			border-radius: 10px;
+			background: rgba(255,255,255,0.68);
+			color: var(--primary);
+			font-size: 0.66rem;
+			font-weight: 800;
+		}
+
+		.panel {
+			position: relative;
+			width: 100%;
+			height: 430px;
+			overflow: hidden;
+			border: 1px solid #cfc4ba;
+			border-radius: 14px;
+			background: var(--paper);
+			box-shadow: 0 10px 28px rgba(54, 39, 29, 0.08);
+		}
+
+		.panel-top {
+			display: flex;
+			height: 43px;
+			align-items: center;
+			justify-content: space-between;
+			padding: 0 12px;
+			border-bottom: 1px solid var(--line);
+			font-size: 0.73rem;
+			font-weight: 800;
+		}
+
+		.context-row {
+			display: flex;
+			height: 46px;
+			align-items: center;
+			justify-content: space-between;
+			padding: 0 12px;
+			background: var(--surface);
+			color: var(--muted);
+			font-size: 0.62rem;
+		}
+
+		.panel .greeting { top: 42%; }
+		.panel .dock { bottom: 0; }
+		.panel .composer { padding-bottom: 10px; }
+
+		.collapsed {
+			display: flex;
+			min-height: 42px;
+			margin-top: 10px;
+			align-items: center;
+			justify-content: flex-end;
+			padding: 0 10px;
+			border: 1px dashed var(--line-strong);
+			background: rgba(255,255,255,0.35);
+		}
+
+		.collapsed span {
+			color: var(--muted);
+			font-size: 0.68rem;
+			font-weight: 700;
+		}
+
+		.metrics {
+			margin: 52px 0 0;
+			padding: 34px;
+			border: 1px solid var(--line-strong);
+			background: var(--paper);
+		}
+
+		.metrics h2 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 2rem;
+			font-weight: 500;
+			letter-spacing: -0.03em;
+		}
+
+		.metrics table {
+			width: 100%;
+			margin-top: 22px;
+			border-collapse: collapse;
+			font-size: 0.88rem;
+		}
+
+		.metrics th, .metrics td {
+			padding: 13px 12px;
+			border-bottom: 1px solid var(--line);
+			text-align: left;
+			vertical-align: top;
+		}
+
+		.metrics th {
+			color: var(--muted);
+			font-size: 0.72rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.metrics tbody tr:last-child td { border-bottom: 0; }
+		.metrics .yes { color: var(--green); font-weight: 800; }
+
+		.notes-handoff {
+			display: grid;
+			grid-template-columns: minmax(260px, 0.6fr) minmax(0, 1.4fr);
+			gap: 32px;
+			margin-top: 52px;
+		}
+
+		.notes, .handoff {
+			padding: 28px;
+			background: var(--paper);
+			border-top: 5px solid var(--line-strong);
+		}
+
+		.handoff { border-top-color: var(--primary); }
+
+		.notes h2, .handoff h2 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.7rem;
+			font-weight: 500;
+		}
+
+		.notes p, .handoff p {
+			margin: 8px 0 16px;
+			color: var(--muted);
+			font-size: 0.88rem;
+		}
+
+		textarea {
+			width: 100%;
+			resize: vertical;
+			border: 1px solid var(--line-strong);
+			border-radius: 8px;
+			background: #fff;
+			color: var(--ink);
+		}
+
+		#notes {
+			min-height: 190px;
+			padding: 12px;
+		}
+
+		#handoff {
+			min-height: 360px;
+			padding: 14px;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			font-size: 0.78rem;
+			line-height: 1.55;
+		}
+
+		.actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			margin-top: 14px;
+		}
+
+		.action {
+			min-height: 44px;
+			padding: 0 16px;
+			border: 1px solid var(--line-strong);
+			border-radius: 8px;
+			background: var(--surface);
+			font-weight: 750;
+			cursor: pointer;
+		}
+
+		.action.primary {
+			border-color: var(--primary);
+			background: var(--primary);
+			color: white;
+		}
+
+		.status {
+			min-height: 24px;
+			margin: 10px 0 0;
+			color: var(--green);
+			font-size: 0.78rem;
+			font-weight: 700;
+		}
+
+		.source {
+			margin-top: 30px;
+			color: var(--muted);
+			font-size: 0.78rem;
+		}
+
+		@media (max-width: 1120px) {
+			.directions { grid-template-columns: 1fr; }
+			.direction { display: grid; grid-template-columns: minmax(260px, 0.65fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+			.direction-head { min-height: 0; border-bottom: 0; border-right: 1px solid var(--line); padding: 0 20px 0 0; }
+			.mock-label { margin-top: 0; }
+			.collapsed { grid-column: 2 / -1; }
+		}
+
+		@media (max-width: 800px) {
+			.shell { width: min(100% - 20px, 680px); padding-top: 32px; }
+			.hero, .decision, .notes-handoff { grid-template-columns: 1fr; }
+			.hero { gap: 28px; }
+			.hero-fixed { padding-left: 18px; }
+			.decision { gap: 22px; }
+			.choice-grid { grid-template-columns: 1fr; }
+			.choice { min-height: 0; }
+			.compare-heading { display: block; }
+			.compare-heading p { margin-top: 10px; text-align: left; }
+			.direction { display: block; }
+			.direction-head { border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 18px; }
+			.mock-label { margin-top: 20px; }
+			.phone, .panel { max-width: 390px; margin-inline: auto; }
+			.metrics { padding: 22px 14px; overflow-x: auto; }
+		}
+
+		@media (prefers-reduced-motion: no-preference) {
+			.choice, .direction { transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+		}
+	</style>
+</head>
+<body>
+	<main class="shell">
+		<header class="hero">
+			<div>
+				<p class="eyebrow">Design shotgun · decision workspace</p>
+				<h1>Remove the shortcuts. Keep the invitation to start.</h1>
+				<p class="hero-copy">
+					Three structurally different ways to make contextual sentence starters calmer after the
+					<em>Open / Shopping list / Meal plan</em> row disappears.
+				</p>
+			</div>
+			<aside class="hero-fixed" aria-labelledby="fixed-title">
+				<h2 id="fixed-title">Already decided</h2>
+				<ul>
+					<li>No empty-state navigation shortcut row.</li>
+					<li>Starters remain contextual and never send on selection.</li>
+					<li>Hide and restore use explicit text.</li>
+					<li>The same component serves the Assistant tab and page panel.</li>
+				</ul>
+			</aside>
+		</header>
+
+		<section class="decision" aria-labelledby="decision-title">
+			<div class="decision-intro">
+				<h2 class="section-title" id="decision-title">Choose the presentation</h2>
+				<p>
+					All three examples use the same copy, widths, composer, and empty state. Select the balance
+					of recognition and density you want to carry into planning.
+				</p>
+			</div>
+			<div class="choice-grid" role="radiogroup" aria-label="Starter presentation">
+				<label class="choice">
+					<input type="radio" name="direction" value="quiet-shelf" checked />
+					<strong>A. Quiet shelf</strong>
+					<small>Two complete low-contrast starters, with the next one visibly available by scroll.</small>
+					<span class="recommended">Recommended</span>
+				</label>
+				<label class="choice">
+					<input type="radio" name="direction" value="reading-list" />
+					<strong>B. Reading list</strong>
+					<small>Three full-width writing cues with no horizontal scrolling and the highest readability.</small>
+				</label>
+				<label class="choice">
+					<input type="radio" name="direction" value="starter-deck" />
+					<strong>C. Starter deck</strong>
+					<small>One complete starter at a time, with a Next action and the smallest visual footprint.</small>
+				</label>
+			</div>
+		</section>
+
+		<div class="compare-heading">
+			<h2>Same task. Same constraints.</h2>
+			<p>
+				The phone shows general examples at 375 px. The panel shows long Data-page examples at its
+				480 px desktop width. Neither mock contains the removed navigation shortcuts.
+			</p>
+		</div>
+
+		<section class="directions" aria-label="Visual direction comparison">
+			<article class="direction" data-direction="quiet-shelf" data-selected="true">
+				<div class="direction-head">
+					<span class="direction-index">Direction A</span>
+					<h3>Quiet shelf</h3>
+					<p class="thesis">A small label and neutral tiles make the starters feel optional but immediately useful.</p>
+					<div class="balance">
+						<div><b>Strength</b><span>Two choices are directly comparable.</span></div>
+						<div><b>Trade-off</b><span>Narrow layouts still scroll horizontally.</span></div>
+					</div>
+				</div>
+
+				<div>
+					<p class="mock-label">Assistant tab · 375 px</p>
+					<div class="phone" aria-label="Quiet shelf on the Assistant tab">
+						<div class="greeting">
+							<strong>Good morning, Ui-review</strong>
+							<span>Ask about meals, the freezer, or what to buy.</span>
+						</div>
+						<div class="dock">
+							<div class="starter-zone">
+								<div class="starter-head"><span>Try starting with</span><span class="text-action">Hide</span></div>
+								<div class="shelf-track">
+									<div class="shelf-card">Help me cook with…</div>
+									<div class="shelf-card">Plan three dinners using…</div>
+									<div class="shelf-card third">Add these to my shopping list:…</div>
+								</div>
+							</div>
+							<div class="composer"><span class="icon-button">+</span><div class="input">Ask a question…</div><span class="send-button">&uarr;</span></div>
+						</div>
+						<div class="bottom-nav"><b>Assistant</b><span>Stock</span><span>Plan</span><span>Groceries</span><span>Recipes</span><span>Settings</span></div>
+					</div>
+				</div>
+
+				<div>
+					<p class="mock-label">Contextual panel · 480 px</p>
+					<div class="panel" aria-label="Quiet shelf in the contextual panel">
+						<div class="panel-top"><span>Assistant</span><span>Close</span></div>
+						<div class="context-row"><span>Using context: Settings</span><span>Don't use this screen</span></div>
+						<div class="greeting"><strong>Good morning, Ui-review</strong><span>Ask about meals, the freezer, or what to buy.</span></div>
+						<div class="dock">
+							<div class="starter-zone">
+								<div class="starter-head"><span>Try starting with</span><span class="text-action">Hide</span></div>
+								<div class="shelf-track">
+									<div class="shelf-card">Export my household data before…</div>
+									<div class="shelf-card">Help me import a backup from…</div>
+									<div class="shelf-card third">Explain what resetting removes if…</div>
+								</div>
+							</div>
+							<div class="composer"><span class="icon-button">+</span><div class="input">Ask a question…</div><span class="send-button">&uarr;</span></div>
+						</div>
+					</div>
+				</div>
+				<div class="collapsed"><span>Show starters</span></div>
+			</article>
+
+			<article class="direction" data-direction="reading-list" data-selected="false">
+				<div class="direction-head">
+					<span class="direction-index">Direction B</span>
+					<h3>Reading list</h3>
+					<p class="thesis">Borderless rows turn prompts into writing cues and keep every word readable.</p>
+					<div class="balance">
+						<div><b>Strength</b><span>No clipped copy or hidden examples.</span></div>
+						<div><b>Trade-off</b><span>Conversation space drops by another row.</span></div>
+					</div>
+				</div>
+
+				<div>
+					<p class="mock-label">Assistant tab · 375 px</p>
+					<div class="phone" aria-label="Reading list on the Assistant tab">
+						<div class="greeting">
+							<strong>Good morning, Ui-review</strong>
+							<span>Ask about meals, the freezer, or what to buy.</span>
+						</div>
+						<div class="dock">
+							<div class="starter-zone">
+								<div class="starter-head"><span>Try starting with</span><span class="text-action">Hide</span></div>
+								<div class="reading-list">
+									<div class="reading-row"><span>Help me cook with…</span><span>+</span></div>
+									<div class="reading-row"><span>Plan three dinners using…</span><span>+</span></div>
+									<div class="reading-row"><span>Add these to my shopping list:…</span><span>+</span></div>
+								</div>
+							</div>
+							<div class="composer"><span class="icon-button">+</span><div class="input">Ask a question…</div><span class="send-button">&uarr;</span></div>
+						</div>
+						<div class="bottom-nav"><b>Assistant</b><span>Stock</span><span>Plan</span><span>Groceries</span><span>Recipes</span><span>Settings</span></div>
+					</div>
+				</div>
+
+				<div>
+					<p class="mock-label">Contextual panel · 480 px</p>
+					<div class="panel" aria-label="Reading list in the contextual panel">
+						<div class="panel-top"><span>Assistant</span><span>Close</span></div>
+						<div class="context-row"><span>Using context: Settings</span><span>Don't use this screen</span></div>
+						<div class="greeting"><strong>Good morning, Ui-review</strong><span>Ask about meals, the freezer, or what to buy.</span></div>
+						<div class="dock">
+							<div class="starter-zone">
+								<div class="starter-head"><span>Try starting with</span><span class="text-action">Hide</span></div>
+								<div class="reading-list">
+									<div class="reading-row"><span>Export my household data before…</span><span>+</span></div>
+									<div class="reading-row"><span>Help me import a backup from…</span><span>+</span></div>
+									<div class="reading-row"><span>Explain what resetting removes if…</span><span>+</span></div>
+								</div>
+							</div>
+							<div class="composer"><span class="icon-button">+</span><div class="input">Ask a question…</div><span class="send-button">&uarr;</span></div>
+						</div>
+					</div>
+				</div>
+				<div class="collapsed"><span>Show starters</span></div>
+			</article>
+
+			<article class="direction" data-direction="starter-deck" data-selected="false">
+				<div class="direction-head">
+					<span class="direction-index">Direction C</span>
+					<h3>Starter deck</h3>
+					<p class="thesis">One complete suggestion creates the calmest dock, while Next reveals alternatives.</p>
+					<div class="balance">
+						<div><b>Strength</b><span>Small footprint and no clipped sentence.</span></div>
+						<div><b>Trade-off</b><span>Two choices disappear behind interaction.</span></div>
+					</div>
+				</div>
+
+				<div>
+					<p class="mock-label">Assistant tab · 375 px</p>
+					<div class="phone" aria-label="Starter deck on the Assistant tab">
+						<div class="greeting">
+							<strong>Good morning, Ui-review</strong>
+							<span>Ask about meals, the freezer, or what to buy.</span>
+						</div>
+						<div class="dock">
+							<div class="starter-zone">
+								<div class="starter-head"><span>Try starting with</span><span class="text-action">Hide</span></div>
+								<div class="deck-card">
+									<div><strong>Help me cook with…</strong><small>1 of 3</small></div>
+									<span class="deck-next">Next</span>
+								</div>
+							</div>
+							<div class="composer"><span class="icon-button">+</span><div class="input">Ask a question…</div><span class="send-button">&uarr;</span></div>
+						</div>
+						<div class="bottom-nav"><b>Assistant</b><span>Stock</span><span>Plan</span><span>Groceries</span><span>Recipes</span><span>Settings</span></div>
+					</div>
+				</div>
+
+				<div>
+					<p class="mock-label">Contextual panel · 480 px</p>
+					<div class="panel" aria-label="Starter deck in the contextual panel">
+						<div class="panel-top"><span>Assistant</span><span>Close</span></div>
+						<div class="context-row"><span>Using context: Settings</span><span>Don't use this screen</span></div>
+						<div class="greeting"><strong>Good morning, Ui-review</strong><span>Ask about meals, the freezer, or what to buy.</span></div>
+						<div class="dock">
+							<div class="starter-zone">
+								<div class="starter-head"><span>Try starting with</span><span class="text-action">Hide</span></div>
+								<div class="deck-card">
+									<div><strong>Export my household data before…</strong><small>1 of 3</small></div>
+									<span class="deck-next">Next</span>
+								</div>
+							</div>
+							<div class="composer"><span class="icon-button">+</span><div class="input">Ask a question…</div><span class="send-button">&uarr;</span></div>
+						</div>
+					</div>
+				</div>
+				<div class="collapsed"><span>Show starters</span></div>
+			</article>
+		</section>
+
+		<section class="metrics" aria-labelledby="metrics-title">
+			<h2 id="metrics-title">What changes in daily use</h2>
+			<table>
+				<thead>
+					<tr><th>Direction</th><th>Expanded height</th><th>Immediately visible</th><th>Horizontal scroll</th><th>Long Dutch copy</th></tr>
+				</thead>
+				<tbody>
+					<tr><td><strong>A. Quiet shelf</strong></td><td>About 74 px</td><td>Two complete, third edge</td><td>Yes, contained</td><td class="yes">Two lines</td></tr>
+					<tr><td><strong>B. Reading list</strong></td><td>About 150 px</td><td>All three</td><td>No</td><td class="yes">Best fit</td></tr>
+					<tr><td><strong>C. Starter deck</strong></td><td>About 82 px</td><td>One complete</td><td>No</td><td class="yes">Full card</td></tr>
+				</tbody>
+			</table>
+		</section>
+
+		<section class="notes-handoff" aria-label="Decision notes and handoff">
+			<div class="notes">
+				<h2>Clarify your choice</h2>
+				<p>Your wording is reproduced verbatim in the generated handoff.</p>
+				<label for="notes" class="section-title">Notes for implementation planning</label>
+				<textarea id="notes" placeholder="For example: use the shelf, but make the third starter fully visible on tablets."></textarea>
+				<div class="actions"><button class="action" id="reset" type="button">Reset decision</button></div>
+				<p class="status" id="save-status" role="status" aria-live="polite"></p>
+			</div>
+
+			<div class="handoff">
+				<h2>Paste-ready handoff</h2>
+				<p>
+					The default is already valid: Quiet shelf selected, with the fixed removal and interaction
+					decisions preserved.
+				</p>
+				<label for="handoff" class="section-title">Generated prompt</label>
+				<textarea id="handoff" readonly></textarea>
+				<div class="actions"><button class="action primary" id="copy" type="button">Copy handoff</button></div>
+				<p class="status" id="copy-status" role="status" aria-live="polite"></p>
+			</div>
+		</section>
+
+		<p class="source">
+			Authoritative source:
+			<a href="../feature-lists/FEATURE_LIST_CHAT_STARTER_RAIL_REFINEMENT.md">FEATURE_LIST_CHAT_STARTER_RAIL_REFINEMENT.md</a>.
+			This board is a temporary review surface and does not modify the app.
+		</p>
+	</main>
+
+	<script>
+		(() => {
+			const artifactPath = location.pathname || "docs/artifacts/2026-07-25-design-shotgun-chat-starter-rail.html";
+			const storageKey = `${artifactPath}::chat-starter-refinement::v1`;
+			const defaultState = { direction: "quiet-shelf", notes: "" };
+			const labels = {
+				"quiet-shelf": "Direction A — Quiet shelf",
+				"reading-list": "Direction B — Reading list",
+				"starter-deck": "Direction C — Starter deck"
+			};
+			const consequences = {
+				"quiet-shelf": "Two starters are immediately comparable in narrow containers; a third remains available by contained horizontal scroll.",
+				"reading-list": "All three starters stay fully readable without scrolling, but the rail consumes about twice as much conversation height.",
+				"starter-deck": "Only one complete starter is visible at a time; the smallest dock requires Next to discover alternatives."
+			};
+
+			let state = { ...defaultState };
+			const notes = document.querySelector("#notes");
+			const handoff = document.querySelector("#handoff");
+			const saveStatus = document.querySelector("#save-status");
+			const copyStatus = document.querySelector("#copy-status");
+
+			function load() {
+				try {
+					const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+					if (saved && labels[saved.direction]) {
+						state = { direction: saved.direction, notes: typeof saved.notes === "string" ? saved.notes : "" };
+					}
+				} catch {
+					saveStatus.textContent = "Saved choices are unavailable in this browser; this session still works.";
+				}
+			}
+
+			function save() {
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state));
+					saveStatus.textContent = "Decision saved in this browser.";
+				} catch {
+					saveStatus.textContent = "Changes are active for this session but could not be saved.";
+				}
+			}
+
+			function buildHandoff() {
+				const selected = labels[state.direction];
+				const noteBlock = state.notes.trim() ? state.notes : "(No additional notes.)";
+				return `Load docs/feature-lists/FEATURE_LIST_CHAT_STARTER_RAIL_REFINEMENT.md and continue the chat starter refinement with /plan.
+
+Goal: remove the Assistant tab's visible Open / Shopping list / Meal plan shortcut row, then refine the contextual sentence starter presentation without changing its safe interaction model.
+
+Fixed decisions:
+- Remove the root empty-state navigation shortcuts.
+- Keep general starters on the Assistant tab and route-specific starters in the contextual panel.
+- Selecting a starter fills and focuses the composer but never sends, spends, or writes.
+- Keep the shared per-user collapsed preference.
+- Use explicit Hide and Show starters text rather than a detached chevron-only control.
+- Preserve cap, streaming, non-empty input, context-disabled, unknown-route, and dirty recipe-edit behavior.
+
+Design decision:
+Question: After the shortcut row disappears, which starter presentation best balances calm, recognition, readability, and conversation space on the 375 px Assistant tab and 480 px contextual panel?
+Options:
+- Direction A — Quiet shelf: low-contrast two-line tiles; two complete starters plus the edge of a third in narrow containers; content-sized tiles when wider.
+- Direction B — Reading list: three full-width borderless rows; no horizontal scrolling; highest vertical cost.
+- Direction C — Starter deck: one complete starter with a Next control; lowest density; alternatives hidden behind interaction.
+Selected outcome: ${selected}.
+Recommendation: Direction A — Quiet shelf.
+Recommendation rationale: it preserves simultaneous recognition at the point of composing while removing the current orange action-bar feeling. The Reading list is clearer but too tall for returning conversations; the Starter deck is calm but weakens comparison and discovery.
+Practical consequence: ${consequences[state.direction]}
+
+Assumptions:
+- Three starters remain the right count.
+- Existing starter wording and route selection remain unchanged.
+- The rail disappears for a non-empty draft or while streaming.
+- The desktop contextual panel remains about 480 px wide.
+- A partial third tile is understandable when two complete starters are visible first.
+
+Evidence:
+- The current mobile rail has 299 px for 576 px of content.
+- The current contextual panel has 402 px for 672 px of content.
+- Primary orange outlines make overflow feel like a crowded action bar.
+- The current collapsed state remains a raised 44 px grey control.
+- Existing selection behavior already fills, focuses, and produces zero requests.
+
+Uncertainty:
+Removing the shortcut row creates more vertical room, which could make the Reading list more comfortable than its measured height suggests. Keep the selected direction responsive by container width and verify it with returning conversation history.
+
+User notes reproduced verbatim under this design decision:
+${noteBlock}
+
+Required follow-up:
+- Turn the approved direction into an implementation plan before /run.
+- Verify English and Dutch at 375, 768, and 1280 px, the 480 px contextual panel, 200% zoom, keyboard focus, collapsed persistence, long copy, no page overflow, and zero requests on starter selection.
+- Run npm run check, npm run test:unit, and npm run build after implementation.`;
+			}
+
+			function render() {
+				document.querySelectorAll('input[name="direction"]').forEach((input) => {
+					input.checked = input.value === state.direction;
+				});
+				document.querySelectorAll("[data-direction]").forEach((card) => {
+					card.dataset.selected = String(card.dataset.direction === state.direction);
+				});
+				notes.value = state.notes;
+				handoff.value = buildHandoff();
+			}
+
+			document.querySelectorAll('input[name="direction"]').forEach((input) => {
+				input.addEventListener("change", () => {
+					state.direction = input.value;
+					render();
+					save();
+				});
+			});
+
+			notes.addEventListener("input", () => {
+				state.notes = notes.value;
+				handoff.value = buildHandoff();
+				save();
+			});
+
+			document.querySelector("#reset").addEventListener("click", () => {
+				state = { ...defaultState };
+				try { localStorage.removeItem(storageKey); } catch {}
+				render();
+				saveStatus.textContent = "Decision reset to the recommended default.";
+				copyStatus.textContent = "";
+			});
+
+			document.querySelector("#copy").addEventListener("click", async () => {
+				copyStatus.textContent = "";
+				try {
+					await navigator.clipboard.writeText(handoff.value);
+					copyStatus.textContent = "Handoff copied.";
+				} catch {
+					handoff.focus();
+					handoff.select();
+					copyStatus.textContent = "Clipboard access failed. The full handoff is selected; copy it manually.";
+				}
+			});
+
+			load();
+			render();
+		})();
+	</script>
+</body>
+</html>

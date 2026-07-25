@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="data:," />
+	<title>Plan — Chat starter Reading list</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #fffdf9;
+			--canvas: #f1ece5;
+			--ink: #342a25;
+			--muted: #756a62;
+			--line: #d9d0c7;
+			--line-strong: #bcae9f;
+			--primary: #a94418;
+			--primary-soft: #f7e4d9;
+			--green: #38624d;
+			--green-soft: #e6efe9;
+			--warn: #7e5b1d;
+			--warn-soft: #f6edd8;
+			--shadow: 0 20px 55px rgba(57, 40, 28, 0.09);
+		}
+
+		* { box-sizing: border-box; }
+		html { background: var(--canvas); }
+		body {
+			margin: 0;
+			color: var(--ink);
+			background:
+				linear-gradient(135deg, rgba(255,255,255,0.78), transparent 34rem),
+				var(--canvas);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			line-height: 1.5;
+		}
+
+		button, textarea, input { font: inherit; }
+		a { color: var(--primary); text-underline-offset: 0.18em; }
+		:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 48%, white); outline-offset: 3px; }
+
+		.shell {
+			width: min(1320px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 52px 0 84px;
+		}
+
+		.hero {
+			display: grid;
+			grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.5fr);
+			gap: 46px;
+			align-items: end;
+			padding-bottom: 38px;
+			border-bottom: 1px solid var(--line-strong);
+		}
+
+		.kicker, .section-label {
+			margin: 0;
+			color: var(--primary);
+			font-size: 0.74rem;
+			font-weight: 850;
+			letter-spacing: 0.13em;
+			text-transform: uppercase;
+		}
+
+		h1 {
+			max-width: 820px;
+			margin: 12px 0 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.6rem, 5vw, 5.2rem);
+			font-weight: 500;
+			letter-spacing: -0.045em;
+			line-height: 0.96;
+		}
+
+		.hero-copy {
+			max-width: 760px;
+			margin: 20px 0 0;
+			color: var(--muted);
+			font-size: clamp(1rem, 1.4vw, 1.16rem);
+		}
+
+		.status-board {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			border: 1px solid var(--line-strong);
+			background: var(--paper);
+			box-shadow: var(--shadow);
+		}
+
+		.status-board div { padding: 18px; }
+		.status-board div:nth-child(odd) { border-right: 1px solid var(--line); }
+		.status-board div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+		.status-board b { display: block; font-size: 1.55rem; line-height: 1; }
+		.status-board span { display: block; margin-top: 7px; color: var(--muted); font-size: 0.74rem; }
+
+		.approved {
+			display: grid;
+			grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+			gap: 42px;
+			padding: 42px 0;
+			border-bottom: 1px solid var(--line-strong);
+		}
+
+		.approved h2, .runway-head h2, .risk h2, .decisions h2, .handoff h2 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(1.9rem, 3vw, 3rem);
+			font-weight: 500;
+			letter-spacing: -0.035em;
+		}
+
+		.approved p { max-width: 58ch; margin: 12px 0 0; color: var(--muted); }
+
+		.dock-demo {
+			position: relative;
+			min-height: 318px;
+			overflow: hidden;
+			border: 1px solid var(--line-strong);
+			border-radius: 16px;
+			background: var(--paper);
+			box-shadow: 0 12px 32px rgba(57, 40, 28, 0.07);
+		}
+
+		.greeting {
+			padding: 50px 20px 34px;
+			text-align: center;
+		}
+
+		.greeting b { display: block; font-size: 1rem; }
+		.greeting span { display: block; margin-top: 5px; color: var(--muted); font-size: 0.78rem; }
+
+		.starter-head {
+			display: flex;
+			min-height: 32px;
+			align-items: center;
+			justify-content: space-between;
+			padding: 0 12px;
+			color: var(--muted);
+			font-size: 0.69rem;
+		}
+
+		.starter-list { border-top: 1px solid var(--line); }
+		.starter-row {
+			display: flex;
+			min-height: 44px;
+			align-items: center;
+			padding: 8px 12px;
+			border-bottom: 1px solid var(--line);
+			font-size: 0.76rem;
+			font-weight: 650;
+		}
+
+		.composer {
+			display: grid;
+			grid-template-columns: 38px minmax(0, 1fr) 38px;
+			gap: 8px;
+			align-items: center;
+			padding: 10px 12px;
+		}
+
+		.composer span {
+			display: grid;
+			height: 38px;
+			place-items: center;
+			border-radius: 9px;
+		}
+
+		.composer .input {
+			display: flex;
+			justify-content: start;
+			padding: 0 12px;
+			border: 1px solid var(--line-strong);
+			color: #948a82;
+			font-size: 0.78rem;
+		}
+
+		.composer .send { background: #e9e6e2; color: #aaa29a; }
+
+		.runway { padding: 48px 0 0; }
+		.runway-head {
+			display: flex;
+			align-items: end;
+			justify-content: space-between;
+			gap: 24px;
+		}
+		.runway-head p { max-width: 52ch; margin: 0; color: var(--muted); text-align: right; }
+
+		.phases {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			margin-top: 24px;
+			border: 1px solid var(--line-strong);
+			background: var(--paper);
+		}
+
+		.phase {
+			position: relative;
+			min-height: 280px;
+			padding: 24px;
+		}
+		.phase + .phase { border-left: 1px solid var(--line); }
+		.phase-number {
+			color: var(--primary);
+			font-size: 0.72rem;
+			font-weight: 850;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+		}
+		.phase h3 { margin: 8px 0 0; font-size: 1.15rem; }
+		.phase p { margin: 9px 0 0; color: var(--muted); font-size: 0.86rem; }
+		.phase ul { margin: 18px 0 0; padding-left: 1.1rem; font-size: 0.82rem; }
+		.phase li + li { margin-top: 7px; }
+		.phase .risk-tag {
+			position: absolute;
+			right: 20px;
+			bottom: 18px;
+			padding: 5px 8px;
+			background: var(--green-soft);
+			color: var(--green);
+			font-size: 0.68rem;
+			font-weight: 800;
+		}
+		.phase:nth-child(2) .risk-tag { background: var(--warn-soft); color: var(--warn); }
+
+		.guardrails {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 1px;
+			margin-top: 22px;
+			background: var(--line);
+			border: 1px solid var(--line);
+		}
+
+		.guardrail { min-height: 122px; padding: 18px; background: var(--paper); }
+		.guardrail b { display: block; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+		.guardrail span { display: block; margin-top: 7px; color: var(--muted); font-size: 0.8rem; }
+
+		.risk {
+			margin-top: 52px;
+			padding: 30px;
+			border: 1px solid var(--line-strong);
+			background: var(--paper);
+		}
+		.risk > p { margin: 9px 0 0; color: var(--muted); }
+		.risk table { width: 100%; margin-top: 22px; border-collapse: collapse; font-size: 0.82rem; }
+		.risk th, .risk td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+		.risk th { color: var(--muted); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
+		.risk tr:last-child td { border-bottom: 0; }
+
+		.decisions {
+			margin-top: 52px;
+			padding: 30px;
+			background: color-mix(in srgb, var(--primary-soft) 40%, var(--paper));
+			border-top: 5px solid var(--primary);
+		}
+		.decisions > p { margin: 9px 0 24px; color: var(--muted); }
+		.question {
+			display: grid;
+			grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+			gap: 26px;
+			padding: 22px 0;
+			border-top: 1px solid color-mix(in srgb, var(--primary) 25%, var(--line));
+		}
+		.question h3 { margin: 0; font-size: 1rem; }
+		.question p { margin: 7px 0 0; color: var(--muted); font-size: 0.82rem; }
+		.options { display: grid; gap: 8px; }
+		.option {
+			position: relative;
+			display: block;
+			padding: 13px 44px 13px 14px;
+			border: 1px solid var(--line);
+			background: rgba(255,255,255,0.68);
+			cursor: pointer;
+		}
+		.option:has(input:checked) { border-color: var(--primary); background: var(--paper); box-shadow: 0 0 0 1px var(--primary); }
+		.option input { position: absolute; top: 14px; right: 14px; width: 19px; height: 19px; accent-color: var(--primary); }
+		.option b { display: block; font-size: 0.84rem; }
+		.option span { display: block; margin-top: 3px; color: var(--muted); font-size: 0.75rem; }
+		.recommended { color: var(--green); }
+
+		.notes { margin-top: 20px; }
+		.notes label { display: block; margin-bottom: 7px; font-size: 0.76rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+		textarea {
+			width: 100%;
+			resize: vertical;
+			border: 1px solid var(--line-strong);
+			border-radius: 8px;
+			background: white;
+			color: var(--ink);
+		}
+		#notes { min-height: 120px; padding: 12px; }
+
+		.handoff {
+			display: grid;
+			grid-template-columns: minmax(260px, 0.55fr) minmax(0, 1.45fr);
+			gap: 28px;
+			margin-top: 52px;
+			padding: 30px;
+			background: var(--paper);
+			border-top: 5px solid var(--green);
+			box-shadow: var(--shadow);
+		}
+		.handoff-copy p { margin: 9px 0 0; color: var(--muted); }
+		.handoff textarea {
+			min-height: 330px;
+			padding: 14px;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			font-size: 0.78rem;
+			line-height: 1.55;
+		}
+		.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+		.action {
+			min-height: 44px;
+			padding: 0 16px;
+			border: 1px solid var(--line-strong);
+			border-radius: 8px;
+			background: var(--paper);
+			font-weight: 750;
+			cursor: pointer;
+		}
+		.action.primary { border-color: var(--green); background: var(--green); color: white; }
+		.status { min-height: 24px; margin: 8px 0 0; color: var(--green); font-size: 0.78rem; font-weight: 700; }
+		.source { margin-top: 28px; color: var(--muted); font-size: 0.78rem; }
+
+		@media (max-width: 900px) {
+			.hero, .approved, .handoff { grid-template-columns: 1fr; }
+			.runway-head { display: block; }
+			.runway-head p { margin-top: 9px; text-align: left; }
+			.phases { grid-template-columns: 1fr; }
+			.phase + .phase { border-left: 0; border-top: 1px solid var(--line); }
+			.guardrails { grid-template-columns: 1fr 1fr; }
+			.question { grid-template-columns: 1fr; gap: 14px; }
+		}
+
+		@media (max-width: 560px) {
+			.shell { width: calc(100% - 20px); padding-top: 28px; }
+			.hero { gap: 26px; }
+			.status-board { grid-template-columns: 1fr 1fr; }
+			.approved, .risk, .decisions, .handoff { padding: 22px 16px; }
+			.guardrails { grid-template-columns: 1fr; }
+			.risk { overflow-x: auto; }
+			.dock-demo { border-radius: 10px; }
+		}
+	</style>
+</head>
+<body>
+	<main class="shell">
+		<header class="hero">
+			<div>
+				<p class="kicker">Plan ready · awaiting /run</p>
+				<h1>Ship the Reading list without weakening chat safety.</h1>
+				<p class="hero-copy">
+					Remove the empty Assistant shortcuts, then replace the crowded orange rail with three
+					fully readable writing cues and a quiet, persistent disclosure.
+				</p>
+			</div>
+			<div class="status-board" aria-label="Plan status">
+				<div><b>R2</b><span>Shared UI risk</span></div>
+				<div><b>3</b><span>Execution tickets</span></div>
+				<div><b>0</b><span>Data migrations</span></div>
+				<div><b>GO</b><span>Critique result</span></div>
+			</div>
+		</header>
+
+		<section class="approved" aria-labelledby="approved-title">
+			<div>
+				<p class="section-label">Approved outcome</p>
+				<h2 id="approved-title">Greeting → starters → composer</h2>
+				<p>
+					All three examples remain visible. The removed shortcut row no longer competes with the
+					assistant's real next action. Neutral rows wrap naturally in English and Dutch; the user
+					can reclaim space with one explicit shared collapse preference.
+				</p>
+				<p>
+					<a href="2026-07-25-design-shotgun-chat-starter-rail.html">Review the completed design comparison</a>
+				</p>
+			</div>
+			<div class="dock-demo" aria-label="Approved Reading list mockup">
+				<div class="greeting"><b>Good morning, Ui-review</b><span>Ask about meals, the freezer, or what to buy.</span></div>
+				<div class="starter-head"><span>Try starting with</span><span>Hide</span></div>
+				<div class="starter-list">
+					<div class="starter-row">Help me cook with…</div>
+					<div class="starter-row">Plan three dinners using…</div>
+					<div class="starter-row">Add these to my shopping list:…</div>
+				</div>
+				<div class="composer"><span>+</span><span class="input">Ask a question…</span><span class="send">&uarr;</span></div>
+			</div>
+		</section>
+
+		<section class="runway" aria-labelledby="runway-title">
+			<div class="runway-head">
+				<h2 id="runway-title">Execution runway</h2>
+				<p>Deletion first, shared presentation second, full state gate last. No old and new chrome coexist.</p>
+			</div>
+			<div class="phases">
+				<article class="phase">
+					<span class="phase-number">CSR-1 · Phase 1</span>
+					<h3>Delete the shortcut path</h3>
+					<p>Remove the root-only UI, navigation helper, dead types/state, imports, and five localized keys.</p>
+					<ul>
+						<li>Keep <code>base</code> for tool-result links.</li>
+						<li>Compile Paraglide immediately.</li>
+						<li>Prove zero sibling callers by search.</li>
+					</ul>
+					<span class="risk-tag">R1 · S</span>
+				</article>
+				<article class="phase">
+					<span class="phase-number">CSR-2 · Phase 2</span>
+					<h3>Render the Reading list</h3>
+					<p>Use native full-width rows, a quiet header, explicit disclosure, and the unchanged controller seam.</p>
+					<ul>
+						<li>No horizontal scrolling or truncation.</li>
+						<li>No plus, arrow, or primary action chrome.</li>
+						<li>Preserve cap, stream, input, context, and dirty-edit authority.</li>
+					</ul>
+					<span class="risk-tag">R2 · M</span>
+				</article>
+				<article class="phase">
+					<span class="phase-number">CSR-3 · Phase 3</span>
+					<h3>Run the state gate</h3>
+					<p>Verify both mounts and locales across widths, returning history, collapse persistence, and zero requests.</p>
+					<ul>
+						<li>375 / 768 / 1280 and 480 px panel.</li>
+						<li>Effective 200% layout and long Dutch copy.</li>
+						<li>Check, unit tests, and production build.</li>
+					</ul>
+					<span class="risk-tag">R1 · S</span>
+				</article>
+			</div>
+
+			<div class="guardrails" aria-label="Implementation guardrails">
+				<div class="guardrail"><b>Keep</b><span>Route-aware copy, shared persistence, click-to-fill, caret, focus, and zero-request behavior.</span></div>
+				<div class="guardrail"><b>Remove</b><span>Open shortcuts, navigation helper, unused type/state/imports, and obsolete message keys.</span></div>
+				<div class="guardrail"><b>Never add</b><span>Automatic collapse, analytics, server state, new dependency, or prompt-policy changes.</span></div>
+				<div class="guardrail"><b>Release gate</b><span>Returning history stays recoverable even when three rows consume more height.</span></div>
+			</div>
+		</section>
+
+		<section class="risk" aria-labelledby="risk-title">
+			<h2 id="risk-title">The risks that can still hurt</h2>
+			<p>These are verification targets, not reasons to reopen the selected design.</p>
+			<table>
+				<thead><tr><th>Failure</th><th>User impact</th><th>Required mitigation</th><th>Residual risk</th></tr></thead>
+				<tbody>
+					<tr><td>Returning history is squeezed</td><td>Recent turns feel difficult to recover</td><td>Keep the message list as the flex scroller; test 375 px and effective 200%; preserve explicit collapse</td><td>Medium-low</td></tr>
+					<tr><td>Long Dutch text clips</td><td>Starter meaning is hidden</td><td>Natural wrapping, growing rows, no line clamp or fixed list height</td><td>Low</td></tr>
+					<tr><td>Rows imply send/add</td><td>User expects an immediate action</td><td>Text-only neutral rows with ellipsis; no plus, arrow, or primary fill</td><td>Low</td></tr>
+					<tr><td>Selection starts a request</td><td>Unexpected spend or household mutation</td><td>Reuse the existing fill seam; intercept requests and assert zero</td><td>Low</td></tr>
+					<tr><td>Cleanup removes <code>base</code></td><td>Tool-result destination links break</td><td>Retain <code>base</code> and smoke one tool-entity link</td><td>Low</td></tr>
+				</tbody>
+			</table>
+		</section>
+
+		<section class="decisions" aria-labelledby="decision-title">
+			<h2 id="decision-title">Defaults ready for execution</h2>
+			<p>The untouched workspace accepts both recommended defaults. Override only if the product behavior should genuinely change.</p>
+
+			<div class="question">
+				<div>
+					<h3>Collapse automatically when history exists?</h3>
+					<p>Automatic behavior would compete with the existing explicit per-user preference.</p>
+				</div>
+				<div class="options" role="radiogroup" aria-label="Automatic history collapse">
+					<label class="option">
+						<input type="radio" name="history-collapse" value="never" checked />
+						<b class="recommended">No — honor only the explicit preference</b>
+						<span>Predictable across the Assistant tab and contextual panel. Recommended.</span>
+					</label>
+					<label class="option">
+						<input type="radio" name="history-collapse" value="automatic" />
+						<b>Yes — collapse when history exists</b>
+						<span>Recovers height, but hides recognition and creates a second state model.</span>
+					</label>
+				</div>
+			</div>
+
+			<div class="question">
+				<div>
+					<h3>Add a trailing row icon?</h3>
+					<p>A plus or arrow can imply sending, adding, or navigation even though selection only fills.</p>
+				</div>
+				<div class="options" role="radiogroup" aria-label="Starter row trailing affordance">
+					<label class="option">
+						<input type="radio" name="row-icon" value="none" checked />
+						<b class="recommended">No icon — keep the incomplete-text ellipsis</b>
+						<span>The text itself communicates that the draft continues. Recommended.</span>
+					</label>
+					<label class="option">
+						<input type="radio" name="row-icon" value="plus" />
+						<b>Trailing plus</b>
+						<span>Looks actionable but may imply add or send.</span>
+					</label>
+					<label class="option">
+						<input type="radio" name="row-icon" value="arrow" />
+						<b>Trailing arrow</b>
+						<span>Improves affordance but may imply navigation or submission.</span>
+					</label>
+				</div>
+			</div>
+
+			<div class="notes">
+				<label for="notes">Notes reproduced verbatim in the handoff</label>
+				<textarea id="notes" placeholder="Add a clarification for /run, if needed."></textarea>
+			</div>
+			<div class="actions"><button class="action" type="button" id="reset">Reset defaults</button></div>
+			<p class="status" id="save-status" role="status" aria-live="polite"></p>
+		</section>
+
+		<section class="handoff" aria-labelledby="handoff-title">
+			<div class="handoff-copy">
+				<p class="section-label">Next session</p>
+				<h2 id="handoff-title">Paste-ready /run handoff</h2>
+				<p>The next agent loads the Markdown plan, never this HTML. Every decision below is understandable without the board.</p>
+			</div>
+			<div>
+				<label for="handoff" class="section-label">Generated prompt</label>
+				<textarea id="handoff" readonly></textarea>
+				<div class="actions"><button class="action primary" type="button" id="copy">Copy handoff</button></div>
+				<p class="status" id="copy-status" role="status" aria-live="polite"></p>
+			</div>
+		</section>
+
+		<p class="source">
+			Authoritative source:
+			<a href="../feature-lists/FEATURE_LIST_CHAT_STARTER_RAIL_REFINEMENT.md">FEATURE_LIST_CHAT_STARTER_RAIL_REFINEMENT.md</a>.
+			Local artifact only; no artifact host is configured.
+		</p>
+	</main>
+
+	<script>
+		(() => {
+			const artifactPath = location.pathname || "docs/artifacts/2026-07-25-plan-chat-starter-rail-refinement.html";
+			const storageKey = `${artifactPath}::chat-starter-plan::v1`;
+			const defaults = { historyCollapse: "never", rowIcon: "none", notes: "" };
+			let state = { ...defaults };
+
+			const notes = document.querySelector("#notes");
+			const handoff = document.querySelector("#handoff");
+			const saveStatus = document.querySelector("#save-status");
+			const copyStatus = document.querySelector("#copy-status");
+
+			const collapseOutcomes = {
+				never: {
+					selected: "Do not auto-collapse for returning history; honor only the explicit shared per-user preference.",
+					consequence: "The three starters remain visible above any empty composer until the user explicitly hides them.",
+					recommendation: "Recommended because it preserves predictable recognition and one state model."
+				},
+				automatic: {
+					selected: "Automatically collapse the starter list when conversation history exists.",
+					consequence: "Returning conversations recover height but hide examples even when the user never chose to hide them.",
+					recommendation: "Not recommended because it forks the explicit preference model and weakens recognition."
+				}
+			};
+
+			const iconOutcomes = {
+				none: {
+					selected: "Use no trailing row icon; keep only the incomplete-text ellipsis.",
+					consequence: "Rows remain visually quiet and do not imply add, send, or navigation.",
+					recommendation: "Recommended because the ellipsis already communicates that the draft continues."
+				},
+				plus: {
+					selected: "Show a trailing plus on each starter row.",
+					consequence: "The list looks more actionable, but users may read selection as add or send.",
+					recommendation: "Not recommended because the visual effect does not match fill-only behavior."
+				},
+				arrow: {
+					selected: "Show a trailing arrow on each starter row.",
+					consequence: "The list gains a strong affordance, but users may read it as navigation or submission.",
+					recommendation: "Not recommended because the visual effect does not match fill-only behavior."
+				}
+			};
+
+			function load() {
+				try {
+					const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+					if (saved && collapseOutcomes[saved.historyCollapse] && iconOutcomes[saved.rowIcon]) {
+						state = {
+							historyCollapse: saved.historyCollapse,
+							rowIcon: saved.rowIcon,
+							notes: typeof saved.notes === "string" ? saved.notes : ""
+						};
+					}
+				} catch {
+					saveStatus.textContent = "Browser persistence is unavailable; this session still works.";
+				}
+			}
+
+			function save() {
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state));
+					saveStatus.textContent = "Defaults and notes saved in this browser.";
+				} catch {
+					saveStatus.textContent = "Changes are active for this session but could not be saved.";
+				}
+			}
+
+			function buildHandoff() {
+				const collapse = collapseOutcomes[state.historyCollapse];
+				const icon = iconOutcomes[state.rowIcon];
+				const noteBlock = state.notes.trim() || "(No additional notes.)";
+				return `Load docs/feature-lists/FEATURE_LIST_CHAT_STARTER_RAIL_REFINEMENT.md, then execute it with /run.
+
+Goal: remove the Assistant tab's Open / Shopping list / Meal plan shortcut row and ship the approved Direction B Reading list for contextual sentence starters.
+
+Plan state:
+- Status: Plan ready - 2026-07-25 (awaiting /run).
+- Risk: R2 shared UI; code-only beta change; no staging gate.
+- Tickets: CSR-1 shortcut deletion, CSR-2 Reading list and disclosure, CSR-3 authenticated verification gate.
+- Critique: GO with no P0/P1 blocker.
+
+Fixed decisions:
+- General starters remain on the Assistant tab; route-specific starters remain in the contextual panel.
+- Selecting a starter fills, focuses, and places the caret at the end but never sends, spends, creates a message, or writes household data.
+- Keep the shared per-user collapsed preference and storage key.
+- Use explicit visible Hide and Show starters text with descriptive accessible names.
+- Preserve cap, stream, non-empty input, context-disabled, unknown-route, and dirty recipe-edit behavior.
+- Remove obsolete shortcut markup, helper/type/state/imports, and localized keys in the same change.
+- Retain the base import used by tool-result destination links.
+
+Open decision: Should the list automatically collapse when conversation history exists?
+Options: explicit preference only / automatic history collapse.
+Selected outcome: ${collapse.selected}
+Recommendation and rationale: ${collapse.recommendation}
+Practical consequence: ${collapse.consequence}
+Assumption: three starters remain the approved prompt count, and conversation height can be reclaimed through the explicit persistent control.
+Evidence: the Reading list was selected despite its height cost because it keeps all three examples readable without horizontal scrolling.
+Uncertainty: returning history at 375 px and effective 200% may feel crowded and must pass browser verification.
+
+Open decision: Should rows show a trailing icon?
+Options: no icon / plus / arrow.
+Selected outcome: ${icon.selected}
+Recommendation and rationale: ${icon.recommendation}
+Practical consequence: ${icon.consequence}
+Assumption: the existing visible ellipsis after incomplete starter text remains.
+Evidence: plus and arrow symbols can imply effects the fill-only action does not perform.
+Uncertainty: visual review must still confirm that the full row is discoverable as a native button with hover and focus treatment.
+
+User notes reproduced verbatim under these decisions:
+${noteBlock}
+
+Required verification:
+- Both chat mounts in English and Dutch at 375, 768, and 1280 px, the 480 px panel, and effective 200%.
+- Empty and returning history, expanded/collapsed reload persistence, context disabled, dirty edit, cap, non-empty draft, and streaming.
+- Keyboard/pointer activation, visible focus, caret position, zero intercepted requests, no message creation, no page-level overflow, and recoverable latest-message scrolling.
+- npm run check, npm run test:unit, and npm run build.
+
+After implementation, simplify dead code/copy, update the authoritative feature list, archive spent artifacts through the run workflow, and report exact verification evidence.`;
+			}
+
+			function render() {
+				document.querySelectorAll('input[name="history-collapse"]').forEach((input) => {
+					input.checked = input.value === state.historyCollapse;
+				});
+				document.querySelectorAll('input[name="row-icon"]').forEach((input) => {
+					input.checked = input.value === state.rowIcon;
+				});
+				notes.value = state.notes;
+				handoff.value = buildHandoff();
+			}
+
+			document.querySelectorAll('input[name="history-collapse"]').forEach((input) => {
+				input.addEventListener("change", () => {
+					state.historyCollapse = input.value;
+					render();
+					save();
+				});
+			});
+
+			document.querySelectorAll('input[name="row-icon"]').forEach((input) => {
+				input.addEventListener("change", () => {
+					state.rowIcon = input.value;
+					render();
+					save();
+				});
+			});
+
+			notes.addEventListener("input", () => {
+				state.notes = notes.value;
+				handoff.value = buildHandoff();
+				save();
+			});
+
+			document.querySelector("#reset").addEventListener("click", () => {
+				state = { ...defaults };
+				try { localStorage.removeItem(storageKey); } catch {}
+				render();
+				saveStatus.textContent = "Defaults restored.";
+				copyStatus.textContent = "";
+			});
+
+			document.querySelector("#copy").addEventListener("click", async () => {
+				copyStatus.textContent = "";
+				try {
+					await navigator.clipboard.writeText(handoff.value);
+					copyStatus.textContent = "Handoff copied.";
+				} catch {
+					handoff.focus();
+					handoff.select();
+					copyStatus.textContent = "Clipboard access failed. The full handoff is selected; copy it manually.";
+				}
+			});
+
+			load();
+			render();
+		})();
+	</script>
+</body>
+</html>

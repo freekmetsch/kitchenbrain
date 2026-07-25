@@ -3,11 +3,9 @@
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { fly } from 'svelte/transition';
 	import { base } from '$app/paths';
-	import { goto } from '$app/navigation';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
-	import type { IconName } from '$lib/components/ui/icons/paths';
 	import { looksLikeJsonArtifact, ARTIFACT_FALLBACK } from '$lib/chat_sanitize';
 	import {
 		promptStarterIds,
@@ -38,7 +36,6 @@
 			text: promptStarterText(id)
 		}))
 	);
-	let isAssistantTab = $derived(controller.screenContext?.routeId === '/');
 	const username = controller.username;
 	let messageListEl = $state<HTMLElement>();
 	let textareaEl = $state<HTMLTextAreaElement>();
@@ -65,14 +62,6 @@
 	function removeAttachment(id: number) {
 		controller.removeAttachment(id);
 	}
-
-	// These links open screens directly, without spending an AI turn.
-	type NavigationChip = { label: string; href: string; icon: IconName };
-
-	const NAVIGATION_CHIPS: NavigationChip[] = [
-		{ label: m.chat_chip_shopping_list(), href: `${base}/shopping`, icon: 'cart' },
-		{ label: m.chat_chip_meal_plan(), href: `${base}/meal-plan`, icon: 'calendar' }
-	];
 
 	// Stick-to-bottom scrolling: streaming keeps the view pinned only while the
 	// user is already near the bottom — scrolling up to reread stops the yanking,
@@ -233,23 +222,6 @@
 		textareaEl.setSelectionRange(end, end);
 	}
 
-	async function openScreen(event: MouseEvent, href: string) {
-		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-		event.preventDefault();
-		if (controller.opened) {
-			controller.close({ restoreFocus: false });
-			const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-			if (!reducedMotion) {
-				await new Promise((resolve) => setTimeout(resolve, MOTION_MICRO_MS));
-			}
-		}
-		await goto(href);
-		await tick();
-		const heading = document.querySelector<HTMLElement>('main h1, main [data-page-heading], main h2');
-		if (!heading) return;
-		if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
-		heading.focus({ preventScroll: true });
-	}
 </script>
 
 <div class="flex h-full min-w-0 flex-col overflow-x-hidden">
@@ -471,77 +443,55 @@
 		</div>
 	{/if}
 
-	<!-- Screen shortcuts only belong to the empty Assistant tab. -->
-	{#if messages.length === 0 && !isStreaming && isAssistantTab}
-		<div
-			class="px-3 pb-2"
-			role="group"
-			aria-label={m.chat_quick_actions_label()}
-		>
-			<div class="flex items-start gap-2" role="group" aria-label={m.chat_quick_open_group()}>
-				<span class="w-10 shrink-0 pt-3 text-[10px] font-bold uppercase tracking-wide text-base-content/45">
-					{m.chat_quick_open_label()}
-				</span>
-				<div class="flex min-w-0 flex-1 flex-wrap gap-2">
-					{#each NAVIGATION_CHIPS as chip}
-						<a
-							href={chip.href}
-							onclick={(event) => void openScreen(event, chip.href)}
-							class="btn btn-sm h-11 min-h-0 gap-1.5 border-base-300 bg-base-200/60 px-3 text-xs hover:bg-base-200"
-						>
-							<Icon name={chip.icon} class="h-3.5 w-3.5" />
-							{chip.label}
-						</a>
-					{/each}
-				</div>
-			</div>
-		</div>
-	{/if}
-
 	<!-- Context-aware sentence starters stay available above any empty composer. -->
 	{#if !input.trim() && !isStreaming}
 		{#if controller.promptStartersCollapsed}
 			<div class="flex justify-end px-3 pb-2">
 				<button
 					type="button"
-					class="btn btn-ghost btn-sm h-11 min-h-0 gap-1.5 px-3 text-xs"
+					class="inline-flex min-h-11 items-center rounded-md px-2 text-xs font-medium text-base-content/60 transition-colors hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 					aria-expanded="false"
 					aria-label={m.chat_prompt_starters_show()}
 					title={m.chat_prompt_starters_show()}
 					onclick={() => controller.setPromptStartersCollapsed(false)}
 				>
-					<Icon name="chevronRight" class="h-4 w-4 -rotate-90" />
-					{m.chat_prompt_starters_show()}
+					{m.chat_prompt_starters_show_label()}
 				</button>
 			</div>
 		{:else}
 			<div
-				class="flex items-end gap-2 px-3 pb-2"
+				class="px-3 pb-2"
 				role="group"
 				aria-label={m.chat_prompt_starters_group()}
 			>
-				<div class="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
+				<div class="flex min-h-11 items-center justify-between gap-3">
+					<span class="text-[11px] font-medium text-base-content/55">
+						{m.chat_prompt_starters_intro()}
+					</span>
+					<button
+						type="button"
+						class="inline-flex min-h-11 shrink-0 items-center rounded-md px-2 text-xs font-medium text-base-content/60 transition-colors hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+						aria-expanded="true"
+						aria-label={m.chat_prompt_starters_hide()}
+						title={m.chat_prompt_starters_hide()}
+						onclick={() => controller.setPromptStartersCollapsed(true)}
+					>
+						{m.chat_prompt_starters_hide_label()}
+					</button>
+				</div>
+				<div class="divide-y divide-base-300/70 border-y border-base-300/70">
 					{#each promptStarters as starter (starter.id)}
 						<button
 							type="button"
-							class="btn btn-sm btn-outline btn-primary h-auto min-h-11 min-w-44 max-w-56 flex-none justify-start whitespace-normal px-3 text-left text-xs leading-tight"
+							class="flex min-h-11 w-full items-center px-1 py-2.5 text-left text-sm font-medium leading-snug text-base-content/80 transition-colors hover:bg-base-200/50 hover:text-base-content focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40"
 							disabled={capExceeded}
+							aria-label={starter.text}
 							onclick={() => void usePromptStarter(starter.text)}
 						>
 							{starter.text}<span aria-hidden="true">…</span>
 						</button>
 					{/each}
 				</div>
-				<button
-					type="button"
-					class="btn btn-square btn-ghost btn-sm h-11 min-h-0 w-11 shrink-0"
-					aria-expanded="true"
-					aria-label={m.chat_prompt_starters_hide()}
-					title={m.chat_prompt_starters_hide()}
-					onclick={() => controller.setPromptStartersCollapsed(true)}
-				>
-					<Icon name="chevronRight" class="h-4 w-4 rotate-90" />
-				</button>
 			</div>
 		{/if}
 	{/if}

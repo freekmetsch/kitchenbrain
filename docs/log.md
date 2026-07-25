@@ -126,6 +126,35 @@ at 375, 768, 1280, and an effective 200% layout without provider calls.
 Touched: docs/feature-lists/archive/FEATURE_LIST_CONTEXTUAL_CHAT_PROMPTS.md,
 docs/artifacts/archive/2026-07-24-plan-contextual-chat-prompts.html
 
+## 2026-07-25 | html-artifact | design shotgun: chat starter rail refinement
+
+Touched: docs/artifacts/2026-07-25-design-shotgun-chat-starter-rail.html,
+docs/feature-lists/FEATURE_LIST_CHAT_STARTER_RAIL_REFINEMENT.md
+
+## 2026-07-25 | html-artifact | plan: chat starter Reading list
+
+Touched: docs/artifacts/2026-07-25-plan-chat-starter-rail-refinement.html,
+docs/feature-lists/FEATURE_LIST_CHAT_STARTER_RAIL_REFINEMENT.md
+
+## 2026-07-25 | shipped | chat starter Reading list
+
+Removed the Assistant tab's Open / Shopping list / Meal plan shortcut row and replaced the
+horizontal orange rail with three full-width, neutral sentence-starter rows plus explicit
+Hide / Show starters controls. Preserved shared collapse persistence, route context, dirty-edit
+guidance, cap/stream/input authority, and fill-and-focus without sending. Verification passed
+with zero Svelte diagnostics, 73 test files / 460 tests, a production build, and isolated
+authenticated English/Dutch browser stories at 375, 768, and 1280 px, the 480 px contextual
+panel, and an effective 200% layout without provider or real household-data calls.
+
+## 2026-07-25 19:26 | archive-scan | 1 feature list, 2 HTMLs archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_CHAT_STARTER_RAIL_REFINEMENT.md,
+docs/artifacts/archive/2026-07-25-design-shotgun-chat-starter-rail.html,
+docs/artifacts/archive/2026-07-25-plan-chat-starter-rail-refinement.html
+
+The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
+validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
+
 ## 2026-07-25 | html-artifact | design shotgun: meal plan density refinement
 
 Touched: docs/artifacts/2026-07-25-design-shotgun-meal-plan-density.html,
