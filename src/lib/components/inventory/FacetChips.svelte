@@ -82,6 +82,7 @@
 
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import RecipeRelationshipStatus from './RecipeRelationshipStatus.svelte';
 	import {
 		autofocus,
 		foodClassText,
@@ -140,31 +141,13 @@
 	<span class="opacity-70">{item.section === 'freezer' ? '❄️' : '🫙'}</span>
 
 	{#if item.kind === 'leftover'}
-		<button
-			type="button"
-			class="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-2 font-medium transition-colors {relationship === 'unresolved'
-				? 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/15'
-				: relationship === 'linked'
-					? 'border-success/30 bg-success/10 text-success hover:bg-success/15'
-					: 'border-base-300/70 bg-base-200/60 text-base-content/60 hover:bg-base-200'}"
-			aria-label={`${relationshipLabel}. ${m.inventory_recipe_manage_button()}`}
-			title={relationshipLabel}
-			onclick={() => onOpenLinkPicker()}
-		>
-			<Icon
-				name={relationship === 'linked'
-					? 'check'
-					: relationship === 'planned'
-						? 'clock'
-						: relationship === 'not_needed'
-							? 'minus'
-							: 'warn'}
-				class="h-3.5 w-3.5 shrink-0"
-			/>
-			{#if relationship === 'unresolved'}
-				<span>{m.inventory_recipe_unresolved_label()}</span>
-			{/if}
-		</button>
+		<RecipeRelationshipStatus
+			{relationship}
+			label={`${relationshipLabel}. ${m.inventory_recipe_manage_button()}`}
+			showText={relationship === 'unresolved'}
+			interactive
+			onactivate={onOpenLinkPicker}
+		/>
 	{:else if item.foodClass}
 		<span class="inline-flex items-center gap-1">{foodClassEmoji(item.foodClass)} {foodClassText(item.foodClass)}</span>
 	{/if}

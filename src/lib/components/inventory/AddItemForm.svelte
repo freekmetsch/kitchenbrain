@@ -7,13 +7,11 @@
 -->
 <script lang="ts">
 	import { base } from '$app/paths';
-	import { slide } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import PendingButton from '$lib/components/ui/PendingButton.svelte';
 	import { composeQty, foodClassText } from './shared';
 	import type { Item, Kind, Section } from './shared';
-	import { MOTION_CONTENT_MS } from '$lib/motion';
 
 	let {
 		open,
@@ -79,7 +77,7 @@
 </script>
 
 {#if open}
-	<form onsubmit={submitAdd} class="ui-form-card mx-4 mt-3" transition:slide={{ duration: MOTION_CONTENT_MS }}>
+	<form onsubmit={submitAdd}>
 		<div class="grid grid-cols-2 gap-2.5">
 			<label class="col-span-2 flex flex-col gap-1">
 				<span class="ui-field-label">{m.inventory_addform_name_label()}</span>

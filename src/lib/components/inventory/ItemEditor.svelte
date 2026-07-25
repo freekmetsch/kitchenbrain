@@ -8,13 +8,11 @@
 -->
 <script lang="ts">
 	import { base } from '$app/paths';
-	import { slide } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import HistoryList from './HistoryList.svelte';
 	import { foodClassText } from './shared';
 	import type { EditDraft, HistoryEvent, RecipeLink, RecipeMatch } from './shared';
-	import { MOTION_CONTENT_MS } from '$lib/motion';
 
 	let {
 		editing,
@@ -42,9 +40,7 @@
 </script>
 
 {#if editing}
-	<!-- Content-motion slide keeps the open/close legible; the global
-	     prefers-reduced-motion guard in app.css neutralizes it. -->
-	<div transition:slide={{ duration: MOTION_CONTENT_MS }} class="mt-2.5 rounded-xl border border-base-300/70 bg-base-200/40 p-3">
+	<div class="rounded-xl border border-base-300/70 bg-base-200/40 p-3">
 		<div class="grid grid-cols-2 gap-2.5">
 			<label class="col-span-2 flex flex-col gap-1">
 				<span class="ui-field-label">{m.inventory_editor_name_label()}</span>

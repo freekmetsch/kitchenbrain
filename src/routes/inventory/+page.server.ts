@@ -27,6 +27,7 @@ export type RecipeLink = {
 };
 
 export const load: PageServerLoad = async () => {
+	const inventoryTodayIso = todayIso();
 	// Facet model (ADR 0001): kind / foodClass / needsReview / isStaple /
 	// madeFromRecipeId / recipeStatus all ship on the row. Legacy `category`
 	// is still selected (additive columns) but the UI no longer reads it.
@@ -139,6 +140,7 @@ export const load: PageServerLoad = async () => {
 		recipeMatches,
 		recipeOptions,
 		stapleGhosts,
-		currentWeekStart: weekStartFor(todayIso(), getWeekStartDay())
+		todayIso: inventoryTodayIso,
+		currentWeekStart: weekStartFor(inventoryTodayIso, getWeekStartDay())
 	};
 };

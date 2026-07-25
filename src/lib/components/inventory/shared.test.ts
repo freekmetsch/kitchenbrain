@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
 	displayQuantity,
+	groupMealStock,
+	matchesInventoryScope,
 	matchesInventoryQuery,
 	recipeCoverage,
-	recipeRelationshipKind
+	recipeRelationshipKind,
+	stockAttention
 } from './shared';
+import type { StockRadarItem, StockRadarLink } from './shared';
 
 describe('inventory display quantity', () => {
 	it('pluralizes portions in English and Dutch', () => {
@@ -51,5 +55,62 @@ describe('inventory search', () => {
 	it('is case- and accent-insensitive', () => {
 		expect(matchesInventoryQuery('puree', ['Tomatenpurée', 'Voorraadkast'])).toBe(true);
 		expect(matchesInventoryQuery('', ['Anything'])).toBe(true);
+	});
+});
+
+describe('stock radar attention', () => {
+	const todayIso = '2026-07-25';
+	const meal = (
+		name: string,
+		qtyNum: number,
+		createdAt = '2026-07-20',
+		expiryDate: string | null = null
+	): StockRadarItem => ({
+		name,
+		qtyNum,
+		kind: 'leftover',
+		expiryDate,
+		createdAt
+	});
+	const staple = (targetPortions: number | null): StockRadarLink => ({
+		isFreezerStaple: true,
+		targetPortions
+	});
+
+	it('uses expiry, below-target, low-stock, then aging precedence', () => {
+		expect(stockAttention(meal('Expires', 1, '2026-06-01', '2026-07-26'), staple(8), todayIso))
+			.toEqual({ kind: 'expiry', daysUntil: 1 });
+		expect(stockAttention(meal('Target', 4), staple(8), todayIso))
+			.toEqual({ kind: 'below_target', portionsBelow: 4 });
+		expect(stockAttention(meal('Low', 2), null, todayIso))
+			.toEqual({ kind: 'low_stock', portions: 2 });
+		expect(stockAttention(meal('Old', 4, '2026-07-01'), null, todayIso))
+			.toEqual({ kind: 'aging', daysOld: 24 });
+		expect(stockAttention(meal('Settled', 4), null, todayIso)).toBeNull();
+	});
+
+	it('groups and sorts positive meals while keeping zero-stock staples recoverable', () => {
+		const items = [
+			meal('Plenty', 6),
+			meal('Later expiry', 2, '2026-07-10', '2026-07-29'),
+			meal('Sooner expiry', 2, '2026-07-19', '2026-07-27'),
+			meal('Cook again', 0)
+		];
+		const groups = groupMealStock(
+			items,
+			(item) => (item.name === 'Cook again' ? staple(6) : null),
+			todayIso
+		);
+
+		expect(groups.useNext.map(({ item }) => item.name)).toEqual(['Sooner expiry', 'Later expiry']);
+		expect(groups.stillPlenty.map((item) => item.name)).toEqual(['Plenty']);
+		expect(groups.cookAgain.map((item) => item.name)).toEqual(['Cook again']);
+	});
+
+	it('keeps Meals, Ingredients, and All stock scopes explicit', () => {
+		expect(matchesInventoryScope({ kind: 'leftover' }, 'meals')).toBe(true);
+		expect(matchesInventoryScope({ kind: 'ingredient' }, 'meals')).toBe(false);
+		expect(matchesInventoryScope({ kind: 'ingredient' }, 'ingredients')).toBe(true);
+		expect(matchesInventoryScope({ kind: 'processed' }, 'all')).toBe(true);
 	});
 });

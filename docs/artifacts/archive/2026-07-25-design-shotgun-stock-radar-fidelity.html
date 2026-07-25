@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<meta name="workflow-status" content="shipped">
+	<link rel="icon" href="data:,">
+	<title>Stock Radar fidelity design shotgun</title>
+	<style>
+		:root {
+			--ink: #243027;
+			--muted: #687268;
+			--canvas: #ede7dc;
+			--paper: #fffdf7;
+			--line: #d8d3c5;
+			--olive: #334638;
+			--olive-deep: #26352b;
+			--olive-soft: #e2e9df;
+			--honey: #d3a046;
+			--terracotta: #a84d2a;
+			--cream: #fff6e5;
+			--shadow: 0 22px 64px rgb(49 48 36 / 15%);
+			--focus: #1677a7;
+		}
+		* { box-sizing: border-box; }
+		html {
+			background: var(--canvas);
+			color: var(--ink);
+			font: 16px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		}
+		body { margin: 0; }
+		button, input, textarea { color: inherit; font: inherit; }
+		button { cursor: pointer; }
+		[hidden] { display: none !important; }
+		:focus-visible { outline: 3px solid var(--focus) !important; outline-offset: 3px !important; }
+		.shell { width: min(1500px, calc(100% - 28px)); margin: 22px auto 80px; }
+		.hero {
+			position: relative;
+			overflow: hidden;
+			padding: clamp(28px, 5vw, 68px);
+			border: 1px solid #cec6b7;
+			border-radius: 30px;
+			background:
+				radial-gradient(circle at 94% 6%, #d3a04635 0 12%, transparent 12.5%),
+				radial-gradient(circle at 88% 30%, #33463818 0 9%, transparent 9.5%),
+				linear-gradient(135deg, #fff8e9, #fffdf8 60%, #ebe9de);
+			box-shadow: var(--shadow);
+		}
+		.eyebrow { margin: 0 0 10px; color: var(--terracotta); font-size: .72rem; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
+		h1 { max-width: 950px; margin: 0; font: 500 clamp(2.4rem, 6vw, 5.8rem)/.96 Georgia, "Times New Roman", serif; letter-spacing: -.055em; }
+		.lede { max-width: 850px; margin: 22px 0 0; color: #5d675f; font-size: clamp(1rem, 1.8vw, 1.25rem); }
+		.brief {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 10px;
+			margin-top: 28px;
+			max-width: 1080px;
+		}
+		.brief article { padding: 14px 16px; border: 1px solid #ded7c9; border-radius: 16px; background: #ffffffa8; }
+		.brief strong { display: block; margin-bottom: 4px; font-size: .73rem; letter-spacing: .08em; text-transform: uppercase; }
+		.brief p { margin: 0; color: var(--muted); font-size: .86rem; }
+		.toolbar {
+			position: sticky;
+			top: 10px;
+			z-index: 30;
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 9px;
+			margin: 18px 0;
+			padding: 10px;
+			border: 1px solid var(--line);
+			border-radius: 18px;
+			background: #fffdf8ed;
+			box-shadow: 0 12px 32px #43281a12;
+			backdrop-filter: blur(14px);
+		}
+		.toolbar-label { color: var(--muted); font-size: .7rem; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
+		.segment { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: #ede8dd; }
+		.segment button, .reset {
+			min-height: 38px;
+			padding: 7px 13px;
+			border: 0;
+			border-radius: 999px;
+			background: transparent;
+			font-size: .8rem;
+			font-weight: 800;
+		}
+		.segment button[aria-pressed="true"] { background: white; color: var(--terracotta); box-shadow: 0 2px 9px #4d2d1a16; }
+		.reset { margin-left: auto; border: 1px solid var(--line); background: white; }
+		.save-status { color: var(--muted); font-size: .75rem; }
+		.concept {
+			margin-top: 22px;
+			padding: clamp(18px, 3vw, 34px);
+			border: 1px solid var(--line);
+			border-radius: 28px;
+			background: var(--paper);
+			box-shadow: 0 12px 34px #4c2d1b0d;
+		}
+		.concept-head {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 18px;
+			align-items: start;
+			margin-bottom: 20px;
+		}
+		.concept-index { margin: 0 0 4px; color: var(--terracotta); font-size: .7rem; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+		.concept h2 { margin: 0; font: 500 clamp(1.8rem, 3vw, 2.8rem)/1 Georgia, "Times New Roman", serif; letter-spacing: -.04em; }
+		.thesis { max-width: 820px; margin: 9px 0 0; color: var(--muted); }
+		.choose {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			min-height: 44px;
+			padding: 9px 14px;
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			background: white;
+			font-size: .84rem;
+			font-weight: 850;
+		}
+		.choose:has(input:checked) { border-color: var(--olive); background: var(--olive); color: white; }
+		.choose input { accent-color: var(--honey); }
+		.compare-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+		.preview-wrap { min-width: 0; overflow: auto; padding: 22px; border-radius: 22px; background: #e4ddd1; }
+		.device {
+			position: relative;
+			width: 375px;
+			height: 760px;
+			margin: 0 auto;
+			overflow: hidden;
+			border: 7px solid #25231f;
+			border-radius: 34px;
+			background: white;
+			box-shadow: 0 24px 55px #2f211b30;
+			transition: width .25s ease, height .25s ease, border-radius .25s ease;
+		}
+		body[data-viewport="desktop"] .device { width: 1100px; height: 650px; border-width: 0; border-radius: 24px; }
+		.screen { position: relative; height: 100%; overflow: auto; scrollbar-width: thin; }
+		.review { position: sticky; top: 86px; }
+		.review-card { padding: 15px; border: 1px solid var(--line); border-radius: 17px; background: #faf6ef; }
+		.review-card + .review-card { margin-top: 11px; }
+		.review-card h3 { margin: 0 0 7px; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; }
+		.review-card p { margin: 0; color: var(--muted); font-size: .84rem; }
+		.review-card .trade { margin-top: 8px; color: #875532; }
+		.review label { display: block; margin-top: 10px; font-size: .76rem; font-weight: 800; }
+		.review textarea {
+			width: 100%;
+			min-height: 94px;
+			margin-top: 6px;
+			padding: 10px;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			background: white;
+		}
+
+		/* Shared Stock Radar controls */
+		.app-button { min-height: 38px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--terracotta); color: white; font-size: 11px; font-weight: 850; box-shadow: 0 5px 12px #a84d2a2e; }
+		.ghost-button { min-width: 38px; min-height: 38px; border: 1px solid #d1ccbf; border-radius: 10px; background: transparent; }
+		.stats { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; }
+		.stat { padding: 11px 12px; border-radius: 14px; background: var(--olive); color: #fff8ea; }
+		.stat.attention { background: var(--honey); color: #332613; }
+		.stat strong { display: block; font: 500 1.55rem/1 Georgia, serif; }
+		.stat span { display: block; margin-top: 5px; font-size: .64rem; }
+		.search { display: flex; align-items: center; min-height: 43px; padding: 0 12px; border: 1px solid #c9c5b8; border-radius: 12px; background: #ffffffdc; color: #737b72; font-size: .75rem; }
+		.search::before { margin-right: 8px; content: "⌕"; font-size: 1rem; }
+		.search kbd { margin-left: auto; padding: 1px 5px; border: 1px solid #d3cec1; border-radius: 5px; font-size: .58rem; }
+		.scopes { display: flex; gap: 5px; overflow: hidden; }
+		.scopes span { flex: 0 0 auto; padding: 7px 10px; border: 1px solid #cbc7ba; border-radius: 999px; color: #667067; font-size: .64rem; font-weight: 800; }
+		.scopes .active { border-color: var(--olive); background: var(--olive); color: white; }
+		.coverage { display: flex; align-items: center; gap: 8px; overflow: hidden; padding: 7px 9px; border-radius: 10px; background: #edf0e8; color: #667067; font-size: .61rem; white-space: nowrap; }
+		.coverage strong { color: #39473c; }
+		.coverage i { display: inline-grid; width: 16px; height: 16px; place-items: center; border-radius: 50%; background: #dde4da; color: #506055; font-style: normal; font-weight: 900; }
+		.group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+		.group-head strong { font: 500 1rem Georgia, serif; }
+		.group-head span { color: #7a7f77; font-size: .61rem; }
+		.meal-card { border: 1px solid #d3cec2; border-radius: 13px; background: #fffdf8; }
+		.meal-card.priority { border-color: #d0aa6a; background: #fff8e9; }
+		.meal-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; min-height: 56px; padding: 8px 10px; border-bottom: 1px solid #e8e3d9; }
+		.meal-row:last-child { border-bottom: 0; }
+		.meal-name { min-width: 0; }
+		.meal-name strong { display: block; overflow: hidden; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+		.meal-name small { display: block; margin-top: 3px; color: #8a6650; font-size: .58rem; }
+		.stepper { display: grid; grid-template-columns: 28px minmax(56px, auto) 28px; align-items: center; min-height: 32px; border: 1px solid #d4d0c4; border-radius: 10px; background: #ffffffc7; font-size: .63rem; text-align: center; }
+		.stepper b { white-space: nowrap; }
+		.stepper button { height: 31px; border: 0; background: transparent; color: #687067; }
+		.recipe-status { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid #d3d2c7; border-radius: 9px; background: #f4f5f0; color: #647067; font-size: .7rem; font-weight: 900; }
+		.empty { display: grid; min-height: 270px; place-items: center; padding: 28px; text-align: center; }
+		.empty h3 { margin: 0; font: 500 1.5rem Georgia, serif; }
+		.empty p { max-width: 330px; margin: 8px auto 15px; color: var(--muted); font-size: .78rem; }
+		.empty button { min-height: 40px; padding: 0 13px; border: 0; border-radius: 10px; background: var(--olive); color: white; font-weight: 800; }
+		.recipe-overlay { position: absolute; z-index: 12; inset: 0; display: grid; align-items: end; background: #1f251f94; }
+		.sheet { max-height: 78%; overflow: auto; padding: 18px; border-radius: 22px 22px 0 0; background: var(--paper); box-shadow: 0 -16px 45px #0002; }
+		.sheet header { display: flex; align-items: start; justify-content: space-between; gap: 14px; }
+		.sheet .kicker { color: var(--muted); font-size: .62rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+		.sheet h3 { margin: 2px 0 0; font: 500 1.4rem Georgia, serif; }
+		.current { display: flex; gap: 10px; margin-top: 14px; padding: 11px; border-radius: 12px; background: var(--olive-soft); font-size: .75rem; }
+		.choice { display: flex; justify-content: space-between; width: 100%; min-height: 45px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: white; text-align: left; font-size: .76rem; font-weight: 800; }
+		body[data-viewport="desktop"] .recipe-overlay { place-items: center; }
+		body[data-viewport="desktop"] .sheet { width: 440px; border-radius: 20px; }
+
+		/* A — Prototype Literal */
+		.a-app { min-height: 100%; background: #f5efe2; }
+		.a-mobile { padding: 18px 14px 76px; }
+		.a-head { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+		.context { color: #6e756b; font-size: .58rem; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
+		.a-head h3 { margin: 3px 0 0; font: 500 1.6rem/1 Georgia, serif; letter-spacing: -.035em; }
+		.a-actions { display: flex; gap: 6px; }
+		.a-mobile .stats { margin-top: 11px; }
+		.a-mobile .search { margin-top: 9px; }
+		.a-mobile .scopes { margin-top: 8px; }
+		.a-mobile .coverage { margin-top: 8px; }
+		.a-mobile .result { display: flex; justify-content: space-between; margin: 9px 1px 0; color: var(--muted); font-size: .61rem; }
+		.a-groups { display: grid; gap: 12px; margin-top: 8px; }
+		.a-group { display: grid; gap: 7px; }
+		.a-group .meal-card { overflow: hidden; }
+		.a-desktop { display: none; min-height: 100%; grid-template-columns: minmax(320px, .72fr) minmax(580px, 1.4fr); }
+		.a-radar { padding: 30px; background: var(--olive); color: #f7f2e5; }
+		.a-radar .context { color: #e7b85e; }
+		.a-radar h3 { margin: 8px 0 0; font: 500 2.55rem/1.03 Georgia, serif; letter-spacing: -.045em; }
+		.a-radar .stats { margin: 26px 0; }
+		.a-radar .stat { border: 1px solid #ffffff35; background: #ffffff10; }
+		.a-radar .stat.attention { color: #f7f2e5; }
+		.priority-card { margin-top: 10px; padding: 13px; border-radius: 14px; background: #f9f1df; color: #344038; }
+		.priority-card header { display: flex; justify-content: space-between; gap: 10px; font-size: .76rem; font-weight: 850; }
+		.priority-card small { display: block; margin-top: 5px; color: #996137; font-size: .62rem; }
+		.a-ledger { padding: 25px 28px; background: var(--paper); }
+		.ledger-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+		.ledger-title h3 { margin: 0; font-size: 1.25rem; }
+		.ledger-tools { display: flex; gap: 7px; }
+		.a-ledger .search { margin-top: 17px; }
+		.a-ledger .scopes { margin-top: 9px; }
+		.a-ledger .coverage { margin-top: 9px; }
+		.result { display: flex; justify-content: space-between; margin: 10px 1px 8px; color: var(--muted); font-size: .62rem; }
+		.ledger-list { overflow: hidden; border: 1px solid #dad5ca; border-radius: 14px; }
+		body[data-viewport="desktop"] .a-mobile { display: none; }
+		body[data-viewport="desktop"] .a-desktop { display: grid; }
+
+		/* B — Responsive Radar Band */
+		.b-app { min-height: 100%; background: #f7f3e9; }
+		.b-band { padding: 22px 18px 18px; color: white; background: linear-gradient(135deg, #293b30, #49614f); }
+		.b-top { display: flex; align-items: start; justify-content: space-between; gap: 14px; }
+		.b-top h3 { margin: 4px 0 0; font-size: 1.45rem; line-height: 1.05; letter-spacing: -.03em; }
+		.b-band .context { color: #f0c569; }
+		.b-band .stats { margin-top: 16px; }
+		.b-band .stat { border: 1px solid #ffffff35; background: #ffffff13; }
+		.b-band .stat.attention { background: #d3a046; color: #332613; }
+		.b-ledger { padding: 12px 14px 76px; }
+		.b-ledger .search { margin-top: -1px; }
+		.b-ledger .scopes, .b-ledger .coverage { margin-top: 8px; }
+		.b-columns { display: grid; gap: 12px; margin-top: 10px; }
+		.b-attention { display: grid; gap: 7px; }
+		.b-attention .meal-card { overflow: hidden; }
+		.b-all .meal-card { overflow: hidden; }
+		body[data-viewport="desktop"] .b-band { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; padding: 30px 34px; }
+		body[data-viewport="desktop"] .b-band .stats { width: 330px; margin: 0; }
+		body[data-viewport="desktop"] .b-top h3 { font-size: 2.2rem; }
+		body[data-viewport="desktop"] .b-ledger { padding: 20px 30px 30px; }
+		body[data-viewport="desktop"] .b-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+		body[data-viewport="desktop"] .b-ledger .scopes { margin-top: 0; }
+		body[data-viewport="desktop"] .b-columns { grid-template-columns: 290px minmax(0, 1fr); gap: 18px; }
+		body[data-viewport="desktop"] .b-attention .meal-row { grid-template-columns: minmax(0, 1fr) auto; }
+		body[data-viewport="desktop"] .b-attention .recipe-status { display: none; }
+
+		/* C — Editorial Pantry */
+		.c-app { min-height: 100%; padding: 21px 16px 76px; background: #fffaf0; }
+		.c-top { display: flex; align-items: start; justify-content: space-between; gap: 12px; border-bottom: 1px solid #d9cfbd; padding-bottom: 14px; }
+		.c-top h3 { margin: 4px 0 0; font: 500 1.8rem/1 Georgia, serif; letter-spacing: -.04em; }
+		.c-stats { display: flex; gap: 28px; margin: 17px 0 12px; }
+		.c-stat strong { display: block; color: var(--olive); font: 500 2rem/1 Georgia, serif; }
+		.c-stat span { color: var(--muted); font-size: .62rem; }
+		.c-app .search { border-radius: 0; border-width: 0 0 1px; background: transparent; box-shadow: none; }
+		.c-app .scopes { margin-top: 10px; }
+		.c-app .coverage { margin-top: 10px; background: transparent; border-block: 1px solid #ded5c5; border-radius: 0; }
+		.c-groups { display: grid; gap: 18px; margin-top: 15px; }
+		.c-group-title { display: flex; align-items: end; justify-content: space-between; margin-bottom: 8px; }
+		.c-group-title strong { font: 500 1.45rem Georgia, serif; }
+		.c-group-title span { color: #9a6a43; font: italic .68rem Georgia, serif; }
+		.c-card { margin-bottom: 8px; padding: 12px; border: 1px solid #d6c9b4; background: #fffdf8; }
+		.c-card.priority { border-left: 5px solid var(--honey); background: #fff5dd; }
+		.c-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+		.c-card strong { font: 700 .82rem Georgia, serif; }
+		.c-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e8dece; color: var(--muted); font-size: .62rem; }
+		body[data-viewport="desktop"] .c-app { padding: 34px 46px; }
+		body[data-viewport="desktop"] .c-top h3 { font-size: 2.9rem; }
+		body[data-viewport="desktop"] .c-intro { display: grid; grid-template-columns: minmax(0, .8fr) minmax(430px, 1.2fr); gap: 34px; align-items: end; }
+		body[data-viewport="desktop"] .c-stats { margin-bottom: 0; }
+		body[data-viewport="desktop"] .c-tools { display: grid; gap: 10px; }
+		body[data-viewport="desktop"] .c-groups { grid-template-columns: .8fr 1.2fr; gap: 28px; }
+		body[data-viewport="desktop"] .c-card { margin-bottom: 10px; }
+
+		.decision-zone { margin-top: 26px; padding: clamp(20px, 4vw, 38px); border-radius: 26px; background: #26352b; color: #fffaf0; }
+		.decision-zone h2 { margin: 0; font: 500 clamp(1.7rem, 3vw, 2.7rem) Georgia, serif; }
+		.decision-zone > p { max-width: 800px; color: #d6ded4; }
+		.decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 18px; }
+		.decision-card { padding: 15px; border: 1px solid #ffffff28; border-radius: 15px; background: #ffffff0b; }
+		.decision-card label { display: block; font-size: .77rem; font-weight: 800; }
+		.decision-card textarea { width: 100%; min-height: 100px; margin-top: 7px; padding: 10px; resize: vertical; border: 1px solid #ffffff38; border-radius: 11px; background: #1d2a22; color: white; }
+		.borrow-list { display: grid; gap: 9px; margin-top: 10px; }
+		.borrow-list label { display: flex; align-items: start; gap: 8px; margin: 0; font-weight: 650; }
+		.borrow-list input { margin-top: 3px; accent-color: var(--honey); }
+		.prompt-card { margin-top: 16px; padding: 15px; border-radius: 15px; background: #fffaf0; color: var(--ink); }
+		.prompt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+		.prompt-head h3 { margin: 0; }
+		.copy-button { min-height: 42px; padding: 8px 13px; border: 0; border-radius: 10px; background: var(--terracotta); color: white; font-weight: 850; }
+		.prompt-card pre { max-height: 320px; overflow: auto; white-space: pre-wrap; padding: 12px; border-radius: 11px; background: #eee8dc; font: .76rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+		.prompt-card textarea { position: absolute; left: -10000px; width: 1px; height: 1px; }
+		.foot { margin-top: 18px; color: var(--muted); font-size: .76rem; text-align: center; }
+		.foot a { color: var(--terracotta); }
+
+		@media (max-width: 1000px) {
+			.compare-grid { grid-template-columns: 1fr; }
+			.review { position: static; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+			.review-card + .review-card { margin-top: 0; }
+		}
+		@media (max-width: 760px) {
+			.shell { width: min(100% - 14px, 1500px); margin-top: 7px; }
+			.hero, .concept { border-radius: 20px; }
+			.brief, .decision-grid { grid-template-columns: 1fr; }
+			.concept-head { grid-template-columns: 1fr; }
+			.preview-wrap { padding: 9px; }
+			.device { width: min(375px, calc(100vw - 46px)); }
+			body[data-viewport="desktop"] .device { width: 1100px; }
+			.review { grid-template-columns: 1fr; }
+			.reset { margin-left: 0; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+		}
+	</style>
+</head>
+<body data-viewport="mobile" data-scenario="browse">
+	<main class="shell">
+		<section class="hero">
+			<p class="eyebrow">Stock Radar / fidelity recovery / design shotgun</p>
+			<h1>Same plan. Three honest ways to make it look intentional.</h1>
+			<p class="lede">Every direction keeps the approved behavior: outcome-first meals, explainable attention, first-class search, quiet recipe state, immediate quantity controls, and the complete stock ledger. The question is how literally the interface should return to the approved prototype.</p>
+			<div class="brief">
+				<article><strong>Must restore</strong><p>Olive/honey identity, serif hierarchy, Use next / Still plenty, compact ledger, and responsive intent.</p></article>
+				<article><strong>Must preserve</strong><p>Search, filters, edits, quantity writes, recipe relationships, ghost rows, English/Dutch, and dark theme.</p></article>
+				<article><strong>Must avoid</strong><p>Another generic white dashboard, a narrow filter sidebar, or ingredients appended beneath default Meals.</p></article>
+			</div>
+		</section>
+
+		<div class="toolbar" aria-label="Comparison controls">
+			<span class="toolbar-label">Viewport</span>
+			<div class="segment">
+				<button type="button" data-viewport="mobile" aria-pressed="true">375 mobile</button>
+				<button type="button" data-viewport="desktop" aria-pressed="false">1280 desktop</button>
+			</div>
+			<span class="toolbar-label">State</span>
+			<div class="segment">
+				<button type="button" data-scenario="browse" aria-pressed="true">Browse</button>
+				<button type="button" data-scenario="search" aria-pressed="false">Search “chicken”</button>
+				<button type="button" data-scenario="recipe" aria-pressed="false">Manage Bobotie</button>
+				<button type="button" data-scenario="empty" aria-pressed="false">No results</button>
+			</div>
+			<button type="button" class="reset" id="reset-workspace">Reset review</button>
+			<span class="save-status" id="save-status">Review saved in this browser</span>
+		</div>
+
+		<section class="concept">
+			<header class="concept-head">
+				<div>
+					<p class="concept-index">Direction A / recommended / highest fidelity</p>
+					<h2>Prototype Literal</h2>
+					<p class="thesis">Treat the approved refinement as the visual contract: a substantial olive radar panel beside a warm compact ledger, with the same hierarchy compressed into mobile.</p>
+				</div>
+				<label class="choose"><input type="radio" name="direction" value="a" checked> Choose A</label>
+			</header>
+			<div class="compare-grid">
+				<div class="preview-wrap"><div class="device"><div class="screen" data-preview="a"></div></div></div>
+				<aside class="review">
+					<div class="review-card"><h3>Main strength</h3><p>It directly fixes the reported failure: the screen immediately reads as the approved Stock Radar.</p><p class="trade"><strong>Trade-off:</strong> More page-specific composition and a stronger desktop asymmetry.</p></div>
+					<div class="review-card"><h3>Optimizes</h3><p>Choosing a meal, seeing why it needs attention, then correcting quantity without leaving the ledger.</p><label>Notes for A<textarea data-note="a" placeholder="What should change or stay?"></textarea></label></div>
+				</aside>
+			</div>
+		</section>
+
+		<section class="concept">
+			<header class="concept-head">
+				<div>
+					<p class="concept-index">Direction B / strongest breakpoint continuity</p>
+					<h2>Responsive Radar Band</h2>
+					<p class="thesis">Keep the olive identity as a full-width outcome band, then use a dense two-column ledger beneath it on desktop and the same stack on mobile.</p>
+				</div>
+				<label class="choose"><input type="radio" name="direction" value="b"> Choose B</label>
+			</header>
+			<div class="compare-grid">
+				<div class="preview-wrap"><div class="device"><div class="screen" data-preview="b"></div></div></div>
+				<aside class="review">
+					<div class="review-card"><h3>Main strength</h3><p>The same visual model survives every breakpoint and the desktop ledger gets maximum width.</p><p class="trade"><strong>Trade-off:</strong> It gives up the approved left-radar silhouette.</p></div>
+					<div class="review-card"><h3>Optimizes</h3><p>Fast stock maintenance across tablet and desktop, with attention kept visible as a band.</p><label>Notes for B<textarea data-note="b" placeholder="What should change or stay?"></textarea></label></div>
+				</aside>
+			</div>
+		</section>
+
+		<section class="concept">
+			<header class="concept-head">
+				<div>
+					<p class="concept-index">Direction C / calmest editorial reading</p>
+					<h2>Editorial Pantry</h2>
+					<p class="thesis">Use large serif group headings, paper cards, and olive as a restrained accent. The hierarchy comes from typography and rhythm more than a dark panel.</p>
+				</div>
+				<label class="choose"><input type="radio" name="direction" value="c"> Choose C</label>
+			</header>
+			<div class="compare-grid">
+				<div class="preview-wrap"><div class="device"><div class="screen" data-preview="c"></div></div></div>
+				<aside class="review">
+					<div class="review-card"><h3>Main strength</h3><p>It is the calmest scan and gives Use next / Still plenty the clearest reading rhythm.</p><p class="trade"><strong>Trade-off:</strong> It is least faithful to the already-approved desktop identity.</p></div>
+					<div class="review-card"><h3>Optimizes</h3><p>Leisurely meal choice and content legibility over dashboard-like scanning.</p><label>Notes for C<textarea data-note="c" placeholder="What should change or stay?"></textarea></label></div>
+				</aside>
+			</div>
+		</section>
+
+		<section class="decision-zone">
+			<h2>Turn the visual choice into an implementation handoff</h2>
+			<p>A is preselected because fidelity is the problem being repaired. Override it only if another composition is genuinely better, not because it is easier to implement.</p>
+			<div class="decision-grid">
+				<div class="decision-card">
+					<label>Elements to borrow into the selected direction</label>
+					<div class="borrow-list">
+						<label><input type="checkbox" data-borrow="a-split"> A’s substantial olive desktop split</label>
+						<label><input type="checkbox" data-borrow="b-band"> B’s breakpoint-consistent radar band</label>
+						<label><input type="checkbox" data-borrow="b-columns"> B’s desktop attention + ledger columns</label>
+						<label><input type="checkbox" data-borrow="c-type"> C’s stronger editorial group typography</label>
+						<label><input type="checkbox" data-borrow="c-cards"> C’s square paper-card rhythm</label>
+					</div>
+				</div>
+				<div class="decision-card">
+					<label for="global-note">Cross-direction clarification</label>
+					<textarea id="global-note" data-global-note placeholder="Record anything the implementation must honor verbatim."></textarea>
+				</div>
+			</div>
+			<div class="prompt-card">
+				<div class="prompt-head"><h3>Generated handoff</h3><button type="button" class="copy-button" id="copy-prompt">Copy handoff</button></div>
+				<pre id="handoff-prompt"></pre>
+				<textarea id="handoff-fallback" aria-label="Handoff prompt fallback"></textarea>
+			</div>
+		</section>
+		<p class="foot">Authoritative source: <a href="../feature-lists/FEATURE_LIST_STOCK_RADAR_FIDELITY_RECOVERY.md">FEATURE_LIST_STOCK_RADAR_FIDELITY_RECOVERY.md</a>. This board is a temporary decision workspace, not application code.</p>
+	</main>
+
+	<script>
+	(() => {
+		const SOURCE_PATH = 'docs/feature-lists/FEATURE_LIST_STOCK_RADAR_FIDELITY_RECOVERY.md';
+		const STORAGE_KEY = 'docs/artifacts/2026-07-25-design-shotgun-stock-radar-fidelity.html::v1';
+		const labels = { a: 'Prototype Literal', b: 'Responsive Radar Band', c: 'Editorial Pantry' };
+		const borrowLabels = {
+			'a-split': "Prototype Literal's substantial olive desktop split",
+			'b-band': "Responsive Radar Band's breakpoint-consistent outcome band",
+			'b-columns': "Responsive Radar Band's desktop attention and ledger columns",
+			'c-type': "Editorial Pantry's stronger group typography",
+			'c-cards': "Editorial Pantry's square paper-card rhythm"
+		};
+		const meals = [
+			{ name: 'Butter chicken', qty: '2 portions', reason: 'Low stock', recipe: '◷', recipeLabel: 'Recipe planned', priority: true },
+			{ name: 'Bolognese sauce', qty: '6 / 10', reason: '4 portions below target', recipe: '↗', recipeLabel: 'Linked recipe', priority: true },
+			{ name: 'Bobotie', qty: '4 portions', reason: '', recipe: '◷', recipeLabel: 'Recipe planned', priority: false },
+			{ name: 'Chicken rice soup', qty: '4 portions', reason: '', recipe: '—', recipeLabel: 'No recipe needed', priority: false },
+			{ name: 'Chili', qty: '11 portions', reason: '', recipe: '◷', recipeLabel: 'Recipe planned', priority: false }
+		];
+		let review = { direction: 'a', notes: {}, borrows: [], globalNote: '' };
+		let persistenceAvailable = true;
+
+		function safe(value) {
+			return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character]);
+		}
+
+		function visibleMeals() {
+			const scenario = document.body.dataset.scenario;
+			return scenario === 'search'
+				? meals.filter(meal => meal.name.toLowerCase().includes('chicken'))
+				: meals;
+		}
+
+		function stepper(meal) {
+			return `<span class="stepper"><button type="button" aria-label="Decrease ${safe(meal.name)}">−</button><b>${safe(meal.qty)}</b><button type="button" aria-label="Increase ${safe(meal.name)}">+</button></span>`;
+		}
+
+		function row(meal, compact = false) {
+			const reason = meal.reason || meal.recipeLabel;
+			return `<div class="meal-row"><div class="meal-name"><strong>${safe(meal.name)}</strong><small>${safe(reason)}</small></div>${stepper(meal)}${compact ? '' : `<button type="button" class="recipe-status" aria-label="${safe(meal.name)}: ${safe(meal.recipeLabel)}">${meal.recipe}</button>`}</div>`;
+		}
+
+		function sharedTools() {
+			const searching = document.body.dataset.scenario === 'search';
+			return `<div class="search">${searching ? 'chicken' : 'Search meals and ingredients'}<kbd>/</kbd></div>
+				<div class="scopes"><span class="active">Meals</span><span>Ingredients</span><span>All stock</span><span>Filters</span></div>
+				<div class="coverage"><strong>Recipe coverage</strong><span><i>↗</i> 1 linked</span><span><i>◷</i> 3 planned</span><span><i>—</i> 1 not needed</span></div>`;
+		}
+
+		function stats() {
+			return `<div class="stats"><div class="stat"><strong>5</strong><span>ready meals</span></div><div class="stat attention"><strong>2</strong><span>below target</span></div></div>`;
+		}
+
+		function empty() {
+			return `<div class="empty"><div><h3>No match yet</h3><p>There is no pantry meat, but ready meals are waiting in the freezer.</p><button type="button">Show freezer meals</button></div></div>`;
+		}
+
+		function overlay() {
+			if (document.body.dataset.scenario !== 'recipe') return '';
+			return `<div class="recipe-overlay"><section class="sheet" role="dialog" aria-modal="true" aria-label="Recipe relationship for Bobotie"><header><div><div class="kicker">Recipe relationship</div><h3>Bobotie</h3></div><button type="button" class="ghost-button" aria-label="Close recipe relationship">×</button></header><div class="current"><span class="recipe-status">◷</span><div><strong>Recipe planned</strong><br><span>Quiet in the row and one tap away here.</span></div></div><button type="button" class="choice"><span>Link an existing recipe</span><span>›</span></button><button type="button" class="choice"><span>Keep “recipe planned”</span><span>✓</span></button><button type="button" class="choice"><span>No recipe needed</span><span>›</span></button><button type="button" class="choice"><span>Clear choice</span><span>×</span></button></section></div>`;
+		}
+
+		function groupedRows(cardClass = 'meal-card') {
+			const visible = visibleMeals();
+			const useNext = visible.filter(meal => meal.priority);
+			const plenty = visible.filter(meal => !meal.priority);
+			if (document.body.dataset.scenario === 'empty') return empty();
+			return `<div class="a-groups">
+				${useNext.length ? `<section class="a-group"><div class="group-head"><strong>Use next</strong><span>lowest stock first</span></div><div class="${cardClass} priority">${useNext.map(meal => row(meal)).join('')}</div></section>` : ''}
+				${plenty.length ? `<section class="a-group"><div class="group-head"><strong>Still plenty</strong><span>${plenty.length} meals</span></div><div class="${cardClass}">${plenty.map(meal => row(meal)).join('')}</div></section>` : ''}
+			</div>`;
+		}
+
+		function appHeader(titleClass = 'a-head') {
+			return `<header class="${titleClass}"><div><span class="context">Friday · Freezer and pantry</span><h3>What can we use next?</h3></div><div class="a-actions"><button type="button" class="ghost-button" aria-label="Recent activity">◷</button><button type="button" class="app-button">+ Add</button></div></header>`;
+		}
+
+		function directionA() {
+			const rows = visibleMeals();
+			const ledger = document.body.dataset.scenario === 'empty' ? empty() : `<div class="ledger-list">${rows.map(meal => row(meal)).join('')}</div>`;
+			return `<div class="a-app">
+				<div class="a-mobile">${appHeader()}${stats()}${sharedTools()}<div class="result"><b>${rows.length} meals</b><span>lowest stock first</span></div>${groupedRows()}</div>
+				<div class="a-desktop"><aside class="a-radar"><span class="context">Friday · Household stock</span><h3>What can we use next?</h3>${stats()}${meals.filter(meal => meal.priority).map(meal => `<article class="priority-card"><header><strong>${safe(meal.name)}</strong><span>${safe(meal.qty)}</span></header><small>${safe(meal.reason)} · ${safe(meal.recipeLabel.toLowerCase())}</small></article>`).join('')}<article class="priority-card"><header><strong>Bobotie</strong><span>4 portions</span></header><small>Good candidate for this week</small></article></aside><main class="a-ledger"><div class="ledger-title"><h3>All meals</h3><div class="ledger-tools"><button type="button" class="ghost-button" aria-label="Recent activity">◷</button><button type="button" class="app-button">+ Add item</button></div></div>${sharedTools()}<div class="result"><span>Showing ${rows.length} meals</span><span>lowest stock first</span></div>${ledger}</main></div>${overlay()}
+			</div>`;
+		}
+
+		function directionB() {
+			const rows = visibleMeals();
+			const attention = rows.filter(meal => meal.priority);
+			const all = document.body.dataset.scenario === 'empty' ? empty() : `<div class="meal-card">${rows.map(meal => row(meal)).join('')}</div>`;
+			return `<div class="b-app"><header class="b-band"><div class="b-top"><div><span class="context">Friday · Household stock</span><h3>What can we use next?</h3></div><div class="a-actions"><button type="button" class="ghost-button" aria-label="Recent activity">◷</button><button type="button" class="app-button">+ Add</button></div></div>${stats()}</header><main class="b-ledger"><div class="b-tools">${sharedTools()}</div><div class="b-columns"><section class="b-attention"><div class="group-head"><strong>Use next</strong><span>needs attention</span></div>${document.body.dataset.scenario === 'empty' ? empty() : attention.map(meal => `<div class="meal-card priority">${row(meal, true)}</div>`).join('')}</section><section class="b-all"><div class="group-head"><strong>All meals</strong><span>${rows.length} visible</span></div>${all}</section></div></main>${overlay()}</div>`;
+		}
+
+		function editorialCard(meal) {
+			return `<article class="c-card ${meal.priority ? 'priority' : ''}"><div class="c-card-top"><strong>${safe(meal.name)}</strong>${stepper(meal)}</div><footer><span>${safe(meal.reason || meal.recipeLabel)}</span><button type="button" class="recipe-status" aria-label="${safe(meal.name)}: ${safe(meal.recipeLabel)}">${meal.recipe}</button></footer></article>`;
+		}
+
+		function directionC() {
+			const rows = visibleMeals();
+			const useNext = rows.filter(meal => meal.priority);
+			const plenty = rows.filter(meal => !meal.priority);
+			const groups = document.body.dataset.scenario === 'empty'
+				? empty()
+				: `<div class="c-groups"><section><div class="c-group-title"><strong>Use next</strong><span>lowest stock first</span></div>${useNext.map(editorialCard).join('')}</section><section><div class="c-group-title"><strong>Still plenty</strong><span>${plenty.length} meals</span></div>${plenty.map(editorialCard).join('')}</section></div>`;
+			return `<div class="c-app"><header class="c-top"><div><span class="context">Friday · A well-stocked kitchen</span><h3>What can we use next?</h3></div><div class="a-actions"><button type="button" class="ghost-button" aria-label="Recent activity">◷</button><button type="button" class="app-button">+ Add</button></div></header><div class="c-intro"><div class="c-stats"><div class="c-stat"><strong>5</strong><span>ready meals</span></div><div class="c-stat"><strong>2</strong><span>below target</span></div></div><div class="c-tools">${sharedTools()}</div></div>${groups}${overlay()}</div>`;
+		}
+
+		function render() {
+			document.querySelector('[data-preview="a"]').innerHTML = directionA();
+			document.querySelector('[data-preview="b"]').innerHTML = directionB();
+			document.querySelector('[data-preview="c"]').innerHTML = directionC();
+		}
+
+		function save() {
+			review.direction = document.querySelector('input[name="direction"]:checked')?.value || 'a';
+			review.notes = Object.fromEntries([...document.querySelectorAll('[data-note]')].map(input => [input.dataset.note, input.value]));
+			review.borrows = [...document.querySelectorAll('[data-borrow]:checked')].map(input => input.dataset.borrow);
+			review.globalNote = document.querySelector('[data-global-note]').value;
+			try {
+				localStorage.setItem(STORAGE_KEY, JSON.stringify(review));
+				document.getElementById('save-status').textContent = 'Review saved in this browser';
+			} catch {
+				persistenceAvailable = false;
+				document.getElementById('save-status').textContent = 'Changes are not being saved';
+			}
+			buildHandoff();
+		}
+
+		function restore() {
+			try {
+				const stored = localStorage.getItem(STORAGE_KEY);
+				if (stored) review = { ...review, ...JSON.parse(stored) };
+			} catch {
+				persistenceAvailable = false;
+			}
+			const selected = document.querySelector(`input[name="direction"][value="${review.direction}"]`) || document.querySelector('input[value="a"]');
+			selected.checked = true;
+			document.querySelectorAll('[data-note]').forEach(input => input.value = review.notes?.[input.dataset.note] || '');
+			document.querySelectorAll('[data-borrow]').forEach(input => input.checked = review.borrows?.includes(input.dataset.borrow) || false);
+			document.querySelector('[data-global-note]').value = review.globalNote || '';
+			if (!persistenceAvailable) document.getElementById('save-status').textContent = 'Changes are not being saved';
+		}
+
+		function buildHandoff() {
+			const direction = document.querySelector('input[name="direction"]:checked')?.value || 'a';
+			const notes = Object.fromEntries([...document.querySelectorAll('[data-note]')].map(input => [input.dataset.note, input.value]));
+			const borrows = [...document.querySelectorAll('[data-borrow]:checked')].map(input => borrowLabels[input.dataset.borrow]);
+			const globalNote = document.querySelector('[data-global-note]').value;
+			const lines = [
+				`Continue the Stock Radar fidelity recovery workflow. Load ${SOURCE_PATH} as the authoritative implementation plan, then use $run.`,
+				'',
+				`Selected visual direction: ${labels[direction]}.`,
+				direction === 'a'
+					? 'This accepts the recommended Prototype Literal direction because the reported defect is fidelity to the already-approved Stock Radar.'
+					: `This overrides the recommended Prototype Literal direction in favor of ${labels[direction]}.`,
+				'',
+				'The implementation must preserve:',
+				'- Meals-first Stock Radar with Use next, Still plenty, and Cook again groups.',
+				'- Explainable low-stock, below-target, expiry, and aging rules from the feature list.',
+				'- First-class accent-insensitive search, Meals / Ingredients / All stock / Filters, and visible recovery actions.',
+				'- Immediate quantity controls and one quiet recipe-relationship control per meal.',
+				'- Existing writes, sheets, deep links, ghost rows, undo, review, English/Dutch, light/dark themes, and assistant collision protection.',
+				'',
+				'Direction trade-offs reviewed:',
+				'- Prototype Literal: highest visual fidelity; strongest custom desktop composition.',
+				'- Responsive Radar Band: strongest breakpoint continuity; weaker match to the approved desktop silhouette.',
+				'- Editorial Pantry: calmest reading rhythm; least faithful to the approved radar identity.',
+				'',
+				`Borrowed elements: ${borrows.length ? borrows.join('; ') : 'none selected'}.`,
+				'',
+				'Notes reproduced verbatim:',
+				`Prototype Literal: ${notes.a || '[none]'}`,
+				`Responsive Radar Band: ${notes.b || '[none]'}`,
+				`Editorial Pantry: ${notes.c || '[none]'}`,
+				`Cross-direction clarification: ${globalNote || '[none]'}`,
+				'',
+				'Evidence and acceptance:',
+				'- All three previews use the same five meals, two attention reasons, recipe coverage, quantity controls, search state, recipe sheet, and no-results state.',
+				'- Browser acceptance must compare the selected direction at 375 × 812 and 1280 × 900 with the design artifact.',
+				'- Do not accept another generic white sidebar/shelf layout as an approximation.',
+				'',
+				'Next action: execute the selected direction through the feature list verification matrix. Do not reopen the visual architecture unless implementation evidence proves the selected composition infeasible.'
+			];
+			const prompt = lines.join('\n');
+			document.getElementById('handoff-prompt').textContent = prompt;
+			document.getElementById('handoff-fallback').value = prompt;
+		}
+
+		document.addEventListener('click', event => {
+			const button = event.target.closest('button');
+			if (!button) return;
+			if (button.dataset.viewport) {
+				document.body.dataset.viewport = button.dataset.viewport;
+				document.querySelectorAll('[data-viewport]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+				return;
+			}
+			if (button.dataset.scenario) {
+				document.body.dataset.scenario = button.dataset.scenario;
+				document.querySelectorAll('[data-scenario]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+				render();
+				return;
+			}
+		});
+		document.addEventListener('change', event => {
+			if (event.target.matches('input[name="direction"], [data-borrow]')) save();
+		});
+		document.addEventListener('input', event => {
+			if (event.target.matches('[data-note], [data-global-note]')) save();
+		});
+		document.getElementById('reset-workspace').addEventListener('click', () => {
+			try { localStorage.removeItem(STORAGE_KEY); } catch {}
+			review = { direction: 'a', notes: {}, borrows: [], globalNote: '' };
+			document.querySelector('input[value="a"]').checked = true;
+			document.querySelectorAll('[data-note], [data-global-note]').forEach(input => input.value = '');
+			document.querySelectorAll('[data-borrow]').forEach(input => input.checked = false);
+			save();
+		});
+		document.getElementById('copy-prompt').addEventListener('click', async event => {
+			const button = event.currentTarget;
+			const prompt = document.getElementById('handoff-prompt').textContent;
+			try {
+				await navigator.clipboard.writeText(prompt);
+				button.textContent = 'Copied';
+			} catch {
+				const fallback = document.getElementById('handoff-fallback');
+				fallback.style.position = 'fixed';
+				fallback.style.left = '12px';
+				fallback.style.bottom = '12px';
+				fallback.style.width = 'min(700px, calc(100% - 24px))';
+				fallback.style.height = '180px';
+				fallback.focus();
+				fallback.select();
+				button.textContent = 'Selected — copy manually';
+			}
+			setTimeout(() => { button.textContent = 'Copy handoff'; }, 2200);
+		});
+
+		restore();
+		render();
+		buildHandoff();
+	})();
+	</script>
+</body>
+</html>

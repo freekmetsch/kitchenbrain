@@ -3,7 +3,7 @@
 // the components stay in lock-step with the actual shape — no hand-kept mirror.
 import type { PageData } from '../../../routes/inventory/$types';
 import { foodCategoryLabel } from '$lib/food_categories';
-import { daysSinceDate } from '$lib/inventory_dates';
+import { dateInputValue, daysSinceDate, parseDateOnly } from '$lib/inventory_dates';
 import { normalizeUnit } from '$lib/food_class';
 import { formatNumber, type AppLocale } from '$lib/i18n';
 import { getLocale } from '$lib/paraglide/runtime';
@@ -17,6 +17,32 @@ export type StapleGhost = PageData['stapleGhosts'][number];
 
 export type Kind = 'ingredient' | 'leftover' | 'processed';
 export type Section = 'freezer' | 'pantry';
+export type InventoryScope = 'meals' | 'ingredients' | 'all';
+
+export type StockRadarItem = {
+	name: string;
+	qtyNum: number | null;
+	kind: Item['kind'];
+	expiryDate: string | null;
+	createdAt: string | Date;
+};
+
+export type StockRadarLink = {
+	isFreezerStaple: boolean;
+	targetPortions: number | null;
+};
+
+export type StockAttention =
+	| { kind: 'expiry'; daysUntil: number }
+	| { kind: 'below_target'; portionsBelow: number }
+	| { kind: 'low_stock'; portions: number }
+	| { kind: 'aging'; daysOld: number };
+
+export type MealStockGroups<T> = {
+	useNext: Array<{ item: T; attention: StockAttention }>;
+	stillPlenty: T[];
+	cookAgain: T[];
+};
 
 export type HistoryEvent = {
 	id: number;
@@ -48,6 +74,103 @@ export type EditDraft = {
 // ── display helpers ──────────────────────────────────────────────────────────
 export function daysOld(item: Item): number {
 	return daysSinceDate(item.createdAt) ?? 0;
+}
+
+function isoDayNumber(value: string): number {
+	return parseDateOnly(value)!.getTime();
+}
+
+export function daysOldOn(
+	item: Pick<StockRadarItem, 'createdAt'>,
+	todayIso: string
+): number {
+	const createdIso = dateInputValue(item.createdAt);
+	if (!createdIso) return 0;
+	return Math.max(0, Math.floor((isoDayNumber(todayIso) - isoDayNumber(createdIso)) / 86_400_000));
+}
+
+function daysUntil(expiryDate: string | null, todayIso: string): number | null {
+	if (!expiryDate) return null;
+	return Math.ceil((isoDayNumber(expiryDate) - isoDayNumber(todayIso)) / 86_400_000);
+}
+
+export function stockAttention(
+	item: StockRadarItem,
+	link: StockRadarLink | null,
+	todayIso: string
+): StockAttention | null {
+	const portions = item.qtyNum ?? 0;
+	if (item.kind !== 'leftover' || portions <= 0) return null;
+
+	const expiryDays = daysUntil(item.expiryDate, todayIso);
+	if (expiryDays !== null && expiryDays <= 7) {
+		return { kind: 'expiry', daysUntil: expiryDays };
+	}
+
+	if (
+		link?.isFreezerStaple &&
+		link.targetPortions !== null &&
+		portions < link.targetPortions
+	) {
+		return {
+			kind: 'below_target',
+			portionsBelow: Math.max(0, link.targetPortions - portions)
+		};
+	}
+
+	if (portions <= 2) return { kind: 'low_stock', portions };
+
+	const age = daysOldOn(item, todayIso);
+	if (age >= 21) return { kind: 'aging', daysOld: age };
+
+	return null;
+}
+
+export function matchesInventoryScope(
+	item: Pick<StockRadarItem, 'kind'>,
+	scope: InventoryScope
+): boolean {
+	if (scope === 'meals') return item.kind === 'leftover';
+	if (scope === 'ingredients') return item.kind === 'ingredient';
+	return true;
+}
+
+export function groupMealStock<T extends StockRadarItem>(
+	items: T[],
+	linkFor: (item: T) => StockRadarLink | null,
+	todayIso: string
+): MealStockGroups<T> {
+	const useNext: MealStockGroups<T>['useNext'] = [];
+	const stillPlenty: T[] = [];
+	const cookAgain: T[] = [];
+
+	for (const item of items) {
+		if (item.kind !== 'leftover') continue;
+		const portions = item.qtyNum ?? 0;
+		const link = linkFor(item);
+		if (portions <= 0) {
+			if (link?.isFreezerStaple) cookAgain.push(item);
+			continue;
+		}
+		const attention = stockAttention(item, link, todayIso);
+		if (attention) useNext.push({ item, attention });
+		else stillPlenty.push(item);
+	}
+
+	const expirySortValue = (item: T) => daysUntil(item.expiryDate, todayIso) ?? Number.POSITIVE_INFINITY;
+	useNext.sort(
+		(a, b) =>
+			(a.item.qtyNum ?? 0) - (b.item.qtyNum ?? 0) ||
+			expirySortValue(a.item) - expirySortValue(b.item) ||
+			daysOldOn(b.item, todayIso) - daysOldOn(a.item, todayIso) ||
+			a.item.name.localeCompare(b.item.name)
+	);
+	stillPlenty.sort(
+		(a, b) => (a.qtyNum ?? 0) - (b.qtyNum ?? 0) || a.name.localeCompare(b.name)
+	);
+	cookAgain.sort((a, b) => a.name.localeCompare(b.name));
+
+	return { useNext, stillPlenty, cookAgain };
 }
 export function aging(item: Item): 'fresh' | 'soon' | 'old' {
 	const [soon, old] = item.kind === 'leftover' ? [21, 35] : [90, 180];

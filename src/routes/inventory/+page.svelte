@@ -1,30 +1,28 @@
 <!--
-	Inventory — the "decide what to eat" stock page, rebuilt on the 3-facet model
-	(Section · Kind · Food Class — ADR 0001). V2×V3 design hybrid: V2's legible
-	kind-sectioned shelves + the −/+ stepper, V3's dense rows (aging accent bar,
-	micro facet chips, in-place edit). Quantity is unit-aware: countable units get
-	the ± stepper; measured units (g/kg/ml/l) get a tap-to-type field so you never
-	tap "+100" five times. P2.2 facet filters/grouping + P2.3 history/review/undo.
-	This file is the orchestrator — page-level state, server writes, and
-	composition; the UI sections live in $lib/components/inventory/*.
+	Inventory — a meals-first Stock Radar. The full-width olive outcome band and
+	responsive Use next / Still plenty ledger are shared across breakpoints;
+	quantity writes, recipe relationships, editing, review, history, undo, and
+	ghost-row recovery remain owned by this orchestrator.
 -->
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
 	import { onMount, tick, untrack } from 'svelte';
-	import { slide } from 'svelte/transition';
-	import { MOTION_MICRO_MS } from '$lib/motion';
 	import { m } from '$lib/paraglide/messages';
 	import ActivitySheet from '$lib/components/inventory/ActivitySheet.svelte';
 	import AddItemForm from '$lib/components/inventory/AddItemForm.svelte';
-	import FacetBar from '$lib/components/inventory/FacetBar.svelte';
+	import FiltersSheet from '$lib/components/inventory/FiltersSheet.svelte';
 	import GhostRows from '$lib/components/inventory/GhostRows.svelte';
+	import ItemEditor from '$lib/components/inventory/ItemEditor.svelte';
+	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import ItemRow from '$lib/components/inventory/ItemRow.svelte';
 	import LinkRecipeSheet from '$lib/components/inventory/LinkRecipeSheet.svelte';
+	import RecipeRelationshipStatus from '$lib/components/inventory/RecipeRelationshipStatus.svelte';
 	import {
 		composeQty,
-		daysOld,
+		groupMealStock,
+		matchesInventoryScope,
 		matchesInventoryQuery,
 		recipeCoverage,
 		recipeRelationshipKind
@@ -32,9 +30,11 @@
 	import type {
 		EditDraft,
 		HistoryEvent,
+		InventoryScope,
 		Item,
 		Kind,
-		Section
+		Section,
+		StockAttention
 	} from '$lib/components/inventory/shared';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import { rollsUpTo } from '$lib/food_class';
@@ -46,31 +46,30 @@
 
 	let { data }: { data: PageData } = $props();
 	const chatAgent = useChatAgent();
+	const SCOPES: InventoryScope[] = ['meals', 'ingredients', 'all'];
 
-	// ── constants ──────────────────────────────────────────────────────────────
-	const KIND_ORDER = ['leftover', 'ingredient', 'processed', null] as const;
-	// Display-only rename (UX-STOCK-8): the DB kind slug stays `leftover`, but
-	// these are intentionally batch-cooked freezer meals, not scraps.
+	// Display-only rename: the DB kind slug stays `leftover`, but these are
+	// intentionally batch-cooked freezer meals, not scraps.
 	function shelfLabel(kind: string): string {
 		if (kind === 'leftover') return m.inventory_shelf_meals();
 		if (kind === 'ingredient') return m.inventory_shelf_ingredients();
 		if (kind === 'processed') return m.inventory_shelf_ready_made();
 		return m.inventory_shelf_unsorted();
 	}
-	function shelfHint(kind: string): string {
-		return kind === 'null' ? m.inventory_shelf_hint_unsorted() : '';
-	}
-
 	// ── state ──────────────────────────────────────────────────────────────────
 	let items = $state<Item[]>(untrack(() => data.items.map((i) => ({ ...i }))));
 
+	let scope = $state<InventoryScope>('meals');
 	let sectionFilter = $state<Section | 'all'>('all');
 	let classFilter = $state<string | null>(null);
 	let reviewOnly = $state(false);
 	let searchQuery = $state('');
+	let filtersOpen = $state(false);
+	let searchInput = $state<HTMLInputElement>();
 
 	let showAddForm = $state(false);
 	let editingId = $state<number | null>(null);
+	let editSheetOpen = $state(false);
 	let qtyEditId = $state<number | null>(null);
 	let qtyEditVal = $state('');
 
@@ -116,12 +115,16 @@
 			);
 		})
 	);
+	const hasActiveFilters = $derived(
+		sectionFilter !== 'all' || classFilter !== null || reviewOnly
+	);
 	const filtered = $derived(
 		items.filter(
 			(i) =>
 				(sectionFilter === 'all' || i.section === sectionFilter) &&
 				(classFilter === null || rollsUpTo(i.foodClass, classFilter)) &&
 				(!reviewOnly || i.needsReview) &&
+				matchesInventoryScope(i, scope) &&
 				matchesInventoryQuery(searchQuery, [
 					i.name,
 					i.unit,
@@ -133,6 +136,35 @@
 				])
 		)
 	);
+	const mealGroups = $derived(groupMealStock(filtered, linkFor, data.todayIso));
+	const visibleMealItems = $derived(filtered.filter((item) => item.kind === 'leftover'));
+	const visibleRecipeCoverage = $derived(recipeCoverage(visibleMealItems));
+	const stockRows = $derived(
+		[...filtered].sort(
+			(a, b) => Number(b.needsReview) - Number(a.needsReview) || a.name.localeCompare(b.name)
+		)
+	);
+	const alternateScopeMatch = $derived(
+		items.some(
+			(item) =>
+				(sectionFilter === 'all' || item.section === sectionFilter) &&
+				(classFilter === null || rollsUpTo(item.foodClass, classFilter)) &&
+				(!reviewOnly || item.needsReview) &&
+				!matchesInventoryScope(item, scope) &&
+				matchesInventoryQuery(searchQuery, [
+					item.name,
+					item.unit,
+					item.section,
+					item.kind,
+					item.foodClass,
+					linkFor(item)?.title,
+					shelfLabel(String(bucket(item)))
+				])
+		)
+	);
+	const editingItem = $derived(
+		editingId === null ? null : (items.find((item) => item.id === editingId) ?? null)
+	);
 
 	$effect(() =>
 		chatAgent.publishScreen({
@@ -143,6 +175,7 @@
 			facts: [
 				{ key: 'totalItems', value: items.length },
 				{ key: 'visibleItems', value: filtered.length },
+				{ key: 'scope', value: scope },
 				{ key: 'sectionFilter', value: sectionFilter },
 				{ key: 'foodClassFilter', value: classFilter ?? 'all' },
 				{ key: 'reviewOnly', value: reviewOnly },
@@ -155,10 +188,13 @@
 		return i.kind === 'leftover' || i.kind === 'ingredient' || i.kind === 'processed' ? i.kind : null;
 	}
 
-	// Ghost rows live in the Meals shelf and are freezer recipes, so they show
+	// Ghost rows live in Cook again and are freezer recipes, so they show
 	// only when no filter excludes them (UX-STOCK-14).
 	const ghostsVisible = $derived(
-		(sectionFilter === 'all' || sectionFilter === 'freezer') && classFilter === null && !reviewOnly
+		scope === 'meals' &&
+		(sectionFilter === 'all' || sectionFilter === 'freezer') &&
+		classFilter === null &&
+		!reviewOnly
 			? data.stapleGhosts.filter((ghost) =>
 					matchesInventoryQuery(searchQuery, [
 						ghost.title,
@@ -168,37 +204,54 @@
 				)
 			: []
 	);
-
-	const shelves = $derived(
-		KIND_ORDER.map((kind) => ({
-			kind,
-			hint: shelfHint(String(kind)),
-			label: shelfLabel(String(kind)),
-			items: filtered
-				.filter((i) => bucket(i) === kind)
-				.sort((a, b) =>
-					kind === 'leftover'
-						? daysOld(b) - daysOld(a)
-						: Number(b.needsReview) - Number(a.needsReview) || a.name.localeCompare(b.name, 'en')
-				)
-		})).filter((s) => s.items.length > 0 || (s.kind === 'leftover' && ghostsVisible.length > 0))
+	const visibleMealResultCount = $derived(
+		mealGroups.useNext.length +
+			mealGroups.stillPlenty.length +
+			mealGroups.cookAgain.length +
+			ghostsVisible.length
 	);
-
+	const hasUngroupedMealStock = $derived(
+		scope === 'meals' &&
+			filtered.some(
+				(item) =>
+					item.kind === 'leftover' &&
+					(item.qtyNum ?? 0) <= 0 &&
+					linkFor(item)?.isFreezerStaple !== true
+			)
+	);
 
 	// Home's expiry alert deep-links to the exact row. Open its editor and bring
 	// it into view instead of dropping the user at the top of a generic page.
-	onMount(async () => {
-		const raw = new URL(window.location.href).searchParams.get('item');
-		const id = raw ? Number(raw) : NaN;
-		const item = Number.isInteger(id) ? items.find((candidate) => candidate.id === id) : undefined;
-		if (!item) return;
-		clearFilters();
-		openEdit(item);
-		await tick();
-		document.getElementById(`inventory-item-${id}`)?.scrollIntoView({
-			behavior: 'smooth',
-			block: 'center'
-		});
+	onMount(() => {
+		function handleShortcut(event: KeyboardEvent) {
+			const target = event.target;
+			const isTyping =
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				target instanceof HTMLSelectElement ||
+				(target instanceof HTMLElement && target.isContentEditable);
+			if (event.key === '/' && !isTyping) {
+				event.preventDefault();
+				searchInput?.focus();
+			}
+		}
+		window.addEventListener('keydown', handleShortcut);
+
+		void (async () => {
+			const raw = new URL(window.location.href).searchParams.get('item');
+			const id = raw ? Number(raw) : NaN;
+			const item = Number.isInteger(id) ? items.find((candidate) => candidate.id === id) : undefined;
+			if (!item) return;
+			revealItem(item);
+			openEdit(item);
+			await tick();
+			document.getElementById(`inventory-item-${id}`)?.scrollIntoView({
+				behavior: 'smooth',
+				block: 'center'
+			});
+		})();
+
+		return () => window.removeEventListener('keydown', handleShortcut);
 	});
 
 	// ── server sync ──────────────────────────────────────────────────────────────
@@ -502,11 +555,13 @@
 
 	// ── edit ────────────────────────────────────────────────────────────────────
 	function openEdit(item: Item) {
-		if (editingId === item.id) {
+		if (editingId === item.id && editSheetOpen) {
+			editSheetOpen = false;
 			editingId = null;
 			return;
 		}
 		editingId = item.id;
+		editSheetOpen = true;
 		qtyEditId = null;
 		const link = linkFor(item);
 		editDraft = {
@@ -560,6 +615,7 @@
 		const okStaple = okItem ? await saveKeepStocked(item) : true;
 		editSaving = false;
 		if (okItem && okStaple) {
+			editSheetOpen = false;
 			editingId = null;
 			if (hadChanges) flashToast(m.inventory_toast_saved_changes());
 		} else flashToast(m.inventory_toast_save_changes_failed(), { error: true });
@@ -567,7 +623,10 @@
 
 	// ── delete + undo ──────────────────────────────────────────────────────────────
 	async function deleteItem(item: Item) {
-		if (editingId === item.id) editingId = null;
+		if (editingId === item.id) {
+			editSheetOpen = false;
+			editingId = null;
+		}
 		const removal = captureRemoval(items, item.id);
 		if (!removal.removed) return;
 		items = removal.items;
@@ -692,6 +751,8 @@
 		sectionFilter = section;
 		classFilter = null;
 		reviewOnly = false;
+		searchQuery = '';
+		scope = item.kind === 'leftover' ? 'meals' : item.kind === 'ingredient' ? 'ingredients' : 'all';
 		flashToast(m.inventory_toast_added({ name }));
 	}
 
@@ -701,249 +762,347 @@
 		reviewOnly = false;
 		searchQuery = '';
 	}
+
+	function revealItem(item: Item) {
+		clearFilters();
+		scope = item.kind === 'leftover' ? 'meals' : 'all';
+	}
+
+	function attentionText(attention: StockAttention): string {
+		if (attention.kind === 'expiry') {
+			if (attention.daysUntil < 0) {
+				return m.inventory_attention_expired({ days: Math.abs(attention.daysUntil) });
+			}
+			if (attention.daysUntil === 0) return m.inventory_attention_today();
+			if (attention.daysUntil === 1) return m.inventory_attention_tomorrow();
+			return m.inventory_attention_expiry({ days: attention.daysUntil });
+		}
+		if (attention.kind === 'below_target') {
+			return m.inventory_attention_below_target({ count: attention.portionsBelow });
+		}
+		if (attention.kind === 'low_stock') {
+			return m.inventory_attention_low_stock({ count: attention.portions });
+		}
+		return m.inventory_attention_aging({ days: attention.daysOld });
+	}
+
+	function scopeLabel(value: InventoryScope): string {
+		if (value === 'meals') return m.inventory_scope_meals();
+		if (value === 'ingredients') return m.inventory_scope_ingredients();
+		return m.inventory_scope_all();
+	}
+
+	function clearSearch() {
+		searchQuery = '';
+		searchInput?.focus();
+	}
 </script>
 
 <svelte:head><title>{m.inventory_title()}</title></svelte:head>
 
-<!-- ── page ─────────────────────────────────────────────────────────────────────── -->
-<div class="mx-auto max-w-6xl pb-[calc(var(--ui-fixed-bar-height)+1.5rem)]">
-	<div class="lg:grid lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-8 lg:px-6 lg:pt-6">
-		<aside class="contents lg:block lg:self-start">
-			<div class="contents lg:sticky lg:top-4 lg:block">
-				<header class="px-4 pb-1 pt-4 lg:px-0 lg:pt-0">
-					<div class="flex items-start justify-between gap-3">
-						<div class="min-w-0">
-							<p class="mb-1 ui-section-label">{m.inventory_heading()}</p>
-							<h1 class="text-2xl font-semibold leading-tight tracking-tight">
-								{m.inventory_radar_heading()}
-							</h1>
-							<p class="mt-1 max-w-sm text-sm leading-relaxed text-base-content/60">
-								{m.inventory_radar_description()}
-							</p>
-						</div>
-						<div class="flex shrink-0 items-center gap-1">
-							<button
-								type="button"
-								class="btn btn-ghost btn-sm h-11 min-h-0 w-11 p-0"
-								aria-label={m.inventory_activity_aria()}
-								onclick={openActivity}
-							>
-								<Icon name="clock" class="h-4 w-4" />
-							</button>
-							<button
-								type="button"
-								class="btn btn-primary btn-sm h-11 min-h-0 gap-1.5 rounded-xl px-3.5"
-								aria-expanded={showAddForm}
-								onclick={() => (showAddForm = !showAddForm)}
-							>
-								<Icon name="plus" class="h-3.5 w-3.5" />
-								{m.inventory_add_button()}
-							</button>
-						</div>
-					</div>
-				</header>
+{#snippet stockRow(item: Item, signalLabel: string | null)}
+	<li
+		id="inventory-item-{item.id}"
+		class="relative overflow-hidden"
+	>
+		<ItemRow
+			{item}
+			link={linkFor(item)}
+			matches={data.recipeMatches[item.id] ?? []}
+			{signalLabel}
+			qtyEditing={qtyEditId === item.id}
+			bind:qtyEditVal
+			portionEditing={portionEditId === item.id}
+			bind:portionEditVal
+			onOpenEdit={() => openEdit(item)}
+			onDelete={() => deleteItem(item)}
+			onStepQty={(delta) => stepQty(item, delta)}
+			onOpenQtyEdit={() => openQtyEdit(item)}
+			onCommitQtyEdit={() => commitQtyEdit(item)}
+			onCancelQtyEdit={() => (qtyEditId = null)}
+			onResolveReview={() => resolveReview(item)}
+			stapleAdded={stapleAdded.includes(item.id)}
+			stapleBusy={stapleOutBusy === item.id}
+			onAddStaple={() => stapleOut(item)}
+			onOpenLinkPicker={() => openLinkPicker(item)}
+			onOpenPortionEdit={() => openPortionEdit(item)}
+			onCommitPortionEdit={() => commitPortionEdit(item)}
+			onCancelPortionEdit={() => (portionEditId = null)}
+		/>
+	</li>
+{/snippet}
 
-				<div class="grid grid-cols-2 gap-2 px-4 py-3 lg:px-0">
-					<div class="rounded-2xl border border-primary/20 bg-primary/8 p-3 shadow-sm">
-						<div class="flex items-center gap-2 text-primary">
-							<span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-								<Icon name="pot" class="h-4 w-4" />
-							</span>
-							<strong class="text-2xl font-semibold tabular-nums">{readyMealCount}</strong>
-						</div>
-						<p class="mt-1 text-xs font-medium text-base-content/65">
-							{m.inventory_radar_meals_label()}
-						</p>
-					</div>
-					<div
-						class="rounded-2xl border p-3 shadow-sm {belowTargetItems.length > 0
-							? 'border-warning/30 bg-warning/10'
-							: 'border-base-300/60 bg-base-100'}"
+<!-- ── Responsive Radar Band ───────────────────────────────────────────────── -->
+<div class="stock-radar pb-[calc(var(--ui-fixed-bar-height)+1.5rem)]">
+	<header class="stock-band">
+		<div class="stock-band-inner">
+			<div class="stock-band-top">
+				<div class="min-w-0">
+					<p class="stock-context">{m.inventory_radar_context()}</p>
+					<h1>{m.inventory_heading()}</h1>
+				</div>
+				<div class="flex shrink-0 items-center gap-1.5">
+					<button
+						type="button"
+						class="stock-icon-button"
+						aria-label={m.inventory_activity_aria()}
+						onclick={openActivity}
 					>
-						<div
-							class="flex items-center gap-2 {belowTargetItems.length > 0
-								? 'text-warning'
-								: 'text-base-content/55'}"
-						>
-							<span class="flex h-8 w-8 items-center justify-center rounded-full bg-current/10">
-								<Icon name="warn" class="h-4 w-4" />
-							</span>
-							<strong class="text-2xl font-semibold tabular-nums">{belowTargetItems.length}</strong>
-						</div>
-						<p class="mt-1 text-xs font-medium text-base-content/65">
-							{m.inventory_radar_below_target_label()}
-						</p>
-					</div>
+						<Icon name="clock" class="h-4 w-4" />
+					</button>
+					<button
+						type="button"
+						class="stock-add-button"
+						aria-expanded={showAddForm}
+						onclick={() => (showAddForm = true)}
+					>
+						<Icon name="plus" class="h-3.5 w-3.5" />
+						{m.inventory_add_button()}
+					</button>
 				</div>
-
-				<div class="px-4 pb-3 lg:px-0">
-					<label class="block">
-						<span class="sr-only">{m.inventory_search_label()}</span>
-						<span class="relative block">
-							<svg
-								viewBox="0 0 16 16"
-								class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-base-content/45"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.5"
-								aria-hidden="true"
-							>
-								<path d="M11.25 11.25 14 14" />
-								<circle cx="7.25" cy="7.25" r="5" />
-							</svg>
-							<input
-								type="search"
-								class="input input-bordered h-12 w-full rounded-xl bg-base-100 pl-10 pr-11 shadow-sm"
-								placeholder={m.inventory_search_placeholder()}
-								bind:value={searchQuery}
-							/>
-							{#if searchQuery}
-								<button
-									type="button"
-									class="btn btn-ghost btn-sm absolute right-0.5 top-1/2 h-11 min-h-0 w-11 -translate-y-1/2 p-0"
-									aria-label={m.inventory_search_clear()}
-									onclick={() => (searchQuery = '')}
-								>
-									<Icon name="x" class="h-3.5 w-3.5" />
-								</button>
-							{/if}
-						</span>
-					</label>
-				</div>
-
-				<FacetBar bind:sectionFilter bind:classFilter bind:reviewOnly {needsReviewCount} />
 			</div>
-		</aside>
 
-		<main class="min-w-0">
-			<AddItemForm
-				open={showAddForm}
-				onCancel={() => (showAddForm = false)}
-				onAdded={onItemAdded}
-				{flashToast}
-			/>
+			<div class="stock-stats" aria-label={m.inventory_heading()}>
+				<div class="stock-stat">
+					<strong>{readyMealCount}</strong>
+					<span>{m.inventory_radar_meals_label()}</span>
+				</div>
+				<div class:attention={belowTargetItems.length > 0} class="stock-stat">
+					<strong>{belowTargetItems.length}</strong>
+					<span>{m.inventory_radar_below_target_label()}</span>
+				</div>
+			</div>
+		</div>
+	</header>
 
-			<div class="px-4 lg:px-0">
-				{#each shelves as shelf (shelf.kind)}
-					{@const shelfRecipeCoverage = recipeCoverage(shelf.items)}
-					<section class="mt-5 lg:first:mt-0">
-						<div class="mb-2 flex items-baseline justify-between px-1">
-							<h2 class="ui-section-label">
-								{shelf.label} <span class="ml-1 font-normal">{shelf.items.length}</span>
-							</h2>
-							{#if shelf.hint}<span class="text-xs text-base-content/55">{shelf.hint}</span>{/if}
-						</div>
+	<main class="stock-ledger">
+		<div class="stock-tools">
+			<label class="stock-search">
+				<span class="sr-only">{m.inventory_search_label()}</span>
+				<svg
+					viewBox="0 0 16 16"
+					class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-55"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					aria-hidden="true"
+				>
+					<path d="M11.25 11.25 14 14" />
+					<circle cx="7.25" cy="7.25" r="5" />
+				</svg>
+				<input
+					bind:this={searchInput}
+					type="search"
+					placeholder={m.inventory_search_placeholder()}
+					bind:value={searchQuery}
+					onkeydown={(event) => {
+						if (event.key === 'Escape' && searchQuery) {
+							event.preventDefault();
+							clearSearch();
+						}
+					}}
+				/>
+				{#if searchQuery}
+					<button
+						type="button"
+						aria-label={m.inventory_search_clear()}
+						onclick={clearSearch}
+					>
+						<Icon name="x" class="h-3.5 w-3.5" />
+					</button>
+				{:else}
+					<kbd>/</kbd>
+				{/if}
+			</label>
 
-						{#if shelf.kind === 'leftover' && shelf.items.length > 0}
-							<div
-								class="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-base-300/60 bg-base-200/45 px-3 py-2 text-[11px] text-base-content/60"
-								aria-label={m.inventory_recipe_coverage_label()}
-							>
-								<span class="font-semibold uppercase tracking-[0.06em]">
-									{m.inventory_recipe_coverage_label()}
-								</span>
-								<span class="inline-flex items-center gap-1">
-									<span class="h-1.5 w-1.5 rounded-full bg-success"></span>
-									{m.inventory_recipe_coverage_linked({ count: shelfRecipeCoverage.linked })}
-								</span>
-								<span class="inline-flex items-center gap-1">
-									<span class="h-1.5 w-1.5 rounded-full bg-primary"></span>
-									{m.inventory_recipe_coverage_planned({ count: shelfRecipeCoverage.planned })}
-								</span>
-								<span class="inline-flex items-center gap-1">
-									<span class="h-1.5 w-1.5 rounded-full bg-base-content/35"></span>
-									{m.inventory_recipe_coverage_not_needed({
-										count: shelfRecipeCoverage.not_needed
-									})}
-								</span>
-								{#if shelfRecipeCoverage.unresolved > 0}
-									<span class="inline-flex items-center gap-1 font-medium text-warning">
-										<span class="h-1.5 w-1.5 rounded-full bg-warning"></span>
-										{m.inventory_recipe_coverage_unresolved({
-											count: shelfRecipeCoverage.unresolved
-										})}
-									</span>
-								{/if}
-							</div>
-						{/if}
-
-						<ul class="ui-list-card divide-y divide-base-200">
-							{#each shelf.items as item (item.id)}
-								<li
-									id="inventory-item-{item.id}"
-									class="relative overflow-hidden"
-									transition:slide={{ duration: MOTION_MICRO_MS }}
-								>
-									<ItemRow
-										{item}
-										link={linkFor(item)}
-										matches={data.recipeMatches[item.id] ?? []}
-										editing={editingId === item.id}
-										qtyEditing={qtyEditId === item.id}
-										bind:qtyEditVal
-										portionEditing={portionEditId === item.id}
-										bind:portionEditVal
-										history={historyByItem[item.id]}
-										bind:draft={editDraft}
-										saving={editSaving}
-										onOpenEdit={() => openEdit(item)}
-										onDelete={() => deleteItem(item)}
-										onStepQty={(delta) => stepQty(item, delta)}
-										onOpenQtyEdit={() => openQtyEdit(item)}
-										onCommitQtyEdit={() => commitQtyEdit(item)}
-										onCancelQtyEdit={() => (qtyEditId = null)}
-										onResolveReview={() => resolveReview(item)}
-										stapleAdded={stapleAdded.includes(item.id)}
-										stapleBusy={stapleOutBusy === item.id}
-										onAddStaple={() => stapleOut(item)}
-										onOpenLinkPicker={() => openLinkPicker(item)}
-										onOpenPortionEdit={() => openPortionEdit(item)}
-										onCommitPortionEdit={() => commitPortionEdit(item)}
-										onCancelPortionEdit={() => (portionEditId = null)}
-										onSaveEdit={() => saveEdit(item)}
-										onCancelEdit={() => (editingId = null)}
-										onUndoEvent={undoEvent}
-									/>
-								</li>
-							{/each}
-							{#if shelf.kind === 'leftover'}
-								<GhostRows ghosts={ghostsVisible} {flashToast} />
-							{/if}
-						</ul>
-					</section>
+			<nav class="stock-scopes" aria-label={m.inventory_heading()}>
+				{#each SCOPES as value (value)}
+					<button
+						type="button"
+						aria-pressed={scope === value}
+						class:active={scope === value}
+						onclick={() => (scope = value)}
+					>
+						{scopeLabel(value)}
+					</button>
 				{/each}
+				<button
+					type="button"
+					class:active={hasActiveFilters}
+					aria-pressed={hasActiveFilters}
+					onclick={() => (filtersOpen = true)}
+				>
+					{m.inventory_scope_filters()}
+				</button>
+			</nav>
+		</div>
 
-				{#if filtered.length === 0 && ghostsVisible.length === 0}
-					{#if items.length === 0}
-						<EmptyState iconName="jar" title={m.inventory_empty_title()}>
-							{#snippet action()}
-								<button
-									type="button"
-									class="btn btn-primary btn-sm"
-									onclick={() => (showAddForm = true)}
-								>
-									{m.inventory_empty_add_first_button()}
-								</button>
-							{/snippet}
-						</EmptyState>
-					{:else}
-						<EmptyState title={m.inventory_empty_filtered_title()}>
-							{#snippet action()}
-								<button
-									type="button"
-									class="btn btn-ghost btn-sm h-11 min-h-0 text-primary"
-									onclick={clearFilters}
-								>
-									{m.inventory_clear_filters_button()}
-								</button>
-							{/snippet}
-						</EmptyState>
-					{/if}
+		{#if scope === 'meals' && visibleMealItems.length > 0}
+			<div class="stock-coverage" aria-label={m.inventory_recipe_coverage_label()}>
+				<strong>{m.inventory_recipe_coverage_label()}</strong>
+				<RecipeRelationshipStatus
+					relationship="linked"
+					label={m.inventory_recipe_coverage_linked({ count: visibleRecipeCoverage.linked })}
+				/>
+				<RecipeRelationshipStatus
+					relationship="planned"
+					label={m.inventory_recipe_coverage_planned({ count: visibleRecipeCoverage.planned })}
+				/>
+				<RecipeRelationshipStatus
+					relationship="not_needed"
+					label={m.inventory_recipe_coverage_not_needed({ count: visibleRecipeCoverage.not_needed })}
+				/>
+				{#if visibleRecipeCoverage.unresolved > 0}
+					<RecipeRelationshipStatus
+						relationship="unresolved"
+						label={m.inventory_recipe_coverage_unresolved({
+							count: visibleRecipeCoverage.unresolved
+						})}
+					/>
 				{/if}
 			</div>
-		</main>
-	</div>
+		{/if}
+
+		{#if scope === 'meals' && visibleMealResultCount > 0}
+			<div class="stock-columns">
+				<section class="stock-group stock-attention">
+					<div class="stock-group-head">
+						<h2>{m.inventory_group_use_next()}</h2>
+						<span>{m.inventory_group_use_next_hint()}</span>
+					</div>
+					{#if mealGroups.useNext.length > 0}
+						<ul class="stock-list stock-priority divide-y">
+							{#each mealGroups.useNext as entry (entry.item.id)}
+								{@render stockRow(entry.item, attentionText(entry.attention))}
+							{/each}
+						</ul>
+					{:else}
+						<div class="stock-quiet">{m.inventory_group_caught_up()}</div>
+					{/if}
+				</section>
+
+				<div class="stock-secondary-groups">
+					{#if mealGroups.stillPlenty.length > 0}
+						<section class="stock-group">
+							<div class="stock-group-head">
+								<h2>{m.inventory_group_still_plenty()}</h2>
+								<span>{m.inventory_group_visible_count({ count: mealGroups.stillPlenty.length })}</span>
+							</div>
+							<ul class="stock-list divide-y">
+								{#each mealGroups.stillPlenty as item (item.id)}
+									{@render stockRow(item, null)}
+								{/each}
+							</ul>
+						</section>
+					{/if}
+
+					{#if mealGroups.cookAgain.length > 0 || ghostsVisible.length > 0}
+						<section class="stock-group">
+							<div class="stock-group-head">
+								<h2>{m.inventory_group_cook_again()}</h2>
+								<span>{m.inventory_group_visible_count({
+									count: mealGroups.cookAgain.length + ghostsVisible.length
+								})}</span>
+							</div>
+							<ul class="stock-list stock-cook-again divide-y">
+								{#each mealGroups.cookAgain as item (item.id)}
+									{@render stockRow(item, m.inventory_group_cook_again())}
+								{/each}
+								<GhostRows ghosts={ghostsVisible} {flashToast} />
+							</ul>
+						</section>
+					{/if}
+				</div>
+			</div>
+		{:else if scope !== 'meals' && filtered.length > 0}
+			<section class="stock-group stock-all">
+				<div class="stock-group-head">
+					<h2>{scopeLabel(scope)}</h2>
+					<span>{m.inventory_group_visible_count({ count: stockRows.length })}</span>
+				</div>
+				<ul class="stock-list divide-y">
+					{#each stockRows as item (item.id)}
+						{@render stockRow(item, null)}
+					{/each}
+				</ul>
+			</section>
+		{:else}
+			<div class="stock-empty">
+				{#if items.length === 0}
+					<EmptyState iconName="jar" title={m.inventory_empty_title()}>
+						{#snippet action()}
+							<button type="button" class="btn btn-primary min-h-11" onclick={() => (showAddForm = true)}>
+								{m.inventory_empty_add_first_button()}
+							</button>
+						{/snippet}
+					</EmptyState>
+				{:else}
+					<EmptyState title={m.inventory_empty_filtered_title()}>
+						{#snippet action()}
+							<div class="flex flex-wrap justify-center gap-2">
+								{#if searchQuery}
+									<button type="button" class="btn btn-ghost min-h-11" onclick={clearSearch}>
+										{m.inventory_empty_clear_search()}
+									</button>
+								{/if}
+								{#if alternateScopeMatch || hasUngroupedMealStock}
+									<button type="button" class="btn btn-primary min-h-11" onclick={() => (scope = 'all')}>
+										{m.inventory_empty_show_all()}
+									</button>
+								{:else}
+									<button type="button" class="btn btn-primary min-h-11" onclick={clearFilters}>
+										{m.inventory_clear_filters_button()}
+									</button>
+								{/if}
+							</div>
+						{/snippet}
+					</EmptyState>
+				{/if}
+			</div>
+		{/if}
+	</main>
 </div>
+
+<FiltersSheet
+	bind:open={filtersOpen}
+	bind:sectionFilter
+	bind:classFilter
+	bind:reviewOnly
+	{needsReviewCount}
+/>
+
+<BottomSheet bind:open={showAddForm} title={m.inventory_add_button()} desktopCentered>
+	<AddItemForm
+		open={showAddForm}
+		onCancel={() => (showAddForm = false)}
+		onAdded={onItemAdded}
+		{flashToast}
+	/>
+</BottomSheet>
+
+<BottomSheet
+	bind:open={editSheetOpen}
+	title={editingItem?.name ?? m.inventory_heading()}
+	desktopCentered
+	onclose={() => (editingId = null)}
+>
+	<ItemEditor
+		editing={editSheetOpen && editingItem !== null}
+		link={editingItem ? linkFor(editingItem) : null}
+		matches={editingItem ? (data.recipeMatches[editingItem.id] ?? []) : []}
+		history={editingItem ? historyByItem[editingItem.id] : undefined}
+		bind:draft={editDraft}
+		saving={editSaving}
+		onDelete={() => {
+			if (editingItem) void deleteItem(editingItem);
+		}}
+		onCancel={() => (editSheetOpen = false)}
+		onSave={() => {
+			if (editingItem) void saveEdit(editingItem);
+		}}
+		onUndoEvent={undoEvent}
+	/>
+</BottomSheet>
 
 <!-- ── link picker (UX-STOCK-2) ─────────────────────────────────────────────────── -->
 <LinkRecipeSheet
@@ -960,3 +1119,355 @@
 
 <!-- ── activity drawer (P2.3) ──────────────────────────────────────────────────────── -->
 <ActivitySheet bind:open={activityOpen} loading={activityLoading} events={activityEvents} onUndo={undoEvent} />
+
+<style>
+	.stock-radar {
+		--stock-olive: #334638;
+		--stock-olive-deep: #293b30;
+		--stock-olive-soft: #49614f;
+		--stock-honey: #d3a046;
+		--stock-honey-ink: #69460f;
+		--stock-terra: #a84d2a;
+		--stock-paper: #f7f3e9;
+		--stock-card: #fffdf7;
+		min-height: 100%;
+		background: var(--stock-paper);
+		color: var(--color-base-content);
+	}
+
+	.stock-band {
+		color: white;
+		background: linear-gradient(135deg, var(--stock-olive-deep), var(--stock-olive-soft));
+	}
+
+	.stock-band-inner {
+		max-width: 74rem;
+		margin: 0 auto;
+		padding: 1.35rem 1rem 1rem;
+	}
+
+	.stock-band-top {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.875rem;
+	}
+
+	.stock-context {
+		color: #f0c569;
+		font-size: 0.68rem;
+		font-weight: 750;
+		letter-spacing: 0.11em;
+		text-transform: uppercase;
+	}
+
+	.stock-band h1,
+	.stock-group-head h2 {
+		font-family: Georgia, 'Times New Roman', serif;
+	}
+
+	.stock-band h1 {
+		margin-top: 0.2rem;
+		font-size: clamp(1.75rem, 6vw, 2.25rem);
+		font-weight: 500;
+		line-height: 1;
+		letter-spacing: -0.035em;
+	}
+
+	.stock-icon-button,
+	.stock-add-button {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid rgb(255 255 255 / 24%);
+		border-radius: 0.75rem;
+		background: rgb(255 255 255 / 8%);
+		color: white;
+		transition:
+			background var(--motion-micro) var(--ease-standard),
+			border-color var(--motion-micro) var(--ease-standard);
+	}
+
+	.stock-icon-button {
+		width: 2.75rem;
+	}
+
+	.stock-add-button {
+		gap: 0.35rem;
+		padding: 0 0.8rem;
+		background: var(--stock-terra);
+		border-color: transparent;
+		font-size: 0.8rem;
+		font-weight: 750;
+	}
+
+	.stock-icon-button:hover,
+	.stock-icon-button:focus-visible {
+		background: rgb(255 255 255 / 16%);
+	}
+
+	.stock-stats {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.5rem;
+		margin-top: 1rem;
+	}
+
+	.stock-stat {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: center;
+		gap: 0.55rem;
+		min-height: 3.5rem;
+		padding: 0.65rem 0.75rem;
+		border: 1px solid rgb(255 255 255 / 21%);
+		border-radius: 0.85rem;
+		background: rgb(255 255 255 / 7%);
+	}
+
+	.stock-stat.attention {
+		border-color: transparent;
+		background: var(--stock-honey);
+		color: #332613;
+	}
+
+	.stock-stat strong {
+		font-size: 1.55rem;
+		line-height: 1;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.stock-stat span {
+		font-size: 0.7rem;
+		font-weight: 650;
+		line-height: 1.2;
+	}
+
+	.stock-ledger {
+		max-width: 74rem;
+		margin: 0 auto;
+		padding: 0.9rem 0.875rem max(6.5rem, var(--ui-overlay-bottom));
+	}
+
+	.stock-tools {
+		display: grid;
+		gap: 0.55rem;
+	}
+
+	.stock-search {
+		position: relative;
+		display: block;
+	}
+
+	.stock-search input {
+		width: 100%;
+		height: 3rem;
+		border: 1px solid color-mix(in oklab, var(--stock-olive) 24%, var(--color-base-300));
+		border-radius: 0.8rem;
+		background: var(--stock-card);
+		padding: 0 2.9rem 0 2.55rem;
+		box-shadow: 0 6px 18px rgb(51 70 56 / 7%);
+		outline: none;
+	}
+
+	.stock-search input:focus {
+		border-color: var(--stock-honey);
+		box-shadow: 0 0 0 3px rgb(211 160 70 / 18%);
+	}
+
+	.stock-search button,
+	.stock-search kbd {
+		position: absolute;
+		top: 50%;
+		right: 0.3rem;
+		display: inline-flex;
+		height: 2.4rem;
+		min-width: 2.4rem;
+		transform: translateY(-50%);
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.6rem;
+		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+	}
+
+	.stock-search kbd {
+		right: 0.7rem;
+		width: auto;
+		min-width: 0;
+		font-size: 0.68rem;
+	}
+
+	.stock-scopes {
+		display: flex;
+		gap: 0.25rem;
+		overflow-x: auto;
+		padding: 0.2rem;
+		border: 1px solid color-mix(in oklab, var(--stock-olive) 16%, var(--color-base-300));
+		border-radius: 0.8rem;
+		background: color-mix(in oklab, var(--stock-card) 88%, transparent);
+		scrollbar-width: none;
+	}
+
+	.stock-scopes::-webkit-scrollbar {
+		display: none;
+	}
+
+	.stock-scopes button {
+		min-height: 2.6rem;
+		flex: 0 0 auto;
+		border-radius: 0.6rem;
+		padding: 0 0.72rem;
+		font-size: 0.76rem;
+		font-weight: 700;
+		white-space: nowrap;
+		color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
+	}
+
+	.stock-scopes button.active {
+		background: var(--stock-olive);
+		color: white;
+		box-shadow: 0 3px 10px rgb(41 59 48 / 18%);
+	}
+
+	.stock-coverage {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.45rem 0.8rem;
+		margin-top: 0.55rem;
+		padding: 0.6rem 0.75rem;
+		border-block: 1px solid color-mix(in oklab, var(--stock-olive) 14%, var(--color-base-300));
+		font-size: 0.69rem;
+		color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
+	}
+
+	.stock-coverage strong {
+		color: var(--color-base-content);
+		font-size: 0.65rem;
+		letter-spacing: 0.075em;
+		text-transform: uppercase;
+	}
+
+	.stock-columns {
+		display: grid;
+		gap: 1rem;
+		margin-top: 0.85rem;
+	}
+
+	.stock-secondary-groups {
+		display: grid;
+		align-content: start;
+		gap: 1rem;
+	}
+
+	.stock-group-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 0.45rem;
+		padding: 0 0.2rem;
+	}
+
+	.stock-group-head h2 {
+		color: var(--stock-olive);
+		font-size: 1.3rem;
+		font-weight: 600;
+		letter-spacing: -0.025em;
+	}
+
+	.stock-group-head span {
+		color: color-mix(in oklab, var(--stock-terra) 72%, var(--color-base-content));
+		font-size: 0.67rem;
+		font-weight: 650;
+	}
+
+	.stock-list,
+	.stock-quiet {
+		--stock-row-bg: var(--stock-card);
+		overflow: hidden;
+		border: 1px solid color-mix(in oklab, var(--stock-olive) 18%, var(--color-base-300));
+		border-radius: 0.85rem;
+		background: var(--stock-card);
+		box-shadow: 0 8px 20px rgb(51 70 56 / 5%);
+	}
+
+	.stock-priority {
+		--stock-row-bg: color-mix(in oklab, var(--stock-honey) 13%, var(--stock-card));
+		border-color: color-mix(in oklab, var(--stock-honey) 62%, var(--color-base-300));
+		border-left-width: 0.3rem;
+		background: color-mix(in oklab, var(--stock-honey) 13%, var(--stock-card));
+	}
+
+	.stock-cook-again {
+		border-color: color-mix(in oklab, var(--stock-terra) 28%, var(--color-base-300));
+	}
+
+	.stock-quiet {
+		padding: 1rem;
+		color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+		font-size: 0.78rem;
+	}
+
+	.stock-all,
+	.stock-empty {
+		margin-top: 0.9rem;
+	}
+
+	:global(html[data-theme='dark']) .stock-radar {
+		--stock-paper: #1c221e;
+		--stock-card: #252c27;
+		--stock-honey-ink: #f0c569;
+	}
+
+	:global(html[data-theme='dark']) .stock-group-head h2 {
+		color: #d8e4da;
+	}
+
+	@media (min-width: 48rem) {
+		.stock-band-inner {
+			padding-inline: 1.5rem;
+		}
+
+		.stock-ledger {
+			padding-inline: 1.5rem;
+		}
+
+		.stock-tools {
+			grid-template-columns: minmax(16rem, 1fr) auto;
+			align-items: center;
+		}
+	}
+
+	@media (min-width: 64rem) {
+		.stock-band-inner {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) 21rem;
+			align-items: end;
+			gap: 2rem;
+			padding: 1.8rem 2rem;
+		}
+
+		.stock-band h1 {
+			font-size: 2.5rem;
+		}
+
+		.stock-stats {
+			margin-top: 0;
+		}
+
+		.stock-ledger {
+			padding: 1.15rem 2rem max(6.5rem, var(--ui-overlay-bottom));
+		}
+
+		.stock-columns {
+			grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1.65fr);
+			gap: 1.15rem;
+		}
+
+		.stock-attention .stock-list :global(.btn) {
+			padding-inline: 0.45rem;
+		}
+	}
+</style>

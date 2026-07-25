@@ -147,3 +147,20 @@ docs/artifacts/archive/2026-07-25-design-shotgun-meal-plan-density.html
 
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
+
+## 2026-07-25 | shipped | Responsive Stock Radar fidelity recovery
+
+Replaced the generic inventory sidebar/shelves with the selected Responsive Radar Band: a shared
+olive outcome band, deterministic Use next / Still plenty / Cook again groups, full-width search
+and scopes, compact recipe states, and focused add/edit/filter sheets. Preserved inventory writes,
+recipe relationships, deep links, ghost rows, review, undo, English/Dutch, light/dark themes, and
+assistant-safe controls. Verification passed with 460 unit tests, zero Svelte diagnostics, a
+production build, and authenticated 375, 768, and 1280 browser journeys.
+
+## 2026-07-25 17:51 | archive-scan | 1 feature list, 1 HTML archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_STOCK_RADAR_FIDELITY_RECOVERY.md,
+docs/artifacts/archive/2026-07-25-design-shotgun-stock-radar-fidelity.html
+
+The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
+validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
