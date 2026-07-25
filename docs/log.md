@@ -155,6 +155,13 @@ docs/artifacts/archive/2026-07-25-plan-chat-starter-rail-refinement.html
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
 
+## 2026-07-25 22:17 | archive-scan | 1 feature list, 0 HTMLs archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_MARKET_RUN_SHOPPING_PAGE.md
+
+The repository has no `scripts/archive-scan.ps1`; the terminal artifact was moved with the
+validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
+
 ## 2026-07-25 | html-artifact | design shotgun: meal plan density refinement
 
 Touched: docs/artifacts/2026-07-25-design-shotgun-meal-plan-density.html,

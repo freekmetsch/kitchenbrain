@@ -1,6 +1,6 @@
 # Feature List: Market Run Shopping Page
 
-_Status: Shipped — 2026-07-25_
+_Status: Shipped - 2026-07-25 (Market Run shipped with responsive picking and guarded AH recovery.)_
 
 ## Outcome
 
