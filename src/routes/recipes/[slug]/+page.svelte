@@ -17,7 +17,6 @@
 	import { labelWeeks, type Recipe } from '$lib/components/recipe-detail/types';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { useChatAgent } from '$lib/chat/agent_context';
 	import type { IngredientRoleCoverage } from '$lib/server/recipe_links';
 	import { isCookModeEligibleForNewSession } from '$lib/components/cook-mode/staleness';
 
@@ -43,7 +42,6 @@
 			cookingDirectionIds: string[];
 		};
 	} = $props();
-	const chatAgent = useChatAgent();
 
 	let recipe = $state(untrack(() => data.recipe));
 	let weeks = $derived(
@@ -275,32 +273,6 @@
 		void goto(`${base}/recipes/${recipe.slug}/edit`);
 	}
 
-	// Classification is a single, explicit action: open the contextual agent and
-	// immediately submit the scoped request instead of leaving another draft for
-	// the cook to send manually.
-	function openRolesAiEdit() {
-		chatAgent.open();
-		void chatAgent.send(m.recipes_ai_roles_prefill({ title: displayTitle }), {
-			action: { v: 1, type: 'classify_recipe_ingredients', recipeSlug: recipe.slug }
-		});
-	}
-
-	$effect(() =>
-		chatAgent.publishScreen({
-			v: 1,
-			routeId: '/recipes/[slug]',
-			label: m.recipes_agent_context_label({ title: displayTitle }),
-			entity: { kind: 'recipe', id: recipe.slug, label: displayTitle },
-			facts: [
-				{ key: 'roleCoverage', value: `${data.roleCoverage.classified}/${data.roleCoverage.total}` },
-				{ key: 'unknownRoleIngredients', value: data.roleCoverage.unknownNames.join(', ').slice(0, 256) },
-				{ key: 'frozenPortions', value: data.frozenPortions },
-				{ key: 'viewLanguage', value: viewLang }
-			],
-			interaction: { mode: 'view', dirty: false }
-		})
-	);
-
 	function resetCookProgress() {
 		if (!confirm(m.recipes_confirm_reset_cook_progress())) return;
 		benchSheetController.resetSession();
@@ -423,7 +395,7 @@
 />
 
 {#if !data.roleCoverage.complete}
-	<RoleCoverage slug={recipe.slug} coverage={data.roleCoverage} onAskAi={openRolesAiEdit} />
+	<RoleCoverage slug={recipe.slug} coverage={data.roleCoverage} />
 {/if}
 
 <div class="mb-12"></div>

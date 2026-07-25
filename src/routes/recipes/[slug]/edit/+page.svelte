@@ -10,7 +10,6 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData, ActionData } from './$types';
-	import { useChatAgent } from '$lib/chat/agent_context';
 	import {
 		hydrateDirections,
 		hydrateIngredients,
@@ -32,7 +31,6 @@
 	};
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
-	const chatAgent = useChatAgent();
 	const { slug: draftSlug, updatedAt: draftUpdatedAt } = untrack(() => data.recipe);
 	const draftKey = `kitchenbrain:recipe-draft:${draftSlug}`;
 	const baseUpdatedAt = new Date(draftUpdatedAt).toISOString();
@@ -80,9 +78,6 @@
 
 	const initialSnapshot = untrack(snapshot);
 	let dirty = $derived(snapshot() !== initialSnapshot || data.reviewingStructureDraft);
-	let classifiedCount = $derived(
-		ingredients.filter((ingredient) => ingredient.role === 'cook_in' || ingredient.role === 'serve_fresh').length
-	);
 
 	function applyDraft(draft: StoredDraft) {
 		title = draft.title;
@@ -153,20 +148,6 @@
 		if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ v: 1, baseUpdatedAt, draft }));
 		else sessionStorage.removeItem(draftKey);
 	});
-
-	$effect(() =>
-		chatAgent.publishScreen({
-			v: 1,
-			routeId: '/recipes/[slug]/edit',
-			label: m.recipes_agent_context_label({ title: data.recipe.title }),
-			entity: { kind: 'recipe', id: data.recipe.slug, label: data.recipe.title },
-			facts: [
-				{ key: 'ingredientRoleCoverage', value: `${classifiedCount}/${ingredients.length}` },
-				{ key: 'language', value: language }
-			],
-			interaction: { mode: 'edit', dirty }
-		})
-	);
 
 	beforeNavigate(({ cancel }) => {
 		if (!dirty || submitting) return;

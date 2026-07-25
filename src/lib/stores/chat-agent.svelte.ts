@@ -2,9 +2,7 @@ import { base } from '$app/paths';
 import { invalidateAll } from '$app/navigation';
 import { m } from '$lib/paraglide/messages';
 import { getLocale } from '$lib/paraglide/runtime';
-import type { ChatActionV1 } from '$lib/chat/actions';
 import { promptStarterDraft } from '$lib/chat/prompt_starters';
-import type { ScreenContextV1 } from '$lib/chat/screen_context';
 import type { ToolDisplay } from '$lib/tool_display';
 import { looksLikeJsonArtifact } from '$lib/chat_sanitize';
 
@@ -27,13 +25,11 @@ export type ChatMessage = {
 	streaming?: boolean;
 	hydrated?: boolean;
 	images?: string[];
-	action?: ChatActionV1;
 	status?: string;
 	at?: Date;
 	error?: string;
 };
 export type ChatAttachment = { id: number; blob: Blob; url: string; name: string };
-export type ChatSendOptions = { retry?: boolean; action?: ChatActionV1 };
 
 type HydratedMessage = {
 	role: 'user' | 'assistant';
@@ -68,24 +64,13 @@ export class ChatAgentController {
 	historyVisibleLimit = $state(20);
 	attachments = $state<ChatAttachment[]>([]);
 	attachError = $state('');
-	opened = $state(false);
-	hydrating = $state(false);
-	hydrationError = $state(false);
-	screenContext = $state<ScreenContextV1 | undefined>();
-	contextEnabled = $state(true);
 	promptStartersCollapsed = $state(false);
-	focusRequest = $state(0);
-	unread = $state(0);
 
 	readonly username: string;
 	private hydrated = false;
-	private hydrationPromise: Promise<void> | null = null;
 	private abortController: AbortController | null = null;
 	private attachmentId = 0;
-	private readonly publishers = new Map<symbol, { snapshot: ScreenContextV1; fallback: boolean }>();
-	private returnFocus: HTMLElement | null = null;
 	private invalidateTimer: ReturnType<typeof setTimeout> | null = null;
-	private availabilityTimer: ReturnType<typeof setTimeout> | null = null;
 	private promptStarterPreferenceHydrated = false;
 
 	constructor(username: string) {
@@ -115,126 +100,6 @@ export class ChatAgentController {
 		this.messages = initialMessages.map((message) => this.hydratedMessage(message));
 		this.input = options?.input ?? this.input;
 		this.hydrated = true;
-	}
-
-	async ensureHydrated(): Promise<void> {
-		if (this.hydrated) return;
-		if (this.hydrationPromise) return this.hydrationPromise;
-		this.hydrating = true;
-		this.hydrationError = false;
-		this.hydrationPromise = (async () => {
-			try {
-				const response = await fetch(`${base}/api/chat/history`);
-				if (!response.ok) throw new Error('history request failed');
-				const data = await response.json();
-				this.hydrateOnce(data.messages ?? [], {
-					capExceeded: data.capExceeded === true,
-					capEur: typeof data.capEur === 'number' ? data.capEur : undefined,
-					hasOlder: data.hasOlder === true,
-					visibleLimit: typeof data.visibleLimit === 'number' ? data.visibleLimit : undefined
-				});
-			} catch {
-				this.hydrationError = true;
-			} finally {
-				this.hydrating = false;
-				this.hydrationPromise = null;
-			}
-		})();
-		return this.hydrationPromise;
-	}
-
-	async refreshStatus(): Promise<void> {
-		if (!this.hydrated) return this.ensureHydrated();
-		try {
-			const response = await fetch(`${base}/api/chat/history`);
-			if (!response.ok) return;
-			const data = await response.json();
-			const incoming = (data.messages ?? []) as HydratedMessage[];
-			if (!this.isStreaming && incoming.length > 0) {
-				if (this.messages.length === 0) {
-					this.messages = incoming.map((message) => this.hydratedMessage(message));
-				} else {
-					const localLast = this.messages.at(-1);
-					const incomingLast = incoming.at(-1);
-					const incomingPrevious = incoming.at(-2);
-					if (
-						localLast?.role === 'user' &&
-						incomingLast?.role === 'assistant' &&
-						incomingPrevious?.role === 'user' &&
-						localLast.content === incomingPrevious.content
-					) {
-						this.messages.push(this.hydratedMessage(incomingLast));
-					}
-				}
-			}
-			this.hydrateOnce([], {
-				capExceeded: data.capExceeded === true,
-				capEur: typeof data.capEur === 'number' ? data.capEur : undefined,
-				hasOlder: data.hasOlder === true,
-				visibleLimit: typeof data.visibleLimit === 'number' ? data.visibleLimit : undefined
-			});
-		} catch {
-			// The existing conversation stays usable if a background status refresh
-			// fails. A send still receives the authoritative server cap response.
-		}
-	}
-
-	private scheduleAvailabilityRefresh(): void {
-		if (this.availabilityTimer) clearTimeout(this.availabilityTimer);
-		const now = new Date();
-		const nextMidnight = new Date(now);
-		nextMidnight.setHours(24, 0, 1, 0);
-		this.availabilityTimer = setTimeout(async () => {
-			this.availabilityTimer = null;
-			await this.refreshStatus();
-			if (this.opened) this.scheduleAvailabilityRefresh();
-		}, Math.max(1000, nextMidnight.getTime() - now.getTime()));
-	}
-
-	open(options?: { draft?: string }): void {
-		if (typeof document !== 'undefined') this.returnFocus = document.activeElement as HTMLElement | null;
-		if (options?.draft !== undefined) this.input = options.draft;
-		this.opened = true;
-		this.unread = 0;
-		this.focusRequest += 1;
-		if (this.hydrated) void this.refreshStatus();
-		else void this.ensureHydrated();
-		this.scheduleAvailabilityRefresh();
-	}
-
-	close(options?: { restoreFocus?: boolean }): void {
-		this.opened = false;
-		if (this.availabilityTimer) {
-			clearTimeout(this.availabilityTimer);
-			this.availabilityTimer = null;
-		}
-		if (options?.restoreFocus !== false) this.returnFocus?.focus();
-		this.returnFocus = null;
-	}
-
-	// A page-level publisher (entity-specific) always beats the layout's
-	// route-derived fallback, regardless of effect ordering: on navigation the
-	// layout effect can re-publish AFTER the new page's effect, and
-	// last-registered-wins would leave the chat holding the generic section
-	// context instead of the open recipe/item.
-	publishScreen(snapshot: ScreenContextV1, options?: { fallback?: boolean }): () => void {
-		const id = Symbol(snapshot.routeId);
-		this.publishers.set(id, { snapshot, fallback: options?.fallback === true });
-		this.recomputeScreenContext();
-		this.contextEnabled = true;
-		return () => {
-			this.publishers.delete(id);
-			this.recomputeScreenContext();
-		};
-	}
-
-	private recomputeScreenContext(): void {
-		const entries = [...this.publishers.values()];
-		this.screenContext = (entries.filter((e) => !e.fallback).at(-1) ?? entries.at(-1))?.snapshot;
-	}
-
-	setContextEnabled(enabled: boolean): void {
-		this.contextEnabled = enabled;
 	}
 
 	private promptStarterStorageKey(): string {
@@ -418,42 +283,25 @@ export class ChatAgentController {
 		if (!previous) return;
 		this.messages.pop();
 		this.messages.pop();
-		await this.send(previous.content, { retry: true, action: previous.action });
+		await this.send(previous.content, true);
 	}
 
 	abort(): void {
 		this.abortController?.abort();
 	}
 
-	async send(text = this.input, options: boolean | ChatSendOptions = false): Promise<void> {
-		const isRetry = typeof options === 'boolean' ? options : options.retry === true;
-		const action = typeof options === 'boolean' ? undefined : options.action;
-		// A contextual CTA can open the agent and send in the same tick. Let the
-		// one-time history load settle first; otherwise hydrateOnce can replace the
-		// just-appended optimistic turn with the older server snapshot.
-		if (!this.hydrated) await this.ensureHydrated();
+	async send(text = this.input, isRetry = false): Promise<void> {
 		if (this.capExceeded) return;
-		// A bound UI action is text/data-only. Do not accidentally consume a photo
-		// or draft the user had staged in the regular composer.
-		const outgoing = action ? [] : this.attachments;
+		const outgoing = this.attachments;
 		const hasAttachments = outgoing.length > 0;
 		if (this.isStreaming || (!text.trim() && !hasAttachments)) return;
-		// Screen publishers run inside Svelte's reactive graph, so screenContext is
-		// normally a deeply reactive Proxy. Browser structuredClone rejects those
-		// proxies with DataCloneError before the request can even start. JSON is the
-		// wire format for this bounded, primitive-only object anyway, so use that
-		// same serialization boundary to detach it from Svelte state.
-		const screenContext = this.contextEnabled && this.screenContext
-			? (JSON.parse(JSON.stringify(this.screenContext)) as ScreenContextV1)
-			: undefined;
 
-		if (!action) this.attachments = [];
+		this.attachments = [];
 		this.attachError = '';
 		this.messages.push({
 			role: 'user',
 			content: text,
 			at: new Date(),
-			action,
 			images: hasAttachments ? outgoing.map((attachment) => attachment.url) : undefined
 		});
 		this.messages.push({
@@ -475,14 +323,13 @@ export class ChatAgentController {
 			if (hasAttachments) {
 				const form = new FormData();
 				form.append('message', text);
-				if (screenContext) form.append('screenContext', JSON.stringify(screenContext));
 				outgoing.forEach((attachment, index) =>
 					form.append('images', attachment.blob, `photo-${index + 1}.jpg`)
 				);
 				body = form;
 			} else {
 				headers['Content-Type'] = 'application/json';
-				body = JSON.stringify({ message: text, retry: isRetry, screenContext, action });
+				body = JSON.stringify({ message: text, retry: isRetry });
 			}
 			const response = await fetch(`${base}/api/chat`, {
 				method: 'POST',
@@ -600,16 +447,12 @@ export class ChatAgentController {
 				}
 			}
 			if (wrote) this.scheduleInvalidation();
-			if (!this.opened && typeof window !== 'undefined' && location.pathname !== `${base}/`) {
-				this.unread += 1;
-			}
 		}
 	}
 
 	destroy(): void {
 		this.abortController?.abort();
 		if (this.invalidateTimer) clearTimeout(this.invalidateTimer);
-		if (this.availabilityTimer) clearTimeout(this.availabilityTimer);
 		for (const attachment of this.attachments) URL.revokeObjectURL(attachment.url);
 		for (const message of this.messages) {
 			for (const url of message.images ?? []) URL.revokeObjectURL(url);

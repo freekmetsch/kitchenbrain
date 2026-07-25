@@ -12,13 +12,11 @@
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type { PageData } from './$types';
-	import { useChatAgent } from '$lib/chat/agent_context';
 	import type { ShoppingListSource } from '$lib/components/shopping/types';
 	import { untrack } from 'svelte';
 
 	type Item = PageData['items'][number];
 	let { data }: { data: PageData } = $props();
-	const chatAgent = useChatAgent();
 	let items = $state<Item[]>(untrack(() => data.items.map((item) => ({ ...item }))));
 	let bonusByName = $state<Record<string, boolean>>({});
 	let ahSheet: { openAhModal: () => Promise<void> } | undefined = $state();
@@ -29,12 +27,6 @@
 	let visibleToBuyCount = $derived(pending.filter((item) => !item.covered).length);
 
 	$effect(() => { items = data.items.map((item) => ({ ...item })); });
-	$effect(() => chatAgent.publishScreen({
-		v: 1, routeId: '/shopping', label: m.shopping_heading(),
-		entity: { kind: 'shopping', id: data.weekStart, label: data.weekStart },
-		facts: [{ key: 'weekStart', value: data.weekStart }, { key: 'toBuy', value: visibleToBuyCount }, { key: 'done', value: done.length }]
-	}));
-
 	async function mutate(body: Record<string, unknown>, success?: string): Promise<boolean> {
 		try {
 			const response = await fetch(`${base}/api/shopping`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

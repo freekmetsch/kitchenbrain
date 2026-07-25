@@ -64,15 +64,6 @@
 	--ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* A desktop assistant panel and the cooking timer share the bottom-right
-   overlay lane. Keep the timer visible beside the panel; narrower tablets use
-   the assistant's full-screen mode instead. */
-@media (min-width: 52rem) {
-	:root[data-chat-agent-open='true'] {
-		--ui-timer-right: calc(min(30rem, calc(100vw - 2rem)) + 2rem);
-	}
-}
-
 .app-shell {
 	padding-top: var(--ui-safe-top);
 }
@@ -220,13 +211,12 @@
 }
 
 /* ── z-scale (documented tokens) ───────────────────────────────────────────────
-   nav 50 · scrim 55 · sheet / fixed-bar 60 · toast 70. Layered so a sheet clears
+   nav 50 · scrim 55 · sheet / fixed-bar 60 · toast 90. Layered so a sheet clears
    the nav (fixes the /inventory drawer's z-tie) and a toast clears the sheet.
    The bottom nav in +layout.svelte sits at z-50 = ui-z-nav. */
 @utility ui-z-nav { z-index: 50; }
 @utility ui-z-scrim { z-index: 55; }
 @utility ui-z-sheet { z-index: 60; }
-@utility ui-z-agent { z-index: 80; }
 @utility ui-z-toast { z-index: 90; }
 
 /* View transitions — slide between pages */

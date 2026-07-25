@@ -1,15 +1,13 @@
 <script lang="ts">
-	import { navigating, page } from '$app/stores';
+	import { navigating } from '$app/stores';
 	import { afterNavigate, beforeNavigate, onNavigate } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { onDestroy, untrack } from 'svelte';
 	import { MainScrollRestoration } from '$lib/navigation/scroll_restoration';
 	import { provideChatAgent } from '$lib/chat/agent_context';
 	import { ChatAgentController } from '$lib/stores/chat-agent.svelte';
-	import { m } from '$lib/paraglide/messages';
 	import NavBar from '$lib/components/NavBar.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
-	import ChatAgent from '$lib/components/chat/ChatAgent.svelte';
 	import '../app.css';
 
 	let { data, children } = $props<{
@@ -31,31 +29,6 @@
 		chatAgent = username ? new ChatAgentController(username) : null;
 	});
 	onDestroy(() => chatAgent?.destroy());
-
-	function fallbackScreen(routeId: string) {
-		const section = routeId.startsWith('/inventory')
-			? { label: m.nav_stock(), kind: 'inventory' as const }
-			: routeId.startsWith('/meal-plan')
-				? { label: m.nav_meals(), kind: 'meal-plan' as const }
-				: routeId.startsWith('/shopping')
-					? { label: m.nav_shopping(), kind: 'shopping' as const }
-					: routeId.startsWith('/recipes')
-						? { label: m.nav_recipes(), kind: 'recipe' as const }
-						: routeId.startsWith('/settings')
-							? { label: m.nav_settings(), kind: 'settings' as const }
-							: { label: m.nav_home(), kind: 'other' as const };
-		return {
-			v: 1 as const,
-			routeId,
-			label: section.label,
-			entity: { kind: section.kind }
-		};
-	}
-
-	$effect(() => {
-		if (!chatAgent || !$page.route.id) return;
-		return chatAgent.publishScreen(fallbackScreen($page.route.id), { fallback: true });
-	});
 
 	let mainEl = $state<HTMLElement>();
 	let scrollFrame: number | null = null;
@@ -142,7 +115,6 @@
 
 		<NavBar />
 		<Toast />
-		{#if chatAgent}<ChatAgent controller={chatAgent} />{/if}
 	</div>
 {:else}
 	{@render children()}

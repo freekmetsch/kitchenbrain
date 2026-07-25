@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick, untrack } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { fly } from 'svelte/transition';
 	import { base } from '$app/paths';
@@ -12,7 +12,6 @@
 		promptStarterText
 	} from '$lib/chat/prompt_starters';
 	import { displayName } from '$lib/actors';
-	import { useChatAgent } from '$lib/chat/agent_context';
 	import type {
 		ChatAgentController,
 		ChatMessage as Message,
@@ -22,8 +21,7 @@
 	import RecipeEnhancementReview from '$lib/components/chat/RecipeEnhancementReview.svelte';
 	import { toolEntityHref } from '$lib/tool_display';
 
-	let { controller: suppliedController }: { controller?: ChatAgentController } = $props();
-	const controller = untrack(() => suppliedController ?? useChatAgent());
+	let { controller }: { controller: ChatAgentController } = $props();
 	let messages = $derived(controller.messages);
 	let input = $derived(controller.input);
 	let isStreaming = $derived(controller.isStreaming);
@@ -31,12 +29,12 @@
 	let attachments = $derived(controller.attachments);
 	let attachError = $derived(controller.attachError);
 	let promptStarters = $derived(
-		promptStarterIds(controller.screenContext, controller.contextEnabled).map((id) => ({
+		promptStarterIds().map((id) => ({
 			id,
 			text: promptStarterText(id)
 		}))
 	);
-	const username = controller.username;
+	let username = $derived(controller.username);
 	let messageListEl = $state<HTMLElement>();
 	let textareaEl = $state<HTMLTextAreaElement>();
 
@@ -198,11 +196,6 @@
 	async function retry() {
 		await controller.retry();
 	}
-
-	$effect(() => {
-		if (controller.focusRequest < 1) return;
-		void tick().then(() => textareaEl?.focus());
-	});
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {

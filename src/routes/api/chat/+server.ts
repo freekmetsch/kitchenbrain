@@ -28,24 +28,7 @@ import type { TurnExecutionContext } from '$lib/server/ai/commit_risk';
 import { APP_TIME_ZONE } from '$lib/week';
 import { getLocale } from '$lib/paraglide/runtime';
 import { m } from '$lib/paraglide/messages';
-import type { ScreenContextV1 } from '$lib/chat/screen_context';
-import {
-	blocksDirtyRecipeWrite,
-	parseScreenContext,
-	serializeScreenContext
-} from '$lib/server/ai/screen_context';
 import { beginChatTurn } from '$lib/server/ai/chat_activity';
-import {
-	chatActionProgress,
-	formatChatActionResult,
-	parseChatAction,
-	resolveChatAction,
-	serializeChatAction,
-	serializeChatActionCorrection,
-	toolsForChatAction,
-	validateChatActionTool,
-	type ChatActionContext
-} from '$lib/server/ai/chat_actions';
 
 // Vision upload hard caps (Stage 4b / P5.4). Images arrive as multipart/form-data
 // (no base64 +33% on the wire); the client downscales to ≤1568px before sending,
@@ -129,8 +112,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const images: VisionImage[] = [];
 	let message = '';
 	let isRetry = false;
-	let screenContext: ScreenContextV1 | undefined;
-	let rawChatAction: unknown;
 	const contentType = request.headers.get('content-type') ?? '';
 	if (contentType.includes('multipart/form-data')) {
 		let form: FormData;
@@ -141,22 +122,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 		const rawMsg = form.get('message');
 		message = typeof rawMsg === 'string' ? rawMsg : '';
-		const rawContext = form.get('screenContext');
-		if (typeof rawContext === 'string' && rawContext) {
-			try {
-				screenContext = parseScreenContext(JSON.parse(rawContext));
-			} catch {
-				throw error(400, 'Invalid screen context');
-			}
-		}
-		const actionValue = form.get('action');
-		if (typeof actionValue === 'string' && actionValue) {
-			try {
-				rawChatAction = JSON.parse(actionValue);
-			} catch {
-				throw error(400, 'Invalid chat action');
-			}
-		}
 		// getAll returns (File | string)[]; a non-string entry is the uploaded File.
 		const files = form.getAll('images').filter((f): f is File => typeof f !== 'string');
 		if (files.length > MAX_IMAGES) throw error(400, `Attach at most ${MAX_IMAGES} photos.`);
@@ -183,35 +148,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const body = (raw ?? {}) as {
 			message?: unknown;
 			retry?: unknown;
-			screenContext?: unknown;
-			action?: unknown;
 		};
 		message = typeof body.message === 'string' ? body.message : '';
 		isRetry = body.retry === true;
-		rawChatAction = body.action;
-		try {
-			screenContext = parseScreenContext(body.screenContext);
-		} catch {
-			throw error(400, 'Invalid screen context');
-		}
-	}
-
-	let actionContext: ChatActionContext | undefined;
-	try {
-		const action = parseChatAction(rawChatAction);
-		if (action) {
-			actionContext = resolveChatAction(action, db) ?? undefined;
-			if (!actionContext) throw error(404, 'Chat action target not found');
-		}
-	} catch (cause) {
-		if (cause && typeof cause === 'object' && 'status' in cause) throw cause;
-		throw error(400, 'Invalid chat action');
 	}
 
 	const hasImages = images.length > 0;
-	if (actionContext && hasImages) {
-		throw error(400, 'A bound chat action cannot include photo attachments');
-	}
 	// A photo can arrive with no caption; give the model a minimal instruction so the
 	// user turn is never empty. The same text is what we persist (images are dropped).
 	const userText = message.trim() || (hasImages ? m.chat_photo_fallback_text() : '');
@@ -267,16 +209,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			const allToolCalls: { id: string; name: string; input: unknown; result: unknown; display?: ToolDisplay }[] =
 				[];
 			const messages: Anthropic.MessageParam[] = [...history];
-			const emitActionResult = () => {
-				if (!actionContext || fullText) return;
-				const resultText = formatChatActionResult(
-					actionContext,
-					db,
-					locale
-				);
-				fullText = resultText;
-				controller.enqueue(sse({ type: 'text', text: resultText }));
-			};
 			// Attach the transient image(s) to THIS turn's user message. history's last
 			// entry is always the just-inserted user text (we inserted it above, then
 			// loaded the window including it), so swap it for a vision message carrying
@@ -284,28 +216,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			// every future turn stay text-only (one-shot ingestion).
 			if (hasImages && messages.length > 0) {
 				messages[messages.length - 1] = buildVisionMessage(userText, images);
-			}
-			if (screenContext && messages.length > 0) {
-				const current = messages[messages.length - 1];
-				const contextText = serializeScreenContext(screenContext);
-				messages[messages.length - 1] = {
-					role: 'user',
-					content:
-						typeof current.content === 'string'
-							? `${current.content}\n\n${contextText}`
-							: [...current.content, { type: 'text', text: contextText }]
-				};
-			}
-			if (actionContext && messages.length > 0) {
-				const current = messages[messages.length - 1];
-				const actionText = serializeChatAction(actionContext);
-				messages[messages.length - 1] = {
-					role: 'user',
-					content:
-						typeof current.content === 'string'
-							? `${current.content}\n\n${actionText}`
-							: [...current.content, { type: 'text', text: actionText }]
-				};
 			}
 			// One TurnExecutionContext per chat request drives the commit-risk gate
 			// (just-created tracking + bulk-destructive count) across the tool loop.
@@ -318,15 +228,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			};
 
 			try {
-				if (actionContext && chatActionProgress(actionContext, db).complete) {
-					// A concurrent/manual edit may have completed the recipe after the
-					// button rendered. Report canonical state without spending an AI call.
-					emitActionResult();
-				} else {
 				// Cap agent-loop iterations; backstops a pathological tool-retry loop.
 				const MAX_ITERATIONS = 25;
 				let iterations = 0;
-				let actionNudges = 0;
 				// Tail index of the previous loop iteration's request, so cache anchors
 				// can straddle the >20-block gap a big batch turn appends (see cache.ts).
 				let prevTailIdx: number | null = null;
@@ -339,9 +243,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				// Resolved lazily on first use, not hoisted alongside chatModel — the
 				// fallback only fires on a provider hiccup, so most turns never pay for it.
 				let fallbackModel: string | null = null;
-				const activeTools = actionContext
-					? tools.filter((tool) => toolsForChatAction(actionContext).has(tool.name))
-					: tools;
 				while (true) {
 					if (iterations++ >= MAX_ITERATIONS) break;
 
@@ -357,7 +258,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						turn = await streamAgentTurn({
 							model: activeModel,
 							system: systemPrompt,
-							tools: activeTools,
+							tools,
 							messages,
 							signal: request.signal,
 							onText: (delta) => {
@@ -365,10 +266,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 								// the plain-text rule); persist and stream the cleaned text.
 								const clean = stripInlineMarkdown(delta);
 								if (!clean) return;
-								if (!actionContext) {
-									fullText += clean;
-									controller.enqueue(sse({ type: 'text', text: clean }));
-								}
+								fullText += clean;
+								controller.enqueue(sse({ type: 'text', text: clean }));
 							}
 						});
 					} catch (err) {
@@ -397,27 +296,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					// Run every tool call that fully streamed this turn, regardless of stop
 					// reason — a big batch can hit max_tokens mid-stream but the completed
 					// calls are valid and must run.
-					if (turn.toolCalls.length === 0) {
-						if (!actionContext) break;
-						const progress = chatActionProgress(actionContext, db);
-						if (!progress.complete && actionNudges < 2) {
-							messages.push({
-								role: 'assistant',
-								content:
-									turn.content.length > 0
-										? turn.content
-										: 'I need to finish the requested recipe classification.'
-							});
-							messages.push({
-								role: 'user',
-								content: serializeChatActionCorrection(progress)
-							});
-							actionNudges += 1;
-							continue;
-						}
-						emitActionResult();
-						break;
-					}
+					if (turn.toolCalls.length === 0) break;
 
 					const toolResults: Anthropic.ToolResultBlockParam[] = [];
 					for (const tool of turn.toolCalls) {
@@ -429,17 +308,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 								summary: describeToolStart(tool.name, tool.input, locale)
 							})
 						);
-						const actionError = actionContext
-							? validateChatActionTool(actionContext, tool.name, tool.input)
-							: null;
-						const result = actionError
-							? { ok: false, error: actionError }
-							: blocksDirtyRecipeWrite(screenContext, tool.name, tool.input)
-								? {
-									ok: false,
-									error: 'Save or discard the open recipe draft before changing this recipe with AI.'
-								}
-								: await executeToolCall(tool.name, tool.input, db, user.id, turnCtx);
+						const result = await executeToolCall(tool.name, tool.input, db, user.id, turnCtx);
 						const display = buildToolDisplay(db, tool.name, tool.input, result, locale);
 						allToolCalls.push({ id: tool.id, name: tool.name, input: tool.input, result, display });
 						controller.enqueue(sse({ type: 'tool', id: tool.id, name: tool.name, result, display }));
@@ -454,15 +323,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					// tool_use in turn.content has a matching tool_result above.
 					messages.push({ role: 'assistant', content: turn.content });
 					messages.push({ role: 'user', content: toolResults });
-					if (actionContext && chatActionProgress(actionContext, db).complete) {
-						emitActionResult();
-						break;
-					}
-				}
-				// If the model exhausted the loop by repeatedly making invalid or
-				// incomplete calls, close with verified database state rather than a
-				// silent tool-only bubble or the model's unverified narration.
-				emitActionResult();
 				}
 			} catch (err) {
 				if (!request.signal.aborted) {

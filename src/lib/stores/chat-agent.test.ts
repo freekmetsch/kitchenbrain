@@ -38,31 +38,6 @@ describe('ChatAgentController state integrity', () => {
 		expect(controller.canRetry(controller.messages[1], 1)).toBe(true);
 	});
 
-	it('reconciles a recoverable server tail after a reload interrupted an active stream', async () => {
-		const controller = new ChatAgentController('freek');
-		const createdAt = new Date('2026-07-23T10:00:00Z');
-		controller.hydrateOnce([{ role: 'user', content: 'Try again', createdAt }]);
-		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-			new Response(
-				JSON.stringify({
-					messages: [
-						{ role: 'user', content: 'Try again', createdAt },
-						{ role: 'assistant', content: '', errorCode: 'interrupted_turn', createdAt }
-					],
-					capExceeded: false,
-					capEur: 0.5
-				}),
-				{ status: 200, headers: { 'Content-Type': 'application/json' } }
-			)
-		);
-
-		await controller.refreshStatus();
-
-		expect(controller.messages).toHaveLength(2);
-		expect(controller.canRetry(controller.messages[1], 1)).toBe(true);
-		fetchSpy.mockRestore();
-	});
-
 	it('does not create a doomed optimistic turn while the cap is active', async () => {
 		const controller = new ChatAgentController('freek');
 		controller.hydrateOnce([], { capExceeded: true });
@@ -73,14 +48,6 @@ describe('ChatAgentController state integrity', () => {
 		expect(controller.messages).toHaveLength(0);
 		expect(fetchSpy).not.toHaveBeenCalled();
 		fetchSpy.mockRestore();
-	});
-
-	it('lets screen context be disabled and restored on the same route', () => {
-		const controller = new ChatAgentController('freek');
-		controller.setContextEnabled(false);
-		expect(controller.contextEnabled).toBe(false);
-		controller.setContextEnabled(true);
-		expect(controller.contextEnabled).toBe(true);
 	});
 
 	it('shares and persists the collapsed prompt-starter preference per user', () => {

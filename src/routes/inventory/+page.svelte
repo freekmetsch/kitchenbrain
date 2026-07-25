@@ -42,10 +42,8 @@
 	import { captureRemoval, restoreRemoval, type RemovedListItem } from '$lib/inventory_undo';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type { PageData } from './$types';
-	import { useChatAgent } from '$lib/chat/agent_context';
 
 	let { data }: { data: PageData } = $props();
-	const chatAgent = useChatAgent();
 	const SCOPES: InventoryScope[] = ['meals', 'ingredients', 'all'];
 
 	// Display-only rename: the DB kind slug stays `leftover`, but these are
@@ -164,24 +162,6 @@
 	);
 	const editingItem = $derived(
 		editingId === null ? null : (items.find((item) => item.id === editingId) ?? null)
-	);
-
-	$effect(() =>
-		chatAgent.publishScreen({
-			v: 1,
-			routeId: '/inventory',
-			label: m.inventory_heading(),
-			entity: { kind: 'inventory' },
-			facts: [
-				{ key: 'totalItems', value: items.length },
-				{ key: 'visibleItems', value: filtered.length },
-				{ key: 'scope', value: scope },
-				{ key: 'sectionFilter', value: sectionFilter },
-				{ key: 'foodClassFilter', value: classFilter ?? 'all' },
-				{ key: 'reviewOnly', value: reviewOnly },
-				{ key: 'hasSearch', value: searchQuery.trim().length > 0 }
-			]
-		})
 	);
 
 	function bucket(i: Item): Kind | null {

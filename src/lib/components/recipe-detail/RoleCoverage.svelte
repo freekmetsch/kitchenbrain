@@ -6,12 +6,10 @@
 
 	let {
 		slug,
-		coverage,
-		onAskAi
+		coverage
 	}: {
 		slug: string;
 		coverage: IngredientRoleCoverage;
-		onAskAi: () => void;
 	} = $props();
 
 	let percent = $derived(coverage.total > 0 ? Math.round((coverage.classified / coverage.total) * 100) : 0);
@@ -38,6 +36,5 @@
 		</div>
 		<div class="mt-3 flex flex-wrap gap-2 pl-12">
 			<a href="{base}/recipes/{slug}/edit" class="btn btn-sm btn-outline min-h-9">{m.recipes_roles_edit_manually()}</a>
-			<button type="button" class="btn btn-sm btn-primary min-h-9" onclick={onAskAi}>{m.recipes_roles_ask_ai()}</button>
 		</div>
 	</section>

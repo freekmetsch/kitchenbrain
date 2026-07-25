@@ -12,7 +12,6 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
-	import { useChatAgent } from '$lib/chat/agent_context';
 	import { scrollRail } from '$lib/actions/scroll_rail';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 	import AddToPlanSheet from '$lib/components/recipe-detail/AddToPlanSheet.svelte';
@@ -67,7 +66,6 @@
 			weeks: { weekStartDate: string; weekNumber: number }[];
 		};
 	} = $props();
-	const chatAgent = useChatAgent();
 	let actionRecipe = $state<Recipe | null>(null);
 	let planOpen = $state(false);
 	let makeOpen = $state(false);
@@ -94,22 +92,6 @@
 	let classFilter = $state(untrack(() => data.classFilter));
 	let dishFilter = $state(untrack(() => data.dishFilter));
 	let ingredientFilter = $state(untrack(() => data.ingredientFilter));
-
-	$effect(() =>
-		chatAgent.publishScreen({
-			v: 1,
-			routeId: '/recipes',
-			label: m.recipes_heading(),
-			entity: { kind: 'recipe' },
-			facts: [
-				{ key: 'visibleRecipes', value: data.recipes.length },
-				{ key: 'search', value: searchInput.slice(0, 120) },
-				{ key: 'foodClassFilter', value: classFilter || 'all' },
-				{ key: 'dishFilter', value: dishFilter || 'all' },
-				{ key: 'ingredientFilter', value: ingredientFilter || 'all' }
-			]
-		})
-	);
 
 	// Filters round-trip through the URL (goto/load). Browser back/forward
 	// re-runs load and updates `data` without touching these locals, so without

@@ -16,7 +16,6 @@
 	import { weekdayName } from '$lib/weekday';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
-	import { useChatAgent } from '$lib/chat/agent_context';
 	import { formatDate } from '$lib/i18n';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 	import { batchServingTarget, batchServingToggleTarget } from '$lib/meal_batch';
@@ -36,7 +35,6 @@
 	type Recipe = PageData['recipeList'][number];
 
 	let { data }: { data: PageData } = $props();
-	const chatAgent = useChatAgent();
 
 	let weeks = $state<Week[]>(untrack(() => data.weeks.map((w) => ({ ...w, meals: w.meals.map((m) => ({ ...m })) }))));
 	const currentWeekStart = untrack(() => data.currentWeekStart);
@@ -60,23 +58,6 @@
 	let adjacentWeeks = $derived(
 		adjacentMealPlanWeeks(weeks, selectedWeek?.weekStartDate ?? null)
 	);
-
-	$effect(() => {
-		const week = selectedWeek;
-		if (!week) return;
-		chatAgent.publishScreen({
-			v: 1,
-			routeId: '/meal-plan',
-			label: m.mealplan_heading(),
-			entity: { kind: 'meal-plan', id: week.weekStartDate, label: week.weekStartDate },
-			facts: [
-				{ key: 'currentWeekStart', value: currentWeekStart },
-				{ key: 'selectedWeekStart', value: week.weekStartDate },
-				{ key: 'weeksVisible', value: 1 },
-				{ key: 'plannedMeals', value: week.meals.length }
-			]
-		});
-	});
 
 	let drawerOpen = $state(false);
 	let drawerWeek = $state('');
