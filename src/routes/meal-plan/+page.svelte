@@ -659,14 +659,19 @@
 	<title>{m.mealplan_title()}</title>
 </svelte:head>
 
-<div class="ui-page-shell px-4 py-4">
+<div class="meal-plan-page">
 	<p class="sr-only" aria-live="polite">{servingsStatus}</p>
-	<header class="mb-3 flex items-center justify-between gap-3">
-		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.mealplan_heading()}</h1>
-		{#if selectedWeek}
+	<section class="plan-band">
+		<div class="plan-band-inner">
+			<header class="plan-identity">
+				<div>
+					<p>{m.mealplan_week_navigation_aria()}</p>
+					<h1>{m.mealplan_heading()}</h1>
+				</div>
+				{#if selectedWeek}
 			<details class="dropdown dropdown-end">
 				<summary
-					class="btn btn-ghost btn-sm h-11 min-h-11 w-11 list-none px-0 text-lg tracking-[0.12em]"
+					class="plan-more"
 					aria-label={m.mealplan_more_options_aria()}
 				>
 					<span aria-hidden="true">•••</span>
@@ -698,15 +703,12 @@
 					</li>
 				</ul>
 			</details>
-		{/if}
-	</header>
+				{/if}
+			</header>
 
-	{#if selectedWeek}
-		{@const week = selectedWeek}
-		<div
-			class="mb-3 grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2"
-			aria-label={m.mealplan_week_navigation_aria()}
-		>
+			{#if selectedWeek}
+				{@const week = selectedWeek}
+				<div class="plan-week-row" aria-label={m.mealplan_week_navigation_aria()}>
 			{#if adjacentWeeks.previous}
 				<a
 					href={mealPlanWeekHref(
@@ -714,7 +716,7 @@
 						adjacentWeeks.previous.weekStartDate,
 						data.showPastWeeks
 					)}
-					class="btn btn-outline h-11 min-h-11 w-11 px-0"
+					class="plan-week-button"
 					aria-label={m.mealplan_previous_week_aria()}
 				>
 					<Icon name="chevronLeft" />
@@ -722,7 +724,7 @@
 			{:else}
 				<button
 					type="button"
-					class="btn btn-outline h-11 min-h-11 w-11 px-0"
+					class="plan-week-button"
 					aria-label={m.mealplan_previous_week_aria()}
 					disabled
 				>
@@ -730,22 +732,22 @@
 				</button>
 			{/if}
 
-			<div class="min-w-0 text-center">
+			<div class="plan-week-copy">
 				<div class="flex items-center justify-center gap-2">
-					<h2 class="text-lg font-semibold leading-tight">
+					<h2>
 						{m.mealplan_week_heading({ number: week.weekNumber })}
 					</h2>
 					{#if week.weekStartDate === currentWeekStart}
 						<span
-							class="inline-flex min-h-7 items-center rounded-full border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary"
+							class="plan-now"
 						>
 							{m.mealplan_now_chip()}
 						</span>
 					{/if}
 				</div>
-				<p class="mt-0.5 text-xs text-base-content/50">{formatWeekRange(week.weekStartDate)}</p>
+				<p>{formatWeekRange(week.weekStartDate)}</p>
 				{#if week.deliveryDate}
-					<p class="mt-0.5 inline-flex items-center justify-center gap-1 text-xs text-base-content/50">
+					<p class="plan-delivery">
 						<Icon name="cart" class="h-3 w-3" />
 						{m.mealplan_delivery_label({ date: deliveryLabel(week.deliveryDate) })}
 					</p>
@@ -759,7 +761,7 @@
 						adjacentWeeks.next.weekStartDate,
 						data.showPastWeeks
 					)}
-					class="btn btn-outline h-11 min-h-11 w-11 px-0"
+					class="plan-week-button"
 					aria-label={m.mealplan_next_week_aria()}
 				>
 					<Icon name="chevronRight" />
@@ -767,26 +769,26 @@
 			{:else}
 				<button
 					type="button"
-					class="btn btn-outline h-11 min-h-11 w-11 px-0"
+					class="plan-week-button"
 					aria-label={m.mealplan_next_week_aria()}
 					disabled
 				>
 					<Icon name="chevronRight" />
 				</button>
 			{/if}
-		</div>
+				</div>
 
-		<div class="mb-3 grid grid-cols-[1fr_1fr_1.15fr] gap-1.5">
+				<div class="plan-actions">
 			<a
 				href="{base}/shopping?week={week.weekStartDate}"
-				class="btn btn-outline h-11 min-h-11 px-2 text-xs sm:text-sm"
+				class="plan-action plan-shopping"
 			>
 				<Icon name="cart" class="h-4 w-4" />
 				{m.mealplan_shopping_link()}
 			</a>
 			<button
 				type="button"
-				class="btn btn-ghost h-11 min-h-11 px-2 text-xs sm:text-sm"
+				class="plan-action plan-suggest"
 				onclick={() => startSuggest(week.weekStartDate)}
 				disabled={suggestLoading && suggestActive === week.weekStartDate}
 			>
@@ -796,14 +798,20 @@
 			</button>
 			<button
 				type="button"
-				class="btn btn-primary h-11 min-h-11 px-2 text-xs sm:text-sm"
+				class="plan-action plan-add"
 				onclick={() => openAddDrawer(week.weekStartDate)}
 			>
 				<Icon name="plus" class="h-4 w-4" />
 				{m.mealplan_add_meal()}
 			</button>
+				</div>
+			{/if}
 		</div>
+	</section>
 
+	<main class="plan-ledger">
+		{#if selectedWeek}
+			{@const week = selectedWeek}
 		<div>
 			<section
 				id="week-{week.weekStartDate}"
@@ -1004,8 +1012,213 @@
 				{/if}
 			</section>
 		</div>
-	{/if}
+		{/if}
+	</main>
 </div>
+
+<style>
+	.meal-plan-page {
+		min-height: 100%;
+		background: var(--kitchen-paper);
+		padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
+	}
+
+	.plan-band {
+		color: white;
+		background:
+			radial-gradient(circle at 88% 0, rgb(255 255 255 / 10%), transparent 13rem),
+			linear-gradient(135deg, var(--kitchen-olive-deep), var(--kitchen-olive-soft));
+	}
+
+	.plan-band-inner,
+	.plan-ledger {
+		max-width: 74rem;
+		margin: 0 auto;
+	}
+
+	.plan-band-inner {
+		display: grid;
+		gap: 0.65rem;
+		padding: 0.65rem 0.875rem 0.8rem;
+	}
+
+	.plan-identity {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.plan-identity p {
+		color: #f2ca74;
+		font-size: 0.62rem;
+		font-weight: 800;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.plan-identity h1 {
+		margin-top: 0.08rem;
+		font-family: var(--kitchen-display);
+		font-size: 1.15rem;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: -0.025em;
+	}
+
+	.plan-more,
+	.plan-week-button {
+		display: inline-flex;
+		width: 2.75rem;
+		height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid rgb(255 255 255 / 23%);
+		border-radius: 0.72rem;
+		background: rgb(255 255 255 / 7%);
+		color: white;
+	}
+
+	.plan-more {
+		list-style: none;
+		font-size: 1rem;
+		letter-spacing: 0.12em;
+	}
+
+	.plan-week-button:disabled {
+		opacity: 0.35;
+	}
+
+	.plan-more:hover,
+	.plan-more:focus-visible,
+	.plan-week-button:hover,
+	.plan-week-button:focus-visible {
+		background: rgb(255 255 255 / 15%);
+	}
+
+	.plan-identity .menu a {
+		min-height: 2.75rem;
+	}
+
+	.plan-week-row {
+		display: grid;
+		grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+		align-items: center;
+		gap: 0.55rem;
+	}
+
+	.plan-week-copy {
+		min-width: 0;
+		text-align: center;
+	}
+
+	.plan-week-copy h2 {
+		font-family: var(--kitchen-display);
+		font-size: 1.2rem;
+		font-weight: 600;
+		line-height: 1.05;
+	}
+
+	.plan-week-copy > p {
+		margin-top: 0.18rem;
+		color: #d7e0d9;
+		font-size: 0.68rem;
+	}
+
+	.plan-week-copy .plan-delivery {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.3rem;
+	}
+
+	.plan-now {
+		display: inline-flex;
+		min-height: 1.65rem;
+		align-items: center;
+		border: 1px solid rgb(242 202 116 / 55%);
+		border-radius: 999px;
+		padding: 0 0.5rem;
+		background: rgb(242 202 116 / 13%);
+		color: #f2ca74;
+		font-size: 0.65rem;
+		font-weight: 750;
+	}
+
+	.plan-actions {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1.15fr;
+		gap: 0.4rem;
+	}
+
+	.plan-action {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		gap: 0.4rem;
+		border-radius: 0.72rem;
+		padding: 0 0.55rem;
+		font-size: 0.72rem;
+		font-weight: 750;
+	}
+
+	.plan-shopping {
+		border: 1px solid rgb(255 255 255 / 25%);
+		background: rgb(255 255 255 / 8%);
+	}
+
+	.plan-suggest {
+		color: #e4ebe6;
+	}
+
+	.plan-add {
+		background: var(--kitchen-terra);
+		color: white;
+		box-shadow: 0 5px 16px rgb(20 28 23 / 20%);
+	}
+
+	.plan-action:hover,
+	.plan-action:focus-visible {
+		background-color: rgb(255 255 255 / 16%);
+	}
+
+	.plan-add:hover,
+	.plan-add:focus-visible {
+		background-color: color-mix(in oklab, var(--kitchen-terra) 86%, white);
+	}
+
+	.plan-ledger {
+		padding: 0.9rem 0.875rem max(6.5rem, var(--ui-overlay-bottom));
+	}
+
+	@media (min-width: 48rem) {
+		.plan-band-inner {
+			grid-template-columns: minmax(28rem, 1fr) minmax(20rem, 0.65fr);
+			gap: 0.75rem 1.5rem;
+			padding: 0.8rem 1.5rem 1rem;
+		}
+
+		.plan-identity {
+			grid-column: 1 / -1;
+		}
+
+		.plan-actions {
+			align-self: center;
+		}
+
+		.plan-ledger {
+			padding: 1.1rem 1.5rem max(6.5rem, var(--ui-overlay-bottom));
+		}
+	}
+
+	@media (min-width: 64rem) {
+		.plan-band-inner,
+		.plan-ledger {
+			padding-inline: 2rem;
+		}
+	}
+</style>
 
 <BottomSheet bind:open={drawerOpen} title={m.mealplan_add_meal_sheet_title()}>
 	<form

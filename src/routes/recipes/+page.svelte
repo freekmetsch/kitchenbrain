@@ -337,12 +337,17 @@
 	<title>{m.recipes_title()}</title>
 </svelte:head>
 
-<div class="ui-page-shell px-4 py-3">
-	<header class="mb-2 flex items-center justify-between gap-3">
-		<h1 class="min-w-0 text-2xl font-semibold leading-tight">{m.recipes_heading()}</h1>
-		<div class="flex shrink-0 gap-2">
+<div class="recipe-page">
+	<section class="recipe-band">
+		<div class="recipe-band-inner">
+			<header class="recipe-identity">
+				<div>
+					<p>{m.recipes_title()}</p>
+					<h1>{m.recipes_heading()}</h1>
+				</div>
+				<div class="recipe-actions">
 			<button
-				class="btn btn-sm btn-ghost border border-base-300"
+				class="recipe-action recipe-new-meal"
 				onclick={() => {
 					newMealOpen = true;
 					newMealTitle = '';
@@ -351,18 +356,25 @@
 					newMealError = '';
 				}}>{m.recipes_new_meal_button()}</button
 			>
-			<button class="btn btn-sm btn-primary" onclick={() => { scrapeOpen = true; }}>{m.recipes_import_button()}</button>
-		</div>
-	</header>
+					<button class="recipe-action recipe-import" onclick={() => { scrapeOpen = true; }}>{m.recipes_import_button()}</button>
+				</div>
+			</header>
 
-	<!-- Sticky filter bar. Chips toggle: tap the active chip to clear it (same
-	     contract as the /inventory facet bar) — no "All" chips, no group labels,
-	     rows scroll horizontally on 375px instead of wrapping. -->
-	<section class="sticky top-0 z-20 -mx-4 mb-3 border-y border-base-200 bg-base-100/95 px-4 py-2 backdrop-blur">
-		<div class="mb-2 flex gap-2">
+			<div class="recipe-search-row">
+				<label class="recipe-search">
+					<svg
+						viewBox="0 0 16 16"
+						class="h-4 w-4"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						aria-hidden="true"
+					>
+						<path d="M11.25 11.25 14 14" />
+						<circle cx="7.25" cy="7.25" r="5" />
+					</svg>
 			<input
 				type="search"
-				class="input input-bordered input-sm flex-1"
 				placeholder={m.recipes_search_placeholder()}
 				aria-label={m.recipes_search_aria()}
 				bind:value={searchInput}
@@ -374,7 +386,8 @@
 					search();
 				}}
 			/>
-			<select class="select select-bordered select-sm w-36 shrink-0" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
+				</label>
+			<select class="recipe-sort" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
 				<option value="title">{m.recipes_sort_az()}</option>
 				<option value="rating">{m.recipes_sort_rating()}</option>
 				<option value="recent">{m.recipes_sort_recent()}</option>
@@ -382,6 +395,12 @@
 				<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
 			</select>
 		</div>
+		</div>
+	</section>
+
+	<!-- Chips toggle; the rail stays close to the results and scrolls on phones. -->
+	<section class="recipe-filter-shell">
+		<div class="recipe-filter-inner">
 		<div class="ui-scroll-rail flex items-center gap-1.5 pb-0.5" use:scrollRail>
 			<button
 				type="button"
@@ -422,8 +441,10 @@
 				>{foodCategoryLabel(dishType) ?? dishType}</button>
 			{/each}
 		</div>
+		</div>
 	</section>
 
+	<main class="recipe-ledger">
 	{#if ingredientFilter}
 		<div class="mb-3 flex items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-3 py-2 text-sm">
 			<span class="min-w-0 flex-1 truncate">{m.recipes_using_ingredient_prefix()} <strong>{ingredientFilter}</strong></span>
@@ -447,7 +468,7 @@
 			{/snippet}
 		</EmptyState>
 	{:else}
-		<div class="grid grid-cols-2 gap-2">
+		<div class="recipe-grid">
 			{#each data.recipes as recipe (recipe.id)}
 				{@const title = displayTitle(recipe)}
 				{@const category = displayCategory(recipe)}
@@ -501,7 +522,212 @@
 			{/each}
 		</div>
 	{/if}
+	</main>
 </div>
+
+<style>
+	.recipe-page {
+		min-height: 100%;
+		background: var(--kitchen-paper);
+		padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
+	}
+
+	.recipe-band {
+		color: white;
+		background:
+			radial-gradient(circle at 86% 0, rgb(255 255 255 / 10%), transparent 13rem),
+			linear-gradient(135deg, var(--kitchen-olive-deep), var(--kitchen-olive-soft));
+	}
+
+	.recipe-band-inner,
+	.recipe-filter-inner,
+	.recipe-ledger {
+		max-width: 74rem;
+		margin: 0 auto;
+	}
+
+	.recipe-band-inner {
+		display: grid;
+		gap: 0.7rem;
+		padding: 0.65rem 0.875rem 0.8rem;
+	}
+
+	.recipe-identity {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.recipe-identity p {
+		color: #f2ca74;
+		font-size: 0.62rem;
+		font-weight: 800;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.recipe-identity h1 {
+		margin-top: 0.08rem;
+		font-family: var(--kitchen-display);
+		font-size: 1.15rem;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: -0.025em;
+	}
+
+	.recipe-actions {
+		display: flex;
+		flex: 0 0 auto;
+		gap: 0.4rem;
+	}
+
+	.recipe-action {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.7rem;
+		padding: 0 0.7rem;
+		font-size: 0.7rem;
+		font-weight: 750;
+	}
+
+	.recipe-new-meal {
+		border: 1px solid rgb(255 255 255 / 24%);
+		background: rgb(255 255 255 / 8%);
+	}
+
+	.recipe-import {
+		background: var(--kitchen-terra);
+		box-shadow: 0 5px 16px rgb(20 28 23 / 20%);
+	}
+
+	.recipe-action:hover,
+	.recipe-action:focus-visible {
+		background-color: rgb(255 255 255 / 16%);
+	}
+
+	.recipe-import:hover,
+	.recipe-import:focus-visible {
+		background-color: color-mix(in oklab, var(--kitchen-terra) 86%, white);
+	}
+
+	.recipe-search-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(7.75rem, 0.38fr);
+		gap: 0.5rem;
+	}
+
+	.recipe-search {
+		display: grid;
+		min-width: 0;
+		height: 2.9rem;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: center;
+		gap: 0.55rem;
+		border: 1px solid rgb(255 255 255 / 25%);
+		border-radius: 0.75rem;
+		padding: 0 0.75rem;
+		background: rgb(255 255 255 / 12%);
+	}
+
+	.recipe-search input {
+		min-width: 0;
+		outline: 0;
+		color: white;
+		font-size: 0.78rem;
+	}
+
+	.recipe-search input::placeholder {
+		color: rgb(255 255 255 / 65%);
+	}
+
+	.recipe-sort {
+		min-width: 0;
+		height: 2.9rem;
+		border: 1px solid rgb(255 255 255 / 25%);
+		border-radius: 0.75rem;
+		padding: 0 1.9rem 0 0.65rem;
+		background: rgb(255 255 255 / 12%);
+		color: white;
+		font-size: 0.72rem;
+		font-weight: 700;
+	}
+
+	.recipe-sort option {
+		color: var(--color-base-content);
+		background: var(--color-base-100);
+	}
+
+	.recipe-filter-shell {
+		position: sticky;
+		z-index: 20;
+		top: 0;
+		border-bottom: 1px solid var(--kitchen-line);
+		background: color-mix(in oklab, var(--kitchen-paper) 94%, transparent);
+		backdrop-filter: blur(0.65rem);
+	}
+
+	.recipe-filter-inner {
+		padding: 0.55rem 0.875rem;
+	}
+
+	.recipe-filter-inner button {
+		min-height: 2.75rem;
+	}
+
+	.recipe-ledger {
+		padding: 0.9rem 0.875rem max(6.5rem, var(--ui-overlay-bottom));
+	}
+
+	.recipe-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.55rem;
+	}
+
+	@media (min-width: 48rem) {
+		.recipe-band-inner {
+			grid-template-columns: minmax(13rem, 0.42fr) minmax(28rem, 1fr);
+			align-items: end;
+			gap: 1rem 1.5rem;
+			padding: 0.8rem 1.5rem 1rem;
+		}
+
+		.recipe-identity {
+			grid-column: 1;
+			grid-row: 1;
+		}
+
+		.recipe-search-row {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		.recipe-grid {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 0.75rem;
+		}
+
+		.recipe-filter-inner,
+		.recipe-ledger {
+			padding-inline: 1.5rem;
+		}
+	}
+
+	@media (min-width: 68rem) {
+		.recipe-grid {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+
+		.recipe-band-inner,
+		.recipe-filter-inner,
+		.recipe-ledger {
+			padding-inline: 2rem;
+		}
+	}
+</style>
 
 {#if actionRecipe}
 	<AddToPlanSheet

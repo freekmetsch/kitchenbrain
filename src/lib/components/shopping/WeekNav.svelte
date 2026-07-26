@@ -62,7 +62,10 @@
 
 <header class="market-hero">
 	<div class="market-hero-top">
-		<p>{m.shopping_market_context()}</p>
+		<div class="market-identity">
+			<p>{m.shopping_market_context()}</p>
+			<h1>{m.shopping_market_heading()}</h1>
+		</div>
 		<span class:offline={!ahConnected} class="market-ah-status">
 			<i aria-hidden="true"></i>
 			{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
@@ -70,7 +73,6 @@
 	</div>
 
 	<div class="market-hero-grid">
-		<h1>{m.shopping_market_heading()}</h1>
 		<div class="market-run-state">
 			<div class="market-week-row">
 				<a
@@ -126,9 +128,9 @@
 
 <style>
 	.market-hero {
-		--market-olive: #304b3a;
-		--market-olive-deep: #263e30;
-		--market-olive-soft: #42624c;
+		--market-olive: var(--kitchen-olive);
+		--market-olive-deep: var(--kitchen-olive-deep);
+		--market-olive-soft: var(--kitchen-olive-soft);
 		position: relative;
 		overflow: hidden;
 		color: white;
@@ -159,13 +161,20 @@
 
 	.market-hero-top {
 		display: flex;
-		align-items: center;
+		align-items: end;
 		justify-content: space-between;
 		gap: 0.75rem;
 		padding: 0.6rem 0.75rem 0;
 	}
 
-	.market-hero-top p {
+	.market-identity {
+		display: flex;
+		min-width: 0;
+		align-items: baseline;
+		gap: 0.55rem;
+	}
+
+	.market-identity p {
 		color: #f2ca74;
 		font-size: 0.62rem;
 		font-weight: 800;
@@ -204,24 +213,21 @@
 	}
 
 	.market-hero-grid {
-		display: grid;
-		grid-template-columns: 5.75rem minmax(0, 1fr);
-		align-items: end;
-		gap: 0.5rem;
-		padding: 0.15rem 0.75rem 0.65rem;
+		padding: 0.4rem 0.75rem 0.7rem;
 	}
 
 	.market-hero h1 {
 		margin: 0;
-		font-family: Georgia, 'Times New Roman', serif;
-		font-size: 1.65rem;
-		font-weight: 500;
-		line-height: 0.98;
-		letter-spacing: -0.04em;
+		font-family: var(--kitchen-display);
+		font-size: 1.05rem;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: -0.02em;
 	}
 
 	.market-run-state {
 		min-width: 0;
+		width: 100%;
 	}
 
 	.market-week-row {
@@ -298,7 +304,7 @@
 	}
 
 	.market-progress-copy strong {
-		font-family: Georgia, 'Times New Roman', serif;
+		font-family: var(--kitchen-display);
 		font-size: 1.05rem;
 		font-weight: 500;
 		line-height: 1;
@@ -331,32 +337,25 @@
 		}
 
 		.market-hero-grid {
-			grid-template-columns: minmax(13rem, 0.75fr) minmax(25rem, 1.25fr);
-			gap: 2rem;
-			padding: 0.25rem 1.5rem 1rem;
-		}
-
-		.market-hero h1 {
-			font-size: 2.25rem;
+			padding: 0.5rem 1.5rem 1rem;
 		}
 
 		.market-run-state {
-			width: min(100%, 37.5rem);
-			justify-self: end;
+			display: grid;
+			grid-template-columns: minmax(28rem, 1fr) minmax(13rem, 0.45fr);
+			align-items: end;
+			gap: 1.5rem;
+		}
+
+		.market-progress {
+			margin-top: 0;
 		}
 	}
 
 	@media (min-width: 64rem) {
-		.market-hero-top {
-			padding-inline: 2rem;
-		}
-
+		.market-hero-top,
 		.market-hero-grid {
 			padding-inline: 2rem;
-		}
-
-		.market-hero h1 {
-			font-size: 2.5rem;
 		}
 	}
 

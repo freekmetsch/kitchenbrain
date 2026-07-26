@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	displayQuantity,
 	groupMealStock,
+	matchesInventoryQuickView,
 	matchesInventoryScope,
 	matchesInventoryQuery,
 	recipeCoverage,
@@ -112,5 +113,62 @@ describe('stock radar attention', () => {
 		expect(matchesInventoryScope({ kind: 'ingredient' }, 'meals')).toBe(false);
 		expect(matchesInventoryScope({ kind: 'ingredient' }, 'ingredients')).toBe(true);
 		expect(matchesInventoryScope({ kind: 'processed' }, 'all')).toBe(true);
+	});
+});
+
+describe('stock quick views', () => {
+	it('shows only meals with portions in the Ready meals view', () => {
+		expect(
+			matchesInventoryQuickView(
+				{ kind: 'leftover', qtyNum: 2 },
+				{ isFreezerStaple: false, targetPortions: null },
+				'ready'
+			)
+		).toBe(true);
+		expect(
+			matchesInventoryQuickView(
+				{ kind: 'leftover', qtyNum: 0 },
+				{ isFreezerStaple: true, targetPortions: 4 },
+				'ready'
+			)
+		).toBe(false);
+		expect(
+			matchesInventoryQuickView(
+				{ kind: 'ingredient', qtyNum: 3 },
+				null,
+				'ready'
+			)
+		).toBe(false);
+	});
+
+	it('shows only freezer staples below target and skips filtering when no quick view is active', () => {
+		expect(
+			matchesInventoryQuickView(
+				{ kind: 'leftover', qtyNum: 1 },
+				{ isFreezerStaple: true, targetPortions: 4 },
+				'below_target'
+			)
+		).toBe(true);
+		expect(
+			matchesInventoryQuickView(
+				{ kind: 'leftover', qtyNum: 4 },
+				{ isFreezerStaple: true, targetPortions: 4 },
+				'below_target'
+			)
+		).toBe(false);
+		expect(
+			matchesInventoryQuickView(
+				{ kind: 'leftover', qtyNum: 0 },
+				{ isFreezerStaple: false, targetPortions: 4 },
+				'below_target'
+			)
+		).toBe(false);
+		expect(
+			matchesInventoryQuickView(
+				{ kind: 'ingredient', qtyNum: 2 },
+				null,
+				null
+			)
+		).toBe(true);
 	});
 });

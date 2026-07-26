@@ -22,6 +22,7 @@
 	import {
 		composeQty,
 		groupMealStock,
+		matchesInventoryQuickView,
 		matchesInventoryScope,
 		matchesInventoryQuery,
 		recipeCoverage,
@@ -30,6 +31,7 @@
 	import type {
 		EditDraft,
 		HistoryEvent,
+		InventoryQuickView,
 		InventoryScope,
 		Item,
 		Kind,
@@ -62,6 +64,7 @@
 	let classFilter = $state<string | null>(null);
 	let reviewOnly = $state(false);
 	let searchQuery = $state('');
+	let quickView = $state<InventoryQuickView | null>(null);
 	let filtersOpen = $state(false);
 	let searchInput = $state<HTMLInputElement>();
 
@@ -100,19 +103,13 @@
 	// ── derived ────────────────────────────────────────────────────────────────
 	const needsReviewCount = $derived(items.filter((i) => i.needsReview).length);
 	const readyMealCount = $derived(
-		items.filter((item) => item.kind === 'leftover' && (item.qtyNum ?? 0) > 0).length
+		items.filter((item) => matchesInventoryQuickView(item, linkFor(item), 'ready')).length
 	);
 	const belowTargetItems = $derived(
-		items.filter((item) => {
-			if (item.kind !== 'leftover') return false;
-			const link = linkFor(item);
-			return (
-				link?.isFreezerStaple === true &&
-				link.targetPortions !== null &&
-				(item.qtyNum ?? 0) < link.targetPortions
-			);
-		})
+		items.filter((item) => matchesInventoryQuickView(item, linkFor(item), 'below_target'))
 	);
+	const belowTargetGhosts = $derived(data.stapleGhosts.filter((ghost) => ghost.target !== null));
+	const belowTargetCount = $derived(belowTargetItems.length + belowTargetGhosts.length);
 	const hasActiveFilters = $derived(
 		sectionFilter !== 'all' || classFilter !== null || reviewOnly
 	);
@@ -123,6 +120,7 @@
 				(classFilter === null || rollsUpTo(i.foodClass, classFilter)) &&
 				(!reviewOnly || i.needsReview) &&
 				matchesInventoryScope(i, scope) &&
+				matchesInventoryQuickView(i, linkFor(i), quickView) &&
 				matchesInventoryQuery(searchQuery, [
 					i.name,
 					i.unit,
@@ -174,8 +172,9 @@
 		scope === 'meals' &&
 		(sectionFilter === 'all' || sectionFilter === 'freezer') &&
 		classFilter === null &&
-		!reviewOnly
-			? data.stapleGhosts.filter((ghost) =>
+		!reviewOnly &&
+		quickView !== 'ready'
+			? (quickView === 'below_target' ? belowTargetGhosts : data.stapleGhosts).filter((ghost) =>
 					matchesInventoryQuery(searchQuery, [
 						ghost.title,
 						m.inventory_shelf_meals(),
@@ -732,6 +731,7 @@
 		classFilter = null;
 		reviewOnly = false;
 		searchQuery = '';
+		quickView = null;
 		scope = item.kind === 'leftover' ? 'meals' : item.kind === 'ingredient' ? 'ingredients' : 'all';
 		flashToast(m.inventory_toast_added({ name }));
 	}
@@ -741,6 +741,7 @@
 		classFilter = null;
 		reviewOnly = false;
 		searchQuery = '';
+		quickView = null;
 	}
 
 	function revealItem(item: Item) {
@@ -770,6 +771,23 @@
 		if (value === 'meals') return m.inventory_scope_meals();
 		if (value === 'ingredients') return m.inventory_scope_ingredients();
 		return m.inventory_scope_all();
+	}
+
+	function setScope(value: InventoryScope) {
+		if (value !== 'meals') quickView = null;
+		scope = value;
+	}
+
+	function toggleQuickView(value: InventoryQuickView) {
+		quickView = quickView === value ? null : value;
+		scope = 'meals';
+	}
+
+	function quickViewStatus(): string {
+		if (quickView === 'ready') {
+			return m.inventory_quick_view_ready_status({ count: visibleMealResultCount });
+		}
+		return m.inventory_quick_view_below_target_status({ count: visibleMealResultCount });
 	}
 
 	function clearSearch() {
@@ -843,14 +861,47 @@
 			</div>
 
 			<div class="stock-stats" aria-label={m.inventory_heading()}>
-				<div class="stock-stat">
-					<strong>{readyMealCount}</strong>
-					<span>{m.inventory_radar_meals_label()}</span>
-				</div>
-				<div class:attention={belowTargetItems.length > 0} class="stock-stat">
-					<strong>{belowTargetItems.length}</strong>
-					<span>{m.inventory_radar_below_target_label()}</span>
-				</div>
+				{#if readyMealCount > 0}
+					<button
+						type="button"
+						class="stock-stat stock-stat-action"
+						class:active={quickView === 'ready'}
+						aria-pressed={quickView === 'ready'}
+						aria-label={m.inventory_radar_ready_aria({ count: readyMealCount })}
+						onclick={() => toggleQuickView('ready')}
+					>
+						<strong>{readyMealCount}</strong>
+						<span>{m.inventory_radar_meals_label()}</span>
+						<Icon name={quickView === 'ready' ? 'x' : 'chevronRight'} class="h-4 w-4" />
+					</button>
+				{:else}
+					<div class="stock-stat stock-stat-zero">
+						<Icon name="check" class="h-4 w-4" />
+						<span>{m.inventory_radar_ready_zero()}</span>
+					</div>
+				{/if}
+				{#if belowTargetCount > 0}
+					<button
+						type="button"
+						class="stock-stat stock-stat-action attention"
+						class:active={quickView === 'below_target'}
+						aria-pressed={quickView === 'below_target'}
+						aria-label={m.inventory_radar_below_target_aria({ count: belowTargetCount })}
+						onclick={() => toggleQuickView('below_target')}
+					>
+						<strong>{belowTargetCount}</strong>
+						<span>{m.inventory_radar_below_target_label()}</span>
+						<Icon
+							name={quickView === 'below_target' ? 'x' : 'chevronRight'}
+							class="h-4 w-4"
+						/>
+					</button>
+				{:else}
+					<div class="stock-stat stock-stat-zero">
+						<Icon name="check" class="h-4 w-4" />
+						<span>{m.inventory_radar_below_target_zero()}</span>
+					</div>
+				{/if}
 			</div>
 		</div>
 	</header>
@@ -901,7 +952,7 @@
 						type="button"
 						aria-pressed={scope === value}
 						class:active={scope === value}
-						onclick={() => (scope = value)}
+						onclick={() => setScope(value)}
 					>
 						{scopeLabel(value)}
 					</button>
@@ -916,6 +967,16 @@
 				</button>
 			</nav>
 		</div>
+
+		{#if quickView}
+			<div class="stock-quick-view" aria-live="polite">
+				<span>{quickViewStatus()}</span>
+				<button type="button" onclick={() => (quickView = null)}>
+					{m.inventory_quick_view_clear()}
+					<Icon name="x" class="h-3.5 w-3.5" />
+				</button>
+			</div>
+		{/if}
 
 		{#if scope === 'meals' && visibleMealItems.length > 0}
 			<div class="stock-coverage" aria-label={m.inventory_recipe_coverage_label()}>
@@ -1026,7 +1087,7 @@
 									</button>
 								{/if}
 								{#if alternateScopeMatch || hasUngroupedMealStock}
-									<button type="button" class="btn btn-primary min-h-11" onclick={() => (scope = 'all')}>
+									<button type="button" class="btn btn-primary min-h-11" onclick={() => setScope('all')}>
 										{m.inventory_empty_show_all()}
 									</button>
 								{:else}
@@ -1102,14 +1163,14 @@
 
 <style>
 	.stock-radar {
-		--stock-olive: #334638;
-		--stock-olive-deep: #293b30;
-		--stock-olive-soft: #49614f;
-		--stock-honey: #d3a046;
-		--stock-honey-ink: #69460f;
-		--stock-terra: #a84d2a;
-		--stock-paper: #f7f3e9;
-		--stock-card: #fffdf7;
+		--stock-olive: var(--kitchen-olive);
+		--stock-olive-deep: var(--kitchen-olive-deep);
+		--stock-olive-soft: var(--kitchen-olive-soft);
+		--stock-honey: var(--kitchen-honey);
+		--stock-honey-ink: var(--kitchen-honey-ink);
+		--stock-terra: var(--kitchen-terra);
+		--stock-paper: var(--kitchen-paper);
+		--stock-card: var(--kitchen-card);
 		min-height: 100%;
 		background: var(--stock-paper);
 		color: var(--color-base-content);
@@ -1206,10 +1267,54 @@
 		background: rgb(255 255 255 / 7%);
 	}
 
+	.stock-stat-action {
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		width: 100%;
+		text-align: left;
+		cursor: pointer;
+		transition:
+			transform 140ms ease,
+			border-color 140ms ease,
+			background 140ms ease;
+	}
+
+	.stock-stat-action:hover {
+		transform: translateY(-1px);
+		border-color: rgb(255 255 255 / 42%);
+		background: rgb(255 255 255 / 13%);
+	}
+
+	.stock-stat-action:focus-visible {
+		outline: 2px solid white;
+		outline-offset: 2px;
+	}
+
+	.stock-stat-action.active {
+		border-color: white;
+		background: white;
+		color: var(--stock-olive);
+		box-shadow: 0 8px 24px rgb(18 37 28 / 25%);
+	}
+
 	.stock-stat.attention {
 		border-color: transparent;
 		background: var(--stock-honey);
 		color: #332613;
+	}
+
+	.stock-stat.attention:hover {
+		border-color: rgb(255 255 255 / 55%);
+		background: color-mix(in oklab, var(--stock-honey) 88%, white);
+	}
+
+	.stock-stat.attention.active {
+		border-color: white;
+		background: white;
+		color: var(--stock-olive);
+	}
+
+	.stock-stat-zero {
+		color: rgb(255 255 255 / 72%);
 	}
 
 	.stock-stat strong {
@@ -1294,7 +1399,7 @@
 	}
 
 	.stock-scopes button {
-		min-height: 2.6rem;
+		min-height: 2.75rem;
 		flex: 0 0 auto;
 		border-radius: 0.6rem;
 		padding: 0 0.72rem;
@@ -1308,6 +1413,38 @@
 		background: var(--stock-olive);
 		color: white;
 		box-shadow: 0 3px 10px rgb(41 59 48 / 18%);
+	}
+
+	.stock-quick-view {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin-top: 0.65rem;
+		padding: 0.45rem 0.5rem 0.45rem 0.8rem;
+		border: 1px solid color-mix(in oklab, var(--stock-olive) 22%, var(--color-base-300));
+		border-radius: 0.8rem;
+		background: color-mix(in oklab, var(--stock-olive-soft) 60%, var(--stock-card));
+		color: var(--stock-olive);
+		font-size: 0.76rem;
+		font-weight: 700;
+	}
+
+	.stock-quick-view button {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0 0.7rem;
+		border-radius: 0.65rem;
+		background: var(--stock-card);
+		font-size: 0.72rem;
+		box-shadow: 0 2px 8px rgb(41 59 48 / 8%);
+	}
+
+	.stock-quick-view button:hover,
+	.stock-quick-view button:focus-visible {
+		background: white;
 	}
 
 	.stock-coverage {

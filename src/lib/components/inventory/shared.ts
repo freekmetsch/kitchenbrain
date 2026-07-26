@@ -18,6 +18,7 @@ export type StapleGhost = PageData['stapleGhosts'][number];
 export type Kind = 'ingredient' | 'leftover' | 'processed';
 export type Section = 'freezer' | 'pantry';
 export type InventoryScope = 'meals' | 'ingredients' | 'all';
+export type InventoryQuickView = 'ready' | 'below_target';
 
 export type StockRadarItem = {
 	name: string;
@@ -133,6 +134,21 @@ export function matchesInventoryScope(
 	if (scope === 'meals') return item.kind === 'leftover';
 	if (scope === 'ingredients') return item.kind === 'ingredient';
 	return true;
+}
+
+export function matchesInventoryQuickView(
+	item: Pick<StockRadarItem, 'kind' | 'qtyNum'>,
+	link: StockRadarLink | null,
+	quickView: InventoryQuickView | null
+): boolean {
+	if (quickView === null) return true;
+	if (quickView === 'ready') return item.kind === 'leftover' && (item.qtyNum ?? 0) > 0;
+	return (
+		item.kind === 'leftover' &&
+		link?.isFreezerStaple === true &&
+		link.targetPortions !== null &&
+		(item.qtyNum ?? 0) < link.targetPortions
+	);
 }
 
 export function groupMealStock<T extends StockRadarItem>(

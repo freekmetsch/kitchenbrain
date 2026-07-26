@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Kitchen Ledger — route-job design refinement</title>
+	<link rel="icon" href="data:," />
+	<style>
+		:root {
+			color-scheme: light;
+			--canvas: #ece6d9;
+			--paper: #f7f3e9;
+			--card: #fffdf7;
+			--ink: #29281f;
+			--muted: #6d695d;
+			--line: #d4ccbd;
+			--olive: #304b3a;
+			--olive-deep: #263e30;
+			--olive-soft: #49614f;
+			--honey: #d3a046;
+			--terra: #b9491e;
+			--sage: #dce4db;
+			--shadow: 0 18px 48px rgba(46, 43, 34, 0.11);
+		}
+
+		* { box-sizing: border-box; }
+		html { background: var(--canvas); scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 92% 0, rgba(211,160,70,0.13), transparent 25rem),
+				linear-gradient(180deg, #f5f0e6 0, var(--canvas) 40rem);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			line-height: 1.45;
+		}
+		button, textarea { font: inherit; }
+		a { color: inherit; }
+		.wrap { width: min(1420px, calc(100% - 32px)); margin: 0 auto; }
+
+		.utility-hero {
+			color: #fffdf7;
+			background: linear-gradient(125deg, var(--olive-deep), var(--olive-soft));
+			border-bottom: 5px solid var(--honey);
+		}
+		.utility-hero-inner {
+			display: grid;
+			grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.18fr) auto auto;
+			gap: 18px;
+			align-items: center;
+			min-height: 108px;
+			padding-block: 16px;
+		}
+		.context {
+			margin: 0 0 5px;
+			color: #f0c569;
+			font-size: 11px;
+			font-weight: 850;
+			letter-spacing: 0.11em;
+			text-transform: uppercase;
+		}
+		h1, h2, h3, h4, p { margin-top: 0; }
+		h1 {
+			margin-bottom: 0;
+			font: 600 clamp(23px, 2.5vw, 31px)/1 Georgia, "Times New Roman", serif;
+			letter-spacing: -0.035em;
+		}
+		.hero-rule { margin: 0; color: rgba(255,253,247,0.82); font-size: 15px; }
+		.hero-metrics { display: grid; grid-template-columns: repeat(2, minmax(92px, 1fr)); gap: 8px; }
+		.hero-metric {
+			min-height: 64px;
+			padding: 10px 12px;
+			border: 1px solid rgba(255,255,255,0.18);
+			border-radius: 13px;
+			background: rgba(255,255,255,0.08);
+		}
+		.hero-metric strong { display: block; font: 600 23px/1 Georgia, serif; }
+		.hero-metric span { display: block; margin-top: 5px; color: rgba(255,253,247,0.68); font-size: 10px; }
+		.plan-link {
+			display: inline-flex;
+			min-height: 44px;
+			align-items: center;
+			padding: 8px 14px;
+			border-radius: 11px;
+			color: #fff;
+			background: var(--terra);
+			font-size: 12px;
+			font-weight: 850;
+			text-decoration: none;
+		}
+
+		main { padding: 26px 0 74px; }
+		.panel {
+			margin-top: 24px;
+			overflow: hidden;
+			border: 1px solid rgba(65,61,49,0.14);
+			border-radius: 24px;
+			background: rgba(255,253,247,0.82);
+			box-shadow: 0 8px 28px rgba(46,43,34,0.05);
+		}
+		.panel-head {
+			display: flex;
+			align-items: end;
+			justify-content: space-between;
+			gap: 20px;
+			padding: 24px 26px 17px;
+			border-bottom: 1px solid var(--line);
+		}
+		.panel-head h2 {
+			margin: 4px 0 5px;
+			font: 700 clamp(25px, 3vw, 35px)/1 Georgia, "Times New Roman", serif;
+			letter-spacing: -0.03em;
+		}
+		.panel-head p { max-width: 780px; margin-bottom: 0; color: var(--muted); }
+		.eyebrow { color: var(--terra); font-size: 10px; font-weight: 900; letter-spacing: 0.11em; text-transform: uppercase; }
+		.locked {
+			flex: 0 0 auto;
+			display: inline-flex;
+			min-height: 34px;
+			align-items: center;
+			padding: 5px 11px;
+			border-radius: 999px;
+			color: #284132;
+			background: var(--sage);
+			font-size: 10px;
+			font-weight: 850;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+		}
+
+		.rule-grid { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 1px; background: var(--line); }
+		.measure-card, .rules-card { padding: 23px; background: var(--card); }
+		.measure-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+		.measure-title h3 { margin: 0; font: 700 21px Georgia, serif; }
+		.measure-title span { color: var(--muted); font-size: 11px; }
+		.measure-bar {
+			position: relative;
+			height: 88px;
+			overflow: hidden;
+			border-radius: 14px;
+			color: white;
+			background: linear-gradient(120deg, var(--olive-deep), var(--olive-soft));
+		}
+		.measure-title-block {
+			position: absolute;
+			inset: 10px auto 10px 10px;
+			display: grid;
+			width: 35%;
+			place-items: center;
+			border: 1px dashed rgba(255,255,255,0.38);
+			border-radius: 10px;
+			color: #f5ce7a;
+			font: 600 24px/0.95 Georgia, serif;
+			text-align: center;
+		}
+		.measure-useful {
+			position: absolute;
+			inset: 10px 10px 10px 39%;
+			display: grid;
+			place-items: center;
+			border: 1px solid rgba(255,255,255,0.18);
+			border-radius: 10px;
+			background: rgba(255,255,255,0.08);
+			font-size: 12px;
+			font-weight: 750;
+			text-align: center;
+		}
+		.measure-caption { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+		.after .measure-title-block {
+			width: 18%;
+			font: 800 11px Inter, sans-serif;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+		.after .measure-useful { left: 22%; }
+		.rules-card ul { display: grid; gap: 11px; margin: 0; padding: 0; list-style: none; }
+		.rules-card li { display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: start; color: var(--muted); font-size: 13px; }
+		.rule-number {
+			display: grid;
+			width: 24px;
+			height: 24px;
+			place-items: center;
+			border-radius: 8px;
+			color: white;
+			background: var(--olive);
+			font-size: 10px;
+			font-weight: 850;
+		}
+		.rules-card strong { color: var(--ink); }
+		.job-map { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1px; background: var(--line); }
+		.job {
+			min-height: 180px;
+			padding: 19px;
+			background: var(--card);
+		}
+		.job-id { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+		.job-id strong { font: 700 19px Georgia, serif; }
+		.job-id span { color: var(--terra); font-size: 9px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+		.job h3 { margin: 18px 0 5px; font: 700 16px/1.15 Georgia, serif; }
+		.job p { margin: 0; color: var(--muted); font-size: 12px; }
+		.job .job-ui { display: block; margin-top: 16px; color: var(--olive); font-size: 11px; font-weight: 850; }
+
+		.route-stack { display: grid; gap: 24px; margin-top: 26px; }
+		.route {
+			overflow: hidden;
+			border: 1px solid rgba(65,61,49,0.15);
+			border-radius: 24px;
+			background: var(--card);
+			box-shadow: var(--shadow);
+		}
+		.route-head {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) minmax(260px, 0.65fr);
+			gap: 15px;
+			align-items: center;
+			padding: 19px 22px;
+			border-bottom: 1px solid var(--line);
+		}
+		.route-number {
+			display: grid;
+			width: 42px;
+			height: 42px;
+			place-items: center;
+			border-radius: 13px;
+			color: white;
+			background: var(--olive);
+			font: 700 19px Georgia, serif;
+		}
+		.route-head h2 { margin: 0 0 3px; font: 700 25px/1 Georgia, serif; }
+		.route-head p { margin: 0; color: var(--muted); font-size: 12px; }
+		.route-contract { padding: 10px 12px; border-radius: 12px; color: #2f4536; background: var(--sage); font-size: 11px; font-weight: 750; }
+
+		.route-evidence { display: grid; grid-template-columns: 306px minmax(0, 1fr); gap: 18px; padding: 20px; background: #f0eadf; }
+		.viewport-label { display: flex; justify-content: space-between; margin: 0 4px 7px; color: var(--muted); font-size: 9px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+		.device {
+			position: relative;
+			overflow: hidden;
+			height: 500px;
+			border: 5px solid #292923;
+			border-radius: 26px;
+			color: var(--ink);
+			background: var(--paper);
+			box-shadow: 0 12px 28px rgba(41,39,31,0.17);
+		}
+		.device.desktop { height: 500px; border-radius: 16px; }
+		.notch { position: absolute; z-index: 8; top: 6px; left: 50%; width: 60px; height: 8px; border-radius: 999px; background: rgba(0,0,0,0.65); transform: translateX(-50%); }
+		.app-nav { position: absolute; z-index: 7; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: repeat(6,1fr); min-height: 29px; border-top: 1px solid var(--line); background: rgba(255,253,247,0.96); }
+		.app-nav span { display: grid; place-items: center; color: #6d695d; font-size: 5px; }
+		.app-nav .active { color: var(--terra); font-weight: 900; }
+
+		.work-band { color: white; background: linear-gradient(125deg, var(--olive-deep), var(--olive-soft)); }
+		.work-band-inner { padding: 21px 11px 11px; }
+		.work-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+		.route-id { min-width: 0; }
+		.route-context { color: #f0c569; font-size: 6px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+		.route-title { margin-top: 2px; font: 600 18px/1 Georgia, serif; letter-spacing: -0.025em; }
+		.tool-row { display: flex; gap: 5px; align-items: center; }
+		.mock-action, .mock-icon {
+			display: inline-flex;
+			min-height: 30px;
+			align-items: center;
+			justify-content: center;
+			border: 1px solid rgba(255,255,255,0.22);
+			border-radius: 9px;
+			color: white;
+			background: rgba(255,255,255,0.08);
+			font-size: 7px;
+			font-weight: 850;
+		}
+		.mock-action { padding: 0 10px; }
+		.mock-action.primary { border-color: transparent; background: var(--terra); }
+		.mock-icon { width: 30px; }
+		.status-pill { display: inline-flex; min-height: 23px; align-items: center; gap: 4px; padding: 0 7px; border: 1px solid rgba(255,255,255,0.22); border-radius: 999px; color: #ffdf9a; background: rgba(255,255,255,0.08); font-size: 6px; font-weight: 850; }
+		.status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--honey); }
+
+		.metric-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
+		.metric { min-height: 43px; padding: 7px 8px; border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; background: rgba(255,255,255,0.08); }
+		.metric strong { display: inline-block; margin-right: 4px; font: 600 17px Georgia, serif; }
+		.metric span { color: rgba(255,255,255,0.76); font-size: 6px; }
+		.metric-button {
+			position: relative;
+			min-height: 44px;
+			color: white;
+			text-align: left;
+			cursor: pointer;
+		}
+		.metric-button b {
+			position: absolute;
+			right: 8px;
+			top: 50%;
+			color: #f5ce7a;
+			font-size: 10px;
+			transform: translateY(-50%);
+		}
+		.metric-button:hover,
+		.metric-button:focus-visible,
+		.metric-button[aria-pressed="true"] {
+			border-color: rgba(245,206,122,0.75);
+			background: rgba(255,255,255,0.16);
+			outline: none;
+		}
+		.metric-button:focus-visible { box-shadow: 0 0 0 2px var(--olive-deep), 0 0 0 4px #f5ce7a; }
+		.quick-view-status {
+			display: none;
+			align-items: center;
+			justify-content: space-between;
+			min-height: 28px;
+			margin: -2px -2px 7px;
+			padding: 5px 8px;
+			border-radius: 8px;
+			color: #2e4636;
+			background: var(--sage);
+			font-size: 7px;
+			font-weight: 850;
+		}
+		.quick-view-status.visible { display: flex; }
+		.quick-view-status span { color: var(--muted); font-weight: 700; }
+		.week-line { display: grid; grid-template-columns: 30px 1fr 30px; gap: 6px; align-items: center; margin-top: 9px; }
+		.week-arrow { display: grid; height: 30px; place-items: center; border: 1px solid rgba(255,255,255,0.22); border-radius: 9px; font-size: 11px; }
+		.week-copy { text-align: center; }
+		.week-copy strong { display: block; font-size: 8px; }
+		.week-copy span { display: block; margin-top: 2px; color: rgba(255,255,255,0.7); font-size: 6px; }
+		.progress-copy { display: flex; justify-content: space-between; align-items: baseline; margin-top: 7px; font-size: 7px; }
+		.progress-copy strong { font: 600 14px Georgia, serif; }
+		.progress-track { height: 3px; margin-top: 3px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,0.18); }
+		.progress-track span { display: block; width: 58%; height: 100%; background: var(--honey); }
+		.band-search { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-top: 9px; }
+		.mock-search { min-height: 34px; padding: 9px 10px; border: 1px solid rgba(255,255,255,0.28); border-radius: 9px; color: #4e4a40; background: var(--card); font-size: 7px; }
+
+		.page-tools { padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--card); }
+		.segmented { display: grid; grid-template-columns: repeat(3,1fr); gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: #f4efe5; }
+		.segmented span { padding: 6px 2px; border-radius: 7px; color: var(--muted); font-size: 6px; font-weight: 850; text-align: center; }
+		.segmented .active { color: white; background: var(--olive); }
+		.filter-row { display: flex; gap: 5px; overflow: hidden; }
+		.filter { flex: 0 0 auto; padding: 5px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--card); font-size: 6px; font-weight: 800; }
+		.filter.active { color: #2c4434; border-color: transparent; background: var(--sage); }
+		.support-row { display: flex; align-items: center; gap: 6px; overflow: hidden; }
+		.support-link { flex: 0 0 auto; padding: 6px 8px; color: var(--olive); font-size: 7px; font-weight: 850; }
+
+		.page-body { padding: 10px 10px 42px; }
+		.search-box { min-height: 35px; margin-bottom: 7px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; color: #8b8578; background: var(--card); font-size: 7px; }
+		.empty {
+			display: grid;
+			min-height: 178px;
+			place-items: center;
+			border: 1px dashed var(--line);
+			border-radius: 13px;
+			color: var(--muted);
+			background: rgba(255,253,247,0.5);
+			text-align: center;
+		}
+		.empty strong { display: block; margin-bottom: 4px; color: var(--ink); font: 600 12px Georgia, serif; }
+		.empty span { display: block; font-size: 7px; }
+		.empty-action { display: inline-flex; min-height: 28px; align-items: center; margin-top: 10px; padding: 0 10px; border-radius: 8px; color: white; background: var(--terra); font-size: 7px; font-weight: 850; }
+		.day-row, .recipe-row, .stock-row { display: grid; align-items: center; min-height: 50px; border-bottom: 1px dashed var(--line); }
+		.day-row { grid-template-columns: 32px 1fr auto; gap: 8px; }
+		.day-name { color: #8f5f28; font-size: 6px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+		.row-title { font-size: 8px; font-weight: 850; }
+		.row-meta { margin-top: 2px; color: var(--muted); font-size: 6px; }
+		.row-more { display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: var(--terra); font-size: 9px; }
+		.open-row .row-title { color: var(--muted); font-weight: 700; }
+		.recipe-row { grid-template-columns: 42px 1fr auto; gap: 8px; min-height: 58px; border-style: solid; }
+		.recipe-image { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg, #d8b56d, #e9e0ca); }
+		.recipe-image.missing { display: grid; place-items: center; color: var(--terra); background: #eee8dc; font: 700 12px Georgia, serif; }
+		.signal { padding: 4px 6px; border-radius: 999px; color: #2e4636; background: var(--sage); font-size: 6px; font-weight: 850; }
+		.stock-row { grid-template-columns: 1fr auto; border-style: solid; }
+		.desktop-grid { display: grid; grid-template-columns: minmax(0,1fr); min-height: calc(100% - 29px); }
+		.desktop-main { min-width: 0; }
+		.desktop .work-band-inner {
+			display: grid;
+			grid-template-columns: minmax(160px,0.55fr) minmax(260px,1.15fr) minmax(180px,0.7fr);
+			gap: 16px;
+			align-items: center;
+			padding: 13px 16px;
+		}
+		.desktop .metric-row, .desktop .week-line, .desktop .band-search { margin-top: 0; }
+		.desktop .route-title { font-size: 17px; }
+		.desktop .page-body { padding: 12px 14px 38px; }
+		.desktop .day-row { min-height: 54px; }
+		.desktop .recipe-row { min-height: 61px; }
+
+		.route-notes { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1px; background: var(--line); }
+		.note { min-height: 118px; padding: 16px; background: var(--card); }
+		.note span { display: block; margin-bottom: 5px; color: var(--terra); font-size: 9px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+		.note p { margin: 0; color: var(--muted); font-size: 12px; }
+
+		.states { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; padding: 22px; }
+		.state-card { padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+		.state-card h3 { margin-bottom: 10px; font: 700 18px Georgia, serif; }
+		.state-list { display: grid; gap: 7px; }
+		.state { display: grid; grid-template-columns: 8px 1fr; gap: 7px; align-items: start; color: var(--muted); font-size: 11px; }
+		.state::before { content: ""; width: 8px; height: 8px; margin-top: 4px; border-radius: 50%; background: var(--honey); }
+		.state strong { color: var(--ink); }
+
+		.handoff { padding: 22px; }
+		.handoff-grid { display: grid; grid-template-columns: 0.75fr 1.25fr; gap: 18px; }
+		.approved-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+		.approved-list li { padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); background: var(--card); font-size: 12px; }
+		.approved-list strong { color: var(--olive); }
+		.field-label { display: block; margin-bottom: 7px; font-size: 11px; font-weight: 850; }
+		textarea {
+			width: 100%;
+			min-height: 108px;
+			padding: 12px;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			color: var(--ink);
+			background: white;
+		}
+		.save-status { min-height: 20px; margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+		.prompt-panel { margin-top: 18px; padding: 16px; border-radius: 15px; color: #f8f2e7; background: #202b23; }
+		.prompt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+		.prompt-head h3 { margin: 0; font: 700 19px Georgia, serif; }
+		.copy, .reset {
+			min-height: 44px;
+			border-radius: 10px;
+			font-size: 11px;
+			font-weight: 850;
+			cursor: pointer;
+		}
+		.copy { padding: 8px 13px; border: 0; color: #332813; background: #f0c569; }
+		.reset { padding: 8px 12px; border: 1px solid var(--line); color: var(--terra); background: transparent; }
+		.prompt-output {
+			min-height: 290px;
+			color: #f8f2e7;
+			border-color: rgba(255,255,255,0.17);
+			background: rgba(0,0,0,0.2);
+			font: 11px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+		}
+		footer { padding: 24px 0 34px; color: var(--muted); font-size: 11px; }
+
+		@media (max-width: 1050px) {
+			.utility-hero-inner { grid-template-columns: 1fr 1fr; }
+			.plan-link { grid-column: auto; width: max-content; }
+			.route-evidence { grid-template-columns: 280px minmax(0,1fr); }
+			.states { grid-template-columns: repeat(2,minmax(0,1fr)); }
+			.job-map { grid-template-columns: repeat(2,minmax(0,1fr)); }
+		}
+		@media (max-width: 760px) {
+			.wrap { width: min(100% - 20px,1420px); }
+			.utility-hero-inner { grid-template-columns: 1fr; gap: 13px; min-height: auto; padding-block: 18px; }
+			.hero-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+			.plan-link { grid-column: auto; }
+			.panel { border-radius: 18px; }
+			.panel-head { align-items: start; flex-direction: column; padding: 19px 17px 14px; }
+			.rule-grid { grid-template-columns: 1fr; }
+			.route-head { grid-template-columns: auto 1fr; padding: 16px; }
+			.route-contract { grid-column: 1/-1; }
+			.route-evidence { grid-template-columns: 1fr; padding: 14px; }
+			.device { height: 510px; }
+			.device.desktop { height: 390px; }
+			.desktop .work-band-inner { grid-template-columns: minmax(72px,0.55fr) minmax(105px,1.1fr) minmax(68px,0.7fr); gap: 4px; padding: 8px; }
+			.desktop .mock-action { padding-inline: 5px; }
+			.desktop .metric { padding-inline: 5px; }
+			.desktop .metric strong { font-size: 13px; }
+			.route-notes { grid-template-columns: 1fr; }
+			.note { min-height: auto; }
+			.states { grid-template-columns: 1fr; padding: 15px; }
+			.job-map { grid-template-columns: 1fr; }
+			.job { min-height: auto; }
+			.handoff { padding: 15px; }
+			.handoff-grid { grid-template-columns: 1fr; }
+			.prompt-head { align-items: start; flex-direction: column; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*,*::before,*::after { scroll-behavior: auto !important; transition: none !important; }
+		}
+	</style>
+</head>
+<body>
+	<header class="utility-hero">
+		<div class="wrap utility-hero-inner">
+			<div>
+				<p class="context">Approved four-route refinement</p>
+				<h1>Kitchen Ledger</h1>
+			</div>
+			<p class="hero-rule">
+				One visual voice, four different page jobs. Green carries the UI each route actually
+				needs; it never forces Stock's composition onto another page.
+			</p>
+			<div class="hero-metrics" aria-label="Specification status">
+				<div class="hero-metric"><strong>4</strong><span>distinct route jobs</span></div>
+				<div class="hero-metric"><strong>1</strong><span>shared visual language</span></div>
+			</div>
+			<a class="plan-link" href="../feature-lists/FEATURE_LIST_KITCHEN_VISUAL_SYSTEM_COMPLETION.md">Open execution plan</a>
+		</div>
+	</header>
+
+	<main class="wrap">
+		<section class="panel">
+			<div class="panel-head">
+				<div>
+					<span class="eyebrow">Binding rule</span>
+					<h2>Make green earn its height</h2>
+					<p>The goal is useful density, not one fixed band height or one repeated layout.</p>
+				</div>
+				<span class="locked">Direction locked</span>
+			</div>
+			<div class="rule-grid">
+				<div class="measure-card">
+					<div class="measure-title"><h3>Market Run now</h3><span>393 × 852 audit</span></div>
+					<div class="measure-bar">
+						<div class="measure-title-block">Market<br />run</div>
+						<div class="measure-useful">Week · AH · progress · basket</div>
+					</div>
+					<p class="measure-caption">The wrapping title is 52px high inside a 124px band.</p>
+					<div class="measure-title" style="margin-top:20px"><h3>Kitchen Ledger</h3><span>target relationship</span></div>
+					<div class="measure-bar after">
+						<div class="measure-title-block">Groceries</div>
+						<div class="measure-useful">Week navigation · AH status · items left · basket progress</div>
+					</div>
+					<p class="measure-caption">Identity orients; task context owns the space.</p>
+				</div>
+				<div class="rules-card">
+					<ul>
+						<li><span class="rule-number">1</span><span><strong>Small route identity.</strong> One line, subordinate to changing context.</span></li>
+						<li><span class="rule-number">2</span><span><strong>Useful regions only.</strong> Every block shows status, navigation, progress, or an action.</span></li>
+						<li><span class="rule-number">3</span><span><strong>Route-specific composition.</strong> Shared tokens and density rules, not a universal toolbar.</span></li>
+						<li><span class="rule-number">4</span><span><strong>Task starts immediately.</strong> Tools, tabs, ledger, or index sit directly below the band.</span></li>
+						<li><span class="rule-number">5</span><span><strong>Phone first.</strong> Controls keep 44px targets in production; desktop compacts horizontally.</span></li>
+						<li><span class="rule-number">6</span><span><strong>Controls keep their promise.</strong> Button styling requires a click outcome, focus state, and visible result.</span></li>
+					</ul>
+				</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="panel-head">
+				<div>
+					<span class="eyebrow">Route-job map</span>
+					<h2>Same materials, different work</h2>
+					<p>The green region changes shape because each page answers a different household question.</p>
+				</div>
+			</div>
+			<div class="job-map">
+				<article class="job"><div class="job-id"><strong>Stock</strong><span>Triage</span></div><h3>What can we use, and what needs attention?</h3><p>The user starts from a condition and narrows the ledger.</p><span class="job-ui">Add · Activity · Ready quick view · Below-target quick view</span></article>
+				<article class="job"><div class="job-id"><strong>Groceries</strong><span>Run</span></div><h3>What is left in this shopping run?</h3><p>The user needs week, connection, delivery, progress, and basket state.</p><span class="job-ui">AH · Week · Delivery · Items left · Basket progress</span></article>
+				<article class="job"><div class="job-id"><strong>Meal Plan</strong><span>Schedule</span></div><h3>What are we eating this week?</h3><p>The week selector and Add meal frame a chronological day ledger.</p><span class="job-ui">Week navigation · Delivery · Add meal · Shopping handoff</span></article>
+				<article class="job"><div class="job-id"><strong>Recipes</strong><span>Retrieve</span></div><h3>Which recipe do I need, or should I add one?</h3><p>Search and filters do the work; creation stays visible without becoming a dashboard.</p><span class="job-ui">Search · Sort · Import recipe · New meal</span></article>
+			</div>
+		</section>
+
+		<div class="route-stack">
+			<section class="route">
+				<header class="route-head">
+					<span class="route-number">1</span>
+					<div><h2>Stock</h2><p>Triage what is ready and what needs replenishment, then act in the ledger.</p></div>
+					<div class="route-contract">Stock alone gets two quick-view buttons because condition-first triage is its page job. Try them below.</div>
+				</header>
+				<div class="route-evidence">
+					<div>
+						<div class="viewport-label"><span>Phone</span><span>393 × 852</span></div>
+						<div class="device">
+							<span class="notch"></span>
+							<div class="work-band"><div class="work-band-inner">
+								<div class="work-top">
+									<div class="route-id"><div class="route-context">Household stock</div><div class="route-title">Stock</div></div>
+									<div class="tool-row"><span class="mock-icon">H</span><span class="mock-action primary">Add</span></div>
+								</div>
+								<div class="metric-row">
+									<button type="button" class="metric metric-button" data-stock-view="ready" aria-pressed="false"><strong>4</strong><span>ready meals</span><b aria-hidden="true">→</b></button>
+									<button type="button" class="metric metric-button" data-stock-view="below" aria-pressed="false"><strong>2</strong><span>below target</span><b aria-hidden="true">→</b></button>
+								</div>
+							</div></div>
+							<div class="page-tools"><div class="search-box">Search stock...</div><div class="segmented"><span class="active">Meals</span><span>Ingredients</span><span>All stock</span></div></div>
+							<div class="page-body" data-stock-results>
+								<div class="quick-view-status" data-stock-status aria-live="polite"><strong></strong><span>Tap again to clear</span></div>
+								<div class="stock-row" data-stock-tags="ready below"><div><div class="row-title">Spinach ricotta lasagne</div><div class="row-meta">2 portions · use next</div></div><span class="signal">Ready</span></div>
+								<div class="stock-row" data-stock-tags="ready"><div><div class="row-title">Harissa chickpeas</div><div class="row-meta">4 portions · still plenty</div></div><span class="signal">Ready</span></div>
+								<div class="stock-row" data-stock-tags="below"><div><div class="row-title">Pea soup</div><div class="row-meta">0 portions · cook again</div></div><span class="signal">Low</span></div>
+								<div class="stock-row" data-stock-tags=""><div><div class="row-title">Chickpeas</div><div class="row-meta">3 tins · ingredient</div></div><span class="signal">Good</span></div>
+							</div>
+							<div class="app-nav"><span>Assistant</span><span class="active">Stock</span><span>Plan</span><span>Groceries</span><span>Recipes</span><span>Settings</span></div>
+						</div>
+					</div>
+					<div>
+						<div class="viewport-label"><span>Desktop</span><span>1280 × 800</span></div>
+						<div class="device desktop">
+							<div class="work-band"><div class="work-band-inner">
+								<div class="work-top"><div class="route-id"><div class="route-context">Household stock</div><div class="route-title">Stock</div></div><div class="tool-row"><span class="mock-icon">H</span><span class="mock-action primary">Add item</span></div></div>
+								<div class="metric-row"><button type="button" class="metric metric-button" data-stock-view="ready" aria-pressed="false"><strong>4</strong><span>ready meals</span><b aria-hidden="true">→</b></button><button type="button" class="metric metric-button" data-stock-view="below" aria-pressed="false"><strong>2</strong><span>below target</span><b aria-hidden="true">→</b></button></div>
+								<div class="band-search"><div class="mock-search">Search stock...</div><span class="mock-action">Filters</span></div>
+							</div></div>
+							<div class="desktop-grid">
+								<div class="desktop-main">
+									<div class="page-tools"><div class="segmented"><span class="active">Meals</span><span>Ingredients</span><span>All stock</span></div></div>
+									<div class="page-body" data-stock-results>
+										<div class="quick-view-status" data-stock-status aria-live="polite"><strong></strong><span>Press again to clear</span></div>
+										<div class="stock-row" data-stock-tags="ready below"><div><div class="row-title">Spinach ricotta lasagne</div><div class="row-meta">2 portions · use next</div></div><span class="signal">Ready</span></div>
+										<div class="stock-row" data-stock-tags="ready"><div><div class="row-title">Harissa chickpeas</div><div class="row-meta">4 portions · still plenty</div></div><span class="signal">Ready</span></div>
+										<div class="stock-row" data-stock-tags="below"><div><div class="row-title">Pea soup</div><div class="row-meta">0 portions · cook again</div></div><span class="signal">Low</span></div>
+										<div class="stock-row" data-stock-tags=""><div><div class="row-title">Chickpeas</div><div class="row-meta">3 tins · ingredient</div></div><span class="signal">Good</span></div>
+									</div>
+								</div>
+							</div>
+							<div class="app-nav"><span>Assistant</span><span class="active">Stock</span><span>Plan</span><span>Groceries</span><span>Recipes</span><span>Settings</span></div>
+						</div>
+					</div>
+				</div>
+				<div class="route-notes">
+					<div class="note"><span>Click outcome</span><p>Ready filters to meals with portions; Below target filters to freezer staples under target. Press again clears.</p></div>
+					<div class="note"><span>Affordance</span><p>Native button, chevron, hover, focus, pressed state, result message, and a visible clear path.</p></div>
+					<div class="note"><span>Zero state</span><p>No actionable results means honest status: `No meals ready` or `Targets covered`, without fake button styling.</p></div>
+				</div>
+			</section>
+
+			<section class="route">
+				<header class="route-head">
+					<span class="route-number">2</span>
+					<div><h2>Market Run</h2><p>Remove the large title column. Week, AH, progress, and basket state become the band.</p></div>
+					<div class="route-contract">The task list starts higher without losing any orientation or recovery context.</div>
+				</header>
+				<div class="route-evidence">
+					<div>
+						<div class="viewport-label"><span>Phone</span><span>393 × 852</span></div>
+						<div class="device">
+							<span class="notch"></span>
+							<div class="work-band"><div class="work-band-inner">
+								<div class="work-top"><div class="route-id"><div class="route-context">Weekly shop</div><div class="route-title">Groceries</div></div><span class="status-pill"><i class="status-dot"></i>AH offline</span></div>
+								<div class="week-line"><span class="week-arrow">‹</span><div class="week-copy"><strong>This week · 22–28 Jul</strong><span>View meal plan</span></div><span class="week-arrow">›</span></div>
+								<div class="progress-copy"><strong>7 left</strong><span>3 in basket</span></div><div class="progress-track"><span></span></div>
+							</div></div>
+							<div class="page-tools"><div class="segmented"><span class="active">Run 7</span><span>Meals 3</span><span>Every week</span></div></div>
+							<div class="page-body">
+								<div class="stock-row"><div><div class="row-title">Broccoli</div><div class="row-meta">1 head · meal plan</div></div><span class="row-more">✓</span></div>
+								<div class="stock-row"><div><div class="row-title">Chickpeas</div><div class="row-meta">2 tins · pantry</div></div><span class="row-more">✓</span></div>
+								<div class="stock-row"><div><div class="row-title">Sesame noodles</div><div class="row-meta">250 g · meal plan</div></div><span class="row-more">✓</span></div>
+							</div>
+							<div class="app-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span class="active">Groceries</span><span>Recipes</span><span>Settings</span></div>
+						</div>
+					</div>
+					<div>
+						<div class="viewport-label"><span>Desktop</span><span>1280 × 800</span></div>
+						<div class="device desktop">
+							<div class="work-band"><div class="work-band-inner">
+								<div class="work-top"><div class="route-id"><div class="route-context">Weekly shop</div><div class="route-title">Groceries</div></div><span class="status-pill"><i class="status-dot"></i>AH offline</span></div>
+								<div class="week-line"><span class="week-arrow">‹</span><div class="week-copy"><strong>This week · Wed 22 – Tue 28 Jul</strong><span>Delivery Friday · View meal plan</span></div><span class="week-arrow">›</span></div>
+								<div><div class="progress-copy"><strong>7 left</strong><span>3 in basket</span></div><div class="progress-track"><span></span></div></div>
+							</div></div>
+							<div class="desktop-grid">
+								<div class="desktop-main">
+									<div class="page-tools"><div class="segmented"><span class="active">Run 7</span><span>Meals 3</span><span>Every week</span></div></div>
+									<div class="page-body">
+										<div class="stock-row"><div><div class="row-title">Broccoli</div><div class="row-meta">1 head · meal plan</div></div><span class="row-more">✓</span></div>
+										<div class="stock-row"><div><div class="row-title">Chickpeas</div><div class="row-meta">2 tins · pantry</div></div><span class="row-more">✓</span></div>
+										<div class="stock-row"><div><div class="row-title">Sesame noodles</div><div class="row-meta">250 g · meal plan</div></div><span class="row-more">✓</span></div>
+									</div>
+								</div>
+							</div>
+							<div class="app-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span class="active">Groceries</span><span>Recipes</span><span>Settings</span></div>
+						</div>
+					</div>
+				</div>
+				<div class="route-notes">
+					<div class="note"><span>Changed</span><p>`Market run` becomes a small `Groceries` identity; no title column remains.</p></div>
+					<div class="note"><span>Green earns space</span><p>AH state, week navigation, delivery, progress, and basket count fill the band.</p></div>
+					<div class="note"><span>Edge contract</span><p>Empty, complete, AH offline, stale match, sending lock, partial and uncertain result.</p></div>
+				</div>
+			</section>
+
+			<section class="route">
+				<header class="route-head">
+					<span class="route-number">3</span>
+					<div><h2>Meal Plan</h2><p>Choose a week, place meals on days, and resolve gaps in the ledger itself.</p></div>
+					<div class="route-contract">No copied count cards: week navigation and Add frame the work; open days stay visible where they can be acted on.</div>
+				</header>
+				<div class="route-evidence">
+					<div>
+						<div class="viewport-label"><span>Phone</span><span>393 × 852</span></div>
+						<div class="device">
+							<span class="notch"></span>
+							<div class="work-band"><div class="work-band-inner">
+								<div class="work-top"><div class="route-id"><div class="route-context">Week ledger</div><div class="route-title">Meal plan</div></div><div class="tool-row"><span class="mock-icon">•••</span><span class="mock-action primary">Add meal</span></div></div>
+								<div class="week-line"><span class="week-arrow">‹</span><div class="week-copy"><strong>Week 30 · 22–28 Jul</strong><span>Delivery Friday · Shopping list</span></div><span class="week-arrow">›</span></div>
+							</div></div>
+							<div class="page-tools"><div class="support-row"><span class="support-link">Suggest meals</span><span class="support-link">Show past weeks</span></div></div>
+							<div class="page-body">
+								<div class="day-row"><span class="day-name">Mon</span><div><div class="row-title">Harissa chickpeas</div><div class="row-meta">4 servings · pantry first</div></div><span class="row-more">•••</span></div>
+								<div class="day-row"><span class="day-name">Tue</span><div><div class="row-title">Broccoli sesame noodles</div><div class="row-meta">2 servings · 18 min</div></div><span class="row-more">•••</span></div>
+								<div class="day-row open-row"><span class="day-name">Wed</span><div><div class="row-title">Open night</div><div class="row-meta">Add a meal or ask for an idea</div></div><span class="row-more">+</span></div>
+								<div class="day-row"><span class="day-name">Thu</span><div><div class="row-title">Freezer lasagne</div><div class="row-meta">2 portions ready</div></div><span class="row-more">•••</span></div>
+							</div>
+							<div class="app-nav"><span>Assistant</span><span>Stock</span><span class="active">Plan</span><span>Groceries</span><span>Recipes</span><span>Settings</span></div>
+						</div>
+					</div>
+					<div>
+						<div class="viewport-label"><span>Desktop</span><span>1280 × 800</span></div>
+						<div class="device desktop">
+							<div class="work-band"><div class="work-band-inner">
+								<div class="work-top"><div class="route-id"><div class="route-context">Week ledger</div><div class="route-title">Meal plan</div></div></div>
+								<div class="week-line"><span class="week-arrow">‹</span><div class="week-copy"><strong>Week 30 · Wed 22 – Tue 28 Jul</strong><span>Delivery Friday · Shopping list</span></div><span class="week-arrow">›</span></div>
+								<div class="tool-row"><span class="mock-action">Suggest</span><span class="mock-action primary">Add meal</span><span class="mock-icon">•••</span></div>
+							</div></div>
+							<div class="desktop-grid">
+								<div class="desktop-main"><div class="page-tools"><div class="support-row"><span class="support-link">Show past weeks</span><span class="support-link">Meal-plan settings</span></div></div><div class="page-body">
+									<div class="day-row"><span class="day-name">Mon</span><div><div class="row-title">Harissa chickpeas</div><div class="row-meta">4 servings · pantry first</div></div><span class="row-more">•••</span></div>
+									<div class="day-row"><span class="day-name">Tue</span><div><div class="row-title">Broccoli sesame noodles</div><div class="row-meta">2 servings · 18 min</div></div><span class="row-more">•••</span></div>
+									<div class="day-row open-row"><span class="day-name">Wed</span><div><div class="row-title">Open night</div><div class="row-meta">Add a meal or ask for an idea</div></div><span class="row-more">+</span></div>
+									<div class="day-row"><span class="day-name">Thu</span><div><div class="row-title">Freezer lasagne</div><div class="row-meta">2 portions ready</div></div><span class="row-more">•••</span></div>
+								</div></div>
+							</div>
+							<div class="app-nav"><span>Assistant</span><span>Stock</span><span class="active">Plan</span><span>Groceries</span><span>Recipes</span><span>Settings</span></div>
+						</div>
+					</div>
+				</div>
+				<div class="route-notes">
+					<div class="note"><span>What green does</span><p>Orients to a week, moves between weeks, exposes delivery/Shopping context, and starts Add meal.</p></div>
+					<div class="note"><span>What the ledger does</span><p>Planned meals and open days are visible once, in chronological rows where the user can change them.</p></div>
+					<div class="note"><span>Secondary aid</span><p>Suggest stays close to planning but never becomes a copied tile or an equal-weight dashboard metric.</p></div>
+				</div>
+			</section>
+
+			<section class="route">
+				<header class="route-head">
+					<span class="route-number">4</span>
+					<div><h2>Recipes</h2><p>Find the right recipe quickly or create one; retrieval owns the hierarchy.</p></div>
+					<div class="route-contract">No copied stock counts: search is the largest control, filter facets show their own active state, and creation stays visible.</div>
+				</header>
+				<div class="route-evidence">
+					<div>
+						<div class="viewport-label"><span>Phone</span><span>393 × 852</span></div>
+						<div class="device">
+							<span class="notch"></span>
+							<div class="work-band"><div class="work-band-inner">
+								<div class="work-top"><div class="route-id"><div class="route-context">Kitchen index</div><div class="route-title">Recipes</div></div><div class="tool-row"><span class="mock-icon">•••</span><span class="mock-action primary">Import</span></div></div>
+								<div class="band-search"><div class="mock-search">Search name or ingredient...</div><span class="mock-action">A–Z</span></div>
+							</div></div>
+							<div class="page-tools"><div class="filter-row"><span class="filter active">Ready now</span><span class="filter">Freezer</span><span class="filter">Below target</span><span class="filter">Veggie</span></div></div>
+							<div class="page-body">
+								<div class="recipe-row"><span class="recipe-image"></span><div><div class="row-title">Harissa chickpeas with lemon</div><div class="row-meta">Dinner · cooked 4 times</div></div><span class="signal">Ready</span></div>
+								<div class="recipe-row"><span class="recipe-image missing">R</span><div><div class="row-title">Broccoli sesame noodles</div><div class="row-meta">Quick · 18 minutes</div></div><span class="signal">92%</span></div>
+								<div class="recipe-row"><span class="recipe-image"></span><div><div class="row-title">Spinach ricotta lasagne</div><div class="row-meta">Freezer staple · 2 portions</div></div><span class="signal">Frozen</span></div>
+							</div>
+							<div class="app-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span>Groceries</span><span class="active">Recipes</span><span>Settings</span></div>
+						</div>
+					</div>
+					<div>
+						<div class="viewport-label"><span>Desktop</span><span>1280 × 800</span></div>
+						<div class="device desktop">
+							<div class="work-band"><div class="work-band-inner">
+								<div class="work-top"><div class="route-id"><div class="route-context">Kitchen index</div><div class="route-title">Recipes</div></div></div>
+								<div class="band-search"><div class="mock-search">Search name, ingredient, or cuisine...</div><span class="mock-action">A–Z</span></div>
+								<div class="tool-row"><span class="mock-action">New meal</span><span class="mock-action primary">Import recipe</span></div>
+							</div></div>
+							<div class="desktop-grid">
+								<div class="desktop-main">
+									<div class="page-tools"><div class="filter-row"><span class="filter active">Ready now</span><span class="filter">Freezer staple</span><span class="filter">Below target</span><span class="filter">Vegetarian</span><span class="filter">Quick</span></div></div>
+									<div class="page-body">
+										<div class="recipe-row"><span class="recipe-image"></span><div><div class="row-title">Harissa chickpeas with lemon</div><div class="row-meta">Dinner · cooked 4 times</div></div><span class="signal">Ready</span></div>
+										<div class="recipe-row"><span class="recipe-image missing">R</span><div><div class="row-title">Broccoli sesame noodles</div><div class="row-meta">Quick · 18 minutes</div></div><span class="signal">92%</span></div>
+										<div class="recipe-row"><span class="recipe-image"></span><div><div class="row-title">Spinach ricotta lasagne</div><div class="row-meta">Freezer staple · 2 portions</div></div><span class="signal">Frozen</span></div>
+									</div>
+								</div>
+							</div>
+							<div class="app-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span>Groceries</span><span class="active">Recipes</span><span>Settings</span></div>
+						</div>
+					</div>
+				</div>
+				<div class="route-notes">
+					<div class="note"><span>What green does</span><p>Offers search, current sort, Import recipe, New meal, and a small route identity.</p></div>
+					<div class="note"><span>What filters do</span><p>Ready now, Freezer, Below target, and food facets show state where they already affect results.</p></div>
+					<div class="note"><span>No duplicate summary</span><p>Result cards carry coverage and freezer signals; there is no separate count dashboard to reconcile.</p></div>
+				</div>
+			</section>
+		</div>
+
+		<section class="panel">
+			<div class="panel-head">
+				<div><span class="eyebrow">State map</span><h2>The design survives real household states</h2><p>These are release requirements, not optional polish after the default screens.</p></div>
+			</div>
+			<div class="states">
+				<article class="state-card"><h3>Stock</h3><div class="state-list"><div class="state"><span><strong>Positive count:</strong> quick view is a button with a promised result.</span></div><div class="state"><span><strong>Zero count:</strong> honest status replaces button affordance.</span></div><div class="state"><span><strong>Active:</strong> pressed state, result count, and clear path remain visible.</span></div><div class="state"><span><strong>Combined:</strong> search and compatible filters narrow the quick view predictably.</span></div></div></article>
+				<article class="state-card"><h3>Market Run</h3><div class="state-list"><div class="state"><span><strong>Empty:</strong> Plan meals starts the journey.</span></div><div class="state"><span><strong>Complete:</strong> basket result replaces run urgency.</span></div><div class="state"><span><strong>AH offline/stale:</strong> status and recovery remain in context.</span></div><div class="state"><span><strong>Sending/uncertain:</strong> locked and no-retry outcomes stay explicit.</span></div></div></article>
+				<article class="state-card"><h3>Meal Plan</h3><div class="state-list"><div class="state"><span><strong>Empty:</strong> Add meal owns the next action.</span></div><div class="state"><span><strong>Long:</strong> meal and note content expands the ledger row.</span></div><div class="state"><span><strong>Pending:</strong> edit/serving controls show local busy state.</span></div><div class="state"><span><strong>Suggestion failure:</strong> valid context remains with retry.</span></div></div></article>
+				<article class="state-card"><h3>Recipes</h3><div class="state-list"><div class="state"><span><strong>Empty:</strong> Import starts the cookbook.</span></div><div class="state"><span><strong>No results:</strong> active filters and clear path remain visible.</span></div><div class="state"><span><strong>Missing image:</strong> stable fallback preserves row geometry.</span></div><div class="state"><span><strong>Import error:</strong> URL and error remain editable in the sheet.</span></div></div></article>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="panel-head">
+				<div><span class="eyebrow">Approved handoff</span><h2>Ready for implementation</h2><p>The direction and scope are fixed. Add only exact refinement notes if needed.</p></div>
+				<button class="reset" id="reset" type="button">Clear notes</button>
+			</div>
+			<div class="handoff">
+				<div class="handoff-grid">
+					<ul class="approved-list">
+						<li><strong>Direction:</strong> Kitchen Ledger only.</li>
+						<li><strong>Routes:</strong> Stock, Market Run, Meal Plan, Recipes.</li>
+						<li><strong>Stock:</strong> compact header stays; its two summaries become real quick-view controls.</li>
+						<li><strong>Market Run:</strong> remove the large title treatment.</li>
+						<li><strong>Meal Plan:</strong> week navigation and Add, not copied count cards.</li>
+						<li><strong>Recipes:</strong> search and creation, not copied count cards.</li>
+						<li><strong>Green:</strong> route-specific useful UI, never ceremony or template copying.</li>
+						<li><strong>Settings/Login:</strong> outside this execution.</li>
+					</ul>
+					<div>
+						<label class="field-label" for="notes">Refinement notes for the next agent</label>
+						<textarea id="notes" placeholder="Write exact details to preserve or adjust."></textarea>
+						<p class="save-status" id="save-status" role="status">Notes saved locally.</p>
+					</div>
+				</div>
+				<div class="prompt-panel">
+					<div class="prompt-head"><div><h3>Generated `$run` handoff</h3><small>Loads the Markdown source, not this HTML.</small></div><button class="copy" id="copy" type="button">Copy handoff</button></div>
+					<textarea class="prompt-output" id="prompt" readonly></textarea>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<footer class="wrap">
+		Authoritative source:
+		<a href="../feature-lists/FEATURE_LIST_KITCHEN_VISUAL_SYSTEM_COMPLETION.md">FEATURE_LIST_KITCHEN_VISUAL_SYSTEM_COMPLETION.md</a>.
+		No household data or application code is contained in this artifact.
+	</footer>
+
+	<script>
+		(() => {
+			const storageKey = "docs/artifacts/archive/2026-07-25-plan-kitchen-visual-system-completion.html::v3";
+			const notes = document.getElementById("notes");
+			const prompt = document.getElementById("prompt");
+			const status = document.getElementById("save-status");
+
+			function loadNotes() {
+				try {
+					notes.value = localStorage.getItem(storageKey) || "";
+				} catch {
+					status.textContent = "Local saving is unavailable; notes still work for this visit.";
+				}
+			}
+
+			function buildPrompt() {
+				const userNotes = notes.value.trim() || "(No additional refinement notes.)";
+				return [
+					"Implementation shipped. Load docs/feature-lists/archive/FEATURE_LIST_KITCHEN_VISUAL_SYSTEM_COMPLETION.md for the terminal record.",
+					"",
+					"Approved direction:",
+					"Implement one fully worked Kitchen Ledger system across the four primary kitchen routes: Stock, Market Run, Meal Plan, and Recipes.",
+					"",
+					"Binding visual rule:",
+					"Use green as a working surface for the UI each route actually needs. Keep route names compact and subordinate. Share palette, type, density, focus, and state language, but do not copy a card/metric composition between routes without a route-specific purpose. Anything styled as a control must perform its expected action.",
+					"",
+					"Route decisions:",
+					"- Stock: preserve the accepted compact identity and Add/activity actions. Turn Ready meals and Below target into exclusive native quick-view buttons. Ready selects Meals and filters to leftovers with portions on hand; Below target selects Meals and filters to freezer staples below target. Pressing the active button clears it. Keep compatible search/filters; changing to Ingredients or All stock clears the meal-only quick view. Retain focus, announce the result, expose aria-pressed, and show a visible clear path. A zero count is honest status, not a false button. Use one shared predicate for each count and its filter.",
+					"- Market Run: remove the large Market Run title/title column. Let AH status, week navigation, delivery context, items-left progress, basket count, and the meal-plan link own the band.",
+					"- Meal Plan: use a compact week-navigation/Add band above the chronological day ledger. Delivery and Shopping belong with the week. Open days and planned meals appear once in the ledger; do not add planned/open summary cards. Suggest remains secondary.",
+					"- Recipes: use a compact route/search/sort/creation band. Search is the largest useful element; Import is primary and New meal is secondary. Ready now, Freezer, and Below target remain filter facets; do not add summary cards.",
+					"- Settings, Login, Home/chat, and recipe detail/cook/edit are outside this execution.",
+					"",
+					"Evidence:",
+					"Stock currently renders ready-meal and below-target summaries as static divs with no pointer, keyboard, pressed, or result behavior. The prior design artifact then copied those two cards into Meal Plan and Recipes, duplicating state already visible in their ledger and filter rail. At 393px, the current Market Run title wraps to 52px inside a 124px band; at 1280px it reserves a 408px title column.",
+					"",
+					"Required states:",
+					"Stock quick-view positive/zero/active/clear/combined-filter plus empty/long; Market empty/complete/AH offline/stale/sending/uncertain; Meal empty/long/pending/suggestion failure; Recipes empty/no-results/missing image/import error; English/Dutch; light/dark; 320/393/768/1280; keyboard, reduced motion, and 200% reflow.",
+					"",
+					"User refinement notes (verbatim):",
+					userNotes,
+					"",
+					"Execute one ticket at a time, preserve existing behavior ownership and data contracts, and run the plan's full repository and browser verification matrix."
+				].join("\n");
+			}
+
+			function updatePrompt() {
+				prompt.value = buildPrompt();
+			}
+
+			loadNotes();
+			updatePrompt();
+
+			let activeStockView = null;
+			const stockButtons = [...document.querySelectorAll("[data-stock-view]")];
+			const stockResultPanels = [...document.querySelectorAll("[data-stock-results]")];
+
+			function renderStockView() {
+				stockButtons.forEach((button) => {
+					const selected = button.dataset.stockView === activeStockView;
+					button.setAttribute("aria-pressed", String(selected));
+					button.querySelector("b").textContent = selected ? "×" : "→";
+				});
+				stockResultPanels.forEach((panel) => {
+					const viewStatus = panel.querySelector("[data-stock-status]");
+					const rows = [...panel.querySelectorAll("[data-stock-tags]")];
+					rows.forEach((row) => {
+						const tags = row.dataset.stockTags.split(" ").filter(Boolean);
+						row.style.display = !activeStockView || tags.includes(activeStockView) ? "grid" : "none";
+					});
+					viewStatus.classList.toggle("visible", Boolean(activeStockView));
+					if (activeStockView) {
+						viewStatus.querySelector("strong").textContent =
+							activeStockView === "ready" ? "Ready meals · 4 results" : "Below target · 2 results";
+					}
+				});
+			}
+
+			stockButtons.forEach((button) => {
+				button.addEventListener("click", () => {
+					activeStockView = activeStockView === button.dataset.stockView ? null : button.dataset.stockView;
+					renderStockView();
+				});
+			});
+
+			notes.addEventListener("input", () => {
+				try {
+					localStorage.setItem(storageKey, notes.value);
+					status.textContent = "Notes saved locally.";
+				} catch {
+					status.textContent = "Local saving is unavailable; notes still work for this visit.";
+				}
+				updatePrompt();
+			});
+
+			document.getElementById("reset").addEventListener("click", () => {
+				notes.value = "";
+				try { localStorage.removeItem(storageKey); } catch {}
+				status.textContent = "Notes cleared.";
+				updatePrompt();
+			});
+
+			document.getElementById("copy").addEventListener("click", async () => {
+				try {
+					await navigator.clipboard.writeText(prompt.value);
+					status.textContent = "Handoff copied.";
+				} catch {
+					prompt.focus();
+					prompt.select();
+					status.textContent = "Clipboard access failed. The full handoff is selected; copy it manually.";
+				}
+			});
+		})();
+	</script>
+</body>
+</html>

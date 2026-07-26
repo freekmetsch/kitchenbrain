@@ -282,12 +282,12 @@
 	}
 
 	.shopping-market {
-		--market-olive: #304b3a;
-		--market-olive-ink: #304b3a;
-		--market-honey: #d3a046;
-		--market-terra: #b9491e;
-		--market-paper: #f5f0e5;
-		--market-card: #fffdf7;
+		--market-olive: var(--kitchen-olive);
+		--market-olive-ink: var(--kitchen-olive);
+		--market-honey: var(--kitchen-honey);
+		--market-terra: var(--kitchen-terra);
+		--market-paper: var(--kitchen-paper);
+		--market-card: var(--kitchen-card);
 		min-height: 100%;
 		background: var(--market-paper);
 		color: var(--color-base-content);

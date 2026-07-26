@@ -126,6 +126,10 @@ at 375, 768, 1280, and an effective 200% layout without provider calls.
 Touched: docs/feature-lists/archive/FEATURE_LIST_CONTEXTUAL_CHAT_PROMPTS.md,
 docs/artifacts/archive/2026-07-24-plan-contextual-chat-prompts.html
 
+## 2026-07-25 | html-artifact | design-shotgun: Stock Radar fidelity recovery
+
+Touched: docs/artifacts/2026-07-25-design-shotgun-stock-radar-fidelity.html, docs/feature-lists/FEATURE_LIST_STOCK_RADAR_FIDELITY_RECOVERY.md
+
 ## 2026-07-25 | html-artifact | design shotgun: chat starter rail refinement
 
 Touched: docs/artifacts/2026-07-25-design-shotgun-chat-starter-rail.html,
@@ -197,6 +201,39 @@ production build, and authenticated 375, 768, and 1280 browser journeys.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_STOCK_RADAR_FIDELITY_RECOVERY.md,
 docs/artifacts/archive/2026-07-25-design-shotgun-stock-radar-fidelity.html
+
+The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
+validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
+
+## 2026-07-25 23:54 | html-artifact | plan: Kitchen visual system completion
+
+Touched: docs/artifacts/2026-07-25-plan-kitchen-visual-system-completion.html,
+docs/feature-lists/FEATURE_LIST_KITCHEN_VISUAL_SYSTEM_COMPLETION.md
+
+## 2026-07-26 09:55 | html-artifact | refinement: Kitchen Ledger four-route utility bands
+
+Touched: docs/artifacts/2026-07-25-plan-kitchen-visual-system-completion.html,
+docs/feature-lists/FEATURE_LIST_KITCHEN_VISUAL_SYSTEM_COMPLETION.md
+
+## 2026-07-26 10:50 | html-artifact | refinement: route-specific jobs and actionable Stock views
+
+Touched: docs/artifacts/2026-07-25-plan-kitchen-visual-system-completion.html,
+docs/feature-lists/FEATURE_LIST_KITCHEN_VISUAL_SYSTEM_COMPLETION.md
+
+## 2026-07-26 | shipped | Kitchen Ledger four-route visual system
+
+Shipped one compact working language across Stock, Market Run, Meal Plan, and Recipes. Green bands
+now hold route-specific controls and live context instead of oversized mastheads or copied metric
+cards. Stock's Ready and Below target summaries are real tested quick views with zero, active,
+clear, focus, and announcement states. Market Run centers week/AH/progress; Meal Plan centers the
+active week and planning actions; Recipes centers search, sort, creation, and filtering.
+Verification passed with 431 unit tests, zero Svelte diagnostics, a production build, and
+authenticated English/Dutch light/dark browser checks at 320, 393, 768, and 1280 pixels.
+
+## 2026-07-26 | archive-scan | 1 feature list, 1 HTML archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_KITCHEN_VISUAL_SYSTEM_COMPLETION.md,
+docs/artifacts/archive/2026-07-25-plan-kitchen-visual-system-completion.html
 
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.

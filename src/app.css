@@ -47,6 +47,20 @@
 }
 
 :root {
+	/* Kitchen Ledger visual system: route pages share materials, then compose
+	   them around their own job instead of repeating one page's layout. */
+	--kitchen-paper: #f7f3e9;
+	--kitchen-card: #fffdf7;
+	--kitchen-ink: #243128;
+	--kitchen-muted: #68736b;
+	--kitchen-line: #d9d2c4;
+	--kitchen-olive: #334638;
+	--kitchen-olive-deep: #293b30;
+	--kitchen-olive-soft: #49614f;
+	--kitchen-honey: #d3a046;
+	--kitchen-honey-ink: #69460f;
+	--kitchen-terra: #a84d2a;
+	--kitchen-display: Georgia, 'Times New Roman', serif;
 	--ui-safe-top: env(safe-area-inset-top, 0px);
 	--ui-safe-bottom: env(safe-area-inset-bottom, 0px);
 	--ui-nav-height: 3.5rem;
@@ -62,6 +76,15 @@
 	--motion-large: 380ms;
 	--ease-standard: cubic-bezier(0.2, 0, 0, 1);
 	--ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[data-theme='dark'] {
+	--kitchen-paper: #1c221e;
+	--kitchen-card: #252c27;
+	--kitchen-ink: #f0eee7;
+	--kitchen-muted: #aeb9b1;
+	--kitchen-line: #3f4842;
+	--kitchen-honey-ink: #f0c569;
 }
 
 .app-shell {
