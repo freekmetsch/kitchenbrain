@@ -664,20 +664,17 @@
 	<section class="plan-band">
 		<div class="plan-band-inner">
 			<header class="plan-identity">
-				<div>
-					<p>{m.mealplan_week_navigation_aria()}</p>
-					<h1>{m.mealplan_heading()}</h1>
-				</div>
+				<h1>{m.mealplan_heading()}</h1>
 				{#if selectedWeek}
 			<details class="dropdown dropdown-end">
 				<summary
 					class="plan-more"
 					aria-label={m.mealplan_more_options_aria()}
 				>
-					<span aria-hidden="true">•••</span>
+					<span aria-hidden="true">⋯</span>
 				</summary>
 				<ul
-					class="menu dropdown-content z-10 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg"
+					class="menu dropdown-content z-30 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 text-base-content shadow-lg"
 				>
 					{#if data.hasPastWeeks || data.showPastWeeks}
 						<li>
@@ -822,11 +819,11 @@
 						{#each displayMeals(week) as meal (meal.id)}
 							{@const linkedRecipe = recipeForMeal(meal)}
 							<li
-								class="grid min-h-14 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 px-3 py-2.5 transition-colors hover:bg-base-200/60"
+								class="meal-row transition-colors hover:bg-base-200/60"
 								transition:slide={{ duration: MOTION_MICRO_MS }}
 								animate:flip={{ duration: MOTION_CONTENT_MS }}
 							>
-								<label class="-mx-2 -mb-2 flex shrink-0 cursor-pointer items-center p-2">
+								<label class="meal-check">
 									<input
 										type="checkbox"
 										class="checkbox checkbox-md"
@@ -836,33 +833,31 @@
 										onchange={() => toggleCooked(meal)}
 									/>
 								</label>
-								<div class="min-w-0">
-									<div class="flex min-h-11 items-center gap-2">
-										{#if meal.recipeSlug}
-											<a
-												href="{base}/recipes/{meal.recipeSlug}?plan={meal.id}{meal.servings ? `&servings=${meal.servings}` : ''}"
-												class="min-w-0 flex-1 truncate text-sm font-medium {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}"
-											>
-												{meal.dinner}
-											</a>
-										{:else}
-											<span class="min-w-0 flex-1 truncate text-sm font-medium {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}">
-												{meal.dinner}
-											</span>
-										{/if}
-										<button
-											type="button"
-											class="btn btn-ghost h-11 min-h-11 w-11 shrink-0 px-0 text-error"
-											onclick={() => removeMeal(meal)}
-											disabled={!!pendingDeletes[meal.id]}
-											aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
-										>
-											<Icon name="trash" />
-										</button>
-									</div>
+								{#if meal.recipeSlug}
+									<a
+										href="{base}/recipes/{meal.recipeSlug}?plan={meal.id}{meal.servings ? `&servings=${meal.servings}` : ''}"
+										class="meal-title {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}"
+									>
+										{meal.dinner}
+									</a>
+								{:else}
+									<span class="meal-title {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}">
+										{meal.dinner}
+									</span>
+								{/if}
+								<button
+									type="button"
+									class="meal-remove btn btn-ghost"
+									onclick={() => removeMeal(meal)}
+									disabled={!!pendingDeletes[meal.id]}
+									aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
+								>
+									<Icon name="trash" />
+								</button>
+								<div class="meal-details">
 									{#if dayPlanning && meal.status !== 'cooked'}
 										<select
-											class="select select-bordered select-xs mt-1 w-24 {meal.plannedDate ? '' : 'text-base-content/40'}"
+											class="select select-bordered select-xs w-24 {meal.plannedDate ? '' : 'text-base-content/40'}"
 											value={meal.plannedDate ?? ''}
 											disabled={!!pendingToggles[meal.id] || meal.id < 0}
 											aria-label={m.mealplan_day_picker_aria({ dinner: meal.dinner })}
@@ -875,14 +870,14 @@
 										</select>
 									{/if}
 									{#if meal.status !== 'cooked' && meal.recipeSlug && meal.servings}
-										<div class="mt-1 flex flex-wrap items-center gap-1.5">
-											<div class="inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()} aria-busy={!!pendingServings[meal.id]}>
+										<div class="meal-portion-row">
+											<div class="meal-serving-stepper inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()} aria-busy={!!pendingServings[meal.id]}>
 												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-r-none" disabled={meal.servings <= 1} aria-disabled={!!pendingServings[meal.id] || meal.servings <= 1} aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })} onclick={() => !pendingServings[meal.id] && changeServings(meal, -1)}>−</button>
-												<span class="px-1 text-xs tabular-nums">{m.mealplan_servings_count({ count: meal.servings })}</span>
+												<span class="min-w-0 flex-1 px-1 text-center text-xs tabular-nums">{m.mealplan_servings_count({ count: meal.servings })}</span>
 												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={meal.servings >= 99} aria-disabled={!!pendingServings[meal.id] || meal.servings >= 99} aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })} onclick={() => !pendingServings[meal.id] && changeServings(meal, 1)}>+</button>
 											</div>
 											{#if linkedRecipe && meal.source !== 'freezer'}
-												<div class="inline-flex items-center gap-1" aria-label={linkedRecipe.scalingMode === 'fixed_batch' ? m.mealplan_batch_fixed() : m.mealplan_batch_scalable()}>
+												<div class="meal-batch-options" aria-label={linkedRecipe.scalingMode === 'fixed_batch' ? m.mealplan_batch_fixed() : m.mealplan_batch_scalable()}>
 													{#each [2, 3, 4] as multiplier}
 														{@const target = batchServingTarget(linkedRecipe.servings, multiplier)}
 														{@const pressed = target === meal.servings}
@@ -893,7 +888,7 @@
 														)}
 														<button
 															type="button"
-															class="btn btn-xs h-11 min-h-0 min-w-11 px-2 {pressed ? 'btn-primary' : 'btn-ghost border border-base-300'}"
+															class="btn btn-xs h-11 min-h-0 w-11 px-0 {pressed ? 'btn-primary' : 'btn-ghost border border-base-300'}"
 															disabled={toggleTarget == null}
 															aria-disabled={toggleTarget == null || !!pendingServings[meal.id]}
 															aria-label={target == null
@@ -922,7 +917,7 @@
 										</div>
 									{/if}
 									{#if meal.cookedDate && meal.status === 'cooked'}
-										<span class="mt-1 inline-flex items-center gap-1 text-xs text-base-content/35">
+										<span class="inline-flex items-center gap-1 text-xs text-base-content/35">
 											<Icon name="check" class="h-3 w-3" />
 											{cookedDateLabel(meal.cookedDate)}
 										</span>
@@ -931,7 +926,7 @@
 										{@const onHand = frozenPortionsFor(meal)}
 										{@const linkedForSource = recipeForMeal(meal)}
 										{#if linkedForSource && meal.servings}
-											<div class="mt-1.5">
+											<div class="meal-source-row">
 												<MealSourceChoice
 													source={meal.source}
 													baselineServings={linkedForSource.servings}
@@ -1038,8 +1033,8 @@
 
 	.plan-band-inner {
 		display: grid;
-		gap: 0.65rem;
-		padding: 0.65rem 0.875rem 0.8rem;
+		gap: 0.55rem;
+		padding: 0.55rem 0.875rem 0.7rem;
 	}
 
 	.plan-identity {
@@ -1049,20 +1044,11 @@
 		gap: 1rem;
 	}
 
-	.plan-identity p {
-		color: #f2ca74;
-		font-size: 0.62rem;
-		font-weight: 800;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-	}
-
 	.plan-identity h1 {
-		margin-top: 0.08rem;
 		font-family: var(--kitchen-display);
-		font-size: 1.15rem;
+		font-size: 1.2rem;
 		font-weight: 600;
-		line-height: 1;
+		line-height: 1.1;
 		letter-spacing: -0.025em;
 	}
 
@@ -1081,8 +1067,16 @@
 
 	.plan-more {
 		list-style: none;
-		font-size: 1rem;
-		letter-spacing: 0.12em;
+		padding-bottom: 0.2rem;
+		font-size: 1.45rem;
+		line-height: 1;
+		letter-spacing: 0;
+	}
+
+	.plan-more::marker,
+	.plan-more::-webkit-details-marker {
+		display: none;
+		content: '';
 	}
 
 	.plan-week-button:disabled {
@@ -1147,12 +1141,13 @@
 
 	.plan-actions {
 		display: grid;
-		grid-template-columns: 1fr 1fr 1.15fr;
+		grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr);
 		gap: 0.4rem;
 	}
 
 	.plan-action {
 		display: inline-flex;
+		min-width: 0;
 		min-height: 2.75rem;
 		align-items: center;
 		justify-content: center;
@@ -1189,13 +1184,90 @@
 	}
 
 	.plan-ledger {
-		padding: 0.9rem 0.875rem max(6.5rem, var(--ui-overlay-bottom));
+		padding: 0.75rem 0.875rem max(6.5rem, var(--ui-overlay-bottom));
+	}
+
+	.meal-row {
+		display: grid;
+		grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+		align-items: center;
+		column-gap: 0.35rem;
+		padding: 0.45rem 0.7rem 0.65rem;
+	}
+
+	.meal-check,
+	.meal-title,
+	.meal-remove {
+		min-height: 2.75rem;
+	}
+
+	.meal-check {
+		display: inline-flex;
+		width: 2.75rem;
+		cursor: pointer;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.meal-title {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		overflow: hidden;
+		font-size: 0.875rem;
+		font-weight: 600;
+		line-height: 1.3;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.meal-remove.btn {
+		width: 2.75rem;
+		padding: 0;
+		color: color-mix(in oklab, var(--color-base-content) 52%, transparent);
+	}
+
+	.meal-remove.btn:hover,
+	.meal-remove.btn:focus-visible {
+		color: var(--color-error);
+	}
+
+	.meal-details {
+		grid-column: 1 / -1;
+		display: grid;
+		gap: 0.4rem;
+		min-width: 0;
+	}
+
+	.meal-details:empty {
+		display: none;
+	}
+
+	.meal-portion-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.35rem;
+	}
+
+	.meal-serving-stepper {
+		min-width: 8.5rem;
+	}
+
+	.meal-batch-options {
+		display: inline-grid;
+		grid-template-columns: repeat(3, 2.75rem);
+		gap: 0.35rem;
+	}
+
+	.meal-source-row {
+		min-width: 0;
 	}
 
 	@media (min-width: 48rem) {
 		.plan-band-inner {
-			grid-template-columns: minmax(28rem, 1fr) minmax(20rem, 0.65fr);
-			gap: 0.75rem 1.5rem;
+			grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.72fr);
+			gap: 0.75rem 1rem;
 			padding: 0.8rem 1.5rem 1rem;
 		}
 
@@ -1213,6 +1285,38 @@
 	}
 
 	@media (min-width: 64rem) {
+		.plan-band-inner {
+			grid-template-columns: minmax(14rem, 0.5fr) minmax(24rem, 1fr) minmax(20rem, 0.65fr);
+			gap: 1rem;
+		}
+
+		.plan-identity {
+			grid-column: auto;
+		}
+
+		.meal-row {
+			grid-template-columns: 2.75rem minmax(12rem, 1fr) 2.75rem auto;
+		}
+
+		.meal-title {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		.meal-remove.btn {
+			grid-column: 3;
+			grid-row: 1;
+		}
+
+		.meal-details {
+			grid-column: 4;
+			grid-row: 1;
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 0.5rem;
+		}
+
 		.plan-band-inner,
 		.plan-ledger {
 			padding-inline: 2rem;
