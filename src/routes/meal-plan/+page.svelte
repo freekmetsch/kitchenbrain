@@ -12,142 +12,77 @@
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
-	import { optimistic } from '$lib/optimistic';
 	import { toast } from '$lib/stores/toast.svelte';
-	import { addDays, deliveryDateForPlanningWeek, todayIso, APP_TIME_ZONE } from '$lib/week';
-	import { weekdayName } from '$lib/weekday';
+	import { APP_TIME_ZONE } from '$lib/week';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 	import { formatDate } from '$lib/i18n';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 	import { batchServingTarget, batchServingToggleTarget } from '$lib/meal_batch';
-	import {
-		adjacentMealPlanWeeks,
-		mealPlanWeekHref,
-		selectedMealPlanWeek
-	} from '$lib/meal_plan_navigation';
+	import { mealPlanWeekHref } from '$lib/meal_plan_navigation';
 	import MealSourceChoice from '$lib/components/meal-plan/MealSourceChoice.svelte';
 	import {
-		defaultServingsForMealSource,
-		type MealSource
-	} from '$lib/meal_source_choice';
+		MealPlanController,
+		type MealPlanControllerData
+	} from '$lib/components/meal-plan/controller.svelte';
 
 	type Meal = PageData['weeks'][number]['meals'][number];
 	type Week = PageData['weeks'][number];
 	type Recipe = PageData['recipeList'][number];
 
 	let { data }: { data: PageData } = $props();
-
-	let weeks = $state<Week[]>(untrack(() => data.weeks.map((w) => ({ ...w, meals: w.meals.map((m) => ({ ...m })) }))));
-	const currentWeekStart = untrack(() => data.currentWeekStart);
-
-	// "Show past weeks" / "Hide past weeks" (?past=1) is a same-route navigation
-	// -- load reruns and data.weeks gets a fresh identity, but local `weeks`
-	// (which carries optimistic add/toggle/remove edits) does not resync on its
-	// own. Resync whenever a new load result arrives; server truth wins. Ids for
-	// already-persisted meals are stable across resyncs, so in-flight optimistic
-	// toggles/removes still land correctly via updateMeal/removeMealFromState;
-	// an in-flight add whose temp id gets wiped falls back to addMealToState
-	// once the real save resolves.
+	const controller = new MealPlanController(
+		untrack(() => data as MealPlanControllerData),
+		{ basePath: base }
+	);
 	$effect(() => {
-		const next = data.weeks;
-		weeks = next.map((w) => ({ ...w, meals: w.meals.map((m) => ({ ...m })) }));
+		controller.syncData(data as MealPlanControllerData);
 	});
-
-	let selectedWeek = $derived(
-		selectedMealPlanWeek(weeks, data.focusWeek, data.currentWeekStart)
-	);
-	let adjacentWeeks = $derived(
-		adjacentMealPlanWeeks(weeks, selectedWeek?.weekStartDate ?? null)
-	);
-
-	let drawerOpen = $state(false);
-	let drawerWeek = $state('');
-	let drawerSearch = $state('');
-	let drawerCategory = $state('');
-	let drawerSubmitting = $state(false);
-
-	const prefs = untrack(() => data.mealPlanPrefs);
-	const dayPlanning = prefs.dayPlanning;
-
-	let suggestActive = $state<string | null>(null);
-	let suggestText = $state('');
-	let suggestLoading = $state(false);
-	let suggestError = $state('');
-	let applyingSuggestion = $state<Record<string, boolean>>({});
-	// Suggestions already planned this session — the Add button flips to a ✓ so
-	// a second tap can't double-plan the same line (B2).
-	let addedSuggestions = $state<Record<string, boolean>>({});
-	let pendingAdds = $state<Record<string, boolean>>({});
-	let pendingToggles = $state<Record<number, boolean>>({});
-	let pendingDeletes = $state<Record<number, boolean>>({});
-	let tempMealId = -1;
-
-	let freezeOpen = $state(false);
-	let freezeSlug = $state('');
-	let freezeTitle = $state('');
-	let freezeDefault = $state(2);
-
-	let consumeOpen = $state(false);
-	let consumeSlug = $state('');
-	let consumeTitle = $state('');
-	let consumeDefault = $state(2);
-	let consumeMax = $state(99);
-	let pendingSourceToggles = $state<Record<number, boolean>>({});
-	let pendingServings = $state<Record<number, boolean>>({});
-	let servingsStatus = $state('');
+	let currentWeekStart = $derived(controller.currentWeekStart);
+	let selectedWeek = $derived(controller.selectedWeek);
+	let adjacentWeeks = $derived(controller.adjacentWeeks);
+	let filteredRecipes = $derived(controller.filteredRecipes);
+	let suggestLines = $derived(controller.suggestLines);
+	let prefs = $derived(controller.prefs);
+	let dayPlanning = $derived(controller.dayPlanning);
+	let drawerWeek = $derived(controller.drawerWeek);
+	let drawerSubmitting = $derived(controller.drawerSubmitting);
+	let suggestActive = $derived(controller.suggestActive);
+	let suggestText = $derived(controller.suggestText);
+	let suggestLoading = $derived(controller.suggestLoading);
+	let suggestError = $derived(controller.suggestError);
+	let applyingSuggestion = $derived(controller.applyingSuggestion);
+	let addedSuggestions = $derived(controller.addedSuggestions);
+	let pendingAdds = $derived(controller.pendingAdds);
+	let pendingToggles = $derived(controller.pendingToggles);
+	let pendingDeletes = $derived(controller.pendingDeletes);
+	let pendingSourceToggles = $derived(controller.pendingSourceToggles);
+	let pendingServings = $derived(controller.pendingServings);
+	let servingsStatus = $derived(controller.servingsStatus);
+	let freezeSlug = $derived(controller.freezeSlug);
+	let freezeTitle = $derived(controller.freezeTitle);
+	let freezeDefault = $derived(controller.freezeDefault);
+	let consumeSlug = $derived(controller.consumeSlug);
+	let consumeTitle = $derived(controller.consumeTitle);
+	let consumeDefault = $derived(controller.consumeDefault);
+	let consumeMax = $derived(controller.consumeMax);
 
 	const DRAWER_CATEGORIES = ['meat', 'vegetarian', 'vegan', 'fish', 'pasta', 'soup', 'dessert'];
 
-	let filteredRecipes = $derived(
-		data.recipeList
-			.filter((recipe) => recipeMatchesDrawer(recipe))
-			.sort(
-				(a, b) =>
-					b.onHandPortions - a.onHandPortions ||
-					recipeDisplayTitle(a).localeCompare(recipeDisplayTitle(b))
-			)
-			.slice(0, 40)
-	);
-
-	let suggestLines = $derived(
-		suggestText
-			.split('\n')
-			.map((line) => line.trim())
-			.filter((line) => /^(\d+[\.)]|[-*])\s+.+/.test(line))
-			.map((line) => line.replace(/^(\d+[\.)]|[-*])\s+/, '').trim())
-			.filter(Boolean)
-	);
-
 	function recipeDisplayTitle(recipe: Recipe): string {
-		return recipe.titleEn ?? recipe.title;
+		return controller.recipeDisplayTitle(recipe);
 	}
 
 	function recipeForMeal(meal: Meal): Recipe | undefined {
-		return meal.recipeSlug ? data.recipeList.find((r) => r.slug === meal.recipeSlug) : undefined;
+		return controller.recipeForMeal(meal);
 	}
 
-	/** Frozen portions on hand for the meal's linked recipe (0 when unlinked). */
 	function frozenPortionsFor(meal: Meal): number {
-		return recipeForMeal(meal)?.onHandPortions ?? 0;
+		return controller.frozenPortionsFor(meal);
 	}
 
 	function recipeDisplayCategory(recipe: Recipe): string | null {
-		return recipe.categoryEn ?? recipe.category;
-	}
-
-	function recipeMatchesDrawer(recipe: Recipe): boolean {
-		const q = drawerSearch.trim().toLowerCase();
-		const matchSearch =
-			!q ||
-			recipe.title.toLowerCase().includes(q) ||
-			(recipe.titleEn?.toLowerCase().includes(q) ?? false);
-		const c = drawerCategory.toLowerCase();
-		const matchCat =
-			!drawerCategory ||
-			(recipe.category?.toLowerCase().includes(c) ?? false) ||
-			(recipe.categoryEn?.toLowerCase().includes(c) ?? false);
-		return matchSearch && matchCat;
+		return controller.recipeDisplayCategory(recipe);
 	}
 
 	function formatWeekRange(weekStartDate: string): string {
@@ -176,485 +111,32 @@
 		});
 	}
 
-	// Day-to-day planning: the seven dates of a week, offered by the per-meal
-	// day picker. Day-planned meals sort to their day; pool meals sink below.
 	function weekDayOptions(weekStartDate: string): { date: string; label: string }[] {
-		return Array.from({ length: 7 }, (_, i) => {
-			const date = addDays(weekStartDate, i);
-			return { date, label: weekdayName((prefs.weekStartDay + i) % 7, 'short') };
-		});
+		return controller.weekDayOptions(weekStartDate);
 	}
 
 	function displayMeals(week: Week): Meal[] {
-		if (!dayPlanning) return week.meals;
-		return [...week.meals].sort(
-			(a, b) =>
-				(a.plannedDate ?? '9999-99-99').localeCompare(b.plannedDate ?? '9999-99-99') ||
-				a.sortOrder - b.sortOrder ||
-				a.id - b.id
-		);
+		return controller.displayMeals(week);
 	}
 
 	function addKey(weekStartDate: string, dinner: string, recipeSlug: string | null = null): string {
-		return `${weekStartDate}:${recipeSlug ?? dinner.trim().toLowerCase()}`;
+		return controller.addKey(weekStartDate, dinner, recipeSlug);
 	}
 
-	function setPendingAdd(key: string, pending: boolean) {
-		const next = { ...pendingAdds };
-		if (pending) next[key] = true;
-		else delete next[key];
-		pendingAdds = next;
-	}
+	const openAddDrawer = controller.openAddDrawer;
 
-	function setApplyingSuggestion(key: string, pending: boolean) {
-		const next = { ...applyingSuggestion };
-		if (pending) next[key] = true;
-		else delete next[key];
-		applyingSuggestion = next;
-	}
-
-	function weekFor(weekStartDate: string): Week | undefined {
-		return weeks.find((week) => week.weekStartDate === weekStartDate);
-	}
-
-	function cloneWeeks(value: Week[]): Week[] {
-		return value.map((week) => ({ ...week, meals: week.meals.map((meal) => ({ ...meal })) }));
-	}
-
-	function updateMeal(updated: Meal) {
-		for (const week of weeks) {
-			const idx = week.meals.findIndex((meal) => meal.id === updated.id);
-			if (idx !== -1) {
-				week.meals[idx] = { ...updated };
-				weeks = [...weeks];
-				return;
-			}
-		}
-	}
-
-	function replaceMeal(tempId: number, saved: Meal) {
-		for (const week of weeks) {
-			const idx = week.meals.findIndex((meal) => meal.id === tempId);
-			if (idx !== -1) {
-				week.meals[idx] = { ...saved };
-				weeks = [...weeks];
-				return;
-			}
-		}
-		addMealToState(saved);
-	}
-
-	function removeMealFromState(id: number) {
-		for (const week of weeks) {
-			const idx = week.meals.findIndex((meal) => meal.id === id);
-			if (idx !== -1) {
-				week.meals.splice(idx, 1);
-				weeks = [...weeks];
-				return;
-			}
-		}
-	}
-
-	function addMealToState(meal: Meal) {
-		const week = weekFor(meal.weekStartDate);
-		if (week) {
-			week.meals.push(meal);
-			week.meals.sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
-			weeks = [...weeks];
-			return;
-		}
-		weeks = [
-			...weeks,
-			{
-				weekStartDate: meal.weekStartDate,
-				weekNumber: meal.weekNumber,
-				deliveryDate:
-					prefs.groceryDay == null
-						? null
-						: deliveryDateForPlanningWeek(meal.weekStartDate, prefs.groceryDay, prefs.weekStartDay),
-				meals: [meal]
-			}
-		].sort((a, b) => a.weekStartDate.localeCompare(b.weekStartDate));
-	}
-
-	function openAddDrawer(weekStartDate: string) {
-		drawerWeek = weekStartDate;
-		drawerSearch = '';
-		drawerCategory = '';
-		drawerOpen = true;
-	}
-
-	// No success toast: the new row appearing in the week list IS the confirmation
-	// (same contract as /shopping); errors still toast via optimistic().
-	async function addMealOptimistic(
-		input: { weekStartDate: string; dinner: string; recipeSlug?: string | null; source?: 'fresh' | 'freezer'; servings?: number | null },
-		closeDrawer = true
-	): Promise<boolean> {
-		const dinner = input.dinner.trim();
-		if (!dinner) return false;
-		const week = weekFor(input.weekStartDate);
-		if (!week) return false;
-		const key = addKey(input.weekStartDate, dinner, input.recipeSlug ?? null);
-		if (pendingAdds[key]) return false;
-
-		setPendingAdd(key, true);
-		drawerSubmitting = true;
-		const tempId = tempMealId--;
-		const optimisticMeal: Meal = {
-			id: tempId,
-			weekStartDate: input.weekStartDate,
-			weekNumber: week.weekNumber,
-			dinner,
-			recipeSlug: input.recipeSlug ?? null,
-			servings: input.servings ?? null,
-			status: 'planned',
-			source: input.source ?? 'fresh',
-			cookedDate: null,
-			plannedDate: null,
-			note: null,
-			sortOrder: week.meals.length,
-			createdAt: new Date()
-		};
-		addMealToState(optimisticMeal);
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						weekStartDate: input.weekStartDate,
-						dinner,
-						recipeSlug: input.recipeSlug ?? null,
-						servings: input.servings ?? null,
-						source: input.source ?? 'fresh'
-					})
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => removeMealFromState(tempId),
-			m.mealplan_toast_could_not_add()
-		);
-
-		setPendingAdd(key, false);
-		drawerSubmitting = false;
-		if (!ok || !saved) return false;
-		replaceMeal(tempId, saved);
-		if (closeDrawer) drawerOpen = false;
-		return true;
-	}
-
-	async function toggleCooked(meal: Meal) {
-		if (pendingToggles[meal.id]) return;
-		const newStatus = meal.status === 'cooked' ? 'planned' : 'cooked';
-		const previous = { ...meal };
-		const optimisticMeal: Meal = {
-			...meal,
-			status: newStatus,
-			cookedDate: newStatus === 'cooked' ? (meal.cookedDate ?? todayIso()) : null
-		};
-		pendingToggles = { ...pendingToggles, [meal.id]: true };
-		updateMeal(optimisticMeal);
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan/${meal.id}`, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ status: newStatus })
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => updateMeal(previous),
-			m.mealplan_toast_could_not_update()
-		);
-		const nextToggles = { ...pendingToggles };
-		delete nextToggles[meal.id];
-		pendingToggles = nextToggles;
-
-		if (!ok || !saved) return;
-		updateMeal(saved);
-		if (newStatus === 'cooked' && meal.recipeSlug) {
-			const recipe = recipeForMeal(meal);
-			if (meal.source === 'freezer') {
-				// Served from the freezer: take the portions OUT of stock instead of
-				// prompting to freeze more of what was just defrosted.
-				const onHand = recipe?.onHandPortions ?? 0;
-				if (onHand > 0) {
-					consumeSlug = meal.recipeSlug;
-					consumeTitle = meal.dinner;
-					consumeMax = onHand;
-					consumeDefault = Math.min(onHand, recipe?.servings ?? 2);
-					consumeOpen = true;
-				} else {
-					toast.error(m.mealplan_toast_no_frozen_portions({ dinner: meal.dinner }));
-				}
-			} else {
-				freezeSlug = meal.recipeSlug;
-				freezeTitle = meal.dinner;
-				freezeDefault = recipe?.targetPortions ?? recipe?.servings ?? 2;
-				freezeOpen = true;
-			}
-		}
-	}
-
-	async function setMealSource(meal: Meal, newSource: MealSource) {
-		if (pendingSourceToggles[meal.id] || meal.id < 0) return;
-		const recipe = recipeForMeal(meal);
-		if (!recipe || (newSource === 'freezer' && recipe.onHandPortions <= 0)) return;
-		const servings = defaultServingsForMealSource(
-			newSource,
-			recipe.servings,
-			recipe.onHandPortions
-		);
-		const previous = { ...meal };
-		pendingSourceToggles = { ...pendingSourceToggles, [meal.id]: true };
-		updateMeal({ ...meal, source: newSource, servings });
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan/${meal.id}`, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ source: newSource, servings })
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => updateMeal(previous),
-			m.mealplan_toast_could_not_update()
-		);
-		const next = { ...pendingSourceToggles };
-		delete next[meal.id];
-		pendingSourceToggles = next;
-		if (ok && saved) updateMeal(saved);
-	}
-
-	async function setPlannedDate(meal: Meal, plannedDate: string | null) {
-		if (pendingToggles[meal.id]) return;
-		const previous = { ...meal };
-		pendingToggles = { ...pendingToggles, [meal.id]: true };
-		updateMeal({ ...meal, plannedDate });
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan/${meal.id}`, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ plannedDate })
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => updateMeal(previous),
-			m.mealplan_toast_could_not_update()
-		);
-		const nextToggles = { ...pendingToggles };
-		delete nextToggles[meal.id];
-		pendingToggles = nextToggles;
-		if (ok && saved) updateMeal(saved);
-	}
-
-	async function restoreMeal(meal: Meal) {
-		const key = addKey(meal.weekStartDate, meal.dinner, meal.recipeSlug);
-		if (pendingAdds[key]) return;
-		const tempId = tempMealId--;
-		const restoredMeal: Meal = {
-			...meal,
-			id: tempId,
-			status: 'planned',
-			cookedDate: null
-		};
-
-		setPendingAdd(key, true);
-		addMealToState(restoredMeal);
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						weekStartDate: meal.weekStartDate,
-						dinner: meal.dinner,
-						recipeSlug: meal.recipeSlug,
-						plannedDate: meal.plannedDate,
-						source: meal.source
-					})
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => removeMealFromState(tempId),
-			m.mealplan_toast_could_not_restore()
-		);
-
-		setPendingAdd(key, false);
-		if (!ok) return;
-		if (!saved) {
-			removeMealFromState(tempId);
-			toast.error(m.mealplan_toast_could_not_restore());
-			return;
-		}
-		replaceMeal(tempId, saved);
-	}
-
-	async function removeMeal(meal: Meal) {
-		if (pendingDeletes[meal.id]) return;
-		const before = cloneWeeks(weeks);
-		pendingDeletes = { ...pendingDeletes, [meal.id]: true };
-		removeMealFromState(meal.id);
-		const ok = await optimistic(
-			() => fetch(`${base}/api/meal-plan/${meal.id}`, { method: 'DELETE' }),
-			() => {
-				weeks = before;
-			},
-			m.mealplan_toast_could_not_remove()
-		);
-		const nextDeletes = { ...pendingDeletes };
-		delete nextDeletes[meal.id];
-		pendingDeletes = nextDeletes;
-		if (ok) toast.undo(m.mealplan_toast_removed({ dinner: meal.dinner }), () => void restoreMeal(meal));
-	}
-
-	async function addMealFromRecipe(recipe: Recipe, source: MealSource = 'fresh') {
-		await addMealOptimistic({
-			weekStartDate: drawerWeek,
-			dinner: recipeDisplayTitle(recipe),
-			recipeSlug: recipe.slug,
-			servings: defaultServingsForMealSource(
-				source,
-				recipe.servings,
-				recipe.onHandPortions
-			),
-			source
-		});
-	}
-
-	async function setServings(meal: Meal, next: number): Promise<boolean> {
-		if (meal.id < 0 || pendingServings[meal.id]) return false;
-		if (!Number.isInteger(next) || next < 1 || next > 99 || next === meal.servings) return false;
-		const previous = { ...meal };
-		pendingServings = { ...pendingServings, [meal.id]: true };
-		updateMeal({ ...meal, servings: next });
-		let saved: Meal | null = null;
-		const ok = await optimistic(async () => {
-			const response = await fetch(`${base}/api/meal-plan/${meal.id}`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ servings: next })
-			});
-			if (response.ok) saved = await response.json();
-			return response;
-		}, () => updateMeal(previous), m.mealplan_toast_could_not_update_servings());
-		const pending = { ...pendingServings };
-		delete pending[meal.id];
-		pendingServings = pending;
-		if (ok && saved) {
-			updateMeal(saved as Meal);
-			servingsStatus = m.mealplan_servings_updated({ dinner: meal.dinner, count: next });
-		}
-		return ok;
-	}
-
-	async function changeServings(meal: Meal, delta: number) {
-		await setServings(meal, Math.max(1, Math.min(99, (meal.servings ?? 1) + delta)));
-	}
-
-	// One input serves both jobs: it filters the recipe lists live, and the
-	// dashed row below plans the typed text as a custom dinner (UX: two labeled
-	// inputs collapsed into one — Hick).
-	async function addCustomFromSearch() {
-		const dinner = drawerSearch.trim();
-		if (!dinner) return;
-		await addMealOptimistic({ weekStartDate: drawerWeek, dinner });
-	}
-
-	async function startSuggest(weekStartDate: string) {
-		suggestActive = weekStartDate;
-		suggestText = '';
-		suggestError = '';
-		suggestLoading = true;
-
-		const recipeLibrary = data.recipeList
-			.slice(0, 60)
-			.map((recipe) => recipeDisplayTitle(recipe))
-			.join(', ');
-		const freezerContext = data.freezerPromptSummary
-			? `Freezer stock available: ${data.freezerPromptSummary}. Meals served from the freezer only need their fresh sides bought that week (bread, rice, fresh garnishes), so they are cheap low-effort picks.`
-			: 'No linked freezer meals are currently available.';
-		// Rotation cycle (Settings → Meal planning): recently cooked meals are
-		// off the table for this round.
-		const rotationContext =
-			prefs.repeatCycleDays > 0 && data.recentlyCookedSummary
-				? ` Do NOT suggest these meals — they were cooked within the last ${prefs.repeatCycleDays} days: ${data.recentlyCookedSummary}.`
-				: '';
-
-		try {
-			const res = await fetch(`${base}/api/chat`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					message: `Suggest ${prefs.suggestCount} meals for the week of ${weekStartDate}. Use this household context when useful: ${freezerContext} Recipe library: ${recipeLibrary}. Prefer meals that use available freezer portions or known recipes.${rotationContext} Reply in English with only a numbered list of meal names, no explanation.`
-				})
-			});
-			if (!res.ok || !res.body) throw new Error('no stream');
-			const reader = res.body.getReader();
-			const decoder = new TextDecoder();
-			let buf = '';
-			let doneReading = false;
-			while (!doneReading) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buf += decoder.decode(value, { stream: true });
-				const lines = buf.split('\n');
-				buf = lines.pop() ?? '';
-				for (const line of lines) {
-					if (!line.startsWith('data: ')) continue;
-					const payload = line.slice(6);
-					if (payload === '[DONE]') {
-						doneReading = true;
-						break;
-					}
-					try {
-						const event = JSON.parse(payload);
-						if (event.type === 'text') suggestText += event.text;
-					} catch {
-						// Ignore malformed stream chunks; the next chunk may complete cleanly.
-					}
-				}
-			}
-		} catch {
-			suggestError = m.mealplan_toast_suggestions_failed();
-			toast.error(m.mealplan_toast_suggestions_failed());
-		} finally {
-			suggestLoading = false;
-		}
-	}
-
-	function closeSuggest() {
-		suggestActive = null;
-		suggestText = '';
-		suggestError = '';
-	}
-
-	async function applySuggestion(dinner: string) {
-		if (!suggestActive) return;
-		const key = addKey(suggestActive, dinner);
-		if (applyingSuggestion[key] || addedSuggestions[key]) return;
-		setApplyingSuggestion(key, true);
-		const ok = await addMealOptimistic({ weekStartDate: suggestActive, dinner }, false);
-		if (ok) addedSuggestions = { ...addedSuggestions, [key]: true };
-		setApplyingSuggestion(key, false);
-	}
-
+	const addMealOptimistic = controller.addMealOptimistic;
+	const toggleCooked = controller.toggleCooked;
+	const setMealSource = controller.setMealSource;
+	const setPlannedDate = controller.setPlannedDate;
+	const removeMeal = controller.removeMeal;
+	const addMealFromRecipe = controller.addMealFromRecipe;
+	const setServings = controller.setServings;
+	const changeServings = controller.changeServings;
+	const addCustomFromSearch = controller.addCustomFromSearch;
+	const startSuggest = controller.startSuggest;
+	const closeSuggest = controller.closeSuggest;
+	const applySuggestion = controller.applySuggestion;
 </script>
 
 <svelte:head>
@@ -1213,7 +695,7 @@
 	}
 </style>
 
-<BottomSheet bind:open={drawerOpen} title={m.mealplan_add_meal_sheet_title()}>
+<BottomSheet bind:open={controller.drawerOpen} title={m.mealplan_add_meal_sheet_title()}>
 	<form
 		onsubmit={(event) => {
 			// Enter only dismisses the keyboard — planning the typed text as a
@@ -1227,7 +709,7 @@
 			placeholder={m.mealplan_search_recipes_placeholder()}
 			aria-label={m.mealplan_search_recipes_aria()}
 			autocomplete="off"
-			bind:value={drawerSearch}
+			bind:value={controller.drawerSearch}
 		/>
 	</form>
 
@@ -1235,16 +717,16 @@
 		{#each DRAWER_CATEGORIES as cat}
 			<button
 				type="button"
-				class={drawerCategory === cat ? 'ui-chip-active' : 'ui-chip'}
-				aria-pressed={drawerCategory === cat}
-				onclick={() => (drawerCategory = drawerCategory === cat ? '' : cat)}
+				class={controller.drawerCategory === cat ? 'ui-chip-active' : 'ui-chip'}
+				aria-pressed={controller.drawerCategory === cat}
+				onclick={() => (controller.drawerCategory = controller.drawerCategory === cat ? '' : cat)}
 			>
 				{cat}
 			</button>
 		{/each}
 	</div>
 
-	{#if drawerSearch.trim()}
+	{#if controller.drawerSearch.trim()}
 		<button
 			type="button"
 			class="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-base-300 px-3 py-2.5 text-left transition-colors hover:bg-base-200/60 disabled:opacity-50"
@@ -1252,7 +734,7 @@
 			disabled={drawerSubmitting}
 			transition:slide={{ duration: MOTION_MICRO_MS }}
 		>
-			<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: drawerSearch.trim() })}</span>
+			<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: controller.drawerSearch.trim() })}</span>
 			<span class="ui-chip-muted shrink-0">{m.mealplan_custom_chip()}</span>
 		</button>
 	{/if}
@@ -1290,7 +772,7 @@
 </BottomSheet>
 
 <FreezePortionsModal
-	bind:open={freezeOpen}
+	bind:open={controller.freezeOpen}
 	slug={freezeSlug}
 	title={freezeTitle}
 	defaultPortions={freezeDefault}
@@ -1298,7 +780,7 @@
 />
 
 <ConsumePortionsModal
-	bind:open={consumeOpen}
+	bind:open={controller.consumeOpen}
 	slug={consumeSlug}
 	title={consumeTitle}
 	defaultPortions={consumeDefault}

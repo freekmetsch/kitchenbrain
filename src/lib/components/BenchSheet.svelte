@@ -1,9 +1,12 @@
 <!--
 	Inline bench-sheet — recipe page's primary cooking surface.
 
-	Owns: deterministic cooking steps, current-step state, timer state,
-	timer-fire alarm (background media + Web Audio fallback + notification),
+	Owns: deterministic cooking steps, timer/browser adapters, timer-fire alarm
+	(background media + Web Audio fallback + notification),
 	screen Wake Lock, and after-cooking feedback/log actions.
+
+	Per-instance timer and persisted-session state live in focused controllers;
+	rendering, browser lifecycles, and network orchestration stay local here.
 
 	SW setTimeout is unreliable past ~30 s of idle, so wall-clock UI state
 	lives in a dedicated Web Worker. A media track started by the timer tap
@@ -29,10 +32,7 @@
 	} from './cook-mode/staleness';
 	import { readCookModeFailure } from './cook-mode/cook_mode_recovery';
 	import { cookStepKey, normalizeCookProgress, selectCookStep } from './cook-mode/cook_progress';
-	import {
-		readCookSession,
-		type FrozenCookRecipe
-	} from './cook-mode/cook_session';
+	import type { FrozenCookRecipe } from './cook-mode/cook_session';
 	import {
 		applySessionSwapsToSteps,
 		toggleCounterIngredient,
@@ -49,6 +49,8 @@
 		TimerWorkerOutbound
 	} from '$lib/timer/messages';
 	import { BackgroundTimerAudio } from '$lib/timer/background_audio';
+	import { CookTimerController } from './cook-mode/timer-controller.svelte';
+	import { CookSessionStorageController } from './cook-mode/session-controller.svelte';
 
 	export type BenchSheetController = {
 		resetSession: () => void;
@@ -189,21 +191,10 @@
 	let sessionSwaps = $state<Record<string, SessionIngredientSwap>>({});
 	let savingIngredientId = $state<string | null>(null);
 
-	// Canonical timer state. `timerEnds` holds wall-clock fire times keyed by
-	// step idx; `timerOrder` holds insertion order so the multi-pill stack can
-	// keep oldest-at-the-bottom (Object.keys iteration would sort numerically
-	// instead). `firedFor` is non-reactive — fires are imperative side
-	// effects, not render inputs.
-	let timerEnds = $state<Record<number, number>>({});
-	let timerOrder = $state<number[]>([]);
-	const firedFor = new Set<number>();
-
-	// `now` ticks every 250 ms from the worker; `nowSec` quantizes to seconds
-	// so derivations and pill renders only re-fire ~once per second instead of
-	// 4×. `checkTimerFires` reads `now` directly for ms-precision zero
-	// detection, so it doesn't suffer from the quantization.
-	let now = $state(Date.now());
-	let nowSec = $derived(Math.floor(now / 1000));
+	// Per-instance canonical timer state. Browser lifecycle and alarm delivery
+	// stay in this component; wall-clock state, restore, and fire-once behavior
+	// live in the independently testable controller.
+	const timers = new CookTimerController();
 
 
 	// In-app notification permission primer. Soft ask before the browser
@@ -212,24 +203,6 @@
 	let notificationPrimerVisible = $state(false);
 	let notificationPrimerShown = false;
 	let backgroundTimerAudio: BackgroundTimerAudio | null = null;
-
-	type TimerSnapshot = {
-		runningIdxs: Set<number>;
-		doneIdxs: Set<number>;
-	};
-	let timerSnapshot = $derived.by<TimerSnapshot>(() => {
-		void nowSec;
-		const t = Date.now();
-		const runningIdxs = new Set<number>();
-		const doneIdxs = new Set<number>();
-		for (const k of Object.keys(timerEnds)) {
-			const i = Number(k);
-			if (timerEnds[i] > t) runningIdxs.add(i);
-			else doneIdxs.add(i);
-		}
-		return { runningIdxs, doneIdxs };
-	});
-	let anyTimerRunning = $derived(timerSnapshot.runningIdxs.size > 0);
 
 	// ────────── Web Worker tick (foreground-locked clock) ──────────
 	// One module worker for the bench-sheet lifetime. We subscribe/unsubscribe
@@ -279,12 +252,11 @@
 	}
 
 	function tickNow(t: number) {
-		now = t;
-		checkTimerFires(t);
+		for (const index of timers.tick(t)) fireAlarm(index);
 	}
 
 	$effect(() => {
-		if (anyTimerRunning) {
+		if (timers.anyRunning) {
 			ensureTimerWorker();
 			subscribeWorker();
 		} else {
@@ -296,21 +268,11 @@
 	// construct AND a timer is running. Keeps the pill clock advancing in the
 	// degraded path; loses the worker's background-resilience.
 	$effect(() => {
-		if (!anyTimerRunning) return;
+		if (!timers.anyRunning) return;
 		if (timerWorker) return;
 		const id = setInterval(() => tickNow(Date.now()), 250);
 		return () => clearInterval(id);
 	});
-
-	function checkTimerFires(t: number) {
-		for (const k of Object.keys(timerEnds)) {
-			const idx = Number(k);
-			if (timerEnds[idx] <= t && !firedFor.has(idx)) {
-				firedFor.add(idx);
-				fireAlarm(idx);
-			}
-		}
-	}
 
 	// ────────── Wake Lock (keep screen on while cooking) ──────────
 	// The cook is using the screen the whole session — Wake Lock isn't gated
@@ -581,22 +543,17 @@
 		beginSession();
 		ensureAudio();
 		maybeShowNotificationPrimer();
-		const deadline = Date.now() + seconds * 1000;
+		const deadline = timers.start(idx, seconds);
 		if (typeof window !== 'undefined') {
 			backgroundTimerAudio ??= new BackgroundTimerAudio({
 				src: `${base}/audio/cook-timer-alarm.m4a`
 			});
 			backgroundTimerAudio.schedule(idx, deadline);
 		}
-		timerEnds[idx] = deadline;
-		if (!timerOrder.includes(idx)) timerOrder = [...timerOrder, idx];
-		firedFor.delete(idx);
 	}
 	function cancelTimer(idx: number) {
 		backgroundTimerAudio?.stop(idx);
-		delete timerEnds[idx];
-		timerOrder = timerOrder.filter((i) => i !== idx);
-		firedFor.delete(idx);
+		timers.cancel(idx);
 	}
 	function currentKeys(cm: CookModeDisplayRecipe | null = cookMode): string[] {
 		return (
@@ -638,6 +595,7 @@
 	// are wall-clock, so restore stays honest; a timer that expired while away
 	// restores as done without re-firing the alarm.
 	const PROGRESS_KEY = `cookmode-progress:${untrack(() => recipeSlug)}:${untrack(() => planMealId ?? 'direct')}`;
+	const sessionStorage = new CookSessionStorageController(PROGRESS_KEY);
 	let progressRestored = false;
 
 	function stepsSig(cm: CookModeDisplayRecipe): string {
@@ -671,18 +629,13 @@
 
 	function restoreProgress(cm: CookModeDisplayRecipe) {
 		try {
-			const raw = localStorage.getItem(PROGRESS_KEY);
-			const parsed = raw ? JSON.parse(raw) : null;
-			const result = readCookSession(parsed);
+			const result = sessionStorage.read();
 			if (result.state === 'empty') {
 				currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
 				return;
 			}
 			if (result.state === 'discard') {
-				clearProgress();
-				timerEnds = {};
-				timerOrder = [];
-				firedFor.clear();
+				timers.reset();
 				sessionNotice = m.benchsheet_session_reset_notice();
 				currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
 				return;
@@ -694,59 +647,45 @@
 			servingDraft = saved.servings;
 			counterChecks = saved.counterChecks;
 			sessionSwaps = saved.sessionSwaps;
-			const t = Date.now();
 			const ends: Record<number, number> = {};
 			const order: number[] = [];
 			for (const idx of saved.timerOrder ?? []) {
 				const end = saved.timerEnds?.[idx];
 				if (typeof end !== 'number' || idx < 0) continue;
-				if (end <= t) firedFor.add(idx);
 				ends[idx] = end;
 				order.push(idx);
 			}
-			timerEnds = ends;
-			timerOrder = order;
+			timers.restore(ends, order);
 			currentStepKey =
 				typeof saved.currentStepKey === 'string'
 					? saved.currentStepKey
 					: normalizeCookProgress(currentKeys(cm), null).currentKey;
 		} catch {
 			clearProgress();
-			timerEnds = {};
-			timerOrder = [];
-			firedFor.clear();
+			timers.reset();
 			sessionNotice = m.benchsheet_session_reset_notice();
 			currentStepKey = normalizeCookProgress(currentKeys(cm), null).currentKey;
 		}
 	}
 
 	function saveProgress() {
-		try {
-			if (!cookMode || !sessionStarted || !frozenRecipe) return;
-			localStorage.setItem(
-				PROGRESS_KEY,
-				JSON.stringify({
-					v: 3,
-					sig: frozenRecipe.signature,
-					frozenViewLang: activeViewLang,
-					currentStepKey,
-					timerEnds,
-					timerOrder,
-					servings: servingDraft,
-					frozenRecipe,
-					counterChecks,
-					sessionSwaps
-				})
-			);
-		} catch {
-			// Quota / private-mode failures degrade to the old ephemeral behavior.
-		}
+		if (!cookMode || !sessionStarted || !frozenRecipe) return;
+		sessionStorage.save({
+			v: 3,
+			sig: frozenRecipe.signature,
+			frozenViewLang: activeViewLang,
+			currentStepKey,
+			timerEnds: timers.ends,
+			timerOrder: timers.order,
+			servings: servingDraft,
+			frozenRecipe,
+			counterChecks,
+			sessionSwaps
+		});
 	}
 
 	function clearProgress() {
-		try {
-			localStorage.removeItem(PROGRESS_KEY);
-		} catch {}
+		sessionStorage.clear();
 	}
 
 	function resetCookSession() {
@@ -758,10 +697,8 @@
 		counterChecks = {};
 		sessionSwaps = {};
 		currentStepKey = cookMode ? normalizeCookProgress(currentKeys(cookMode), null).currentKey : null;
-		timerEnds = {};
-		timerOrder = [];
+		timers.reset();
 		backgroundTimerAudio?.stopAll();
-		firedFor.clear();
 		cookedDone = false;
 		cookedSubmitting = false;
 	}
@@ -850,7 +787,7 @@
 	let hasProgress = $derived(
 		sessionStarted ||
 			(currentStepKey != null && currentStepKey !== currentKeys()[0]) ||
-			timerOrder.length > 0 ||
+			timers.order.length > 0 ||
 			Object.values(counterChecks).some(Boolean) ||
 			Object.keys(sessionSwaps).length > 0
 	);
@@ -945,7 +882,7 @@
 		return result;
 	});
 
-	// Guard each write so a per-tick rerun (anyTimerRunning, nowSec) doesn't
+	// Guard each write so a per-tick rerun doesn't
 	// fire the parent's reactive graph for unchanged values. The parent
 	// reads `hasActiveTimer` on click (edit-raw guard), so per-tick churn
 	// would re-run any of the parent's effects that touch the controller.
@@ -953,7 +890,7 @@
 		if (controller.resetSession !== resetCookSession) controller.resetSession = resetCookSession;
 	});
 	$effect(() => {
-		const next = anyTimerRunning;
+		const next = timers.anyRunning;
 		if (controller.hasActiveTimer !== next) controller.hasActiveTimer = next;
 	});
 	$effect(() => {
@@ -1088,10 +1025,10 @@
 				streamName={streamNames[step.stream_id] ?? null}
 				mergeNames={(step.merges_from ?? []).map((streamId) => streamNames[streamId]).filter(Boolean)}
 				current={currentStepKey === cookStepKey(index, step.stream_id, step.step_id ?? step.direction_id)}
-				timerActive={timerSnapshot.runningIdxs.has(index)}
-				timerDone={timerSnapshot.doneIdxs.has(index)}
-				timerRemaining={timerSnapshot.runningIdxs.has(index)
-					? Math.max(0, Math.ceil((timerEnds[index] - nowSec * 1000) / 1000))
+				timerActive={timers.snapshot.runningIdxs.has(index)}
+				timerDone={timers.snapshot.doneIdxs.has(index)}
+				timerRemaining={timers.snapshot.runningIdxs.has(index)
+					? Math.max(0, Math.ceil((timers.ends[index] - timers.nowSec * 1000) / 1000))
 					: null}
 				onSelect={() => selectStep(index)}
 				onStartTimer={() => {

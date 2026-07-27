@@ -6,48 +6,28 @@
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import {
-		getShoppingFilterOptions,
-		groupShoppingItems,
-		nextVisibleShoppingKey,
-		projectShoppingStates,
 		shoppingItemKey,
-		type ShoppingListFilter,
 		type ShoppingListSort,
 		type StoreRouteSection
 	} from '$lib/shopping_list_view';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { itemLabel, sourceContextLabels } from './format';
+	import {
+		createShoppingListController,
+		type LegacyShoppingItem,
+		type RecurringShoppingItem
+	} from './list-controller.svelte';
 	import type { ShoppingListItem, ShoppingListSource } from './types';
 	import SourceDecisionSheet from './SourceDecisionSheet.svelte';
 	import RecurringShoppingList from './RecurringShoppingList.svelte';
 	import LegacyShoppingReview from './LegacyShoppingReview.svelte';
 
-	type Recurring = {
-		id: number;
-		revision: number;
-		name: string;
-		amount: string | null;
-		unit: string | null;
-		entryId: number | null;
-		entryRevision: number | null;
-		included: boolean;
-		bought: boolean;
-	};
-	type Legacy = {
-		id: number;
-		revision: number;
-		name: string;
-		term: string;
-		amount: string | null;
-		unit: string | null;
-		candidates: Array<{ id: number; revision: number; label: string }>;
-	};
 	type Props = {
 		pending: ShoppingListItem[];
 		done: ShoppingListItem[];
 		sources: ShoppingListSource[];
-		recurring: Recurring[];
-		legacy: Legacy[];
+		recurring: RecurringShoppingItem[];
+		legacy: LegacyShoppingItem[];
 		notices?: Snippet;
 		emptyState: 'no_meals' | 'nothing_needed';
 		showCovered: boolean;
@@ -65,13 +45,13 @@
 			unit: string | null;
 		}) => Promise<boolean>;
 		onEditRecurring: (
-			item: Recurring,
+			item: RecurringShoppingItem,
 			input: { name: string; amount: string | null; unit: string | null }
 		) => Promise<boolean>;
-		onSkipRecurring: (item: Recurring) => Promise<boolean>;
-		onDisableRecurring: (item: Recurring) => Promise<boolean>;
+		onSkipRecurring: (item: RecurringShoppingItem) => Promise<boolean>;
+		onDisableRecurring: (item: RecurringShoppingItem) => Promise<boolean>;
 		onResolveLegacy: (
-			item: Legacy,
+			item: LegacyShoppingItem,
 			resolution: 'attach' | 'manual' | 'dismiss',
 			targetEntryId?: number
 		) => void;
@@ -98,54 +78,7 @@
 		onResolveLegacy
 	}: Props = $props();
 
-	let filter = $state<ShoppingListFilter>({ kind: 'all' });
-	let sort = $state<ShoppingListSort>('list');
-	let sourceSheetOpen = $state(false);
-	let selectedSource = $state<ShoppingListSource | null>(null);
-	let itemActionOpen = $state(false);
-	let selectedItem = $state<ShoppingListItem | null>(null);
-	let rulesOpen = $state(false);
-	let rulesScope = $state<'excluded' | 'all'>('all');
-	let pendingSource = $state<ShoppingListSource | null>(null);
-	let openWeeklyAfterAction = $state(false);
-	let actionPending = $state(false);
-	let basketOpen = $state(false);
-	let shoppingStatus = $state('');
 	let weeklyManager = $state<{ openManager: () => Promise<void> }>();
-
-	let filterOptions = $derived(getShoppingFilterOptions([...pending, ...done]));
-	let projected = $derived(projectShoppingStates(pending, done, filter, sort));
-	let activePending = $derived(projected.active);
-	let coveredPending = $derived(projected.covered);
-	let completed = $derived(projected.done);
-	let activeGroups = $derived(
-		sort === 'store'
-			? groupShoppingItems(activePending).filter((group) => group.items.length)
-			: [{ section: null, items: activePending }]
-	);
-	let recipeSources = $derived(sources.filter((source) => source.sourceKind === 'recipe'));
-	let excludedRecipeSources = $derived(recipeSources.filter((source) => !source.included));
-	let visibleRuleSources = $derived(
-		rulesScope === 'excluded' ? excludedRecipeSources : recipeSources
-	);
-	let filterHasResults = $derived(
-		activePending.length + coveredPending.length + completed.length > 0
-	);
-
-	$effect(() => {
-		if (
-			(filter.kind === 'weekly' && !filterOptions.hasWeekly) ||
-			(filter.kind === 'meal' && !filterOptions.meals.includes(filter.mealName))
-		) {
-			filter = { kind: 'all' };
-		}
-	});
-
-	function filterIs(candidate: ShoppingListFilter): boolean {
-		return candidate.kind === filter.kind &&
-			(candidate.kind !== 'meal' ||
-				(filter.kind === 'meal' && candidate.mealName === filter.mealName));
-	}
 
 	function routeLabel(section: StoreRouteSection): string {
 		switch (section) {
@@ -157,45 +90,6 @@
 			case 'Household': return m.shopping_store_household();
 			case 'Other': return m.shopping_store_other();
 		}
-	}
-
-	function openActions(item: ShoppingListItem) {
-		selectedItem = item;
-		itemActionOpen = true;
-	}
-
-	function editSourceAfterClose(source: ShoppingListSource, owner: 'actions' | 'rules') {
-		pendingSource = source;
-		if (owner === 'actions') itemActionOpen = false;
-		else rulesOpen = false;
-	}
-
-	async function handleActionClose() {
-		if (itemActionOpen) return;
-		if (pendingSource) {
-			selectedSource = pendingSource;
-			pendingSource = null;
-			await tick();
-			sourceSheetOpen = true;
-		} else if (openWeeklyAfterAction) {
-			openWeeklyAfterAction = false;
-			await tick();
-			await weeklyManager?.openManager();
-		}
-		if (!itemActionOpen) selectedItem = null;
-	}
-
-	async function handleRulesClose() {
-		if (rulesOpen || !pendingSource) return;
-		selectedSource = pendingSource;
-		pendingSource = null;
-		await tick();
-		sourceSheetOpen = true;
-	}
-
-	function openRules(scope: 'excluded' | 'all' = 'all') {
-		rulesScope = scope === 'excluded' && excludedRecipeSources.length ? 'excluded' : 'all';
-		rulesOpen = true;
 	}
 
 	async function focusShoppingKey(key: string | null) {
@@ -211,74 +105,63 @@
 		document.querySelector<HTMLElement>('#shopping-basket-toggle')?.focus();
 	}
 
-	async function undoBought(item: ShoppingListItem, key: string) {
-		const restored = await onToggleBought(item);
-		if (!restored) return;
-		await focusShoppingKey(key);
-		shoppingStatus = item.bought
-			? m.shopping_bought_status({ name: item.name, count: activePending.length })
-			: m.shopping_not_bought_status({ name: item.name, count: activePending.length });
-	}
-
-	async function toggleBought(item: ShoppingListItem) {
-		const wasBought = item.bought;
-		const key = shoppingItemKey(item);
-		const before = wasBought ? [...completed] : [...activePending];
-		const nextKey = wasBought ? key : nextVisibleShoppingKey(before, key);
-		const saved = await onToggleBought(item);
-		if (!saved) {
-			await focusShoppingKey(key);
-			return;
+	const controller = createShoppingListController({
+		pending: () => pending,
+		done: () => done,
+		sources: () => sources,
+		recurring: () => recurring,
+		legacy: () => legacy,
+		emptyState: () => emptyState,
+		onToggleBought: (item) => onToggleBought(item),
+		onDeleteManual: (source) => onDeleteManual(source),
+		onRestoreManual: (source) => onRestoreManual(source),
+		focus: focusShoppingKey,
+		settle: tick,
+		openWeeklyManager: async () => {
+			await weeklyManager?.openManager();
+		},
+		notifyUndo: (message, action) => toast.undo(message, () => void action()),
+		notifyError: (message) => toast.error(message),
+		messages: {
+			bought: (name, count) => m.shopping_bought_status({ name, count }),
+			notBought: (name, count) => m.shopping_not_bought_status({ name, count }),
+			removed: (name) => m.shopping_toast_removed({ name }),
+			restoreFailed: () => m.shopping_toast_restore_failed()
 		}
-		await focusShoppingKey(nextKey);
-		shoppingStatus = wasBought
-			? m.shopping_not_bought_status({ name: item.name, count: activePending.length })
-			: m.shopping_bought_status({ name: item.name, count: activePending.length });
-		toast.undo(shoppingStatus, () => void undoBought(item, key));
-	}
+	});
 
-	async function removeManual(item: ShoppingListItem, source: ShoppingListSource) {
-		if (actionPending) return;
-		actionPending = true;
-		const removed = await onDeleteManual(source);
-		actionPending = false;
-		if (!removed) return;
-		itemActionOpen = false;
-		toast.undo(m.shopping_toast_removed({ name: item.name }), () => {
-			void onRestoreManual(source).then((restored) => {
-				if (!restored) toast.error(m.shopping_toast_restore_failed());
-			});
-		});
-	}
+	$effect(() => {
+		controller.reconcileFilter();
+	});
 </script>
 
 <section class="shopping-controls" aria-label={m.shopping_list_controls()}>
 	<div class="shopping-filter-rail" role="toolbar" aria-label={m.shopping_filter_label()}>
 		<button
 			type="button"
-			class:active={filterIs({ kind: 'all' })}
-			aria-pressed={filterIs({ kind: 'all' })}
-			onclick={() => (filter = { kind: 'all' })}
+			class:active={controller.filterIs({ kind: 'all' })}
+			aria-pressed={controller.filterIs({ kind: 'all' })}
+			onclick={() => controller.setFilter({ kind: 'all' })}
 		>
 			{m.shopping_filter_all()}
 		</button>
-		{#each filterOptions.meals as meal}
+		{#each controller.filterOptions.meals as meal}
 			<button
 				type="button"
-				class:active={filterIs({ kind: 'meal', mealName: meal })}
-				aria-pressed={filterIs({ kind: 'meal', mealName: meal })}
+				class:active={controller.filterIs({ kind: 'meal', mealName: meal })}
+				aria-pressed={controller.filterIs({ kind: 'meal', mealName: meal })}
 				title={meal}
-				onclick={() => (filter = { kind: 'meal', mealName: meal })}
+				onclick={() => controller.setFilter({ kind: 'meal', mealName: meal })}
 			>
 				{meal}
 			</button>
 		{/each}
-		{#if filterOptions.hasWeekly}
+		{#if controller.filterOptions.hasWeekly}
 			<button
 				type="button"
-				class:active={filterIs({ kind: 'weekly' })}
-				aria-pressed={filterIs({ kind: 'weekly' })}
-				onclick={() => (filter = { kind: 'weekly' })}
+				class:active={controller.filterIs({ kind: 'weekly' })}
+				aria-pressed={controller.filterIs({ kind: 'weekly' })}
+				onclick={() => controller.setFilter({ kind: 'weekly' })}
 			>
 				{m.shopping_filter_weekly()}
 			</button>
@@ -289,9 +172,10 @@
 			<span class="sr-only">{m.shopping_sort_label()}</span>
 			<select
 				class="select min-h-11"
-				value={sort}
+				value={controller.sort}
 				aria-label={m.shopping_sort_label()}
-				onchange={(event) => (sort = event.currentTarget.value as ShoppingListSort)}
+				onchange={(event) =>
+					controller.setSort(event.currentTarget.value as ShoppingListSort)}
 			>
 				<option value="list">{m.shopping_sort_list()}</option>
 				<option value="alpha">{m.shopping_sort_az()}</option>
@@ -300,7 +184,7 @@
 		</label>
 		<RecurringShoppingList
 			bind:this={weeklyManager}
-			items={recurring}
+			items={controller.recurring}
 			onAdd={onAddRecurring}
 			onEdit={onEditRecurring}
 			onSkip={onSkipRecurring}
@@ -309,8 +193,8 @@
 		<button
 			type="button"
 			class="shopping-rules-trigger"
-			disabled={!recipeSources.length}
-			onclick={() => openRules('all')}
+			disabled={!controller.recipeSources.length}
+			onclick={() => controller.openRules('all')}
 		>
 			<Icon name="settings" />
 			{m.shopping_manage_rules()}
@@ -318,17 +202,17 @@
 	</div>
 </section>
 
-{#if excludedRecipeSources.length}
-	<button type="button" class="shopping-excluded-rules" onclick={() => openRules('excluded')}>
-		{m.shopping_excluded_rules({ count: excludedRecipeSources.length })}
+{#if controller.excludedRecipeSources.length}
+	<button type="button" class="shopping-excluded-rules" onclick={() => controller.openRules('excluded')}>
+		{m.shopping_excluded_rules({ count: controller.excludedRecipeSources.length })}
 	</button>
 {/if}
 
 {#if notices}{@render notices()}{/if}
-<LegacyShoppingReview items={legacy} onResolve={onResolveLegacy} />
-<p class="sr-only" aria-live="polite">{shoppingStatus}</p>
+<LegacyShoppingReview items={controller.legacy} onResolve={onResolveLegacy} />
+<p class="sr-only" aria-live="polite">{controller.shoppingStatus}</p>
 
-{#if coveredPending.length}
+{#if controller.coveredPending.length}
 	<div class="market-covered-toggle">
 		<button
 			type="button"
@@ -336,34 +220,34 @@
 			aria-pressed={showCovered}
 			onclick={() => (showCovered = !showCovered)}
 		>
-			{m.shopping_in_stock_chip({ count: coveredPending.length })}
+			{m.shopping_in_stock_chip({ count: controller.coveredPending.length })}
 		</button>
 	</div>
 {/if}
 
-{#if pending.length === 0 && done.length === 0}
+{#if controller.viewMode === 'empty'}
 	<EmptyState
-		iconName={emptyState === 'no_meals' ? 'calendar' : 'jar'}
-		title={emptyState === 'no_meals' ? m.shopping_empty_no_meals_title() : m.shopping_empty_nothing_title()}
-		description={emptyState === 'no_meals' ? m.shopping_empty_no_meals_desc() : m.shopping_empty_nothing_desc()}
+		iconName={controller.emptyState === 'no_meals' ? 'calendar' : 'jar'}
+		title={controller.emptyState === 'no_meals' ? m.shopping_empty_no_meals_title() : m.shopping_empty_nothing_title()}
+		description={controller.emptyState === 'no_meals' ? m.shopping_empty_no_meals_desc() : m.shopping_empty_nothing_desc()}
 	>
 		{#snippet action()}
 			<a
 				class="btn btn-primary min-h-11"
-				href={emptyState === 'no_meals' ? `${base}/meal-plan` : `${base}/inventory`}
+				href={controller.emptyState === 'no_meals' ? `${base}/meal-plan` : `${base}/inventory`}
 			>
-				{emptyState === 'no_meals' ? m.shopping_plan_meals_button() : m.shopping_view_stock_button()}
+				{controller.emptyState === 'no_meals' ? m.shopping_plan_meals_button() : m.shopping_view_stock_button()}
 			</a>
 		{/snippet}
 	</EmptyState>
-{:else if !filterHasResults}
+{:else if controller.viewMode === 'filter-empty'}
 	<div class="shopping-filter-empty">
 		<h2>{m.shopping_filter_empty()}</h2>
-		<button type="button" onclick={() => (filter = { kind: 'all' })}>{m.shopping_clear_filter()}</button>
+		<button type="button" onclick={() => controller.setFilter({ kind: 'all' })}>{m.shopping_clear_filter()}</button>
 	</div>
-{:else if activePending.length}
+{:else if controller.viewMode === 'active'}
 	<div class="shopping-active-groups">
-		{#each activeGroups as group}
+		{#each controller.activeGroups as group}
 			{#if group.section}<h2>{routeLabel(group.section)}</h2>{/if}
 			<ul class="market-run-list">
 				{#each group.items as item, index (shoppingItemKey(item))}
@@ -376,7 +260,7 @@
 								data-shopping-key={key}
 								type="checkbox"
 								checked={item.bought}
-								onchange={() => void toggleBought(item)}
+								onchange={() => void controller.toggleBought(item)}
 							/>
 							<span><Icon name="check" /></span>
 						</label>
@@ -414,7 +298,7 @@
 									type="button"
 									class="market-row-more"
 									aria-label={m.shopping_item_actions_aria({ name: item.name })}
-									onclick={() => openActions(item)}
+									onclick={() => controller.openActions(item)}
 								>
 									<span aria-hidden="true">•••</span>
 								</button>
@@ -425,22 +309,22 @@
 			</ul>
 		{/each}
 	</div>
-{:else if completed.length}
+{:else if controller.viewMode === 'complete'}
 	<div class="market-complete">
 		<div><Icon name="check" /></div>
 		<h2>{m.shopping_list_complete_title()}</h2>
 		<p>{m.shopping_list_complete_desc()}</p>
-		<button id="shopping-basket-toggle" type="button" onclick={() => (basketOpen = !basketOpen)}>
-			{basketOpen ? m.shopping_hide_basket() : `${m.shopping_review_basket()} · ${completed.length}`}
+		<button id="shopping-basket-toggle" type="button" onclick={() => (controller.basketOpen = !controller.basketOpen)}>
+			{controller.basketOpen ? m.shopping_hide_basket() : `${m.shopping_review_basket()} · ${controller.completed.length}`}
 		</button>
 	</div>
 {:else}
 	<EmptyState mini title={m.shopping_empty_stock_covers()} />
 {/if}
 
-{#if showCovered && coveredPending.length}
-	<ul class="market-run-list market-covered-list" aria-label={m.shopping_in_stock_chip({ count: coveredPending.length })}>
-		{#each coveredPending as item (shoppingItemKey(item))}
+{#if showCovered && controller.coveredPending.length}
+	<ul class="market-run-list market-covered-list" aria-label={m.shopping_in_stock_chip({ count: controller.coveredPending.length })}>
+		{#each controller.coveredPending as item (shoppingItemKey(item))}
 			<li class="market-run-row covered">
 				<div class="market-covered-marker" aria-hidden="true"><Icon name="check" /></div>
 				<div class="market-row-copy">
@@ -454,7 +338,7 @@
 							type="button"
 							class="market-row-more"
 							aria-label={m.shopping_item_actions_aria({ name: item.name })}
-							onclick={() => openActions(item)}
+							onclick={() => controller.openActions(item)}
 						><span aria-hidden="true">•••</span></button>
 					{/if}
 				</div>
@@ -463,22 +347,22 @@
 	</ul>
 {/if}
 
-{#if completed.length && activePending.length}
+{#if controller.completed.length && controller.activePending.length}
 	<button
 		id="shopping-basket-toggle"
 		type="button"
 		class="market-basket-summary"
-		aria-expanded={basketOpen}
-		onclick={() => (basketOpen = !basketOpen)}
+		aria-expanded={controller.basketOpen}
+		onclick={() => (controller.basketOpen = !controller.basketOpen)}
 	>
-		<span><strong>{m.shopping_in_basket_heading({ count: completed.length })}</strong></span>
-		<span>{basketOpen ? m.shopping_hide_basket() : m.shopping_review_basket()}</span>
+		<span><strong>{m.shopping_in_basket_heading({ count: controller.completed.length })}</strong></span>
+		<span>{controller.basketOpen ? m.shopping_hide_basket() : m.shopping_review_basket()}</span>
 	</button>
 {/if}
 
-{#if completed.length && basketOpen}
+{#if controller.completed.length && controller.basketOpen}
 	<ul class="market-run-list market-done-list">
-		{#each completed as item (shoppingItemKey(item))}
+		{#each controller.completed as item (shoppingItemKey(item))}
 			{@const key = shoppingItemKey(item)}
 			<li class="market-run-row">
 				<label class="market-check-hit" aria-label={m.shopping_mark_not_bought_aria({ name: item.name })}>
@@ -487,7 +371,7 @@
 						data-shopping-key={key}
 						type="checkbox"
 						checked
-						onchange={() => void toggleBought(item)}
+						onchange={() => void controller.toggleBought(item)}
 					/>
 					<span><Icon name="check" /></span>
 				</label>
@@ -497,7 +381,7 @@
 						type="button"
 						class="market-row-more"
 						aria-label={m.shopping_item_actions_aria({ name: item.name })}
-						onclick={() => openActions(item)}
+						onclick={() => controller.openActions(item)}
 					><span aria-hidden="true">•••</span></button>
 				{/if}
 			</li>
@@ -505,19 +389,23 @@
 	</ul>
 {/if}
 
-<SourceDecisionSheet bind:open={sourceSheetOpen} source={selectedSource} onSave={onSaveSource} />
+<SourceDecisionSheet
+	bind:open={controller.sourceSheetOpen}
+	source={controller.selectedSource}
+	onSave={onSaveSource}
+/>
 
 <BottomSheet
-	bind:open={itemActionOpen}
-	title={selectedItem?.name ?? m.shopping_item_actions_title_generic()}
+	bind:open={controller.itemActionOpen}
+	title={controller.selectedItem?.name ?? m.shopping_item_actions_title_generic()}
 	desktopSide
-	dismissible={!actionPending}
-	onclose={handleActionClose}
+	dismissible={!controller.actionPending}
+	onclose={controller.handleActionClose.bind(controller)}
 >
-	{#if selectedItem}
-		{@const itemRecipeSources = selectedItem.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
-		{@const itemManualSources = selectedItem.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
-		{@const hasWeeklySource = selectedItem.sources?.some((source) => source.sourceKind === 'weekly')}
+	{#if controller.selectedItem}
+		{@const itemRecipeSources = controller.selectedItem.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
+		{@const itemManualSources = controller.selectedItem.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
+		{@const hasWeeklySource = controller.selectedItem.sources?.some((source) => source.sourceKind === 'weekly')}
 		{#if itemRecipeSources.length}
 			<div class="source-action-group">
 				<h3>
@@ -528,8 +416,8 @@
 				{#each itemRecipeSources as source (source.id)}
 					<button
 						type="button"
-						disabled={actionPending}
-						onclick={() => editSourceAfterClose(source, 'actions')}
+						disabled={controller.actionPending}
+						onclick={() => controller.editSourceAfterClose(source, 'actions')}
 					>
 						<span>
 							<strong>{m.shopping_edit_rule()}</strong>
@@ -547,8 +435,8 @@
 					<button
 						type="button"
 						class="danger"
-						disabled={actionPending}
-						onclick={() => void removeManual(selectedItem!, source)}
+						disabled={controller.actionPending}
+						onclick={() => void controller.removeManual(controller.selectedItem!, source)}
 					>
 						<span>
 							<strong>{m.shopping_remove_this_week()}</strong>
@@ -564,11 +452,8 @@
 				<h3>{m.shopping_filter_weekly()}</h3>
 				<button
 					type="button"
-					disabled={actionPending}
-					onclick={() => {
-						openWeeklyAfterAction = true;
-						itemActionOpen = false;
-					}}
+					disabled={controller.actionPending}
+					onclick={() => controller.openWeeklyAfterActions()}
 				>
 					<span><strong>{m.shopping_manage_weekly_items()}</strong></span>
 					<Icon name="chevronRight" />
@@ -579,31 +464,31 @@
 </BottomSheet>
 
 <BottomSheet
-	bind:open={rulesOpen}
+	bind:open={controller.rulesOpen}
 	title={m.shopping_manage_rules()}
 	desktopSide
-	onclose={handleRulesClose}
+	onclose={controller.handleRulesClose.bind(controller)}
 >
 	<p class="rules-help">{m.shopping_manage_rules_help()}</p>
-	{#if excludedRecipeSources.length}
+	{#if controller.excludedRecipeSources.length}
 		<div class="rules-scope" role="group" aria-label={m.shopping_manage_rules()}>
 			<button
 				type="button"
-				class:active={rulesScope === 'excluded'}
-				aria-pressed={rulesScope === 'excluded'}
-				onclick={() => (rulesScope = 'excluded')}
-			>{m.shopping_rules_not_on_list({ count: excludedRecipeSources.length })}</button>
+				class:active={controller.rulesScope === 'excluded'}
+				aria-pressed={controller.rulesScope === 'excluded'}
+				onclick={() => (controller.rulesScope = 'excluded')}
+			>{m.shopping_rules_not_on_list({ count: controller.excludedRecipeSources.length })}</button>
 			<button
 				type="button"
-				class:active={rulesScope === 'all'}
-				aria-pressed={rulesScope === 'all'}
-				onclick={() => (rulesScope = 'all')}
-			>{m.shopping_rules_all({ count: recipeSources.length })}</button>
+				class:active={controller.rulesScope === 'all'}
+				aria-pressed={controller.rulesScope === 'all'}
+				onclick={() => (controller.rulesScope = 'all')}
+			>{m.shopping_rules_all({ count: controller.recipeSources.length })}</button>
 		</div>
 	{/if}
-	{#if visibleRuleSources.length}
+	{#if controller.visibleRuleSources.length}
 		<ul class="rules-list">
-			{#each visibleRuleSources as source (source.id)}
+			{#each controller.visibleRuleSources as source (source.id)}
 				<li>
 					<div>
 						<strong>{source.name}</strong>
@@ -616,7 +501,7 @@
 									: m.shopping_need_every_time()}
 						</small>
 					</div>
-					<button type="button" onclick={() => editSourceAfterClose(source, 'rules')}>
+					<button type="button" onclick={() => controller.editSourceAfterClose(source, 'rules')}>
 						{m.shopping_edit_rule()}
 					</button>
 				</li>
