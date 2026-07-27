@@ -1,0 +1,215 @@
+import { describe, expect, it, vi } from 'vitest';
+import { CookTimerController } from './timer-controller.svelte';
+import {
+	CookModeLifecycleController,
+	type CookModeLifecycleBrowserAdapters,
+	type CookModeLifecycleDependencies,
+	type CookModeWakeLock
+} from './lifecycle-controller.svelte';
+
+function browserAdapters(
+	overrides: Partial<CookModeLifecycleBrowserAdapters> = {}
+): CookModeLifecycleBrowserAdapters {
+	return {
+		createWorker: () => {
+			throw new Error('worker unavailable');
+		},
+		listenVisibility: () => () => {},
+		visibilityState: () => 'visible',
+		requestWakeLock: async () => null,
+		createAudioContext: () => null,
+		createBackgroundAudio: () => null,
+		vibrate: () => {},
+		notificationPermission: () => 'unsupported',
+		requestNotificationPermission: async () => {},
+		postServiceWorkerMessage: async () => {},
+		setInterval: () => 1,
+		clearInterval: () => {},
+		now: () => 1_000,
+		warn: () => {},
+		...overrides
+	};
+}
+
+function dependencies(
+	timers: CookTimerController,
+	browser: CookModeLifecycleBrowserAdapters
+): CookModeLifecycleDependencies {
+	return {
+		timers,
+		subscriberId: 'bench-sheet-bean-stew',
+		alarmAudioSrc: '/audio/cook-timer-alarm.m4a',
+		recipeTitle: () => 'Bean stew',
+		readAlarmStep: () => undefined,
+		shouldRetryAfterVisibility: () => false,
+		retryAfterVisibility: vi.fn(),
+		browser
+	};
+}
+
+describe('CookModeLifecycleController', () => {
+	it('ticks timers, retries generation, and reacquires wake lock when the page becomes visible', async () => {
+		let visibilityListener: (() => void) | undefined;
+		let now = 1_000;
+		let releaseWakeLock: (() => void) | undefined;
+		const wakeLocks: CookModeWakeLock[] = [];
+		const requestWakeLock = vi.fn(async () => {
+			const wakeLock: CookModeWakeLock = {
+				release: vi.fn(async () => {}),
+				onRelease: (listener) => {
+					releaseWakeLock = listener;
+				}
+			};
+			wakeLocks.push(wakeLock);
+			return wakeLock;
+		});
+		const timers = new CookTimerController(now);
+		timers.start(0, 10, now);
+		const browser = browserAdapters({
+			listenVisibility: (listener) => {
+				visibilityListener = listener;
+				return () => {};
+			},
+			requestWakeLock,
+			now: () => now
+		});
+		const deps = dependencies(timers, browser);
+		deps.shouldRetryAfterVisibility = () => true;
+		const lifecycle = new CookModeLifecycleController(deps);
+
+		lifecycle.mount();
+		await Promise.resolve();
+		releaseWakeLock?.();
+		now = 11_000;
+		visibilityListener?.();
+		await Promise.resolve();
+
+		expect(timers.snapshot.doneIdxs).toEqual(new Set([0]));
+		expect(deps.retryAfterVisibility).toHaveBeenCalledOnce();
+		expect(requestWakeLock).toHaveBeenCalledTimes(2);
+		expect(wakeLocks).toHaveLength(2);
+		lifecycle.destroy();
+	});
+
+	it('falls back to a main-thread tick when worker construction fails and cleans it up', () => {
+		let fallbackTick: (() => void) | undefined;
+		let now = 1_000;
+		const clearInterval = vi.fn();
+		const timers = new CookTimerController(now);
+		timers.start(0, 10, now);
+		const lifecycle = new CookModeLifecycleController(
+			dependencies(
+				timers,
+				browserAdapters({
+					createWorker: () => {
+						throw new Error('blocked');
+					},
+					setInterval: (callback, delay) => {
+						expect(delay).toBe(250);
+						fallbackTick = callback;
+						return 42;
+					},
+					clearInterval,
+					now: () => now
+				})
+			)
+		);
+
+		lifecycle.syncTimerActivity(true);
+		now = 11_000;
+		fallbackTick?.();
+		lifecycle.destroy();
+
+		expect(timers.snapshot.doneIdxs).toEqual(new Set([0]));
+		expect(clearInterval).toHaveBeenCalledWith(42);
+	});
+
+	it('keeps timers usable when wake lock, audio, vibration, and notifications fail', async () => {
+		let visibilityListener: (() => void) | undefined;
+		let now = 1_000;
+		let notificationPermission: NotificationPermission = 'default';
+		const requestPermission = vi.fn(async () => {
+			notificationPermission = 'granted';
+			throw new Error('notifications blocked');
+		});
+		const postServiceWorkerMessage = vi.fn(async () => {
+			throw new Error('service worker evicted');
+		});
+		const timers = new CookTimerController(now);
+		const deps = dependencies(
+			timers,
+			browserAdapters({
+				listenVisibility: (listener) => {
+					visibilityListener = listener;
+					return () => {};
+				},
+				requestWakeLock: async () => {
+					throw new Error('wake lock denied');
+				},
+				createAudioContext: () => {
+					throw new Error('audio unavailable');
+				},
+				vibrate: () => {
+					throw new Error('vibration unavailable');
+				},
+				notificationPermission: () => notificationPermission,
+				requestNotificationPermission: requestPermission,
+				postServiceWorkerMessage,
+				now: () => now
+			})
+		);
+		deps.readAlarmStep = () => ({ timer_action: 'stir', goal: 'Keep stirring' });
+		const lifecycle = new CookModeLifecycleController(deps);
+
+		lifecycle.mount();
+		expect(() => lifecycle.startTimer(0, 10)).not.toThrow();
+		expect(lifecycle.notificationPrimerVisible).toBe(true);
+		await expect(lifecycle.acceptNotifications()).resolves.toBeUndefined();
+		expect(lifecycle.notificationPrimerVisible).toBe(false);
+
+		now = 11_000;
+		expect(() => visibilityListener?.()).not.toThrow();
+		await Promise.resolve();
+
+		expect(timers.snapshot.doneIdxs).toEqual(new Set([0]));
+		expect(postServiceWorkerMessage).toHaveBeenCalledOnce();
+		lifecycle.destroy();
+	});
+
+	it('keeps worker subscriptions isolated per instance and terminates only the destroyed instance', () => {
+		const workers = Array.from({ length: 2 }, () => ({
+			addMessageListener: vi.fn(),
+			postSubscribe: vi.fn(),
+			postUnsubscribe: vi.fn(),
+			terminate: vi.fn()
+		}));
+		let workerIndex = 0;
+		const browser = browserAdapters({
+			createWorker: () => workers[workerIndex++]
+		});
+		const firstTimers = new CookTimerController(1_000);
+		const secondTimers = new CookTimerController(1_000);
+		const first = new CookModeLifecycleController(dependencies(firstTimers, browser));
+		const secondDeps = dependencies(secondTimers, browser);
+		secondDeps.subscriberId = 'bench-sheet-lentil-soup';
+		const second = new CookModeLifecycleController(secondDeps);
+
+		firstTimers.start(0, 10, 1_000);
+		first.syncTimerActivity(true);
+
+		expect(workers[0].postSubscribe).toHaveBeenCalledWith('bench-sheet-bean-stew');
+		expect(workers[1].postSubscribe).not.toHaveBeenCalled();
+		expect(secondTimers.ends).toEqual({});
+
+		secondTimers.start(1, 20, 1_000);
+		second.syncTimerActivity(true);
+		first.destroy();
+
+		expect(workers[0].postUnsubscribe).toHaveBeenCalledWith('bench-sheet-bean-stew');
+		expect(workers[0].terminate).toHaveBeenCalledOnce();
+		expect(workers[1].postUnsubscribe).not.toHaveBeenCalled();
+		expect(workers[1].terminate).not.toHaveBeenCalled();
+		expect(secondTimers.ends).toEqual({ 1: 21_000 });
+		second.destroy();
+	});
+});

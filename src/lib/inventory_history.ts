@@ -1,7 +1,7 @@
 // Pure helpers that render inventory_ops_log rows as human-readable history (P2.3).
 // No DB / server imports so the history endpoint AND the client can both use them.
 // Snapshots are the plain-JSON `before_snapshot` / `after_snapshot` blobs written
-// by inventory_writes.ts (Date fields as epoch ms).
+// by the inventory domain write boundary (Date fields as epoch ms).
 import { displayName, type MachineActor } from '$lib/actors';
 
 export type OpType = 'add' | 'remove' | 'update';

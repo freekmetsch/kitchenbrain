@@ -1,4 +1,3 @@
-import { eq, inArray, sql } from 'drizzle-orm';
 import {
 	addFreetextItems,
 	addProductItems,
@@ -32,10 +31,13 @@ import {
 	toSearchTerm
 } from '$lib/server/ah/matching';
 import { db as appDb } from '$lib/server/db/index';
-import * as schema from '$lib/server/db/schema';
 import type { Db } from '$lib/server/db/types';
 import {
+	createShoppingPushAttempt,
 	getShoppingWeekView,
+	listAhFavorites,
+	recordShoppingPushOutcome,
+	type ShoppingPushItemInsert,
 	type ShoppingBuyRow
 } from '$lib/server/domains/shopping';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
@@ -200,10 +202,7 @@ export async function previewShoppingForAh(
 			.filter(isAhEligibleShoppingRow)
 			.filter((row) => row.entryIds.some((id) => requested.has(id)));
 		const favorites = new Map(
-			tx
-				.select()
-				.from(schema.ahFavorites)
-				.all()
+			listAhFavorites(tx)
 				.map((favorite) => [favorite.nameKey, favorite])
 		);
 		return { rows, favorites };
@@ -485,18 +484,13 @@ export async function pushShoppingToAh(
 	try {
 		const order = await ah.getActiveOrder();
 		if (order) destination = 'order';
-		historyId = db
-			.insert(schema.shoppingPushHistory)
-			.values({
-				weekStartDate: preview.weekStart,
-				userId: input.userId,
-				destination,
-				accountName: ah.getStatus().memberName,
-				attemptStatus: 'pending',
-				createdAt: dependencies.now()
-			})
-			.returning({ id: schema.shoppingPushHistory.id })
-			.get().id;
+		historyId = createShoppingPushAttempt(db, {
+			weekStartDate: preview.weekStart,
+			userId: input.userId,
+			destination,
+			accountName: ah.getStatus().memberName,
+			createdAt: dependencies.now()
+		});
 
 		const productChoices = preview.items.flatMap((item) => {
 			const decision = decisions.get(item.ref)!;
@@ -576,7 +570,7 @@ export async function pushShoppingToAh(
 
 		const markedBoughtRefs = db.transaction((tx) => {
 			const completedAt = dependencies.now();
-			const rows: (typeof schema.shoppingPushItems.$inferInsert)[] =
+			const rows: ShoppingPushItemInsert[] =
 				preview.items.map((item) => {
 					const decision = decisions.get(item.ref)!;
 					const product =
@@ -616,34 +610,23 @@ export async function pushShoppingToAh(
 						createdAt: completedAt
 					};
 				});
-			tx.insert(schema.shoppingPushItems).values(rows).run();
 			const successful = preview.items.filter((item) =>
 				successfulRefs.has(item.ref)
 			);
 			const entryIds = successful.flatMap((item) => item.entryIds);
-			if (entryIds.length) {
-				tx.update(schema.shoppingWeekEntries)
-					.set({
-						bought: true,
-						revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
-						updatedAt: completedAt
-					})
-					.where(inArray(schema.shoppingWeekEntries.id, entryIds))
-					.run();
-			}
-			tx.update(schema.shoppingPushHistory)
-				.set({
-					productsPushed,
-					freetextPushed,
-					failedCount: failed.length,
-					skippedCount:
-						preview.items.length - successful.length - failed.length,
-					attemptStatus: failed.length ? 'failed' : 'succeeded',
-					attemptError: reason ?? null,
-					completedAt
-				})
-				.where(eq(schema.shoppingPushHistory.id, historyId!))
-				.run();
+			recordShoppingPushOutcome(tx, {
+				historyId: historyId!,
+				items: rows,
+				boughtEntryIds: entryIds,
+				productsPushed,
+				freetextPushed,
+				failedCount: failed.length,
+				skippedCount:
+					preview.items.length - successful.length - failed.length,
+				attemptStatus: failed.length ? 'failed' : 'succeeded',
+				attemptError: reason ?? null,
+				completedAt
+			});
 			return successful.map((item) => item.ref);
 		});
 		return {
@@ -665,7 +648,7 @@ export async function pushShoppingToAh(
 		if (historyId != null) {
 			db.transaction((tx) => {
 				const completedAt = dependencies.now();
-				const rows: (typeof schema.shoppingPushItems.$inferInsert)[] =
+				const rows: ShoppingPushItemInsert[] =
 					preview.items.map((item) => {
 						const decision = decisions.get(item.ref)!;
 						const product =
@@ -707,39 +690,23 @@ export async function pushShoppingToAh(
 							createdAt: completedAt
 						};
 					});
-				tx.insert(schema.shoppingPushItems).values(rows).run();
 				const knownSuccessfulIds = preview.items
 					.filter((item) => successfulRefs.has(item.ref))
 					.flatMap((item) => item.entryIds);
-				if (knownSuccessfulIds.length) {
-					tx.update(schema.shoppingWeekEntries)
-						.set({
-							bought: true,
-							revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
-							updatedAt: completedAt
-						})
-						.where(
-							inArray(
-								schema.shoppingWeekEntries.id,
-								knownSuccessfulIds
-							)
-						)
-						.run();
-				}
-				tx.update(schema.shoppingPushHistory)
-					.set({
-						productsPushed,
-						freetextPushed,
-						failedCount: failed.length,
-						skippedCount: preview.items.filter(
-							(item) => decisions.get(item.ref)?.mode === 'exclude'
-						).length,
-						attemptStatus: definite ? 'failed' : 'uncertain',
-						attemptError: reason,
-						completedAt
-					})
-					.where(eq(schema.shoppingPushHistory.id, historyId!))
-					.run();
+				recordShoppingPushOutcome(tx, {
+					historyId: historyId!,
+					items: rows,
+					boughtEntryIds: knownSuccessfulIds,
+					productsPushed,
+					freetextPushed,
+					failedCount: failed.length,
+					skippedCount: preview.items.filter(
+						(item) => decisions.get(item.ref)?.mode === 'exclude'
+					).length,
+					attemptStatus: definite ? 'failed' : 'uncertain',
+					attemptError: reason!,
+					completedAt
+				});
 			});
 		}
 		return {

@@ -14,8 +14,11 @@ import {
 import {
 	addManualShoppingEntry,
 	addRecurringShoppingItem,
+	applyRecipeShoppingChoice,
+	createShoppingPushAttempt,
 	disableRecurringShoppingItem,
 	editRecurringShoppingItem,
+	recordShoppingPushOutcome,
 	resolveLegacyShoppingEntry,
 	skipShoppingEntry,
 	updateShoppingEntry
@@ -37,6 +40,136 @@ function seedRecipe(
 		.returning()
 		.get();
 }
+
+describe('recipe shopping choices', () => {
+	it('updates the active source detail and propagates need to future occurrences', () => {
+		const db = createTestDb();
+		const now = new Date('2026-07-22T10:00:00Z');
+		const rows = db
+			.insert(schema.shoppingWeekEntries)
+			.values([
+				{
+					weekStartDate: CURRENT_WEEK,
+					sourceKey: 'recipe:1:rice',
+					sourceKind: 'recipe',
+					name: 'rijst',
+					approvedTerms: ['rijst'],
+					createdAt: now,
+					updatedAt: now
+				},
+				{
+					weekStartDate: '2026-07-29',
+					sourceKey: 'recipe:1:rice',
+					sourceKind: 'recipe',
+					name: 'rijst',
+					approvedTerms: ['rijst'],
+					createdAt: now,
+					updatedAt: now
+				}
+			])
+			.returning()
+			.all();
+
+		applyRecipeShoppingChoice(db, {
+			entryId: rows[0].id,
+			sourceKey: rows[0].sourceKey,
+			currentWeek: CURRENT_WEEK,
+			name: 'basmatirijst',
+			approvedTerms: ['basmatirijst', 'rijst'],
+			included: false,
+			selectedName: 'basmatirijst'
+		});
+
+		expect(
+			db.select().from(schema.shoppingWeekEntries).where(eq(schema.shoppingWeekEntries.id, rows[0].id)).get()
+		).toMatchObject({
+			name: 'basmatirijst',
+			approvedTerms: ['basmatirijst', 'rijst'],
+			included: false,
+			selectedName: 'basmatirijst',
+			revision: 2
+		});
+		expect(
+			db.select().from(schema.shoppingWeekEntries).where(eq(schema.shoppingWeekEntries.id, rows[1].id)).get()
+		).toMatchObject({ included: false, revision: 2 });
+	});
+});
+
+describe('AH push persistence', () => {
+	it('records the attempt outcome and marks only definite entry ids bought', () => {
+		const db = createTestDb();
+		const now = new Date('2026-07-22T10:00:00Z');
+		const entries = db
+			.insert(schema.shoppingWeekEntries)
+			.values([
+				{
+					weekStartDate: CURRENT_WEEK,
+					sourceKey: 'manual:1',
+					sourceKind: 'manual',
+					name: 'rijst',
+					approvedTerms: ['rijst'],
+					createdAt: now,
+					updatedAt: now
+				},
+				{
+					weekStartDate: CURRENT_WEEK,
+					sourceKey: 'manual:2',
+					sourceKind: 'manual',
+					name: 'tomaten',
+					approvedTerms: ['tomaten'],
+					createdAt: now,
+					updatedAt: now
+				}
+			])
+			.returning()
+			.all();
+		const userId = db.select().from(schema.users).get()!.id;
+		const pushId = createShoppingPushAttempt(db, {
+			weekStartDate: CURRENT_WEEK,
+			userId,
+			destination: 'list',
+			accountName: 'Test household',
+			createdAt: now
+		});
+
+		recordShoppingPushOutcome(db, {
+			historyId: pushId,
+			items: [
+				{
+					pushId,
+					sourceRef: String(entries[0].id),
+					sourceName: 'rijst',
+					mode: 'product',
+					destination: 'list',
+					status: 'success',
+					createdAt: now
+				}
+			],
+			boughtEntryIds: [entries[0].id],
+			productsPushed: 1,
+			freetextPushed: 0,
+			failedCount: 0,
+			skippedCount: 1,
+			attemptStatus: 'succeeded',
+			attemptError: null,
+			completedAt: now
+		});
+
+		expect(db.select().from(schema.shoppingPushHistory).get()).toMatchObject({
+			id: pushId,
+			attemptStatus: 'succeeded',
+			productsPushed: 1,
+			skippedCount: 1
+		});
+		expect(db.select().from(schema.shoppingPushItems).all()).toHaveLength(1);
+		expect(
+			db.select().from(schema.shoppingWeekEntries).where(eq(schema.shoppingWeekEntries.id, entries[0].id)).get()
+		).toMatchObject({ bought: true, revision: 2 });
+		expect(
+			db.select().from(schema.shoppingWeekEntries).where(eq(schema.shoppingWeekEntries.id, entries[1].id)).get()
+		).toMatchObject({ bought: false, revision: 1 });
+	});
+});
 
 function seedMeal(db: TestDb, slug: string, dinner = slug, servings = 4, weekStart = CURRENT_WEEK) {
 	return db

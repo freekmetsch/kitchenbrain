@@ -1,11 +1,108 @@
 import { describe, expect, it } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
-import { getShoppingWeekView } from './queries';
+import {
+	getActiveShoppingEntryBySource,
+	listAhFavorites,
+	listRecentShoppingPushes,
+	getShoppingWeekEntry,
+	getShoppingWeekView
+} from './queries';
 
 const WEEK = '2026-07-22';
 
 describe('shopping week projection', () => {
+	it('reads a shopping source by id and resolves only its active occurrence', () => {
+		const db = createTestDb();
+		const now = new Date();
+		const [active, retired] = db
+			.insert(schema.shoppingWeekEntries)
+			.values([
+				{
+					weekStartDate: WEEK,
+					sourceKey: 'recipe:1:rice',
+					sourceKind: 'recipe',
+					name: 'rijst',
+					approvedTerms: ['rijst'],
+					createdAt: now,
+					updatedAt: now
+				},
+				{
+					weekStartDate: '2026-07-29',
+					sourceKey: 'recipe:1:rice',
+					sourceKind: 'recipe',
+					name: 'rijst',
+					approvedTerms: ['rijst'],
+					retiredAt: now,
+					createdAt: now,
+					updatedAt: now
+				}
+			])
+			.returning()
+			.all();
+
+		expect(getShoppingWeekEntry(db, retired.id)).toEqual(retired);
+		expect(
+			getActiveShoppingEntryBySource(db, active.weekStartDate, active.sourceKey)
+		).toEqual(active);
+		expect(
+			getActiveShoppingEntryBySource(db, retired.weekStartDate, retired.sourceKey)
+		).toBeUndefined();
+	});
+
+	it('loads AH favorites and recent pushes with their item rows', () => {
+		const db = createTestDb();
+		const now = new Date('2026-07-27T10:00:00Z');
+		db.insert(schema.ahFavorites)
+			.values({
+				nameKey: 'tomaten',
+				productId: '123',
+				productName: 'AH Tomaten',
+				createdAt: now
+			})
+			.run();
+		const userId = db.select().from(schema.users).get()!.id;
+		const pushes = db
+			.insert(schema.shoppingPushHistory)
+			.values([
+				{
+					weekStartDate: WEEK,
+					userId,
+					destination: 'list',
+					attemptStatus: 'succeeded',
+					createdAt: now
+				},
+				{
+					weekStartDate: '2026-07-29',
+					userId,
+					destination: 'list',
+					attemptStatus: 'failed',
+					createdAt: new Date(now.getTime() + 1)
+				}
+			])
+			.returning()
+			.all();
+		db.insert(schema.shoppingPushItems)
+			.values({
+				pushId: pushes[0].id,
+				sourceRef: '1',
+				sourceName: 'tomaten',
+				mode: 'freetext',
+				destination: 'list',
+				status: 'success',
+				createdAt: now
+			})
+			.run();
+
+		expect(listAhFavorites(db)).toHaveLength(1);
+		expect(listRecentShoppingPushes(db, WEEK, 5)).toEqual([
+			expect.objectContaining({
+				id: pushes[0].id,
+				items: [expect.objectContaining({ sourceName: 'tomaten' })]
+			})
+		]);
+	});
+
 	it('sums compatible Dutch terms after source choices and keeps source ids', () => {
 		const db = createTestDb();
 		const now = new Date();

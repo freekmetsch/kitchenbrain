@@ -1,6 +1,6 @@
 import { base } from '$app/paths';
 
-// Client half of the keep-stocked seam (server half: $lib/server/freezer_staple).
+// Client half of the keep-stocked seam (server half: $lib/server/domains/recipes).
 // One PATCH shape for every surface that toggles the flag; turning it off omits
 // the target — the server drops it and records the opt-out.
 export async function patchKeepStocked(

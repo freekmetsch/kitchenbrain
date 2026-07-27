@@ -11,8 +11,8 @@ import {
 	initializeShoppingSourceData,
 	importLegacyShoppingOverrides,
 	materializePlanningHorizon
-} from '$lib/server/shopping_entries';
-import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
+} from '$lib/server/workflows/reconcile-shopping';
+import { updateCanonicalRecipe } from '$lib/server/domains/recipes';
 import { addDays, todayIso, weekStartFor } from '$lib/week';
 
 type IngredientRecord = Record<string, unknown>;

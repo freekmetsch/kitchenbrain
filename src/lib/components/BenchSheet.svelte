@@ -5,8 +5,8 @@
 	(background media + Web Audio fallback + notification),
 	screen Wake Lock, and after-cooking feedback/log actions.
 
-	Per-instance timer and persisted-session state live in focused controllers;
-	rendering, browser lifecycles, and network orchestration stay local here.
+	Per-instance timer, browser lifecycle, persisted-session, and network state
+	live in focused controllers; rendering stays local here.
 
 	SW setTimeout is unreliable past ~30 s of idle, so wall-clock UI state
 	lives in a dedicated Web Worker. A media track started by the timer tap
@@ -26,11 +26,7 @@
 	import CookStepCard from './cook-mode/CookStepCard.svelte';
 	import CounterBoard from './cook-mode/CounterBoard.svelte';
 	import { cookPaletteGraph, fmtClock, paletteFor, type BeatPalette } from './cook-mode/palette';
-	import {
-		isCookModeEligibleForNewSession,
-		localizeCookMode
-	} from './cook-mode/staleness';
-	import { readCookModeFailure } from './cook-mode/cook_mode_recovery';
+	import { localizeCookMode } from './cook-mode/staleness';
 	import { cookStepKey, normalizeCookProgress, selectCookStep } from './cook-mode/cook_progress';
 	import type { FrozenCookRecipe } from './cook-mode/cook_session';
 	import {
@@ -44,13 +40,13 @@
 	} from './cook-mode/cooking_steps';
 	import OriginalRecipeView from './OriginalRecipeView.svelte';
 	import TimerWorker from '$lib/timer/worker?worker';
-	import type {
-		ServiceWorkerFireMessage,
-		TimerWorkerOutbound
-	} from '$lib/timer/messages';
-	import { BackgroundTimerAudio } from '$lib/timer/background_audio';
 	import { CookTimerController } from './cook-mode/timer-controller.svelte';
 	import { CookSessionStorageController } from './cook-mode/session-controller.svelte';
+	import { CookModeNetworkController } from './cook-mode/network-controller.svelte';
+	import {
+		CookModeLifecycleController,
+		createCookModeLifecycleBrowserAdapters
+	} from './cook-mode/lifecycle-controller.svelte';
 
 	export type BenchSheetController = {
 		resetSession: () => void;
@@ -150,33 +146,7 @@
 	let cookMode = $derived(
 		requiresPlan ? (preparationAsFirstStep(localizedPlan, activeIngredients) ?? deterministicCookMode) : deterministicCookMode
 	);
-	let loading = $state(false);
-	let loadError = $state('');
 	let sessionNotice = $state('');
-	// Connection drops and transient server errors are retryable: the server
-	// finishes and caches the generation even when the phone kills the fetch
-	// (backgrounding, navigation), and a re-POST either joins the in-flight
-	// generation or returns the cached sheet instantly. Budget/no-directions
-	// failures are terminal until the user acts.
-	let loadErrorRetryable = $state(false);
-	let autoRetries = 0;
-	let retryTimer: ReturnType<typeof setTimeout> | null = null;
-	let regenerating = $state(false);
-	let cookedSubmitting = $state(false);
-	let cookedDone = $state(false);
-
-	// Every recipe renders source directions immediately. Structured generation
-	// enhances that fallback without making the cooking surface depend on it.
-	let genStartedAt: number | null = null;
-	let genElapsedSec = $state(0);
-
-	$effect(() => {
-		if (!loading) return;
-		const id = setInterval(() => {
-			if (genStartedAt != null) genElapsedSec = Math.floor((Date.now() - genStartedAt) / 1000);
-		}, 1000);
-		return () => clearInterval(id);
-	});
 
 	function adoptCookMode(cm: StoredCookModeRecipe) {
 		storedCookMode = cm;
@@ -186,374 +156,101 @@
 		}
 	}
 
-	let currentStepKey = $state<string | null>(null);
-	let counterChecks = $state<Record<string, boolean>>({});
-	let sessionSwaps = $state<Record<string, SessionIngredientSwap>>({});
-	let savingIngredientId = $state<string | null>(null);
-
-	// Per-instance canonical timer state. Browser lifecycle and alarm delivery
-	// stay in this component; wall-clock state, restore, and fire-once behavior
-	// live in the independently testable controller.
-	const timers = new CookTimerController();
-
-
-	// In-app notification permission primer. Soft ask before the browser
-	// dialog; if requestPermission() throws (broken browser), the second flag
-	// keeps us from re-showing the primer in a loop.
-	let notificationPrimerVisible = $state(false);
-	let notificationPrimerShown = false;
-	let backgroundTimerAudio: BackgroundTimerAudio | null = null;
-
-	// ────────── Web Worker tick (foreground-locked clock) ──────────
-	// One module worker for the bench-sheet lifetime. We subscribe/unsubscribe
-	// rather than terminate/recreate across timer cycles — the worker idles at
-	// zero cost when there are no subscribers (its setInterval stops), and
-	// keeping the thread warm avoids the ~10 ms reconstruct cost on
-	// back-to-back timer starts.
-	let timerWorker: Worker | null = null;
-	// recipeSlug is fixed for the component lifetime (the [slug] route
-	// unmounts BenchSheet on slug change); untrack silences the
-	// state_referenced_locally warning without capturing reactivity we don't
-	// need for a stable subscriber id.
-	const WORKER_SUB_ID = `bench-sheet-${untrack(() => recipeSlug)}`;
-	let workerSubscribed = false;
-
-	function ensureTimerWorker() {
-		if (timerWorker) return;
-		try {
-			timerWorker = new TimerWorker();
-			timerWorker.addEventListener('message', (e: MessageEvent<TimerWorkerOutbound>) => {
-				if (e.data?.type === 'tick') {
-					tickNow(e.data.t);
-				}
-			});
-		} catch {
-			// Worker construction failed — fall back to a main-thread interval.
-			timerWorker = null;
-		}
-	}
-
-	function subscribeWorker() {
-		if (!timerWorker || workerSubscribed) return;
-		timerWorker.postMessage({ type: 'subscribe', id: WORKER_SUB_ID });
-		workerSubscribed = true;
-	}
-
-	function unsubscribeWorker() {
-		if (!timerWorker || !workerSubscribed) return;
-		timerWorker.postMessage({ type: 'unsubscribe', id: WORKER_SUB_ID });
-		workerSubscribed = false;
-	}
-
-	function terminateWorker() {
-		unsubscribeWorker();
-		timerWorker?.terminate();
-		timerWorker = null;
-	}
-
-	function tickNow(t: number) {
-		for (const index of timers.tick(t)) fireAlarm(index);
-	}
-
-	$effect(() => {
-		if (timers.anyRunning) {
-			ensureTimerWorker();
-			subscribeWorker();
-		} else {
-			unsubscribeWorker();
+	// Connection drops and transient server errors are retryable: the server
+	// finishes and caches the generation even when the phone kills the fetch.
+	// The per-instance controller owns that retry ladder together with cook-log
+	// and ingredient-default writes; this component supplies browser adapters.
+	const network = new CookModeNetworkController({
+		basePath: base,
+		recipeSlug: untrack(() => recipeSlug),
+		recipeRevision: untrack(() => recipeRevision),
+		fetcher: (input, init) => globalThis.fetch(input, init),
+		readGenerationContext: () => ({
+			viewLang,
+			servings: servingDraft,
+			sessionStarted,
+			hasPlan: localizedPlan != null
+		}),
+		adoptCookMode,
+		reload: () => location.reload(),
+		clearProgress,
+		onCooked: () => onCooked?.(),
+		resetSession: resetCookSession,
+		notifySuccess: (message) => toast.success(message),
+		notifyError: (message) => toast.error(message),
+		messages: {
+			loadFailed: () => m.benchsheet_error_load_failed(),
+			budgetReached: () => m.benchsheet_error_budget_reached(),
+			noDirections: () => m.benchsheet_error_no_directions(),
+			connectionFailed: () => m.benchsheet_error_connection_failed(),
+			cookFailed: () => m.benchsheet_cook_failed(),
+			swapSaved: () => m.cookmode_swap_saved(),
+			swapSaveFailed: () => m.cookmode_swap_save_failed()
 		}
 	});
+	let loading = $derived(network.loading);
+	let loadError = $derived(network.loadError);
+	let loadErrorRetryable = $derived(network.loadErrorRetryable);
+	let regenerating = $derived(network.regenerating);
+	let genElapsedSec = $derived(network.genElapsedSec);
+	let cookedSubmitting = $derived(network.cookedSubmitting);
+	let cookedDone = $derived(network.cookedDone);
+	let savingIngredientId = $derived(network.savingIngredientId);
 
-	// Fallback main-thread interval — only fires when the worker failed to
-	// construct AND a timer is running. Keeps the pill clock advancing in the
-	// degraded path; loses the worker's background-resilience.
+	// Every recipe renders source directions immediately. Structured generation
+	// enhances that fallback without making the cooking surface depend on it.
 	$effect(() => {
-		if (!timers.anyRunning) return;
-		if (timerWorker) return;
-		const id = setInterval(() => tickNow(Date.now()), 250);
+		if (!loading) return;
+		const id = setInterval(() => network.updateElapsed(), 1000);
 		return () => clearInterval(id);
 	});
 
-	// ────────── Wake Lock (keep screen on while cooking) ──────────
-	// The cook is using the screen the whole session — Wake Lock isn't gated
-	// on active timers. Re-acquire on visibilitychange→visible because the
-	// browser releases the sentinel when the tab backgrounds.
-	let wakeLock: WakeLockSentinel | null = null;
+	let currentStepKey = $state<string | null>(null);
+	let counterChecks = $state<Record<string, boolean>>({});
+	let sessionSwaps = $state<Record<string, SessionIngredientSwap>>({});
 
-	async function acquireWakeLock() {
-		try {
-			if (typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
-			if (wakeLock) return;
-			wakeLock = await navigator.wakeLock.request('screen');
-			// `{ once: true }` so we don't accumulate listeners across
-			// successive acquire/release cycles (visibilitychange churn).
-			wakeLock.addEventListener(
-				'release',
-				() => {
-					wakeLock = null;
-				},
-				{ once: true }
-			);
-		} catch {
-			// Older iOS / Safari pre-16.4: silent fallback. Audio + vibrate
-			// still fire from the main thread; pill clock still advances.
-			wakeLock = null;
-		}
-	}
-
-	function releaseWakeLock() {
-		try {
-			void wakeLock?.release();
-		} catch {
-			// release() rarely throws, but guard against revoked sentinels.
-		}
-		wakeLock = null;
-	}
-
-	function onVisibilityChange() {
-		if (typeof document === 'undefined') return;
-		if (document.visibilityState !== 'visible') return;
-		tickNow(Date.now());
-		// A composed-meal plan may still be finishing when the phone returns.
-		if (requiresPlan && !localizedPlan && !loading && loadError && loadErrorRetryable) {
-			autoRetries = 0;
-			void loadCookMode(false);
-		}
-		if (!wakeLock) void acquireWakeLock();
-		// AudioContext goes into `suspended` state when phone backgrounds.
-		// Resume on return so the next alarm fires audibly.
-		if (audioCtx && audioCtx.state === 'suspended') {
-			void audioCtx.resume().catch(() => {});
-		}
-	}
-
-	$effect(() => {
-		if (typeof document === 'undefined') return;
-		void acquireWakeLock();
-		document.addEventListener('visibilitychange', onVisibilityChange);
-		return () => {
-			document.removeEventListener('visibilitychange', onVisibilityChange);
-			releaseWakeLock();
-		};
+	const timers = new CookTimerController();
+	let ingredientNamesById = $derived(
+		Object.fromEntries(
+			activeIngredients.flatMap((ingredient) =>
+				ingredient.id ? [[ingredient.id, ingredient.name]] : []
+			)
+		)
+	);
+	let steps = $derived(
+		applySessionSwapsToSteps(cookMode?.steps ?? [], sessionSwaps, ingredientNamesById)
+	);
+	const lifecycle = new CookModeLifecycleController({
+		timers,
+		subscriberId: `bench-sheet-${untrack(() => recipeSlug)}`,
+		alarmAudioSrc: `${base}/audio/cook-timer-alarm.m4a`,
+		recipeTitle: () => recipeTitle,
+		readAlarmStep: (index) => steps[index],
+		shouldRetryAfterVisibility: () =>
+			requiresPlan && !localizedPlan && !loading && Boolean(loadError) && loadErrorRetryable,
+		retryAfterVisibility: () => network.retryAfterVisibility(),
+		browser: createCookModeLifecycleBrowserAdapters(() => new TimerWorker())
 	});
 
-	// ────────── Web Audio alarm ──────────
-	// AudioContext is lazy-built on the first `startTimer` click — that tap is
-	// the verified user gesture iOS Safari requires to unlock playback. The
-	// pre-built buffer is 3 × 200 ms 880 Hz square-wave beeps separated by
-	// 100 ms silence; total ~800 ms. Synthesized rather than shipped so we
-	// don't add an asset to the PWA bundle.
-	let audioCtx: AudioContext | null = null;
-	let alarmBuffer: AudioBuffer | null = null;
-
-	function ensureAudio() {
-		try {
-			if (typeof window === 'undefined') return;
-			if (!audioCtx) {
-				const Ctor = (window.AudioContext ??
-					(window as unknown as { webkitAudioContext?: typeof AudioContext })
-						.webkitAudioContext) as typeof AudioContext | undefined;
-				if (!Ctor) return;
-				audioCtx = new Ctor();
-			}
-			if (audioCtx.state === 'suspended') void audioCtx.resume().catch(() => {});
-			if (!alarmBuffer && audioCtx) alarmBuffer = buildAlarmBuffer(audioCtx);
-		} catch {
-			audioCtx = null;
-			alarmBuffer = null;
-		}
-	}
-
-	function buildAlarmBuffer(ctx: AudioContext): AudioBuffer {
-		const sampleRate = ctx.sampleRate;
-		const beepMs = 200;
-		const gapMs = 100;
-		const totalMs = beepMs * 3 + gapMs * 2;
-		const length = Math.round((totalMs / 1000) * sampleRate);
-		const buf = ctx.createBuffer(1, length, sampleRate);
-		const data = buf.getChannelData(0);
-		const beepSamples = Math.round((beepMs / 1000) * sampleRate);
-		const gapSamples = Math.round((gapMs / 1000) * sampleRate);
-		const freq = 880;
-		const amplitude = 0.35;
-		for (let beep = 0; beep < 3; beep++) {
-			const start = beep * (beepSamples + gapSamples);
-			for (let s = 0; s < beepSamples; s++) {
-				const t = s / sampleRate;
-				const phase = (t * freq) % 1;
-				data[start + s] = phase < 0.5 ? amplitude : -amplitude;
-			}
-		}
-		return buf;
-	}
-
-	function playAlarm() {
-		if (!audioCtx || !alarmBuffer) return;
-		try {
-			const src = audioCtx.createBufferSource();
-			src.buffer = alarmBuffer;
-			src.connect(audioCtx.destination);
-			src.start();
-		} catch (err) {
-			// Surface real audio failures so we notice them in DevTools — the
-			// cook would otherwise get a silent miss.
-			console.warn('cook-mode alarm playback failed', err);
-		}
-	}
-
-	const VIBRATE_PATTERN: number[] = [200, 100, 200, 100, 200];
-	function fireAlarm(idx: number) {
-		// A scheduled media track contains the alarm at the deadline and is
-		// already playing. Web Audio remains the foreground/degraded fallback.
-		if (!backgroundTimerAudio?.isActive(idx)) playAlarm();
-		try {
-			if (typeof navigator !== 'undefined' && navigator.vibrate) {
-				navigator.vibrate(VIBRATE_PATTERN);
-			}
-		} catch {}
-		void postFireToServiceWorker(idx);
-	}
-
-	async function postFireToServiceWorker(idx: number) {
-		try {
-			if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-			if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-			const step = steps[idx];
-			if (!step) return;
-			const action = (step.timer_action ?? 'Timer').toUpperCase();
-			const location = step.timer_location ?? '';
-			const title = location ? `${action} · ${location}` : action;
-			const body = step.timer_purpose ?? step.goal ?? recipeTitle;
-			const reg = await navigator.serviceWorker.ready;
-			const message: ServiceWorkerFireMessage = {
-				type: 'fire',
-				id: String(idx),
-				title,
-				body,
-				vibrate: VIBRATE_PATTERN
-			};
-			reg.active?.postMessage(message);
-		} catch {
-			// Best-effort by design: SW eviction during fire-attempt is
-			// acceptable failure (audio + vibrate already fired).
-		}
-	}
-
-	function maybeShowNotificationPrimer() {
-		if (notificationPrimerShown) return;
-		if (typeof Notification === 'undefined') return;
-		if (Notification.permission !== 'default') return;
-		notificationPrimerShown = true;
-		notificationPrimerVisible = true;
-	}
-
-	async function acceptNotifications() {
-		notificationPrimerVisible = false;
-		try {
-			await Notification.requestPermission();
-		} catch {
-			// Broken browser path — primer stays dismissed (notificationPrimerShown
-			// is already true) so we don't loop on re-prompts.
-		}
-	}
-	function dismissNotificationPrimer() {
-		notificationPrimerVisible = false;
-	}
+	$effect(() => {
+		lifecycle.mount();
+	});
+	$effect(() => {
+		lifecycle.syncTimerActivity(timers.anyRunning);
+	});
 
 	$effect(() => {
 		if (requiresPlan && !localizedPlan && !loading && !loadError) {
-			void loadCookMode();
+			void network.loadCookMode();
 		}
 	});
 
-	async function loadCookMode(force = false) {
-		if (retryTimer) {
-			clearTimeout(retryTimer);
-			retryTimer = null;
-		}
-		loading = true;
-		loadError = '';
-		loadErrorRetryable = false;
-		if (genStartedAt == null) {
-			genStartedAt = Date.now();
-			genElapsedSec = 0;
-		}
-		try {
-			const params = new URLSearchParams({
-				lang: viewLang,
-				servings: String(servingDraft)
-			});
-			if (force) params.set('force', 'true');
-			const res = await fetch(`${base}/api/recipes/${recipeSlug}/cook-mode?${params}`, {
-				method: 'POST'
-			});
-			const body = await res.json();
-			if (res.ok && body.cookMode) {
-				if (
-					typeof body.recipeRevision === 'number' &&
-					body.recipeRevision > recipeRevision &&
-					!sessionStarted
-				) {
-					location.reload();
-					return;
-				}
-				const incoming = body.cookMode as Partial<StoredCookModeRecipe>;
-				if (!isCookModeEligibleForNewSession(incoming, viewLang, servingDraft)) {
-					if (!force) {
-						regenerating = true;
-						loading = false;
-						return loadCookMode(true);
-					}
-					loadError = m.benchsheet_error_load_failed();
-					loadErrorRetryable = true;
-				} else {
-					autoRetries = 0;
-					adoptCookMode(body.cookMode as StoredCookModeRecipe);
-				}
-			} else {
-				const failure = readCookModeFailure(body);
-				loadError =
-					failure.reason === 'daily_cap_exceeded'
-						? m.benchsheet_error_budget_reached()
-						: failure.reason === 'no_directions'
-							? m.benchsheet_error_no_directions()
-							: m.benchsheet_error_load_failed();
-				loadErrorRetryable = failure.retryable;
-			}
-		} catch {
-			loadError = m.benchsheet_error_connection_failed();
-			loadErrorRetryable = true;
-		}
-		loading = false;
-		regenerating = false;
-		genStartedAt = null;
-		// One bounded background retry ladder for retryable failures (the tab
-		// never left, so onVisibilityChange won't fire). A rejoin is cheap —
-		// it never double-spends thanks to the server's in-flight dedup.
-		if (loadErrorRetryable && autoRetries < 2) {
-			autoRetries += 1;
-			retryTimer = setTimeout(() => {
-				retryTimer = null;
-				if (!localizedPlan && !loading && loadError && loadErrorRetryable) void loadCookMode(false);
-			}, autoRetries * 5000);
-		}
-	}
-
 	function startTimer(idx: number, seconds: number) {
 		beginSession();
-		ensureAudio();
-		maybeShowNotificationPrimer();
-		const deadline = timers.start(idx, seconds);
-		if (typeof window !== 'undefined') {
-			backgroundTimerAudio ??= new BackgroundTimerAudio({
-				src: `${base}/audio/cook-timer-alarm.m4a`
-			});
-			backgroundTimerAudio.schedule(idx, deadline);
-		}
+		lifecycle.startTimer(idx, seconds);
 	}
 	function cancelTimer(idx: number) {
-		backgroundTimerAudio?.stop(idx);
-		timers.cancel(idx);
+		lifecycle.cancelTimer(idx);
 	}
 	function currentKeys(cm: CookModeDisplayRecipe | null = cookMode): string[] {
 		return (
@@ -697,10 +394,8 @@
 		counterChecks = {};
 		sessionSwaps = {};
 		currentStepKey = cookMode ? normalizeCookProgress(currentKeys(cookMode), null).currentKey : null;
-		timers.reset();
-		backgroundTimerAudio?.stopAll();
-		cookedDone = false;
-		cookedSubmitting = false;
+		lifecycle.resetTimers();
+		network.resetCooked();
 	}
 
 	$effect(() => {
@@ -717,62 +412,11 @@
 		saveProgress();
 	});
 
-	let cookedAckTimeout: ReturnType<typeof setTimeout> | null = null;
 	onDestroy(() => {
-		if (cookedAckTimeout) clearTimeout(cookedAckTimeout);
-		if (retryTimer) clearTimeout(retryTimer);
-		terminateWorker();
-		releaseWakeLock();
-		backgroundTimerAudio?.stopAll();
-		backgroundTimerAudio = null;
-		// AudioContext.close() rejects if already closed; guard rather than
-		// swallow with try/catch around `void`.
-		if (audioCtx && audioCtx.state !== 'closed') {
-			audioCtx.close().catch(() => {});
-		}
-		audioCtx = null;
-		alarmBuffer = null;
+		network.destroy();
+		lifecycle.destroy();
 	});
 
-	async function markCooked() {
-		cookedSubmitting = true;
-		try {
-			const res = await fetch(planMealId ? `${base}/api/meal-plan/${planMealId}` : `${base}/api/recipes/${recipeSlug}/cook`, {
-				method: planMealId ? 'PUT' : 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(planMealId ? { status: 'cooked' } : {})
-			});
-			if (!res.ok) {
-				toast.error(m.benchsheet_cook_failed());
-				cookedSubmitting = false;
-				return;
-			}
-			cookedDone = true;
-			clearProgress();
-			onCooked?.();
-			if (cookedAckTimeout) clearTimeout(cookedAckTimeout);
-			cookedAckTimeout = setTimeout(() => {
-				// The acknowledgement is the session boundary: leave the same recipe
-				// ready for a second batch instead of exposing a live double-log button.
-				resetCookSession();
-				cookedAckTimeout = null;
-			}, 1200);
-		} catch {
-			cookedSubmitting = false;
-			toast.error(m.benchsheet_cook_failed());
-		}
-	}
-
-	let ingredientNamesById = $derived(
-		Object.fromEntries(
-			activeIngredients.flatMap((ingredient) =>
-				ingredient.id ? [[ingredient.id, ingredient.name]] : []
-			)
-		)
-	);
-	let steps = $derived(
-		applySessionSwapsToSteps(cookMode?.steps ?? [], sessionSwaps, ingredientNamesById)
-	);
 	let projectedIngredients = $derived(
 		activeIngredients.map((ingredient) => {
 			const projected = projectIngredient(
@@ -810,30 +454,6 @@
 			...sessionSwaps,
 			[ingredientId]: { substituteIndex, displayName, canonicalName }
 		};
-	}
-
-	async function saveSwapDefault(ingredientId: string, substituteIndex: number) {
-		savingIngredientId = ingredientId;
-		try {
-			const response = await fetch(
-				`${base}/api/recipes/${recipeSlug}/ingredient-swap`,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						ingredientId,
-						substituteIndex,
-						expectedRecipeRevision: recipeRevision
-					})
-				}
-			);
-			if (!response.ok) throw new Error();
-			toast.success(m.cookmode_swap_saved());
-			location.reload();
-		} catch {
-			savingIngredientId = null;
-			toast.error(m.cookmode_swap_save_failed());
-		}
 	}
 
 	function changeServings(delta: number) {
@@ -953,11 +573,11 @@
 		<div class="mx-3 my-2 flex min-h-11 items-center gap-2 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-xs">
 			<span class="min-w-0 flex-1">{loadError}</span>
 			{#if loadErrorRetryable}
-				<button class="btn btn-xs btn-ghost h-11 min-h-0 shrink-0" onclick={() => loadCookMode(false)}>{m.recipes_retry_cooking_view()}</button>
+				<button class="btn btn-xs btn-ghost h-11 min-h-0 shrink-0" onclick={() => network.loadCookMode(false)}>{m.recipes_retry_cooking_view()}</button>
 			{/if}
 		</div>
 	{/if}
-	{#if notificationPrimerVisible}
+	{#if lifecycle.notificationPrimerVisible}
 		<div
 			class="px-3 py-2 border-b border-warning/30 bg-warning/10 text-base-content text-[12px] flex items-start gap-2"
 			role="status"
@@ -968,12 +588,12 @@
 			<button
 				type="button"
 				class="btn btn-xs btn-warning h-11 min-h-0 shrink-0"
-				onclick={acceptNotifications}>{m.benchsheet_notif_allow_button()}</button
+				onclick={() => lifecycle.acceptNotifications()}>{m.benchsheet_notif_allow_button()}</button
 			>
 			<button
 				type="button"
 				class="btn btn-xs btn-ghost h-11 min-h-0 shrink-0"
-				onclick={dismissNotificationPrimer}>{m.benchsheet_notif_not_now_button()}</button
+				onclick={() => lifecycle.dismissNotificationPrimer()}>{m.benchsheet_notif_not_now_button()}</button
 			>
 		</div>
 	{/if}
@@ -1009,7 +629,7 @@
 				onToggle={toggleCounter}
 				onSwap={selectSwap}
 				onSaveDefault={(ingredientId, substituteIndex) =>
-					void saveSwapDefault(ingredientId, substituteIndex)}
+					void network.saveSwapDefault(ingredientId, substituteIndex)}
 				{savingIngredientId}
 			/>
 		</aside>
@@ -1041,7 +661,7 @@
 	</ul>
 
 	<div class="mb-8 border-t border-base-200 pt-4">
-		<button class="btn btn-primary min-h-12 w-full" onclick={markCooked} disabled={cookedSubmitting || cookedDone}>
+		<button class="btn btn-primary min-h-12 w-full" onclick={() => network.markCooked(planMealId)} disabled={cookedSubmitting || cookedDone}>
 			{#if cookedDone}{m.benchsheet_cooked_logged()}{:else if cookedSubmitting}…{:else}{m.cookmode_log_cooked()}{/if}
 		</button>
 	</div>

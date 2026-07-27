@@ -377,6 +377,7 @@
 	"inventory_action_undo": "Undo",
 	"inventory_toast_undo_failed": "Could not undo",
 	"inventory_toast_undo_conflict": "Item changed since then — flagged for review instead",
+	"inventory_toast_activity_failed": "Could not load activity",
 	"inventory_toast_added": "Added {name}",
 	"inventory_empty_title": "Stock is empty",
 	"inventory_empty_add_first_button": "Add the first item",

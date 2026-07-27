@@ -2,8 +2,18 @@ import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 import { E2E_DATA_DIR, E2E_ORIGIN, E2E_SERVER_ENV, TEST_ACCOUNTS } from './tests/e2e/config';
 
+const webServerTimeout = Number(process.env.E2E_SERVER_TIMEOUT_MS ?? '120000');
+if (!Number.isFinite(webServerTimeout) || webServerTimeout <= 0) {
+	throw new Error(`Invalid E2E_SERVER_TIMEOUT_MS: ${process.env.E2E_SERVER_TIMEOUT_MS}`);
+}
+const testTimeout = Number(process.env.E2E_TEST_TIMEOUT_MS ?? '30000');
+if (!Number.isFinite(testTimeout) || testTimeout <= 0) {
+	throw new Error(`Invalid E2E_TEST_TIMEOUT_MS: ${process.env.E2E_TEST_TIMEOUT_MS}`);
+}
+
 export default defineConfig({
 	testDir: './tests/e2e',
+	timeout: testTimeout,
 	fullyParallel: false,
 	workers: 1,
 	forbidOnly: Boolean(process.env.CI),
@@ -22,7 +32,7 @@ export default defineConfig({
 		command: 'npm run test:e2e:server',
 		url: `${E2E_ORIGIN}/login`,
 		reuseExistingServer: false,
-		timeout: 120_000,
+		timeout: webServerTimeout,
 		env: E2E_SERVER_ENV
 	},
 	projects: [

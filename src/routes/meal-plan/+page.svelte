@@ -21,69 +21,18 @@
 	import { batchServingTarget, batchServingToggleTarget } from '$lib/meal_batch';
 	import { mealPlanWeekHref } from '$lib/meal_plan_navigation';
 	import MealSourceChoice from '$lib/components/meal-plan/MealSourceChoice.svelte';
-	import {
-		MealPlanController,
-		type MealPlanControllerData
-	} from '$lib/components/meal-plan/controller.svelte';
-
-	type Meal = PageData['weeks'][number]['meals'][number];
-	type Week = PageData['weeks'][number];
-	type Recipe = PageData['recipeList'][number];
+	import { MealPlanController } from '$lib/components/meal-plan/controller.svelte';
 
 	let { data }: { data: PageData } = $props();
 	const controller = new MealPlanController(
-		untrack(() => data as MealPlanControllerData),
+		untrack(() => data),
 		{ basePath: base }
 	);
 	$effect(() => {
-		controller.syncData(data as MealPlanControllerData);
+		controller.syncData(data);
 	});
-	let currentWeekStart = $derived(controller.currentWeekStart);
-	let selectedWeek = $derived(controller.selectedWeek);
-	let adjacentWeeks = $derived(controller.adjacentWeeks);
-	let filteredRecipes = $derived(controller.filteredRecipes);
-	let suggestLines = $derived(controller.suggestLines);
-	let prefs = $derived(controller.prefs);
-	let dayPlanning = $derived(controller.dayPlanning);
-	let drawerWeek = $derived(controller.drawerWeek);
-	let drawerSubmitting = $derived(controller.drawerSubmitting);
-	let suggestActive = $derived(controller.suggestActive);
-	let suggestText = $derived(controller.suggestText);
-	let suggestLoading = $derived(controller.suggestLoading);
-	let suggestError = $derived(controller.suggestError);
-	let applyingSuggestion = $derived(controller.applyingSuggestion);
-	let addedSuggestions = $derived(controller.addedSuggestions);
-	let pendingAdds = $derived(controller.pendingAdds);
-	let pendingToggles = $derived(controller.pendingToggles);
-	let pendingDeletes = $derived(controller.pendingDeletes);
-	let pendingSourceToggles = $derived(controller.pendingSourceToggles);
-	let pendingServings = $derived(controller.pendingServings);
-	let servingsStatus = $derived(controller.servingsStatus);
-	let freezeSlug = $derived(controller.freezeSlug);
-	let freezeTitle = $derived(controller.freezeTitle);
-	let freezeDefault = $derived(controller.freezeDefault);
-	let consumeSlug = $derived(controller.consumeSlug);
-	let consumeTitle = $derived(controller.consumeTitle);
-	let consumeDefault = $derived(controller.consumeDefault);
-	let consumeMax = $derived(controller.consumeMax);
 
 	const DRAWER_CATEGORIES = ['meat', 'vegetarian', 'vegan', 'fish', 'pasta', 'soup', 'dessert'];
-
-	function recipeDisplayTitle(recipe: Recipe): string {
-		return controller.recipeDisplayTitle(recipe);
-	}
-
-	function recipeForMeal(meal: Meal): Recipe | undefined {
-		return controller.recipeForMeal(meal);
-	}
-
-	function frozenPortionsFor(meal: Meal): number {
-		return controller.frozenPortionsFor(meal);
-	}
-
-	function recipeDisplayCategory(recipe: Recipe): string | null {
-		return controller.recipeDisplayCategory(recipe);
-	}
 
 	function formatWeekRange(weekStartDate: string): string {
 		const start = new Date(weekStartDate + 'T00:00:00');
@@ -111,32 +60,6 @@
 		});
 	}
 
-	function weekDayOptions(weekStartDate: string): { date: string; label: string }[] {
-		return controller.weekDayOptions(weekStartDate);
-	}
-
-	function displayMeals(week: Week): Meal[] {
-		return controller.displayMeals(week);
-	}
-
-	function addKey(weekStartDate: string, dinner: string, recipeSlug: string | null = null): string {
-		return controller.addKey(weekStartDate, dinner, recipeSlug);
-	}
-
-	const openAddDrawer = controller.openAddDrawer;
-
-	const addMealOptimistic = controller.addMealOptimistic;
-	const toggleCooked = controller.toggleCooked;
-	const setMealSource = controller.setMealSource;
-	const setPlannedDate = controller.setPlannedDate;
-	const removeMeal = controller.removeMeal;
-	const addMealFromRecipe = controller.addMealFromRecipe;
-	const setServings = controller.setServings;
-	const changeServings = controller.changeServings;
-	const addCustomFromSearch = controller.addCustomFromSearch;
-	const startSuggest = controller.startSuggest;
-	const closeSuggest = controller.closeSuggest;
-	const applySuggestion = controller.applySuggestion;
 </script>
 
 <svelte:head>
@@ -144,10 +67,10 @@
 </svelte:head>
 
 <div class="meal-plan-page">
-	<p class="sr-only" aria-live="polite">{servingsStatus}</p>
+	<p class="sr-only" aria-live="polite">{controller.servingsStatus}</p>
 	<KitchenPageHeader eyebrow={m.mealplan_header_context()} title={m.mealplan_heading()}>
 		{#snippet actions()}
-			{#if selectedWeek}
+			{#if controller.selectedWeek}
 			<details class="dropdown dropdown-end">
 				<summary
 					class="plan-more ui-kitchen-header-action ui-kitchen-header-action-icon"
@@ -163,7 +86,7 @@
 							<a
 								href={mealPlanWeekHref(
 									base,
-									selectedWeek.weekStartDate,
+									controller.selectedWeek.weekStartDate,
 									!data.showPastWeeks
 								)}
 							>
@@ -185,19 +108,19 @@
 			{/if}
 		{/snippet}
 
-		{#if selectedWeek}
-			{@const week = selectedWeek}
+		{#if controller.selectedWeek}
+			{@const week = controller.selectedWeek}
 			<div class="plan-header-payload">
 				<KitchenWeekNavigator
-					previousHref={adjacentWeeks.previous
+					previousHref={controller.adjacentWeeks.previous
 						? mealPlanWeekHref(
 								base,
-								adjacentWeeks.previous.weekStartDate,
+								controller.adjacentWeeks.previous.weekStartDate,
 								data.showPastWeeks
 							)
 						: null}
-					nextHref={adjacentWeeks.next
-						? mealPlanWeekHref(base, adjacentWeeks.next.weekStartDate, data.showPastWeeks)
+					nextHref={controller.adjacentWeeks.next
+						? mealPlanWeekHref(base, controller.adjacentWeeks.next.weekStartDate, data.showPastWeeks)
 						: null}
 					previousLabel={m.mealplan_previous_week_aria()}
 					nextLabel={m.mealplan_next_week_aria()}
@@ -208,7 +131,7 @@
 							<strong class="plan-week-title">
 								{m.mealplan_week_heading({ number: week.weekNumber })}
 							</strong>
-							{#if week.weekStartDate === currentWeekStart}
+							{#if week.weekStartDate === controller.currentWeekStart}
 								<span class="plan-now">
 									{m.mealplan_now_chip()}
 								</span>
@@ -235,17 +158,17 @@
 			<button
 				type="button"
 				class="plan-action plan-suggest"
-				onclick={() => startSuggest(week.weekStartDate)}
-				disabled={suggestLoading && suggestActive === week.weekStartDate}
+				onclick={() => controller.startSuggest(week.weekStartDate)}
+				disabled={controller.suggestLoading && controller.suggestActive === week.weekStartDate}
 			>
-				{suggestLoading && suggestActive === week.weekStartDate
+				{controller.suggestLoading && controller.suggestActive === week.weekStartDate
 					? m.mealplan_thinking_label()
 					: m.mealplan_suggest_button()}
 			</button>
 			<button
 				type="button"
 				class="plan-action plan-add"
-				onclick={() => openAddDrawer(week.weekStartDate)}
+				onclick={() => controller.openAddDrawer(week.weekStartDate)}
 			>
 				<Icon name="plus" class="h-4 w-4" />
 				{m.mealplan_add_meal()}
@@ -256,17 +179,17 @@
 	</KitchenPageHeader>
 
 	<main class="plan-ledger ui-kitchen-content">
-		{#if selectedWeek}
-			{@const week = selectedWeek}
+		{#if controller.selectedWeek}
+			{@const week = controller.selectedWeek}
 		<div>
 			<section
 				id="week-{week.weekStartDate}"
-				class="ui-list-card {week.weekStartDate === currentWeekStart ? 'border-primary/60' : ''}"
+				class="ui-list-card {week.weekStartDate === controller.currentWeekStart ? 'border-primary/60' : ''}"
 			>
 				{#if week.meals.length > 0}
 					<ul class="divide-y divide-base-200">
-						{#each displayMeals(week) as meal (meal.id)}
-							{@const linkedRecipe = recipeForMeal(meal)}
+						{#each controller.displayMeals(week) as meal (meal.id)}
+							{@const linkedRecipe = controller.recipeForMeal(meal)}
 							<li
 								class="meal-row transition-colors hover:bg-base-200/60"
 								transition:slide={{ duration: MOTION_MICRO_MS }}
@@ -277,9 +200,9 @@
 										type="checkbox"
 										class="checkbox checkbox-md"
 										checked={meal.status === 'cooked'}
-										disabled={!!pendingToggles[meal.id]}
+										disabled={!!controller.pendingToggles[meal.id]}
 										aria-label={m.mealplan_mark_cooked_aria({ dinner: meal.dinner })}
-										onchange={() => toggleCooked(meal)}
+										onchange={() => controller.toggleCooked(meal)}
 									/>
 								</label>
 								{#if meal.recipeSlug}
@@ -297,33 +220,33 @@
 								<button
 									type="button"
 									class="meal-remove btn btn-ghost"
-									onclick={() => removeMeal(meal)}
-									disabled={!!pendingDeletes[meal.id]}
+									onclick={() => controller.removeMeal(meal)}
+									disabled={!!controller.pendingDeletes[meal.id]}
 									aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
 								>
 									<Icon name="trash" />
 								</button>
 								<div class="meal-details">
-									{#if dayPlanning && meal.status !== 'cooked'}
+									{#if controller.dayPlanning && meal.status !== 'cooked'}
 										<select
 											class="select select-bordered select-xs w-24 {meal.plannedDate ? '' : 'text-base-content/40'}"
 											value={meal.plannedDate ?? ''}
-											disabled={!!pendingToggles[meal.id] || meal.id < 0}
+											disabled={!!controller.pendingToggles[meal.id] || meal.id < 0}
 											aria-label={m.mealplan_day_picker_aria({ dinner: meal.dinner })}
-											onchange={(e) => setPlannedDate(meal, e.currentTarget.value || null)}
+											onchange={(e) => controller.setPlannedDate(meal, e.currentTarget.value || null)}
 										>
 											<option value="">{m.mealplan_day_unplanned()}</option>
-											{#each weekDayOptions(week.weekStartDate) as day (day.date)}
+											{#each controller.weekDayOptions(week.weekStartDate) as day (day.date)}
 												<option value={day.date}>{day.label}</option>
 											{/each}
 										</select>
 									{/if}
 									{#if meal.status !== 'cooked' && meal.recipeSlug && meal.servings}
 										<div class="meal-portion-row">
-											<div class="meal-serving-stepper inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()} aria-busy={!!pendingServings[meal.id]}>
-												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-r-none" disabled={meal.servings <= 1} aria-disabled={!!pendingServings[meal.id] || meal.servings <= 1} aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })} onclick={() => !pendingServings[meal.id] && changeServings(meal, -1)}>−</button>
+											<div class="meal-serving-stepper inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()} aria-busy={!!controller.pendingServings[meal.id]}>
+												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-r-none" disabled={meal.servings <= 1} aria-disabled={!!controller.pendingServings[meal.id] || meal.servings <= 1} aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })} onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, -1)}>−</button>
 												<span class="min-w-0 flex-1 px-1 text-center text-xs tabular-nums">{m.mealplan_servings_count({ count: meal.servings })}</span>
-												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={meal.servings >= 99} aria-disabled={!!pendingServings[meal.id] || meal.servings >= 99} aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })} onclick={() => !pendingServings[meal.id] && changeServings(meal, 1)}>+</button>
+												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={meal.servings >= 99} aria-disabled={!!controller.pendingServings[meal.id] || meal.servings >= 99} aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })} onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, 1)}>+</button>
 											</div>
 											{#if linkedRecipe && meal.source !== 'freezer'}
 												<div class="meal-batch-options" aria-label={linkedRecipe.scalingMode === 'fixed_batch' ? m.mealplan_batch_fixed() : m.mealplan_batch_scalable()}>
@@ -339,7 +262,7 @@
 															type="button"
 															class="btn btn-xs h-11 min-h-0 w-11 px-0 {pressed ? 'btn-primary' : 'btn-ghost border border-base-300'}"
 															disabled={toggleTarget == null}
-															aria-disabled={toggleTarget == null || !!pendingServings[meal.id]}
+															aria-disabled={toggleTarget == null || !!controller.pendingServings[meal.id]}
 															aria-label={target == null
 																? m.mealplan_batch_unavailable_aria({ multiplier, dinner: meal.dinner })
 																: pressed && toggleTarget != null
@@ -355,8 +278,8 @@
 															aria-pressed={pressed}
 															onclick={() =>
 																toggleTarget != null &&
-																!pendingServings[meal.id] &&
-																setServings(meal, toggleTarget)}
+																!controller.pendingServings[meal.id] &&
+																controller.setServings(meal, toggleTarget)}
 														>
 															×{multiplier}
 														</button>
@@ -371,9 +294,9 @@
 											{cookedDateLabel(meal.cookedDate)}
 										</span>
 									{/if}
-									{#if meal.status !== 'cooked' && meal.recipeSlug && (meal.source === 'freezer' || frozenPortionsFor(meal) > 0)}
-										{@const onHand = frozenPortionsFor(meal)}
-										{@const linkedForSource = recipeForMeal(meal)}
+									{#if meal.status !== 'cooked' && meal.recipeSlug && (meal.source === 'freezer' || controller.frozenPortionsFor(meal) > 0)}
+										{@const onHand = controller.frozenPortionsFor(meal)}
+										{@const linkedForSource = controller.recipeForMeal(meal)}
 										{#if linkedForSource && meal.servings}
 											<div class="meal-source-row">
 												<MealSourceChoice
@@ -382,8 +305,8 @@
 													frozenPortions={onHand}
 													servings={meal.servings}
 													compact
-													disabled={!!pendingSourceToggles[meal.id] || meal.id < 0}
-													onselect={(source) => setMealSource(meal, source)}
+													disabled={!!controller.pendingSourceToggles[meal.id] || meal.id < 0}
+													onselect={(source) => controller.setMealSource(meal, source)}
 												/>
 											</div>
 										{/if}
@@ -398,38 +321,38 @@
 					</div>
 				{/if}
 
-				{#if suggestActive === week.weekStartDate}
+				{#if controller.suggestActive === week.weekStartDate}
 					<div class="border-t border-base-200 bg-base-200/35 px-3 py-3" transition:slide={{ duration: MOTION_CONTENT_MS }}>
 						<div class="mb-2 flex items-center justify-between gap-2">
 							<p class="ui-section-label">{m.mealplan_ai_suggestions_label()}</p>
-							<button type="button" class="btn btn-ghost btn-xs" onclick={closeSuggest}>
+							<button type="button" class="btn btn-ghost btn-xs" onclick={controller.closeSuggest}>
 								{m.mealplan_close_suggest_button()}
 							</button>
 						</div>
-						{#if suggestLoading}
+						{#if controller.suggestLoading}
 							<div class="flex items-center gap-2 py-2 text-sm text-base-content/60">
 								<Spinner variant="simmer" size="xs" />
 								{m.mealplan_thinking_label()}
 							</div>
-							{#if suggestText}
+							{#if controller.suggestText}
 								<div class="mt-2 whitespace-pre-wrap rounded-xl bg-base-100 px-3 py-2 text-sm text-base-content/75">
-									{suggestText}
+									{controller.suggestText}
 								</div>
 							{/if}
-						{:else if suggestError}
+						{:else if controller.suggestError}
 							<div class="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error" role="alert">
-								{suggestError}
+								{controller.suggestError}
 							</div>
-							<button type="button" class="btn btn-outline btn-xs mt-2" onclick={() => startSuggest(week.weekStartDate)}>
+							<button type="button" class="btn btn-outline btn-xs mt-2" onclick={() => controller.startSuggest(week.weekStartDate)}>
 								{m.mealplan_retry_button()}
 							</button>
-						{:else if suggestLines.length > 0}
+						{:else if controller.suggestLines.length > 0}
 							<div class="flex flex-col gap-1.5">
-								{#each suggestLines as suggestion}
-									{@const key = addKey(week.weekStartDate, suggestion)}
+								{#each controller.suggestLines as suggestion}
+									{@const key = controller.addKey(week.weekStartDate, suggestion)}
 									<div class="flex items-center justify-between gap-2 rounded-xl bg-base-100 px-3 py-2">
 										<span class="min-w-0 flex-1 truncate text-sm">{suggestion}</span>
-										{#if addedSuggestions[key]}
+										{#if controller.addedSuggestions[key]}
 											<span class="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-success">
 												<Icon name="check" class="h-3.5 w-3.5" />
 												{m.mealplan_planned_chip()}
@@ -438,8 +361,8 @@
 											<button
 												type="button"
 												class="btn btn-primary btn-xs"
-												onclick={() => applySuggestion(suggestion)}
-												disabled={!!applyingSuggestion[key] || !!pendingAdds[key]}
+												onclick={() => controller.applySuggestion(suggestion)}
+												disabled={!!controller.applyingSuggestion[key] || !!controller.pendingAdds[key]}
 											>
 												{m.mealplan_add_suggestion_button()}
 											</button>
@@ -447,9 +370,9 @@
 									</div>
 								{/each}
 							</div>
-						{:else if suggestText}
+						{:else if controller.suggestText}
 							<div class="whitespace-pre-wrap rounded-xl bg-base-100 px-3 py-2 text-sm text-base-content/75">
-								{suggestText}
+								{controller.suggestText}
 							</div>
 						{/if}
 					</div>
@@ -730,8 +653,8 @@
 		<button
 			type="button"
 			class="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-base-300 px-3 py-2.5 text-left transition-colors hover:bg-base-200/60 disabled:opacity-50"
-			onclick={addCustomFromSearch}
-			disabled={drawerSubmitting}
+			onclick={controller.addCustomFromSearch}
+			disabled={controller.drawerSubmitting}
 			transition:slide={{ duration: MOTION_MICRO_MS }}
 		>
 			<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: controller.drawerSearch.trim() })}</span>
@@ -741,14 +664,14 @@
 
 	<section class="mt-5">
 		<h3 class="ui-section-label mb-2">{m.mealplan_recipe_library_heading()}</h3>
-		{#if filteredRecipes.length === 0}
+		{#if controller.filteredRecipes.length === 0}
 			<EmptyState mini title={m.mealplan_no_recipes_found_title()} description={m.mealplan_no_recipes_found_desc()} />
 		{:else}
 			<ul class="ui-list-card divide-y divide-base-200">
-				{#each filteredRecipes as recipe}
-					{@const title = recipeDisplayTitle(recipe)}
-					{@const cat = recipeDisplayCategory(recipe)}
-					{@const key = addKey(drawerWeek, title, recipe.slug)}
+				{#each controller.filteredRecipes as recipe}
+					{@const title = controller.recipeDisplayTitle(recipe)}
+					{@const cat = controller.recipeDisplayCategory(recipe)}
+					{@const key = controller.addKey(controller.drawerWeek, title, recipe.slug)}
 					<li class="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
 						<span class="min-w-0">
 							<span class="block truncate text-sm font-medium">{title}</span>
@@ -761,8 +684,8 @@
 							frozenPortions={recipe.onHandPortions}
 							servings={recipe.servings}
 							compact
-							disabled={drawerSubmitting || !!pendingAdds[key]}
-							onselect={(source) => addMealFromRecipe(recipe, source)}
+							disabled={controller.drawerSubmitting || !!controller.pendingAdds[key]}
+							onselect={(source) => controller.addMealFromRecipe(recipe, source)}
 						/>
 					</li>
 				{/each}
@@ -773,18 +696,18 @@
 
 <FreezePortionsModal
 	bind:open={controller.freezeOpen}
-	slug={freezeSlug}
-	title={freezeTitle}
-	defaultPortions={freezeDefault}
+	slug={controller.freezeSlug}
+	title={controller.freezeTitle}
+	defaultPortions={controller.freezeDefault}
 	onFrozen={() => void invalidateAll()}
 />
 
 <ConsumePortionsModal
 	bind:open={controller.consumeOpen}
-	slug={consumeSlug}
-	title={consumeTitle}
-	defaultPortions={consumeDefault}
-	maxPortions={consumeMax}
+	slug={controller.consumeSlug}
+	title={controller.consumeTitle}
+	defaultPortions={controller.consumeDefault}
+	maxPortions={controller.consumeMax}
 	onConsumed={(consumed, remaining) => {
 		toast.success(
 			remaining > 0

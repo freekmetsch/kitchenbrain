@@ -1,29 +1,30 @@
-import { inArray, isNull } from 'drizzle-orm';
 import { db as appDb } from '$lib/server/db/index';
-import { inventoryItems, recipes } from '$lib/server/db/schema';
-import type { Ingredient } from '$lib/server/db/schema';
 import { getUserPref } from '$lib/server/db/user_prefs';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
 import { getMealPlanMeal } from '$lib/server/domains/meal-plan/queries';
 import {
 	expandedIngredientRoleCoverage,
 	expandMealIngredientsForServings,
+	getRecipeBySlug,
+	getRecipesByIds,
+	listRecipes,
 	mealsContaining,
 	recipeFoodClass,
 	subRecipeCountByMeal,
 	subRecipesOf
 } from '$lib/server/domains/recipes';
 import { frozenPortionsByRecipe } from '$lib/server/domains/inventory/freezer';
+import { listActiveInventoryNames } from '$lib/server/domains/inventory/queries';
 import { foodCategoryMatches } from '$lib/food_categories';
 import { rollsUpTo } from '$lib/food_class';
 import { namesMatch } from '$lib/match';
 import { projectIngredient } from '$lib/recipe_scale';
 import {
+	type Ingredient,
 	translatedIngredientComplete,
 	translatedIngredientDisplay
 } from '$lib/recipe_ingredient';
 import { addDays, isoWeekNumber, todayIso, weekStartFor } from '$lib/week';
-import { eq } from 'drizzle-orm';
 
 const DISH_TYPES = [
 	'soup',
@@ -56,12 +57,7 @@ export function loadRecipeListData(input: {
 	const freezerOnly = input.url.searchParams.get('freezer') === '1';
 	const belowTargetOnly = input.url.searchParams.get('below') === '1';
 
-	const stockNames = appDb
-		.select({ name: inventoryItems.name })
-		.from(inventoryItems)
-		.where(isNull(inventoryItems.deletedAt))
-		.all()
-		.map((row) => row.name);
+	const stockNames = listActiveInventoryNames(appDb);
 	const frozenByRecipe = frozenPortionsByRecipe(appDb);
 	const subCounts = subRecipeCountByMeal(appDb);
 	const prefs = getMealPlanPrefs();
@@ -71,11 +67,7 @@ export function loadRecipeListData(input: {
 		return { weekStartDate, weekNumber: isoWeekNumber(weekStartDate) };
 	});
 
-	let enriched = appDb
-		.select()
-		.from(recipes)
-		.all()
-		.map((recipe) => {
+	let enriched = listRecipes(appDb).map((recipe) => {
 			const ingredients = recipe.ingredients as Ingredient[];
 			const total = ingredients.length;
 			const covered = ingredients.filter((ingredient) =>
@@ -172,7 +164,7 @@ export function loadRecipeListData(input: {
 }
 
 export function loadRecipeDetailData(slug: string, input: { recipeLang: string; url: URL }) {
-	const recipe = appDb.select().from(recipes).where(eq(recipes.slug, slug)).get();
+	const recipe = getRecipeBySlug(appDb, slug);
 	if (!recipe) return null;
 	const prefs = getMealPlanPrefs();
 	const currentWeekStart = weekStartFor(todayIso(), prefs.weekStartDay);
@@ -180,12 +172,7 @@ export function loadRecipeDetailData(slug: string, input: { recipeLang: string; 
 		const weekStartDate = addDays(currentWeekStart, index * 7);
 		return { weekStartDate, weekNumber: isoWeekNumber(weekStartDate) };
 	});
-	const stockNames = appDb
-		.select({ name: inventoryItems.name })
-		.from(inventoryItems)
-		.where(isNull(inventoryItems.deletedAt))
-		.all()
-		.map((row) => row.name);
+	const stockNames = listActiveInventoryNames(appDb);
 	const ingredients = recipe.ingredients as Ingredient[];
 	const ingredientStock = ingredients.map((ingredient) =>
 		stockNames.some((name) => namesMatch(ingredient.name, name))
@@ -201,11 +188,7 @@ export function loadRecipeDetailData(slug: string, input: { recipeLang: string; 
 		subRecipes
 	);
 	const componentIds = [recipe.id, ...subRecipes.map((subRecipe) => subRecipe.id)];
-	const componentRows = appDb
-		.select()
-		.from(recipes)
-		.where(inArray(recipes.id, componentIds))
-		.all();
+	const componentRows = getRecipesByIds(appDb, componentIds);
 	const componentById = new Map(componentRows.map((row) => [row.id, row]));
 	const orderedComponents = componentIds
 		.map((id) => componentById.get(id))

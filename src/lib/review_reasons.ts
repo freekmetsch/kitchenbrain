@@ -1,5 +1,5 @@
-// Review-reason wire format + ownership taxonomy, shared by the write boundary
-// (sticky-vs-rule split in inventory_writes.ts) and the stock page (fix
+// Review-reason wire format + ownership taxonomy, shared by the inventory
+// write boundary (sticky-vs-rule split) and the stock page (fix
 // affordances). Reasons join with '; '; each token may carry a ':detail' suffix.
 
 // Codes the taxonomy rules own. These are recomputed from item state on every

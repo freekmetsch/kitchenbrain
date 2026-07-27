@@ -6,7 +6,6 @@
 import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
-import { titlesMatch } from '$lib/match';
 
 export type RecipeTitleRow = { id: number; slug: string; title: string; titleEn: string | null };
 export type RecipeSuggestion = { id: number; slug: string; title: string };
@@ -63,23 +62,6 @@ export function listFreezerStaples(db: DbOrTx) {
 				below_target: recipe.targetPortions != null && current < recipe.targetPortions
 			};
 		});
-}
-
-export function recipeSuggestionsForName(
-	name: string,
-	recipes: RecipeTitleRow[],
-	limit = 3
-): RecipeSuggestion[] {
-	return recipes
-		.filter((recipe) =>
-			titlesMatch(name, recipe.title) || (recipe.titleEn ? titlesMatch(name, recipe.titleEn) : false)
-		)
-		.slice(0, limit)
-		.map((recipe) => ({
-			id: recipe.id,
-			slug: recipe.slug,
-			title: recipe.titleEn ?? recipe.title
-		}));
 }
 
 export function recipeTitleRows(db: DbOrTx): RecipeTitleRow[] {

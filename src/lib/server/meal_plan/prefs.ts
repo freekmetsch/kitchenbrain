@@ -7,7 +7,7 @@
 import { db as appDb } from '$lib/server/db/index';
 import * as schema from '$lib/server/db/schema';
 import { getHouseholdPref, setHouseholdPref } from '$lib/server/db/household_prefs';
-import type { Db as DB } from '$lib/server/db/types';
+import type { Db, DbOrTx } from '$lib/server/db/types';
 
 export const K_WEEK_START_DAY = 'mealplan.week_start_day';
 export const K_GROCERY_DAY = 'mealplan.grocery_day';
@@ -51,37 +51,37 @@ function intInRange(raw: string | null, min: number, max: number, fallback: numb
 
 // Executors receive their own db handle (test dbs in vitest), so every getter
 // takes an optional db and defaults to the app database.
-export function getWeekStartDay(db: DB = appDb): number {
+export function getWeekStartDay(db: DbOrTx = appDb): number {
 	return intInRange(getHouseholdPref(db, K_WEEK_START_DAY), 0, 6, MEAL_PLAN_PREF_DEFAULTS.weekStartDay);
 }
 
-export function getGroceryDay(db: DB = appDb): number | null {
+export function getGroceryDay(db: DbOrTx = appDb): number | null {
 	const raw = getHouseholdPref(db, K_GROCERY_DAY);
 	if (raw == null || raw === 'none') return null;
 	const n = Number.parseInt(raw, 10);
 	return Number.isInteger(n) && n >= 0 && n <= 6 ? n : null;
 }
 
-export function getPlanAheadWeeks(db: DB = appDb): number {
+export function getPlanAheadWeeks(db: DbOrTx = appDb): number {
 	return intInRange(getHouseholdPref(db, K_PLAN_AHEAD_WEEKS), 1, 8, MEAL_PLAN_PREF_DEFAULTS.planAheadWeeks);
 }
 
-export function getDayPlanning(db: DB = appDb): boolean {
+export function getDayPlanning(db: DbOrTx = appDb): boolean {
 	const raw = getHouseholdPref(db, K_DAY_PLANNING);
 	if (raw === 'true') return true;
 	if (raw === 'false') return false;
 	return MEAL_PLAN_PREF_DEFAULTS.dayPlanning;
 }
 
-export function getRepeatCycleDays(db: DB = appDb): number {
+export function getRepeatCycleDays(db: DbOrTx = appDb): number {
 	return intInRange(getHouseholdPref(db, K_REPEAT_CYCLE_DAYS), 0, 365, MEAL_PLAN_PREF_DEFAULTS.repeatCycleDays);
 }
 
-export function getSuggestCount(db: DB = appDb): number {
+export function getSuggestCount(db: DbOrTx = appDb): number {
 	return intInRange(getHouseholdPref(db, K_SUGGEST_COUNT), 1, 10, MEAL_PLAN_PREF_DEFAULTS.suggestCount);
 }
 
-export function getMealPlanPrefs(db: DB = appDb): MealPlanPrefs {
+export function getMealPlanPrefs(db: DbOrTx = appDb): MealPlanPrefs {
 	return {
 		weekStartDay: getWeekStartDay(db),
 		groceryDay: getGroceryDay(db),
@@ -92,28 +92,28 @@ export function getMealPlanPrefs(db: DB = appDb): MealPlanPrefs {
 	};
 }
 
-export function setWeekStartDay(day: number, db: DB = appDb): void {
+export function setWeekStartDay(day: number, db: Db = appDb): void {
 	setHouseholdPref(db, K_WEEK_START_DAY, String(day));
 }
 
 // 'none' (not a deleted row) so clearing the delivery day is an explicit,
 // exportable choice rather than indistinguishable from "never configured".
-export function setGroceryDay(day: number | null, db: DB = appDb): void {
+export function setGroceryDay(day: number | null, db: Db = appDb): void {
 	setHouseholdPref(db, K_GROCERY_DAY, day == null ? 'none' : String(day));
 }
 
-export function setPlanAheadWeeks(weeks: number, db: DB = appDb): void {
+export function setPlanAheadWeeks(weeks: number, db: Db = appDb): void {
 	setHouseholdPref(db, K_PLAN_AHEAD_WEEKS, String(weeks));
 }
 
-export function setDayPlanning(enabled: boolean, db: DB = appDb): void {
+export function setDayPlanning(enabled: boolean, db: Db = appDb): void {
 	setHouseholdPref(db, K_DAY_PLANNING, String(enabled));
 }
 
-export function setRepeatCycleDays(days: number, db: DB = appDb): void {
+export function setRepeatCycleDays(days: number, db: Db = appDb): void {
 	setHouseholdPref(db, K_REPEAT_CYCLE_DAYS, String(days));
 }
 
-export function setSuggestCount(count: number, db: DB = appDb): void {
+export function setSuggestCount(count: number, db: Db = appDb): void {
 	setHouseholdPref(db, K_SUGGEST_COUNT, String(count));
 }

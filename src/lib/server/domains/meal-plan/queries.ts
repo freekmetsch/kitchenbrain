@@ -32,6 +32,44 @@ export function listMealsForWeek(db: DbOrTx, weekStart: string): MealPlanMeal[] 
 		.all();
 }
 
+export function listMealsForWeekUnordered(
+	db: DbOrTx,
+	weekStart: string
+): MealPlanMeal[] {
+	const range = weekKeyRange(weekStart);
+	return db
+		.select()
+		.from(schema.mealPlanMeals)
+		.where(
+			and(
+				gte(schema.mealPlanMeals.weekStartDate, range.from),
+				lt(schema.mealPlanMeals.weekStartDate, range.to)
+			)
+		)
+		.all();
+}
+
+export function listMealsForWeekInSourceOrder(
+	db: DbOrTx,
+	weekStart: string
+): MealPlanMeal[] {
+	const range = weekKeyRange(weekStart);
+	return db
+		.select()
+		.from(schema.mealPlanMeals)
+		.where(
+			and(
+				gte(schema.mealPlanMeals.weekStartDate, range.from),
+				lt(schema.mealPlanMeals.weekStartDate, range.to)
+			)
+		)
+		.orderBy(
+			asc(schema.mealPlanMeals.sortOrder),
+			asc(schema.mealPlanMeals.id)
+		)
+		.all();
+}
+
 export function findCookLogForMeal(db: DbOrTx, mealPlanMealId: number) {
 	return db
 		.select({ id: schema.cookLog.id })

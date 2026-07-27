@@ -44,10 +44,6 @@ type DeleteOptions = {
 	unrecordCooked: boolean;
 };
 
-function asDb(db: DbOrTx): Db {
-	return db as unknown as Db;
-}
-
 function recomputeRecipeStats(db: DbOrTx, recipeId: number): void {
 	updateRecipeCookStats(db, recipeId, cookStatsForRecipe(db, recipeId));
 }
@@ -125,7 +121,7 @@ export function createMealPlanService(
 				}
 				const weekStartDate = weekStartFor(
 					input.weekStartDate,
-					getWeekStartDay(asDb(tx))
+					getWeekStartDay(tx)
 				);
 				const recipe = input.recipeSlug ? getRecipeBySlug(tx, input.recipeSlug) : undefined;
 				const meal = createMealPlanMeal(tx, {
@@ -139,7 +135,7 @@ export function createMealPlanService(
 						input.source === 'freezer' && input.recipeSlug ? 'freezer' : 'fresh',
 					note: input.note ?? null
 				});
-				dependencies.reconcileShopping(asDb(tx), [weekStartDate]);
+				dependencies.reconcileShopping(tx, [weekStartDate]);
 				return { ok: true as const, meal };
 			});
 		},
@@ -148,7 +144,7 @@ export function createMealPlanService(
 			return db.transaction((tx) => {
 				const result = updateMealPlanMetadata(tx, id, input);
 				if (result.ok) {
-					dependencies.reconcileShopping(asDb(tx), [result.meal.weekStartDate]);
+					dependencies.reconcileShopping(tx, [result.meal.weekStartDate]);
 				}
 				return result;
 			});
@@ -186,7 +182,7 @@ export function createMealPlanService(
 					unrecordCookInTransaction(tx, meal.id);
 				}
 				deleteMealPlanMeal(tx, meal.id);
-				dependencies.reconcileShopping(asDb(tx), [meal.weekStartDate]);
+				dependencies.reconcileShopping(tx, [meal.weekStartDate]);
 				return { ok: true as const, meal };
 			});
 		},

@@ -1,10 +1,74 @@
-import { and, asc, eq, inArray, isNull, lte, or, gte } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, lte, or, gte } from 'drizzle-orm';
 import { normalizeNameKey, tokenize } from '$lib/match';
 import { sumCompatibleQuantities } from '$lib/recipe_scale';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
 type WeekEntry = typeof schema.shoppingWeekEntries.$inferSelect;
 type DB = DbOrTx;
+
+export function getShoppingWeekEntry(
+	db: DB,
+	entryId: number
+): WeekEntry | undefined {
+	return db
+		.select()
+		.from(schema.shoppingWeekEntries)
+		.where(eq(schema.shoppingWeekEntries.id, entryId))
+		.get();
+}
+
+export function getActiveShoppingEntryBySource(
+	db: DB,
+	weekStartDate: string,
+	sourceKey: string
+): WeekEntry | undefined {
+	return db
+		.select()
+		.from(schema.shoppingWeekEntries)
+		.where(
+			and(
+				eq(schema.shoppingWeekEntries.weekStartDate, weekStartDate),
+				eq(schema.shoppingWeekEntries.sourceKey, sourceKey),
+				isNull(schema.shoppingWeekEntries.retiredAt)
+			)
+		)
+		.get();
+}
+
+export function listAhFavorites(db: DB) {
+	return db.select().from(schema.ahFavorites).all();
+}
+
+export function listRecentShoppingPushes(
+	db: DB,
+	weekStartDate: string,
+	limit: number
+) {
+	const pushRows = db
+		.select()
+		.from(schema.shoppingPushHistory)
+		.where(eq(schema.shoppingPushHistory.weekStartDate, weekStartDate))
+		.orderBy(desc(schema.shoppingPushHistory.createdAt))
+		.limit(limit)
+		.all();
+	const pushIds = pushRows.map((row) => row.id);
+	const pushItems = pushIds.length
+		? db
+				.select()
+				.from(schema.shoppingPushItems)
+				.where(inArray(schema.shoppingPushItems.pushId, pushIds))
+				.all()
+		: [];
+	const pushItemsById = new Map<number, typeof pushItems>();
+	for (const item of pushItems) {
+		if (!pushItemsById.has(item.pushId)) pushItemsById.set(item.pushId, []);
+		pushItemsById.get(item.pushId)!.push(item);
+	}
+	return pushRows.map((row) => ({
+		...row,
+		items: pushItemsById.get(row.id) ?? []
+	}));
+}
 
 function inventoryMatchKey(name: string): string {
 	return [...new Set(tokenize(name))].sort().join('\u0000');

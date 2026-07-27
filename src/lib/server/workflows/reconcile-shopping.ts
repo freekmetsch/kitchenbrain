@@ -1,7 +1,9 @@
-import { and, asc, desc, eq, gte, inArray, lt } from 'drizzle-orm';
 import { db as appDb } from '$lib/server/db/index';
-import * as schema from '$lib/server/db/schema';
 import type { Db, DbOrTx } from '$lib/server/db/types';
+import {
+	listMealsForWeekInSourceOrder,
+	listMealsForWeekUnordered
+} from '$lib/server/domains/meal-plan/queries';
 import {
 	addManualShoppingEntry,
 	addRecurringShoppingItem,
@@ -20,7 +22,9 @@ import {
 	skipShoppingEntry,
 	updateShoppingEntry,
 	upsertAhFavorite,
-	getShoppingWeekView
+	getShoppingWeekEntry,
+	getShoppingWeekView,
+	listRecentShoppingPushes
 } from '$lib/server/domains/shopping';
 import { getMealPlanPrefs, getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import {
@@ -28,7 +32,6 @@ import {
 	deliveryDateForPlanningWeek,
 	isIsoDate,
 	todayIso,
-	weekKeyRange,
 	weekStartFor
 } from '$lib/week';
 import { deriveWeekNeeds } from './shopping-needs';
@@ -46,18 +49,7 @@ export type {
 } from './shopping-needs';
 
 function shoppingSourcesForWeek(db: DbOrTx, weekStart: string) {
-	const range = weekKeyRange(weekStart);
-	const meals = db
-		.select()
-		.from(schema.mealPlanMeals)
-		.where(
-			and(
-				gte(schema.mealPlanMeals.weekStartDate, range.from),
-				lt(schema.mealPlanMeals.weekStartDate, range.to)
-			)
-		)
-		.orderBy(asc(schema.mealPlanMeals.sortOrder), asc(schema.mealPlanMeals.id))
-		.all();
+	const meals = listMealsForWeekInSourceOrder(db, weekStart);
 	return deriveWeekNeeds(db, meals).needed.flatMap((item) => item.sources);
 }
 
@@ -94,22 +86,6 @@ export function reconcileShoppingAfterWrite(
 	_options: { today?: string } = {}
 ): void {
 	reconcileEntries(db, affectedWeeks, shoppingSourcesForWeek);
-}
-
-export function prepareShoppingWeek(
-	db: Db,
-	input: { weekStart: string; weekStartDay: number }
-) {
-	return db.transaction((tx) => {
-		initializeShoppingSourceData(tx);
-		const materialized = materializeShoppingWeek(tx, input.weekStart, {
-			weekStartDay: input.weekStartDay
-		});
-		return {
-			materialized,
-			view: getShoppingWeekView(tx, input.weekStart)
-		};
-	});
 }
 
 export function createShoppingService(db: Db) {
@@ -162,11 +138,7 @@ export function createShoppingService(db: Db) {
 		updateSource(input: Parameters<typeof updateShoppingEntry>[1]) {
 			return inTransaction((tx) => {
 				initializeShoppingSourceData(tx);
-				const before = tx
-					.select()
-					.from(schema.shoppingWeekEntries)
-					.where(eq(schema.shoppingWeekEntries.id, input.entryId))
-					.get();
+				const before = getShoppingWeekEntry(tx, input.entryId);
 				if (before?.sourceKind === 'recipe' || before?.sourceKind === 'weekly') {
 					materializeShoppingWeek(tx, before.weekStartDate, {
 						weekStartDay: input.weekStartDay
@@ -196,39 +168,10 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 	return db.transaction((tx) => {
 		initializeShoppingSourceData(tx);
 		materializeShoppingWeek(tx, weekStart, { weekStartDay: prefs.weekStartDay });
-		const keyRange = weekKeyRange(weekStart);
-		const meals = tx
-			.select()
-			.from(schema.mealPlanMeals)
-			.where(
-				and(
-					gte(schema.mealPlanMeals.weekStartDate, keyRange.from),
-					lt(schema.mealPlanMeals.weekStartDate, keyRange.to)
-				)
-			)
-			.all();
+		const meals = listMealsForWeekUnordered(tx, weekStart);
 		const needs = deriveWeekNeeds(tx, meals);
 		const shopping = getShoppingWeekView(tx, weekStart);
-		const pushRows = tx
-			.select()
-			.from(schema.shoppingPushHistory)
-			.where(eq(schema.shoppingPushHistory.weekStartDate, weekStart))
-			.orderBy(desc(schema.shoppingPushHistory.createdAt))
-			.limit(5)
-			.all();
-		const pushIds = pushRows.map((row) => row.id);
-		const pushItems = pushIds.length
-			? tx
-					.select()
-					.from(schema.shoppingPushItems)
-					.where(inArray(schema.shoppingPushItems.pushId, pushIds))
-					.all()
-			: [];
-		const pushItemsById = new Map<number, typeof pushItems>();
-		for (const item of pushItems) {
-			if (!pushItemsById.has(item.pushId)) pushItemsById.set(item.pushId, []);
-			pushItemsById.get(item.pushId)!.push(item);
-		}
+		const pushHistory = listRecentShoppingPushes(tx, weekStart, 5);
 		return {
 			weekStart,
 			prevWeek: addDays(weekStart, -7),
@@ -242,28 +185,15 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 			ah: getAHStatus(),
 			shopping,
 			needs,
-			pushHistory: pushRows.map((row) => ({
-				...row,
-				items: pushItemsById.get(row.id) ?? []
-			}))
+			pushHistory
 		};
 	});
 }
 
 function generateShoppingListInTransaction(db: DbOrTx, requestedWeek?: string) {
-	const weekStartDay = getWeekStartDay(db as Db);
+	const weekStartDay = getWeekStartDay(db);
 	const weekStart = weekStartFor(requestedWeek ?? todayIso(), weekStartDay);
-	const keyRange = weekKeyRange(weekStart);
-	const meals = db
-		.select()
-		.from(schema.mealPlanMeals)
-		.where(
-			and(
-				gte(schema.mealPlanMeals.weekStartDate, keyRange.from),
-				lt(schema.mealPlanMeals.weekStartDate, keyRange.to)
-			)
-		)
-		.all();
+	const meals = listMealsForWeekUnordered(db, weekStart);
 	const needs = deriveWeekNeeds(db, meals);
 	initializeShoppingSourceData(db);
 	materializeShoppingWeek(db, weekStart, { weekStartDay });

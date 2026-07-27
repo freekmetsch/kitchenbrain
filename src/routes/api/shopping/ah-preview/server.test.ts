@@ -14,7 +14,8 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/server/db/index', () => ({ get db() { return state.db; } }));
-vi.mock('$lib/server/domains/shopping', () => ({
+vi.mock('$lib/server/domains/shopping', async (importOriginal) => ({
+	...(await importOriginal<typeof import('$lib/server/domains/shopping')>()),
 	getShoppingWeekView: () => state.view
 }));
 vi.mock('$lib/server/workflows/reconcile-shopping', () => ({

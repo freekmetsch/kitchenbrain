@@ -94,6 +94,9 @@ Chromium. De browsertests maken hun eigen database en twee vaste testaccounts on
 lezen je `.env` of huishoudendatabase niet. Gebruik `npm run test:unit`, `npm run test:e2e` of
 `npm run test:e2e:secondary` voor een gerichte run.
 
+Ga je aan de server- of UI-logica werken? Lees dan eerst
+[`docs/architecture.md`](docs/architecture.md) voor de domeingrenzen, transactieregels en testwaarborgen.
+
 ## Albert Heijn koppelen
 
 De inlogflow van Albert Heijn is gebouwd voor hun eigen app, niet voor een browsertab die met een externe server praat. Daarom is er een eenmalig script in plaats van een knop in de app. **Zie** [`scripts/CONNECT_AH.md`](scripts/CONNECT_AH.md) voor de volledige uitleg; het kost ongeveer twee minuten.
@@ -209,6 +212,9 @@ npm test
 flow in Chromium. The browser tests create their own database and two fixed test accounts under
 `.test-data/`; they do not read your `.env` or household database. Use `npm run test:unit`,
 `npm run test:e2e`, or `npm run test:e2e:secondary` for a focused run.
+
+Before changing server or UI behavior, read [`docs/architecture.md`](docs/architecture.md) for the domain
+boundaries, transaction rules, and test safeguards.
 
 ## Connecting Albert Heijn
 

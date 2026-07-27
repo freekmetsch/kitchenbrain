@@ -49,7 +49,35 @@ test('Meal Plan serving edits and remove undo stay recoverable', async ({ page }
 	);
 	await page.getByRole('button', { name: `Increase portions for ${fixture.recipeTitle}` }).click();
 	expect((await servingsSaved).ok()).toBe(true);
-	await expect(page.getByText('5 portions', { exact: true })).toBeVisible();
+	const mealRow = page
+		.getByRole('link', { name: fixture.recipeTitle, exact: true })
+		.locator('xpath=ancestor::li[1]');
+	await expect(mealRow.getByText('5 portions', { exact: true })).toBeVisible();
+
+	const cookedCheckbox = page.getByRole('checkbox', {
+		name: `Mark ${fixture.recipeTitle} cooked`
+	});
+	const cookedSaved = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PUT' && response.url().includes('/api/meal-plan/')
+	);
+	await cookedCheckbox.check();
+	expect((await cookedSaved).ok()).toBe(true);
+	await expect(cookedCheckbox).toBeChecked();
+	const freezeDialog = page.getByRole('dialog').filter({
+		has: page.getByRole('heading', { name: 'Freeze leftovers?' })
+	});
+	await expect(freezeDialog).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(freezeDialog).toBeHidden();
+
+	const plannedSaved = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PUT' && response.url().includes('/api/meal-plan/')
+	);
+	await cookedCheckbox.uncheck();
+	expect((await plannedSaved).ok()).toBe(true);
+	await expect(cookedCheckbox).not.toBeChecked();
 
 	await page.getByRole('button', { name: `Remove ${fixture.recipeTitle}` }).click();
 	const removed = page.getByText(`Removed ${fixture.recipeTitle}`, { exact: true });
@@ -64,6 +92,9 @@ test('Meal Plan serving edits and remove undo stay recoverable', async ({ page }
 	const restoredMeal = page.getByRole('link', { name: fixture.recipeTitle, exact: true });
 	await expect(restoredMeal.first()).toBeVisible();
 	await expect(restoredMeal).toHaveCount(1);
+	await expect(
+		restoredMeal.locator('xpath=ancestor::li[1]').getByText('5 portions', { exact: true })
+	).toBeVisible();
 });
 
 test('Shopping bought undo and recipe-source choice stay recoverable', async ({
@@ -205,14 +236,22 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 	await secondStep.click();
 	await expect(secondStep).toHaveAttribute('aria-current', 'step');
 	await expect
-		.poll(() => page.evaluate((key) => localStorage.getItem(key), progressKey))
-		.not.toBeNull();
+		.poll(() =>
+			page.evaluate((key) => {
+				const stored = localStorage.getItem(key);
+				if (!stored) return null;
+				return (JSON.parse(stored) as { currentStepKey?: string }).currentStepKey ?? null;
+			}, progressKey)
+		)
+		.toBe('1:pot');
 
-	await page.reload();
+	await page.goto('/recipes');
+	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
 	await expect(secondStep).toHaveAttribute('aria-current', 'step');
 
+	await page.goto('/recipes');
 	await page.evaluate((key) => localStorage.setItem(key, '{"v":2}'), progressKey);
-	await page.reload();
+	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
 	await expect(
 		page.getByText(
 			'Your earlier cooking session could not be restored safely. Source steps are ready, and old timers were cleared.',

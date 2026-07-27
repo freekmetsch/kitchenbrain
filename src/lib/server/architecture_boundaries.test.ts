@@ -90,7 +90,9 @@ function staticImports(file: string): StaticImport[] {
 		}
 		if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
 			importedNames.push(
-				...clause.namedBindings.elements.map((element) => element.propertyName?.text ?? element.name.text)
+				...clause.namedBindings.elements.map(
+					(element) => element.propertyName?.text ?? element.name.text
+				)
 			);
 		}
 
@@ -103,7 +105,13 @@ function staticImports(file: string): StaticImport[] {
 							clause.namedBindings.elements.some((element) => !element.isTypeOnly)
 						: false)));
 
-		return [{ module: statement.moduleSpecifier.text, importedNames, hasRuntimeBinding }];
+		return [
+			{
+				module: statement.moduleSpecifier.text,
+				importedNames,
+				hasRuntimeBinding
+			}
+		];
 	});
 }
 
@@ -128,6 +136,12 @@ function moduleReferences(file: string): string[] {
 function importsDirectDatabaseModule(file: string): boolean {
 	return moduleReferences(file).some((module) =>
 		/(?:^|\/)db\/(?:index|schema)(?:\.[cm]?[jt]s)?$/.test(module)
+	);
+}
+
+function importsDatabaseSchema(file: string): boolean {
+	return moduleReferences(file).some((module) =>
+		/(?:^|\/)db\/schema(?:\.[cm]?[jt]s)?$/.test(module)
 	);
 }
 
@@ -197,6 +211,59 @@ describe('server architecture boundaries', () => {
 		expect(current).toEqual([]);
 	});
 
+	it('keeps the recipe enhancement AI adapter persistence-free', () => {
+		const adapter = path.join(serverRoot, 'ai', 'recipe_enhancement.ts');
+
+		expect(importsDirectDatabaseModule(adapter)).toBe(false);
+	});
+
+	it('keeps core page-composition workflows on domain read models', () => {
+		const workflowRoot = path.join(serverRoot, 'workflows');
+		const current = ['inventory-page.ts', 'meal-plan-page.ts', 'recipe-pages.ts']
+			.map((file) => path.join(workflowRoot, file))
+			.filter(importsDatabaseSchema)
+			.map(toRepoPath);
+
+		expect(current).toEqual([]);
+	});
+
+	it('keeps migrated write workflows on domain persistence APIs', () => {
+		const workflowRoot = path.join(serverRoot, 'workflows');
+		const current = [
+			'choose-shopping-source.ts',
+			'meal-plan.ts',
+			'push-shopping-to-ah.ts',
+			'reconcile-shopping.ts'
+		]
+			.map((file) => path.join(workflowRoot, file))
+			.filter(importsDatabaseSchema)
+			.map(toRepoPath);
+
+		expect(current).toEqual([]);
+	});
+
+	it('keeps domain modules independent from sibling domains', () => {
+		const domainRoot = path.join(serverRoot, 'domains');
+		const violations = productionSourceFiles(domainRoot).flatMap((file) => {
+			const owner = path.relative(domainRoot, file).split(path.sep)[0];
+			return moduleReferences(file)
+				.map((module) => ({
+					module,
+					target:
+						module.match(/^\$lib\/server\/domains\/([^/]+)/)?.[1] ??
+						(module.startsWith('.')
+							? path
+									.relative(domainRoot, path.resolve(path.dirname(file), module))
+									.split(path.sep)[0]
+							: undefined)
+				}))
+				.filter(({ target }) => target != null && target !== '..' && target !== owner)
+				.map(({ module }) => `${toRepoPath(file)} -> ${module}`);
+		});
+
+		expect(violations).toEqual([]);
+	});
+
 	it('keeps runtime LLM SDK imports behind the AI client seam', () => {
 		const runtimeSdkImporters = productionSourceFiles(serverRoot)
 			.filter((file) =>
@@ -214,6 +281,7 @@ describe('server architecture boundaries', () => {
 			'addFreetextItems',
 			'addProductItems',
 			'addProductsToOrder',
+			'getActiveOrder',
 			'getProductsByIds',
 			'searchProducts'
 		]);
@@ -249,5 +317,27 @@ describe('server architecture boundaries', () => {
 		});
 
 		expect(violations).toEqual([]);
+	});
+
+	it('keeps AH basket transport calls behind the shopping push workflow', () => {
+		const basketFunctions = new Set([
+			'addFreetextItems',
+			'addProductItems',
+			'addProductsToOrder',
+			'getActiveOrder',
+			'getProductsByIds',
+			'searchProducts'
+		]);
+		const importers = [...productionSourceFiles(serverRoot), ...productionSourceFiles(routesRoot)]
+			.filter((file) =>
+				staticImports(file).some(
+					(entry) =>
+						entry.module === '$lib/server/ah/client' &&
+						entry.importedNames.some((name) => basketFunctions.has(name))
+				)
+			)
+			.map(toRepoPath);
+
+		expect(importers).toEqual(['lib/server/workflows/push-shopping-to-ah.ts']);
 	});
 });

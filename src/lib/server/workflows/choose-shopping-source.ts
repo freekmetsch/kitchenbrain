@@ -1,14 +1,23 @@
-import { and, eq, gte, isNull, ne, sql } from 'drizzle-orm';
 import { db as appDb } from '$lib/server/db/index';
 import type { Ingredient } from '$lib/recipe_ingredient';
-import * as schema from '$lib/server/db/schema';
-import type { Db as DB } from '$lib/server/db/types';
-import { updateCanonicalRecipe } from '$lib/server/domains/recipes';
+import type { Db } from '$lib/server/db/types';
+import {
+	getRecipeById,
+	getRecipeBySlug,
+	updateCanonicalRecipe
+} from '$lib/server/domains/recipes';
 import { reconcileShoppingAfterWrite } from './reconcile-shopping';
 import { shoppingPlanningConfig } from '$lib/server/domains/shopping/entries';
 import { addInventory, updateInventory } from '$lib/server/domains/inventory/commands';
 import { findExistingItem } from '$lib/server/domains/inventory/merge';
-import { ShoppingMutationError } from '$lib/server/domains/shopping/commands';
+import {
+	applyRecipeShoppingChoice,
+	ShoppingMutationError
+} from '$lib/server/domains/shopping/commands';
+import {
+	getActiveShoppingEntryBySource,
+	getShoppingWeekEntry
+} from '$lib/server/domains/shopping/queries';
 
 export type ShoppingNeed = 'required' | 'optional' | 'stocked';
 
@@ -32,7 +41,7 @@ function promotedIngredient(current: Ingredient, term: string): Ingredient {
 }
 
 export function saveRecipeIngredientDefault(
-	db: DB,
+	db: Db,
 	input: {
 		recipeSlug: string;
 		ingredientId: string;
@@ -41,12 +50,7 @@ export function saveRecipeIngredientDefault(
 	}
 ) {
 	return db.transaction((tx) => {
-		const executor = tx as unknown as DB;
-		const recipe = executor
-			.select()
-			.from(schema.recipes)
-			.where(eq(schema.recipes.slug, input.recipeSlug))
-			.get();
+		const recipe = getRecipeBySlug(tx, input.recipeSlug);
 		if (!recipe || recipe.contentRevision !== input.expectedRecipeRevision) {
 			throw new ShoppingMutationError(
 				'stale',
@@ -72,7 +76,7 @@ export function saveRecipeIngredientDefault(
 			);
 		}
 		ingredients[ingredientIndex] = promotedIngredient(current, canonicalTerm);
-		const updated = updateCanonicalRecipe(executor, {
+		const updated = updateCanonicalRecipe(tx, {
 			recipeId: recipe.id,
 			expectedRevision: input.expectedRecipeRevision,
 			changes: {
@@ -88,13 +92,13 @@ export function saveRecipeIngredientDefault(
 				'Recipe changed; reload before applying this choice'
 			);
 		}
-		reconcileShoppingAfterWrite(executor);
+		reconcileShoppingAfterWrite(tx);
 		return updated;
 	});
 }
 
 export function applyShoppingRecipeChoice(
-	db: DB,
+	db: Db,
 	input: {
 		entryId: number;
 		expectedEntryRevision: number;
@@ -107,16 +111,11 @@ export function applyShoppingRecipeChoice(
 	}
 ) {
 	return db.transaction((tx) => {
-		const executor = tx as unknown as DB;
-		const entry = executor
-			.select()
-			.from(schema.shoppingWeekEntries)
-			.where(eq(schema.shoppingWeekEntries.id, input.entryId))
-			.get();
+		const entry = getShoppingWeekEntry(tx, input.entryId);
 		if (!entry || entry.sourceKind !== 'recipe' || entry.retiredAt || !entry.recipeId || !entry.ingredientId) {
 			throw new ShoppingMutationError('invalid_source', 'Active recipe ingredient source not found');
 		}
-		const currentWeek = shoppingPlanningConfig(executor).currentWeek;
+		const currentWeek = shoppingPlanningConfig(tx).currentWeek;
 		if (entry.weekStartDate < currentWeek) {
 			throw new ShoppingMutationError('past_week', 'Captured past shopping weeks cannot be changed');
 		}
@@ -126,7 +125,7 @@ export function applyShoppingRecipeChoice(
 		if (!entry.approvedTerms.includes(input.term)) {
 			throw new ShoppingMutationError('invalid_term', 'Choose the Dutch recipe name or a saved Dutch alternative');
 		}
-		const recipe = executor.select().from(schema.recipes).where(eq(schema.recipes.id, entry.recipeId)).get();
+		const recipe = getRecipeById(tx, entry.recipeId);
 		if (!recipe || recipe.contentRevision !== input.expectedRecipeRevision) {
 			throw new ShoppingMutationError('stale', 'Recipe changed; reload before applying this choice');
 		}
@@ -148,7 +147,7 @@ export function applyShoppingRecipeChoice(
 		ingredients[index] = next;
 
 		if (recipeChanged) {
-			const updated = updateCanonicalRecipe(executor, {
+			const updated = updateCanonicalRecipe(tx, {
 				recipeId: recipe.id,
 				expectedRevision: input.expectedRecipeRevision,
 				changes: {
@@ -163,55 +162,32 @@ export function applyShoppingRecipeChoice(
 			if (!updated) throw new ShoppingMutationError('stale', 'Recipe changed; reload before applying this choice');
 		}
 
-		const inventoryMatch = findExistingItem(executor, { name: shoppingName, section: 'pantry', kind: 'ingredient' });
+		const inventoryMatch = findExistingItem(tx, { name: shoppingName, section: 'pantry', kind: 'ingredient' });
 		if (input.need === 'stocked') {
-			addInventory(executor, { name: shoppingName, section: 'pantry', kind: 'ingredient', isStaple: true }, { actor: input.actor, userId: input.userId });
+			addInventory(tx, { name: shoppingName, section: 'pantry', kind: 'ingredient', isStaple: true }, { actor: input.actor, userId: input.userId });
 		} else if (inventoryMatch?.item.isStaple) {
-			updateInventory(executor, inventoryMatch.item.id, { isStaple: false }, { actor: input.actor, userId: input.userId });
+			updateInventory(tx, inventoryMatch.item.id, { isStaple: false }, { actor: input.actor, userId: input.userId });
 		}
 
-		reconcileShoppingAfterWrite(executor, [entry.weekStartDate]);
-		const refreshed = executor
-			.select()
-			.from(schema.shoppingWeekEntries)
-			.where(
-				and(
-					eq(schema.shoppingWeekEntries.weekStartDate, entry.weekStartDate),
-					eq(schema.shoppingWeekEntries.sourceKey, entry.sourceKey),
-					isNull(schema.shoppingWeekEntries.retiredAt)
-				)
-			)
-			.get();
+		reconcileShoppingAfterWrite(tx, [entry.weekStartDate]);
+		const refreshed = getActiveShoppingEntryBySource(
+			tx,
+			entry.weekStartDate,
+			entry.sourceKey
+		);
 		if (!refreshed) throw new ShoppingMutationError('invalid_source', 'Shopping source disappeared during the recipe update');
-		executor
-			.update(schema.shoppingWeekEntries)
-			.set({
-				name: shoppingName,
-				approvedTerms: [shoppingName, ...(next.substitutes ?? []).map((substitute) => substitute.name)],
-				included: input.need === 'required',
-				selectedName,
-				revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
-				updatedAt: new Date()
-			})
-			.where(eq(schema.shoppingWeekEntries.id, refreshed.id))
-			.run();
-		executor
-			.update(schema.shoppingWeekEntries)
-			.set({
-				included: input.need === 'required',
-				revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
-				updatedAt: new Date()
-			})
-			.where(
-				and(
-					eq(schema.shoppingWeekEntries.sourceKey, entry.sourceKey),
-					gte(schema.shoppingWeekEntries.weekStartDate, currentWeek),
-					isNull(schema.shoppingWeekEntries.retiredAt),
-					ne(schema.shoppingWeekEntries.id, refreshed.id),
-					ne(schema.shoppingWeekEntries.included, input.need === 'required')
-				)
-			)
-			.run();
+		applyRecipeShoppingChoice(tx, {
+			entryId: refreshed.id,
+			sourceKey: entry.sourceKey,
+			currentWeek,
+			name: shoppingName,
+			approvedTerms: [
+				shoppingName,
+				...(next.substitutes ?? []).map((substitute) => substitute.name)
+			],
+			included: input.need === 'required',
+			selectedName
+		});
 
 		return {
 			recipeId: recipe.id,

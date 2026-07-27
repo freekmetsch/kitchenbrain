@@ -64,6 +64,15 @@ export function getInventoryItem(db: DbOrTx, id: number): InventoryItem | undefi
 	return readInventoryItem(db, id);
 }
 
+export function listActiveInventoryNames(db: DbOrTx): string[] {
+	return db
+		.select({ name: schema.inventoryItems.name })
+		.from(schema.inventoryItems)
+		.where(isNull(schema.inventoryItems.deletedAt))
+		.all()
+		.map((row) => row.name);
+}
+
 export function listInventorySuggestionRows(db: DbOrTx) {
 	return db
 		.select({

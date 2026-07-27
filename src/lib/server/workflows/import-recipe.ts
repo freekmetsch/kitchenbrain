@@ -6,23 +6,50 @@ import {
 } from '$lib/server/domains/recipes/create';
 import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
 
-export function saveImportedRecipe(db: Db, data: ImportedRecipeInput) {
-	const { recipe, review } = db.transaction((tx) => createImportedRecipe(tx, data));
+type ImportRecipeBackground = {
+	kickCookModeGeneration?: (slug: string) => void;
+	getAutoTranslateOnImport?: () => boolean;
+	kickTranslateOnImport?: (slug: string) => void;
+};
 
-	if (db === appDb) {
+const APP_BACKGROUND: ImportRecipeBackground = {
+	kickCookModeGeneration(slug) {
 		void import('$lib/server/ai/cook_mode').then(({ kickCookModeGeneration }) => {
-			kickCookModeGeneration(recipe.slug);
+			kickCookModeGeneration(slug);
 		});
-		if (getAutoTranslateOnImport()) {
-			void import('$lib/server/ai/translate_recipe').then(({ kickTranslateOnImport }) => {
-				kickTranslateOnImport(recipe.slug);
-			});
-		}
+	},
+	getAutoTranslateOnImport,
+	kickTranslateOnImport(slug) {
+		void import('$lib/server/ai/translate_recipe').then(({ kickTranslateOnImport }) => {
+			kickTranslateOnImport(slug);
+		});
 	}
+};
 
-	return { slug: recipe.slug, title: recipe.title, ...review };
+export function createImportRecipeService(
+	db: Db,
+	background: ImportRecipeBackground = db === appDb ? APP_BACKGROUND : {}
+) {
+	return {
+		save(data: ImportedRecipeInput) {
+			const { recipe, review } = db.transaction((tx) => createImportedRecipe(tx, data));
+
+			background.kickCookModeGeneration?.(recipe.slug);
+			if (background.getAutoTranslateOnImport?.()) {
+				background.kickTranslateOnImport?.(recipe.slug);
+			}
+
+			return { slug: recipe.slug, title: recipe.title, ...review };
+		}
+	};
 }
 
+export function saveImportedRecipe(db: Db, data: ImportedRecipeInput) {
+	return createImportRecipeService(db).save(data);
+}
+
+const appImportRecipeService = createImportRecipeService(appDb, APP_BACKGROUND);
+
 export function saveImportedRecipeForApp(data: ImportedRecipeInput) {
-	return saveImportedRecipe(appDb, data);
+	return appImportRecipeService.save(data);
 }

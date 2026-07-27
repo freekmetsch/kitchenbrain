@@ -25,6 +25,11 @@ export function getRecipesBySlugs(db: DbOrTx, slugs: string[]): Recipe[] {
 	return db.select().from(schema.recipes).where(inArray(schema.recipes.slug, slugs)).all();
 }
 
+export function getRecipesByIds(db: DbOrTx, ids: number[]): Recipe[] {
+	if (ids.length === 0) return [];
+	return db.select().from(schema.recipes).where(inArray(schema.recipes.id, ids)).all();
+}
+
 export function listMealCandidates(db: DbOrTx) {
 	const mealIds = db
 		.select({ id: schema.mealSubRecipes.mealRecipeId })

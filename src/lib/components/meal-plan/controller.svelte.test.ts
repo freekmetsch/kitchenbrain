@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MealPlanController, type MealPlanControllerData } from './controller.svelte';
+import { toast } from '$lib/stores/toast.svelte';
 
 function data(weekStartDate: string): MealPlanControllerData {
 	return {
@@ -102,5 +103,52 @@ describe('MealPlanController', () => {
 		expect(await first).toBe(true);
 		expect(controller.weeks[0].meals).toHaveLength(1);
 		expect(controller.weeks[0].meals[0].id).toBe(7);
+	});
+
+	it('restores edited servings and notes when a deleted meal is undone', async () => {
+		const original = {
+			id: 7,
+			weekStartDate: '2026-07-01',
+			weekNumber: 31,
+			dinner: 'Lasagne',
+			recipeSlug: 'lasagne',
+			servings: 5,
+			status: 'planned' as const,
+			source: 'fresh' as const,
+			cookedDate: null,
+			plannedDate: '2026-07-02',
+			note: 'Use the large dish',
+			sortOrder: 0,
+			createdAt: new Date('2026-07-01T10:00:00Z')
+		};
+		let restoreBody: Record<string, unknown> | undefined;
+		const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+			if (init?.method === 'DELETE') return new Response(null, { status: 200 });
+			restoreBody = JSON.parse(String(init?.body));
+			return new Response(JSON.stringify({ ...original, id: 8 }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		});
+		const initial = data('2026-07-01');
+		initial.weeks[0].meals = [original];
+		const controller = new MealPlanController(initial, { fetcher });
+
+		await controller.removeMeal(original);
+		toast.current?.action?.run();
+		await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+		await vi.waitFor(() => expect(controller.weeks[0].meals[0]?.id).toBe(8));
+
+		expect(restoreBody).toMatchObject({
+			servings: 5,
+			plannedDate: '2026-07-02',
+			note: 'Use the large dish'
+		});
+		expect(controller.weeks[0].meals[0]).toMatchObject({
+			id: 8,
+			servings: 5,
+			note: 'Use the large dish'
+		});
+		toast.dismiss();
 	});
 });

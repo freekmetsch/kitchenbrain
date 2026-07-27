@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
 import { addDays, todayIso, weekStartFor } from '$lib/week';
@@ -13,6 +13,110 @@ export class ShoppingMutationError extends Error {
 	) {
 		super(message);
 	}
+}
+
+export function applyRecipeShoppingChoice(
+	db: DB,
+	input: {
+		entryId: number;
+		sourceKey: string;
+		currentWeek: string;
+		name: string;
+		approvedTerms: string[];
+		included: boolean;
+		selectedName: string | null;
+	}
+): void {
+	db.update(schema.shoppingWeekEntries)
+		.set({
+			name: input.name,
+			approvedTerms: input.approvedTerms,
+			included: input.included,
+			selectedName: input.selectedName,
+			revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
+			updatedAt: new Date()
+		})
+		.where(eq(schema.shoppingWeekEntries.id, input.entryId))
+		.run();
+	db.update(schema.shoppingWeekEntries)
+		.set({
+			included: input.included,
+			revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
+			updatedAt: new Date()
+		})
+		.where(
+			and(
+				eq(schema.shoppingWeekEntries.sourceKey, input.sourceKey),
+				gte(schema.shoppingWeekEntries.weekStartDate, input.currentWeek),
+				isNull(schema.shoppingWeekEntries.retiredAt),
+				ne(schema.shoppingWeekEntries.id, input.entryId),
+				ne(schema.shoppingWeekEntries.included, input.included)
+			)
+		)
+		.run();
+}
+
+export type ShoppingPushItemInsert =
+	typeof schema.shoppingPushItems.$inferInsert;
+
+export function createShoppingPushAttempt(
+	db: DB,
+	input: {
+		weekStartDate: string;
+		userId: number;
+		destination: 'order' | 'list';
+		accountName: string | null;
+		createdAt: Date;
+	}
+): number {
+	return db
+		.insert(schema.shoppingPushHistory)
+		.values({
+			...input,
+			attemptStatus: 'pending'
+		})
+		.returning({ id: schema.shoppingPushHistory.id })
+		.get().id;
+}
+
+export function recordShoppingPushOutcome(
+	db: DB,
+	input: {
+		historyId: number;
+		items: ShoppingPushItemInsert[];
+		boughtEntryIds: number[];
+		productsPushed: number;
+		freetextPushed: number;
+		failedCount: number;
+		skippedCount: number;
+		attemptStatus: 'succeeded' | 'failed' | 'uncertain';
+		attemptError: string | null;
+		completedAt: Date;
+	}
+): void {
+	db.insert(schema.shoppingPushItems).values(input.items).run();
+	if (input.boughtEntryIds.length) {
+		db.update(schema.shoppingWeekEntries)
+			.set({
+				bought: true,
+				revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
+				updatedAt: input.completedAt
+			})
+			.where(inArray(schema.shoppingWeekEntries.id, input.boughtEntryIds))
+			.run();
+	}
+	db.update(schema.shoppingPushHistory)
+		.set({
+			productsPushed: input.productsPushed,
+			freetextPushed: input.freetextPushed,
+			failedCount: input.failedCount,
+			skippedCount: input.skippedCount,
+			attemptStatus: input.attemptStatus,
+			attemptError: input.attemptError,
+			completedAt: input.completedAt
+		})
+		.where(eq(schema.shoppingPushHistory.id, input.historyId))
+		.run();
 }
 
 function assertNonpastWeek(weekStart: string, weekStartDay: number, today = todayIso()): void {

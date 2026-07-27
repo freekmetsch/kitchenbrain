@@ -135,4 +135,36 @@ describe('InventoryController', () => {
 		expect(undoBody).toEqual({ item_id: 1 });
 		expect(controller.items.map(({ id }) => id)).toEqual([1, 2]);
 	});
+
+	it('keeps activity and undo request failures recoverable', async () => {
+		const deps = dependencies(vi.fn(async () => {
+			throw new Error('offline');
+		}));
+		const controller = new InventoryController(data([item(1)]), deps);
+
+		await expect(controller.openActivity()).resolves.toBeUndefined();
+		expect(controller.activityLoading).toBe(false);
+		expect(deps.showToast).toHaveBeenLastCalledWith('Could not load activity', {
+			variant: 'error',
+			action: undefined
+		});
+
+		await expect(
+			controller.undoEvent({
+				id: 9,
+				opType: 'update',
+				actorLabel: 'Test',
+				itemId: 1,
+				itemName: 'Item 1',
+				summary: 'Changed quantity',
+				createdAt: Date.now(),
+				isUndo: false,
+				undoable: true
+			})
+		).resolves.toBeUndefined();
+		expect(deps.showToast).toHaveBeenLastCalledWith('Could not undo', {
+			variant: 'error',
+			action: undefined
+		});
+	});
 });

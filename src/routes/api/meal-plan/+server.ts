@@ -11,7 +11,8 @@ const CreateSchema = z.object({
 	recipeSlug: z.string().nullable().optional(),
 	servings: z.number().int().positive().max(99).nullable().optional(),
 	plannedDate: isoDateSchema.nullable().optional(),
-	source: z.enum(['fresh', 'freezer']).optional()
+	source: z.enum(['fresh', 'freezer']).optional(),
+	note: z.string().max(2_000).nullable().optional()
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {

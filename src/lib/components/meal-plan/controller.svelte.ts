@@ -546,8 +546,10 @@ export class MealPlanController {
 						weekStartDate: meal.weekStartDate,
 						dinner: meal.dinner,
 						recipeSlug: meal.recipeSlug,
+						servings: meal.servings,
 						plannedDate: meal.plannedDate,
-						source: meal.source
+						source: meal.source,
+						note: meal.note
 					})
 				});
 				if (response.ok) saved = await response.json();

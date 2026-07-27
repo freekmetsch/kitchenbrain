@@ -29,7 +29,7 @@ import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
 import type { DB, ExecutorFn } from './shared';
 import { NewIngredientSchema } from '$lib/recipe_ingredient';
 import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
-import { generateRecipeEnhancement } from '$lib/server/ai/recipe_enhancement';
+import { generateRecipeEnhancement } from '$lib/server/workflows/recipe-enhancement';
 import {
 	kickCookModeForDb,
 	kickTranslationForDb

@@ -1,7 +1,7 @@
 // Taxonomy guardian sweep (P3.2): deterministic, idempotent pass over active
 // inventory. Fills confidently-inferable facets (recipe-linked -> leftover,
 // known name token -> food class) and flags whatever stays unclassified for
-// the review queue. All writes go through the inventory_writes boundary so
+// the review queue. All writes go through the inventory workflow boundary so
 // every change is logged, attributed to 'pipeline', and undoable — no raw
 // SQL writes here (architectural guard, P1.5).
 import { isNull } from 'drizzle-orm';

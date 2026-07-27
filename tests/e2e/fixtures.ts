@@ -11,11 +11,13 @@ const E2E_WEEK_START_DAY = 2;
 export type KitchenFixture = {
 	account: TestAccountName;
 	inventoryName: string;
+	longInventoryNames: string[];
 	cookRecipeSlug: string;
 	cookRecipeTitle: string;
 	recipeSlug: string;
 	recipeTitle: string;
 	shoppingName: string;
+	longShoppingNames: string[];
 	shoppingAlternative: string;
 	shoppingNameEn: string;
 	shoppingAlternativeEn: string;
@@ -28,11 +30,23 @@ function fixtureForAccount(account: TestAccountName): KitchenFixture {
 	return {
 		account,
 		inventoryName: `E2E ${label} Soup`,
+		longInventoryNames: Array.from(
+			{ length: 6 },
+			(_, index) => `E2E ${label} freezer meal ${index + 1} with a deliberately long name`
+		),
 		cookRecipeSlug: `e2e-${account}-cook-mode`,
 		cookRecipeTitle: `E2E ${label} Cook Mode`,
 		recipeSlug: `e2e-${account}-stew`,
 		recipeTitle: `E2E ${label} Stew`,
 		shoppingName: `E2E ${dutchLabel} tomaten`,
+		longShoppingNames: [
+			'amandelen',
+			'broccoli',
+			'citroenen',
+			'doperwten',
+			'havermout',
+			'paprika'
+		].map((name) => `E2E ${dutchLabel} ${name} met een bewust lange omschrijving`),
 		shoppingAlternative: `E2E ${dutchLabel} tomatenblokjes`,
 		shoppingNameEn: `E2E ${label} Tomatoes`,
 		shoppingAlternativeEn: `E2E ${label} Canned Tomatoes`,
@@ -81,6 +95,16 @@ export function seedKitchenFixtures(databasePath: string): void {
 			@recipeSlug, @recipeTitle, 4, 2, 1, 30,
 			@ingredients, @directions, @directionIds, 'nl', @recipeTitle,
 			@ingredientsEn, @directionsEn, 'ready', @cookModeJson, 0, 0, 0, 0, @now, @now
+		)
+	`);
+	const insertManualShoppingEntry = sqlite.prepare(`
+		INSERT INTO shopping_week_entries (
+			week_start_date, source_key, source_kind, name, amount, unit,
+			meal_ids, approved_terms, included, bought, needs_review, revision,
+			created_at, updated_at
+		) VALUES (
+			@weekStart, @sourceKey, 'manual', @name, '1', 'piece',
+			'[]', @approvedTerms, 1, 0, 0, 1, @now, @now
 		)
 	`);
 	const insertMeal = sqlite.prepare(`
@@ -161,6 +185,18 @@ export function seedKitchenFixtures(databasePath: string): void {
 				]
 			};
 			insertInventory.run({ inventoryName: fixture.inventoryName, now });
+			for (const inventoryName of fixture.longInventoryNames) {
+				insertInventory.run({ inventoryName, now });
+			}
+			fixture.longShoppingNames.forEach((name, shoppingIndex) => {
+				insertManualShoppingEntry.run({
+					weekStart: fixture.weekStart,
+					sourceKey: `manual:e2e:${fixture.account}:${shoppingIndex}`,
+					name,
+					approvedTerms: JSON.stringify([name]),
+					now
+				});
+			});
 			insertRecipe.run({
 				recipeSlug: fixture.recipeSlug,
 				recipeTitle: fixture.recipeTitle,

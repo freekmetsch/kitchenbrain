@@ -819,35 +819,42 @@ export class InventoryController {
 				`${base}/api/inventory/history?limit=50`
 			);
 			if (response.ok) this.activityEvents = (await response.json()).events;
+			else this.flashToast(m.inventory_toast_activity_failed(), { error: true });
+		} catch {
+			this.flashToast(m.inventory_toast_activity_failed(), { error: true });
 		} finally {
 			this.activityLoading = false;
 		}
 	}
 
 	async undoEvent(event: HistoryEvent): Promise<void> {
-		const response = await this.dependencies.fetch(`${base}/api/inventory/undo`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ op_id: event.id })
-		});
-		if (response.status === 409) {
-			if (event.itemId) {
-				const local = this.items.find((item) => item.id === event.itemId);
-				if (local) {
-					local.needsReview = true;
-					local.reviewReason = 'undo_conflict';
+		try {
+			const response = await this.dependencies.fetch(`${base}/api/inventory/undo`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ op_id: event.id })
+			});
+			if (response.status === 409) {
+				if (event.itemId) {
+					const local = this.items.find((item) => item.id === event.itemId);
+					if (local) {
+						local.needsReview = true;
+						local.reviewReason = 'undo_conflict';
+					}
 				}
+				this.flashToast(m.inventory_toast_undo_conflict());
+			} else if (!response.ok) {
+				this.flashToast(m.inventory_toast_undo_failed(), { error: true });
+			} else {
+				const { item } = await response.json();
+				this.reconcileItem(item);
 			}
-			this.flashToast(m.inventory_toast_undo_conflict());
-		} else if (!response.ok) {
+			if (this.activityOpen) await this.openActivity();
+			if (event.itemId && this.historyByItem[event.itemId]) {
+				await this.loadItemHistory(event.itemId);
+			}
+		} catch {
 			this.flashToast(m.inventory_toast_undo_failed(), { error: true });
-		} else {
-			const { item } = await response.json();
-			this.reconcileItem(item);
-		}
-		if (this.activityOpen) await this.openActivity();
-		if (event.itemId && this.historyByItem[event.itemId]) {
-			await this.loadItemHistory(event.itemId);
 		}
 	}
 
