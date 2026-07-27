@@ -14,15 +14,38 @@ import { createAhPreviewToken, isAhEligibleShoppingRow } from '$lib/server/ah/pr
 import { initializeShoppingSourceData, materializeShoppingWeek } from '$lib/server/shopping_entries';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 
-function toPreviewProduct(product: AHProduct, amount: string | null, unit: string | null): PreviewProduct {
+function toPreviewProduct(
+	product: AHProduct,
+	amount: string | null,
+	unit: string | null,
+	incompatibleQuantities: boolean
+): PreviewProduct {
 	const unitPrice = effectiveUnitPrice(product);
 	return {
 		id: product.id, name: product.name, price: product.currentPrice ?? product.priceBeforeBonus,
 		regularPrice: product.priceBeforeBonus, isBonus: product.isBonus, bonusMechanism: product.bonusMechanism,
 		salesUnitSize: product.salesUnitSize, unitPrice: unitPrice ? `€${unitPrice.value.toFixed(2)}/${unitPrice.basis}` : null,
 		imageUrl: product.imageUrl, isPreviouslyBought: product.isPreviouslyBought,
-		qty: deriveQuantity(amount, unit, product.salesUnitSize), pricePerCount: pricePerCount(product)
+		qty: incompatibleQuantities ? null : deriveQuantity(amount, unit, product.salesUnitSize),
+		pricePerCount: pricePerCount(product)
 	};
+}
+
+function quantitySources(row: ReturnType<typeof getShoppingWeekView>['toBuy'][number]) {
+	return row.sources.map((source) => ({
+		name: source.name,
+		amount: source.amount,
+		unit: source.unit,
+		recipeTitle: source.recipeTitle
+	}));
+}
+
+function quantitySummary(row: ReturnType<typeof getShoppingWeekView>['toBuy'][number]): string | null {
+	if (!row.incompatibleQuantities) return null;
+	const parts = row.sources
+		.map((source) => [source.amount, source.unit].filter(Boolean).join(' '))
+		.filter(Boolean);
+	return parts.length ? parts.join(' + ') : null;
 }
 
 const BodySchema = z.object({
@@ -63,10 +86,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const ref = `entries:${[...row.entryIds].sort((a, b) => a - b).join(',')}`;
 		const purchaseForm = row.sources.find((source) => source.purchaseForm)?.purchaseForm;
 		const { outcome, used } = await searchWithFallback(row.name);
-		if (!outcome.ok) return { ref, sourceName: row.name, term: row.name, amount: row.amount, unit: row.unit, purchaseForm, status: 'unknown', candidates: [], lowConfidence: false };
-		if (!outcome.products.length) return { ref, sourceName: row.name, term: row.name, amount: row.amount, unit: row.unit, purchaseForm, status: 'freetext', candidates: [], lowConfidence: false };
+		const sourceAmounts = quantitySources(row);
+		if (!outcome.ok) return { ref, sourceName: row.name, term: row.name, amount: row.amount, unit: row.unit, incompatibleQuantities: row.incompatibleQuantities, quantitySources: sourceAmounts, purchaseForm, status: 'unknown', candidates: [], lowConfidence: false };
+		if (!outcome.products.length) return { ref, sourceName: row.name, term: row.name, amount: row.amount, unit: row.unit, incompatibleQuantities: row.incompatibleQuantities, quantitySources: sourceAmounts, purchaseForm, status: 'freetext', candidates: [], lowConfidence: false };
 		const { ranked, lowConfidence } = rankProducts(used, outcome.products, purchaseForm);
-		return { ref, sourceName: row.name, term: row.name, amount: row.amount, unit: row.unit, purchaseForm, status: 'product', candidates: ranked.slice(0, DEFAULT_CANDIDATES).map((product) => toPreviewProduct(product, row.amount, row.unit)), lowConfidence };
+		return { ref, sourceName: row.name, term: row.name, amount: row.amount, unit: row.unit, incompatibleQuantities: row.incompatibleQuantities, quantitySources: sourceAmounts, purchaseForm, status: 'product', candidates: ranked.slice(0, DEFAULT_CANDIDATES).map((product) => toPreviewProduct(product, row.amount, row.unit, row.incompatibleQuantities)), lowConfidence };
 	}));
 
 	const missingFavorites: { item: PreviewItem; productId: string }[] = [];
@@ -85,7 +109,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		for (const { item, productId } of missingFavorites) {
 			const product = fetched.get(productId);
 			if (!product) continue;
-			item.candidates.unshift({ ...toPreviewProduct(product, item.amount, item.unit), isFavorite: true });
+			item.candidates.unshift({ ...toPreviewProduct(product, item.amount, item.unit, item.incompatibleQuantities), isFavorite: true });
 			item.status = 'product';
 			item.lowConfidence = false;
 		}
@@ -105,7 +129,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		weekStart: body.weekStart,
 		items: items.map((item) => {
 			const row = byRef.get(item.ref)!;
-			return { ref: item.ref, entryIds: row.entryIds, entryRevisions: row.sources.map((source) => source.revision), term: item.term, amount: item.amount, unit: item.unit, offeredProducts: item.candidates.map((candidate) => ({ id: candidate.id, name: candidate.name })) };
+			return {
+				ref: item.ref,
+				entryIds: row.entryIds,
+				entryRevisions: row.sources.map((source) => source.revision),
+				term: item.term,
+				amount: item.amount,
+				unit: item.unit,
+				incompatibleQuantities: item.incompatibleQuantities,
+				quantitySummary: quantitySummary(row),
+				offeredProducts: item.candidates.map((candidate) => ({ id: candidate.id, name: candidate.name }))
+			};
 		})
 	});
 	return json({ ok: true, previewToken, items });

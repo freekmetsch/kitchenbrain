@@ -24,11 +24,8 @@
 
 	let pending = $derived(items.filter((item) => !item.bought));
 	let done = $derived(items.filter((item) => item.bought));
-	let covered = $derived(pending.filter((item) => item.covered));
 	let visibleToBuyCount = $derived(pending.filter((item) => !item.covered).length);
 	let totalRunCount = $derived(visibleToBuyCount + done.length);
-	let recurringCount = $derived(data.recurring.filter((item) => item.included).length);
-	let mealCount = $derived(new Set(data.sources.flatMap((source) => source.mealNames)).size);
 	let emptyState = $derived(data.emptyState === 'no_meals' ? ('no_meals' as const) : ('nothing_needed' as const));
 
 	$effect(() => {
@@ -150,8 +147,6 @@
 				recurring={data.recurring}
 				legacy={data.legacy}
 				{emptyState}
-				coveredCount={covered.length}
-				{visibleToBuyCount}
 				bind:showCovered
 				{bonusByName}
 				onToggleBought={toggleBought}
@@ -228,19 +223,6 @@
 					</div>
 				</section>
 
-				<section class="market-side-card">
-					<header><strong>{m.shopping_run_context()}</strong><span>{m.shopping_recipe_references_count({ count: mealCount })}</span></header>
-					<div>
-						<div class="market-side-stats">
-							<span><strong>{visibleToBuyCount}</strong>{m.shopping_left_to_buy_label()}</span>
-							<span><strong>{done.length}</strong>{m.shopping_basket_label()}</span>
-						</div>
-						<ul>
-							<li><Icon name="check" /> {m.shopping_covered_by_stock({ count: covered.length })}</li>
-							<li><Icon name="clock" /> {m.shopping_recurring_basics({ count: recurringCount })}</li>
-						</ul>
-					</div>
-				</section>
 			</div>
 
 			<PushHistory pushHistory={data.pushHistory} compact />
@@ -317,10 +299,6 @@
 		box-shadow: 0 6px 18px rgb(48 75 58 / 5%);
 	}
 
-	.market-side-card + .market-side-card {
-		margin-top: 0.65rem;
-	}
-
 	.market-side-card > header {
 		display: flex;
 		min-height: 2.75rem;
@@ -370,55 +348,6 @@
 	.market-side-action:disabled {
 		background: var(--color-base-200);
 		color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
-	}
-
-	.market-side-stats {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.5rem;
-	}
-
-	.market-side-stats span {
-		display: grid;
-		min-height: 3.25rem;
-		align-content: center;
-		border-radius: 0.65rem;
-		padding: 0.55rem 0.65rem;
-		background: var(--market-paper);
-		color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
-		font-size: 0.58rem;
-	}
-
-	.market-side-stats strong {
-		color: var(--color-base-content);
-		font-family: Georgia, 'Times New Roman', serif;
-		font-size: 1.25rem;
-		font-weight: 500;
-		line-height: 1;
-	}
-
-	.market-side-card ul {
-		margin-top: 0.55rem;
-	}
-
-	.market-side-card li {
-		display: flex;
-		min-height: 2rem;
-		align-items: center;
-		gap: 0.4rem;
-		border-bottom: 1px solid var(--color-base-200);
-		color: color-mix(in oklab, var(--color-base-content) 74%, transparent);
-		font-size: 0.65rem;
-	}
-
-	.market-side-card li:last-child {
-		border-bottom: 0;
-	}
-
-	.market-side-card li :global(svg) {
-		width: 0.85rem;
-		height: 0.85rem;
-		color: var(--market-olive);
 	}
 
 	.shopping-market-dock {

@@ -237,3 +237,7 @@ docs/artifacts/archive/2026-07-25-plan-kitchen-visual-system-completion.html
 
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
+
+## 2026-07-27 09:59 archive-scan | 1 feature lists, 0 HTMLs archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md

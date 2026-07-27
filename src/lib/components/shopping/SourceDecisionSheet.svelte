@@ -38,12 +38,16 @@
 	}
 </script>
 
-<BottomSheet bind:open title={m.shopping_source_title()} desktopSide>
+<BottomSheet bind:open title={m.shopping_edit_rule()} desktopSide>
 	{#if source}
 		<div class="space-y-4">
-			<div>
+			<div class="rounded-xl bg-base-200/70 p-3">
 				<p class="font-semibold">{source.name}</p>
-				{#if source.recipeTitle}<p class="text-sm text-base-content/60">{source.recipeTitle}</p>{/if}
+				{#if source.recipeTitle}
+					<p class="text-sm text-base-content/60">
+						{[source.recipeTitle, source.component].filter(Boolean).join(' · ')}
+					</p>
+				{/if}
 			</div>
 			<fieldset>
 				<legend class="mb-2 text-sm font-semibold">{m.shopping_need_label()}</legend>
@@ -69,8 +73,8 @@
 				</label>
 			{/if}
 			<div class="flex justify-end gap-2">
-				<button type="button" class="btn btn-ghost" disabled={pending} onclick={() => (open = false)}>{m.shopping_cancel_button()}</button>
-				<button type="button" class="btn btn-primary" disabled={pending} onclick={() => void save()}>{m.shopping_save_choice()}</button>
+				<button type="button" class="btn btn-ghost min-h-11" disabled={pending} onclick={() => (open = false)}>{m.shopping_cancel_button()}</button>
+				<button type="button" class="btn btn-primary min-h-11" disabled={pending} onclick={() => void save()}>{m.shopping_save_choice()}</button>
 			</div>
 		</div>
 	{/if}

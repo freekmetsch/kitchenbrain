@@ -40,6 +40,18 @@ describe('AH preview tokens', () => {
 		expect(AhPushBodySchema.safeParse({ previewToken: 'x'.repeat(24), decisions: [{ ref: item.ref, mode: 'product', productId: 'ah-1', qty: 100 }] }).success).toBe(false);
 	});
 
+	it('requires explicit pack confirmation for incompatible source quantities', () => {
+		const incompatible = { ...item, incompatibleQuantities: true };
+		expect(() => bindAhPushDecisions(
+			[incompatible],
+			[{ ref: item.ref, mode: 'product', productId: 'ah-1', qty: 1 }]
+		)).toThrow(/Confirm the pack quantity/);
+		expect(() => bindAhPushDecisions(
+			[incompatible],
+			[{ ref: item.ref, mode: 'product', productId: 'ah-1', qty: 1, quantityConfirmed: true }]
+		)).not.toThrow();
+	});
+
 	it('rejects client copies of every server-owned item field', () => {
 		for (const field of ['term', 'amount', 'unit', 'sourceName', 'productName', 'entryIds', 'entryRevisions', 'weekStart']) {
 			const parsed = AhPushBodySchema.safeParse({

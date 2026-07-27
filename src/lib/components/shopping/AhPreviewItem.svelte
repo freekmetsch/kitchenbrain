@@ -21,6 +21,7 @@
 		onToggleExclude: () => void;
 		onPickProduct: (idx: number) => void;
 		onQuantityChange: (qty: number) => void;
+		onQuantityConfirm: () => void;
 		onToggleFavorite: (cand: PreviewItem['candidates'][number], idx: number) => void;
 		onDemoteToText: () => void;
 		onToggleExpanded: () => void;
@@ -33,6 +34,7 @@
 		onToggleExclude,
 		onPickProduct,
 		onQuantityChange,
+		onQuantityConfirm,
 		onToggleFavorite,
 		onDemoteToText,
 		onToggleExpanded
@@ -62,6 +64,19 @@
 			{mode === 'exclude' ? m.shopping_ah_undo_button() : m.shopping_ah_skip_button()}
 		</button>
 	</div>
+	{#if item.incompatibleQuantities}
+		<div class="mt-2 rounded-xl border border-warning/30 bg-warning/10 px-2.5 py-2">
+			<p class="text-xs text-base-content/75">{m.shopping_ah_quantity_review()}</p>
+			<ul class="mt-1 space-y-0.5 text-xs" aria-label={m.shopping_quantity_sources_label()}>
+				{#each item.quantitySources as source}
+					<li>
+						<strong>{itemLabel(source) || source.name}</strong>
+						{#if source.recipeTitle}<span class="text-base-content/60"> · {source.recipeTitle}</span>{/if}
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 
 	{#if mode === 'exclude'}
 		<!-- Dimmed row + "Undo" button carry the skipped state; no explainer needed. -->
@@ -75,7 +90,7 @@
 				<div class="text-xs text-base-content/50">
 					{#if sel.salesUnitSize}{sel.salesUnitSize}{/if}
 					{#if sel.unitPrice}<span> · {sel.unitPrice}</span>{/if}
-					{#if sel.qty > 1}<span class="text-base-content/70"> · x{sel.qty}</span>{/if}
+					{#if sel.qty != null && sel.qty > 1}<span class="text-base-content/70"> · x{sel.qty}</span>{/if}
 					{#if sel.isPreviouslyBought}<span class="ml-1 text-success">· {m.shopping_ah_bought_before()}</span>{/if}
 				</div>
 			</div>
@@ -101,6 +116,11 @@
 				<button type="button" class="btn join-item h-11 min-h-11 w-11 p-0" disabled={(dec?.qty ?? 1) >= 99} onclick={() => onQuantityChange((dec?.qty ?? 1) + 1)}>+</button>
 			</div>
 		</div>
+		{#if item.incompatibleQuantities && !dec?.quantityConfirmed}
+			<button type="button" class="btn btn-warning btn-outline mt-2 min-h-11 w-full" onclick={onQuantityConfirm}>
+				{m.shopping_ah_confirm_pack_quantity({ count: dec?.qty ?? 1 })}
+			</button>
+		{/if}
 		{#if sel.pricePerCount != null}
 			<p class="mt-1 text-right text-xs text-base-content/55">{m.shopping_ah_price_per_count({ price: formatPrice(sel.pricePerCount) })}</p>
 		{/if}

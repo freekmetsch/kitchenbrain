@@ -1,5 +1,5 @@
 <!--
-	Source-owned one-off item form. The Market Run page opens it from the fixed
+	Source-owned one-off item form. The Shopping page opens it from the fixed
 	action dock; drafts stay in this component and survive a failed write.
 -->
 <script lang="ts">

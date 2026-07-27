@@ -19,8 +19,8 @@ export type PreviewProduct = {
 	unitPrice: string | null;
 	imageUrl: string | null;
 	isPreviouslyBought: boolean;
-	/** Suggested pack quantity for this candidate, derived from item amount vs this product's salesUnitSize. */
-	qty: number;
+	/** Suggested pack quantity when the row has one compatible aggregate; null requires household review. */
+	qty: number | null;
 	/** Total pack price divided by a known count (eggs, buns, wraps, etc.). */
 	pricePerCount: number | null;
 	/** Household favorite for this ingredient name — pinned to the top, wins over ranking and the AI pick. */
@@ -43,6 +43,13 @@ export type PreviewItem = {
 	term: string;
 	amount: string | null;
 	unit: string | null;
+	incompatibleQuantities: boolean;
+	quantitySources: Array<{
+		name: string;
+		amount: string | null;
+		unit: string | null;
+		recipeTitle: string | null;
+	}>;
 	purchaseForm?: 'fresh' | 'preserved' | 'frozen' | 'dried' | 'any';
 	status: PreviewStatus;
 	/** Ranked candidates for status 'product' (top-10 batch, up to 24 on re-search); empty otherwise. */

@@ -25,208 +25,185 @@
 	};
 
 	let { items, onAdd, onEdit, onSkip, onDisable }: Props = $props();
+	let open = $state(false);
+	let view = $state<'list' | 'add' | 'edit' | 'actions'>('list');
+	let selected = $state<Recurring | null>(null);
 	let name = $state('');
 	let amount = $state('');
 	let unit = $state('');
-	let editName = $state('');
-	let editAmount = $state('');
-	let editUnit = $state('');
-	let addOpen = $state(false);
-	let editOpen = $state(false);
-	let actionItem = $state<Recurring | null>(null);
-	let actionOpen = $state(false);
 	let pending = $state(false);
-	let addNameInput = $state<HTMLInputElement>();
-	let editNameInput = $state<HTMLInputElement>();
-	let openEditAfterAction = false;
+	let nameInput = $state<HTMLInputElement>();
 
-	async function openAdd() {
-		addOpen = true;
+	function resetFields(item?: Recurring) {
+		name = item?.name ?? '';
+		amount = item?.amount ?? '';
+		unit = item?.unit ?? '';
+	}
+
+	async function focusName() {
 		await tick();
-		addNameInput?.focus();
+		nameInput?.focus();
 	}
 
-	function startEdit(item: Recurring) {
-		editName = item.name;
-		editAmount = item.amount ?? '';
-		editUnit = item.unit ?? '';
-		openEditAfterAction = true;
-		actionOpen = false;
-	}
-
-	async function handleActionClose() {
-		if (!openEditAfterAction) {
-			actionItem = null;
-			return;
-		}
-		openEditAfterAction = false;
-		editOpen = true;
+	export async function openManager() {
+		selected = null;
+		view = 'list';
+		open = true;
 		await tick();
-		editNameInput?.focus();
 	}
 
-	async function addRecurring() {
+	async function showAdd() {
+		selected = null;
+		resetFields();
+		view = 'add';
+		await focusName();
+	}
+
+	async function showEdit(item: Recurring) {
+		selected = item;
+		resetFields(item);
+		view = 'edit';
+		await focusName();
+	}
+
+	function showActions(item: Recurring) {
+		selected = item;
+		view = 'actions';
+	}
+
+	async function save() {
 		if (!name.trim() || pending) return;
 		pending = true;
-		const saved = await onAdd({
+		const input = {
 			name: name.trim(),
 			amount: amount.trim() || null,
 			unit: unit.trim() || null
-		});
+		};
+		const saved = view === 'edit' && selected
+			? await onEdit(selected, input)
+			: await onAdd(input);
 		pending = false;
-		if (!saved) return;
-		name = '';
-		amount = '';
-		unit = '';
-		addOpen = false;
-	}
-
-	async function editRecurring() {
-		if (!actionItem || !editName.trim() || pending) return;
-		pending = true;
-		const saved = await onEdit(actionItem, {
-			name: editName.trim(),
-			amount: editAmount.trim() || null,
-			unit: editUnit.trim() || null
-		});
-		pending = false;
-		if (!saved) return;
-		editOpen = false;
-		actionItem = null;
+		if (saved) view = 'list';
 	}
 
 	async function runAction(action: 'skip' | 'disable') {
-		if (!actionItem || pending) return;
+		if (!selected || pending) return;
 		pending = true;
-		const saved = await (action === 'skip' ? onSkip(actionItem) : onDisable(actionItem));
+		const saved = await (action === 'skip' ? onSkip(selected) : onDisable(selected));
 		pending = false;
-		if (saved) actionOpen = false;
+		if (saved) {
+			selected = null;
+			view = 'list';
+		}
 	}
 </script>
 
-<button type="button" class="market-weekly-add" onclick={() => void openAdd()}>
-	<Icon name="plus" />
-	{m.shopping_recurring_add()}
+<button type="button" class="shopping-manager-trigger" onclick={() => void openManager()}>
+	<Icon name="clock" />
+	{m.shopping_manage_weekly_items()}
 </button>
 
-{#if items.length}
-	<ul class="market-weekly-list">
-		{#each items as item (item.id)}
-			<li>
-				<div>
-					<p>{item.name}</p>
-					{#if item.amount || item.unit}
-						<span>{[item.amount, item.unit].filter(Boolean).join(' ')}</span>
-					{/if}
-				</div>
-				<button
-					type="button"
-					aria-label={m.shopping_recurring_actions_aria({ name: item.name })}
-					onclick={() => {
-						actionItem = item;
-						actionOpen = true;
-					}}
-				>
-					{m.shopping_recurring_manage()}
-				</button>
-			</li>
-		{/each}
-	</ul>
-{:else}
-	<div class="market-weekly-empty">{m.shopping_recurring_empty()}</div>
-{/if}
-
-<BottomSheet bind:open={addOpen} title={m.shopping_recurring_add()} desktopSide>
-	<form
-		onsubmit={(event) => {
-			event.preventDefault();
-			void addRecurring();
-		}}
-	>
-		<div class="market-weekly-fields">
-			<label>
-				{m.shopping_recurring_name()}
-				<input bind:this={addNameInput} class="input min-h-11" required maxlength="256" disabled={pending} bind:value={name} />
-			</label>
-			<label>
-				{m.shopping_recurring_amount()}
-				<input class="input min-h-11" maxlength="64" disabled={pending} bind:value={amount} />
-			</label>
-			<label>
-				{m.shopping_recurring_unit()}
-				<input class="input min-h-11" maxlength="64" disabled={pending} bind:value={unit} />
-			</label>
-		</div>
-		<div class="mt-4 flex justify-end gap-2">
-			<button type="button" class="btn btn-ghost min-h-11" disabled={pending} onclick={() => (addOpen = false)}>
-				{m.shopping_cancel_button()}
-			</button>
-			<button type="submit" class="btn btn-primary min-h-11" disabled={pending || !name.trim()}>
-				{pending ? m.shopping_saving_label() : m.shopping_recurring_add()}
-			</button>
-		</div>
-	</form>
-</BottomSheet>
-
-<BottomSheet bind:open={editOpen} title={actionItem?.name} desktopSide>
-	{#if actionItem}
+<BottomSheet
+	bind:open
+	title={m.shopping_manage_weekly_items()}
+	desktopSide
+	dismissible={!pending}
+	onclose={() => {
+		if (!open) {
+			selected = null;
+			view = 'list';
+		}
+	}}
+>
+	{#if view === 'list'}
+		<button type="button" class="weekly-add" onclick={() => void showAdd()}>
+			<Icon name="plus" />
+			{m.shopping_recurring_add()}
+		</button>
+		{#if items.length}
+			<ul class="weekly-list">
+				{#each items as item (item.id)}
+					<li>
+						<div>
+							<strong>{item.name}</strong>
+							{#if item.amount || item.unit}
+								<span>{[item.amount, item.unit].filter(Boolean).join(' ')}</span>
+							{/if}
+						</div>
+						<button
+							type="button"
+							aria-label={m.shopping_recurring_actions_aria({ name: item.name })}
+							onclick={() => showActions(item)}
+						>
+							{m.shopping_recurring_manage()}
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="weekly-empty">{m.shopping_recurring_empty()}</p>
+		{/if}
+	{:else if view === 'add' || view === 'edit'}
 		<form
 			onsubmit={(event) => {
 				event.preventDefault();
-				void editRecurring();
+				void save();
 			}}
 		>
-			<div class="market-weekly-fields">
+			<button type="button" class="weekly-back" disabled={pending} onclick={() => (view = 'list')}>
+				<Icon name="chevronLeft" />
+				{m.shopping_back_to_list()}
+			</button>
+			<div class="weekly-fields">
 				<label>
 					{m.shopping_recurring_name()}
-					<input bind:this={editNameInput} class="input min-h-11" required disabled={pending} bind:value={editName} />
+					<input bind:this={nameInput} class="input min-h-11" required maxlength="256" disabled={pending} bind:value={name} />
 				</label>
 				<label>
 					{m.shopping_recurring_amount()}
-					<input class="input min-h-11" disabled={pending} bind:value={editAmount} />
+					<input class="input min-h-11" maxlength="64" disabled={pending} bind:value={amount} />
 				</label>
 				<label>
 					{m.shopping_recurring_unit()}
-					<input class="input min-h-11" disabled={pending} bind:value={editUnit} />
+					<input class="input min-h-11" maxlength="64" disabled={pending} bind:value={unit} />
 				</label>
 			</div>
 			<div class="mt-4 flex justify-end gap-2">
-				<button type="button" class="btn btn-ghost min-h-11" disabled={pending} onclick={() => (editOpen = false)}>
+				<button type="button" class="btn btn-ghost min-h-11" disabled={pending} onclick={() => (view = 'list')}>
 					{m.shopping_cancel_button()}
 				</button>
-				<button type="submit" class="btn btn-primary min-h-11" disabled={pending || !editName.trim()}>
-					{pending ? m.shopping_saving_label() : m.shopping_save_choice()}
+				<button type="submit" class="btn btn-primary min-h-11" disabled={pending || !name.trim()}>
+					{pending
+						? m.shopping_saving_label()
+						: view === 'add'
+							? m.shopping_recurring_add()
+							: m.shopping_save_choice()}
 				</button>
 			</div>
 		</form>
-	{/if}
-</BottomSheet>
-
-<BottomSheet bind:open={actionOpen} title={actionItem?.name} onclose={handleActionClose} desktopSide>
-	{#if actionItem}
-		<div class="grid gap-1">
+	{:else if selected}
+		<button type="button" class="weekly-back" disabled={pending} onclick={() => (view = 'list')}>
+			<Icon name="chevronLeft" />
+			{m.shopping_back_to_list()}
+		</button>
+		<div class="weekly-action-heading">
+			<strong>{selected.name}</strong>
+			{#if selected.amount || selected.unit}
+				<span>{[selected.amount, selected.unit].filter(Boolean).join(' ')}</span>
+			{/if}
+		</div>
+		<div class="weekly-actions">
 			<button
 				type="button"
-				class="btn btn-ghost min-h-11 justify-start"
-				disabled={pending || !actionItem.entryId || !actionItem.included}
+				disabled={pending || !selected.entryId || !selected.included}
 				onclick={() => void runAction('skip')}
 			>
 				{m.shopping_recurring_skip()}
 			</button>
-			<button
-				type="button"
-				class="btn btn-ghost min-h-11 justify-start"
-				disabled={pending}
-				onclick={() => startEdit(actionItem!)}
-			>
+			<button type="button" disabled={pending} onclick={() => void showEdit(selected!)}>
 				{m.shopping_recurring_edit()}
 			</button>
-			<button
-				type="button"
-				class="btn btn-ghost min-h-11 justify-start text-error"
-				disabled={pending}
-				onclick={() => void runAction('disable')}
-			>
+			<button class="danger" type="button" disabled={pending} onclick={() => void runAction('disable')}>
 				{m.shopping_recurring_disable()}
 			</button>
 		</div>
@@ -234,86 +211,112 @@
 </BottomSheet>
 
 <style>
-	.market-weekly-add {
-		display: flex;
-		width: 100%;
+	.shopping-manager-trigger,
+	.weekly-add,
+	.weekly-back {
+		display: inline-flex;
 		min-height: 2.75rem;
 		align-items: center;
 		gap: 0.45rem;
-		margin-bottom: 0.55rem;
-		border: 1px dashed color-mix(in oklab, var(--market-olive, #304b3a) 30%, var(--color-base-300));
-		border-radius: 0.75rem;
+		border-radius: 0.7rem;
 		padding: 0 0.75rem;
-		background: color-mix(in oklab, var(--color-base-100) 76%, transparent);
-		color: var(--market-olive-ink, #304b3a);
 		font-size: 0.72rem;
 		font-weight: 750;
 	}
 
-	.market-weekly-list {
-		overflow: hidden;
-		margin: 0;
-		padding: 0;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 18%, var(--color-base-300));
-		border-radius: 0.85rem;
+	.shopping-manager-trigger {
+		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 24%, var(--color-base-300));
 		background: var(--color-base-100);
-		box-shadow: 0 6px 18px rgb(48 75 58 / 5%);
-		list-style: none;
+		color: var(--market-olive-ink, #304b3a);
 	}
 
-	.market-weekly-list li {
+	.shopping-manager-trigger :global(svg),
+	.weekly-add :global(svg),
+	.weekly-back :global(svg) {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.weekly-add {
+		width: 100%;
+		justify-content: flex-start;
+		border: 1px dashed color-mix(in oklab, var(--market-olive, #304b3a) 30%, var(--color-base-300));
+		background: color-mix(in oklab, var(--color-base-100) 76%, transparent);
+		color: var(--market-olive-ink, #304b3a);
+	}
+
+	.weekly-list {
+		overflow: hidden;
+		margin-top: 0.65rem;
+		border: 1px solid var(--color-base-300);
+		border-radius: 0.85rem;
+	}
+
+	.weekly-list li {
 		display: flex;
-		min-height: 4rem;
+		min-height: 3.5rem;
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.75rem;
 		border-bottom: 1px solid var(--color-base-200);
-		padding: 0.55rem 0.65rem 0.55rem 0.8rem;
+		padding: 0.45rem 0.55rem 0.45rem 0.75rem;
 	}
 
-	.market-weekly-list li:last-child {
+	.weekly-list li:last-child {
 		border-bottom: 0;
 	}
 
-	.market-weekly-list p {
-		font-size: 0.78rem;
-		font-weight: 700;
+	.weekly-list div,
+	.weekly-action-heading {
+		min-width: 0;
 	}
 
-	.market-weekly-list span {
+	.weekly-list strong,
+	.weekly-action-heading strong {
 		display: block;
-		margin-top: 0.15rem;
-		color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
-		font-size: 0.65rem;
+		font-size: 0.78rem;
 	}
 
-	.market-weekly-list li > button {
-		min-height: 2.75rem;
-		border: 1px solid var(--color-base-300);
-		border-radius: 0.6rem;
-		padding: 0 0.7rem;
-		color: var(--market-olive-ink, #304b3a);
+	.weekly-list span,
+	.weekly-action-heading span {
+		display: block;
+		margin-top: 0.1rem;
+		color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
 		font-size: 0.68rem;
+	}
+
+	.weekly-list li > button {
+		min-height: 2.75rem;
+		flex: 0 0 auto;
+		border-radius: 0.6rem;
+		padding: 0 0.65rem;
+		color: var(--market-olive-ink, #304b3a);
+		font-size: 0.7rem;
 		font-weight: 750;
 	}
 
-	.market-weekly-empty {
+	.weekly-empty {
+		margin-top: 0.65rem;
 		border: 1px dashed var(--color-base-300);
 		border-radius: 0.8rem;
-		padding: 2rem 1rem;
-		background: color-mix(in oklab, var(--color-base-100) 70%, transparent);
-		color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+		padding: 1.5rem 1rem;
+		color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
 		font-size: 0.75rem;
 		text-align: center;
 	}
 
-	.market-weekly-fields {
+	.weekly-back {
+		margin: -0.4rem 0 0.65rem -0.5rem;
+		color: var(--market-olive-ink, #304b3a);
+	}
+
+	.weekly-fields {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) 5.5rem 4.75rem;
 		gap: 0.5rem;
 	}
 
-	.market-weekly-fields label {
+	.weekly-fields label {
 		display: grid;
 		min-width: 0;
 		gap: 0.25rem;
@@ -321,13 +324,48 @@
 		font-weight: 700;
 	}
 
-	.market-weekly-fields input {
+	.weekly-fields input {
 		min-width: 0;
 	}
 
+	.weekly-action-heading {
+		border-radius: 0.75rem;
+		padding: 0.75rem;
+		background: var(--color-base-200);
+	}
+
+	.weekly-actions {
+		display: grid;
+		gap: 0.2rem;
+		margin-top: 0.55rem;
+	}
+
+	.weekly-actions button {
+		min-height: 2.75rem;
+		border-radius: 0.65rem;
+		padding: 0 0.75rem;
+		text-align: left;
+		font-size: 0.75rem;
+		font-weight: 700;
+	}
+
+	.weekly-actions button:hover,
+	.weekly-actions button:focus-visible {
+		background: var(--color-base-200);
+	}
+
+	.weekly-actions .danger {
+		color: var(--color-error);
+	}
+
 	@media (max-width: 20rem) {
-		.market-weekly-fields {
+		.weekly-fields {
 			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.shopping-manager-trigger {
+			width: 100%;
+			justify-content: center;
 		}
 	}
 </style>

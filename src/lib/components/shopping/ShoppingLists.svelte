@@ -3,9 +3,18 @@
 	import { tick, type Snippet } from 'svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
-	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import {
+		getShoppingFilterOptions,
+		groupShoppingItems,
+		nextVisibleShoppingKey,
+		projectShoppingStates,
+		shoppingItemKey,
+		type ShoppingListFilter,
+		type ShoppingListSort,
+		type StoreRouteSection
+	} from '$lib/shopping_list_view';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { itemLabel, sourceContextLabels } from './format';
 	import type { ShoppingListItem, ShoppingListSource } from './types';
@@ -41,8 +50,6 @@
 		legacy: Legacy[];
 		notices?: Snippet;
 		emptyState: 'no_meals' | 'nothing_needed';
-		coveredCount: number;
-		visibleToBuyCount: number;
 		showCovered: boolean;
 		bonusByName: Record<string, boolean>;
 		onToggleBought: (item: ShoppingListItem) => Promise<boolean>;
@@ -78,8 +85,6 @@
 		legacy,
 		notices,
 		emptyState,
-		coveredCount,
-		visibleToBuyCount,
 		showCovered = $bindable(),
 		bonusByName,
 		onToggleBought,
@@ -93,52 +98,115 @@
 		onResolveLegacy
 	}: Props = $props();
 
-	let tab = $state<'buy' | 'meals' | 'weekly'>('buy');
+	let filter = $state<ShoppingListFilter>({ kind: 'all' });
+	let sort = $state<ShoppingListSort>('list');
 	let sourceSheetOpen = $state(false);
 	let selectedSource = $state<ShoppingListSource | null>(null);
 	let itemActionOpen = $state(false);
-	let selectedManualItem = $state<ShoppingListItem | null>(null);
-	let selectedManualSource = $state<ShoppingListSource | null>(null);
+	let selectedItem = $state<ShoppingListItem | null>(null);
+	let rulesOpen = $state(false);
+	let rulesScope = $state<'excluded' | 'all'>('all');
+	let pendingSource = $state<ShoppingListSource | null>(null);
+	let openWeeklyAfterAction = $state(false);
+	let actionPending = $state(false);
 	let basketOpen = $state(false);
 	let shoppingStatus = $state('');
+	let weeklyManager = $state<{ openManager: () => Promise<void> }>();
 
-	let mealCount = $derived(new Set(sources.flatMap((source) => source.mealNames)).size);
-	let activePending = $derived(pending.filter((item) => !item.covered));
-	let coveredPending = $derived(pending.filter((item) => item.covered));
-	let recipeSources = $derived(sources.filter((source) => source.sourceKind === 'recipe'));
-	let hasAnyContent = $derived(
-		pending.length > 0 ||
-			done.length > 0 ||
-			sources.length > 0 ||
-			recurring.length > 0 ||
-			legacy.length > 0
+	let filterOptions = $derived(getShoppingFilterOptions([...pending, ...done]));
+	let projected = $derived(projectShoppingStates(pending, done, filter, sort));
+	let activePending = $derived(projected.active);
+	let coveredPending = $derived(projected.covered);
+	let completed = $derived(projected.done);
+	let activeGroups = $derived(
+		sort === 'store'
+			? groupShoppingItems(activePending).filter((group) => group.items.length)
+			: [{ section: null, items: activePending }]
 	);
-	let tabs = $derived([
-		{ value: 'buy' as const, label: m.shopping_tab_run(), badge: visibleToBuyCount },
-		{ value: 'meals' as const, label: m.shopping_tab_meals({ count: mealCount }) },
-		{ value: 'weekly' as const, label: m.shopping_tab_every_week() }
-	]);
+	let recipeSources = $derived(sources.filter((source) => source.sourceKind === 'recipe'));
+	let excludedRecipeSources = $derived(recipeSources.filter((source) => !source.included));
+	let visibleRuleSources = $derived(
+		rulesScope === 'excluded' ? excludedRecipeSources : recipeSources
+	);
+	let filterHasResults = $derived(
+		activePending.length + coveredPending.length + completed.length > 0
+	);
 
-	function openSource(source: ShoppingListSource) {
-		selectedSource = source;
-		sourceSheetOpen = true;
+	$effect(() => {
+		if (
+			(filter.kind === 'weekly' && !filterOptions.hasWeekly) ||
+			(filter.kind === 'meal' && !filterOptions.meals.includes(filter.mealName))
+		) {
+			filter = { kind: 'all' };
+		}
+	});
+
+	function filterIs(candidate: ShoppingListFilter): boolean {
+		return candidate.kind === filter.kind &&
+			(candidate.kind !== 'meal' ||
+				(filter.kind === 'meal' && candidate.mealName === filter.mealName));
 	}
 
-	function openManualActions(item: ShoppingListItem, source: ShoppingListSource) {
-		selectedManualItem = item;
-		selectedManualSource = source;
+	function routeLabel(section: StoreRouteSection): string {
+		switch (section) {
+			case 'Fresh': return m.shopping_store_fresh();
+			case 'Bakery': return m.shopping_store_bakery();
+			case 'Chilled': return m.shopping_store_chilled();
+			case 'Pantry': return m.shopping_store_pantry();
+			case 'Frozen': return m.shopping_store_frozen();
+			case 'Household': return m.shopping_store_household();
+			case 'Other': return m.shopping_store_other();
+		}
+	}
+
+	function openActions(item: ShoppingListItem) {
+		selectedItem = item;
 		itemActionOpen = true;
 	}
 
-	function shoppingKey(item: ShoppingListItem) {
-		return item.entryIds?.length ? item.entryIds.join('-') : encodeURIComponent(item.name);
+	function editSourceAfterClose(source: ShoppingListSource, owner: 'actions' | 'rules') {
+		pendingSource = source;
+		if (owner === 'actions') itemActionOpen = false;
+		else rulesOpen = false;
+	}
+
+	async function handleActionClose() {
+		if (itemActionOpen) return;
+		if (pendingSource) {
+			selectedSource = pendingSource;
+			pendingSource = null;
+			await tick();
+			sourceSheetOpen = true;
+		} else if (openWeeklyAfterAction) {
+			openWeeklyAfterAction = false;
+			await tick();
+			await weeklyManager?.openManager();
+		}
+		if (!itemActionOpen) selectedItem = null;
+	}
+
+	async function handleRulesClose() {
+		if (rulesOpen || !pendingSource) return;
+		selectedSource = pendingSource;
+		pendingSource = null;
+		await tick();
+		sourceSheetOpen = true;
+	}
+
+	function openRules(scope: 'excluded' | 'all' = 'all') {
+		rulesScope = scope === 'excluded' && excludedRecipeSources.length ? 'excluded' : 'all';
+		rulesOpen = true;
 	}
 
 	async function focusShoppingKey(key: string | null) {
 		await tick();
 		if (key) {
-			document.querySelector<HTMLElement>(`[data-shopping-key="${key}"]`)?.focus();
-			return;
+			const target = [...document.querySelectorAll<HTMLElement>('[data-shopping-key]')]
+				.find((element) => element.dataset.shoppingKey === key);
+			if (target) {
+				target.focus();
+				return;
+			}
 		}
 		document.querySelector<HTMLElement>('#shopping-basket-toggle')?.focus();
 	}
@@ -148,35 +216,32 @@
 		if (!restored) return;
 		await focusShoppingKey(key);
 		shoppingStatus = item.bought
-			? m.shopping_bought_status({ name: item.name, count: visibleToBuyCount })
-			: m.shopping_not_bought_status({ name: item.name, count: visibleToBuyCount });
+			? m.shopping_bought_status({ name: item.name, count: activePending.length })
+			: m.shopping_not_bought_status({ name: item.name, count: activePending.length });
 	}
 
 	async function toggleBought(item: ShoppingListItem) {
 		const wasBought = item.bought;
-		const key = shoppingKey(item);
-		const before = [...activePending];
-		const index = before.findIndex((candidate) => shoppingKey(candidate) === key);
-		const nextKey = wasBought
-			? key
-			: shoppingKey(before[index + 1] ?? before[index - 1] ?? item);
+		const key = shoppingItemKey(item);
+		const before = wasBought ? [...completed] : [...activePending];
+		const nextKey = wasBought ? key : nextVisibleShoppingKey(before, key);
 		const saved = await onToggleBought(item);
 		if (!saved) {
 			await focusShoppingKey(key);
 			return;
 		}
-		await focusShoppingKey(nextKey === key && !wasBought && before.length === 1 ? null : nextKey);
+		await focusShoppingKey(nextKey);
 		shoppingStatus = wasBought
-			? m.shopping_not_bought_status({ name: item.name, count: visibleToBuyCount })
-			: m.shopping_bought_status({ name: item.name, count: visibleToBuyCount });
+			? m.shopping_not_bought_status({ name: item.name, count: activePending.length })
+			: m.shopping_bought_status({ name: item.name, count: activePending.length });
 		toast.undo(shoppingStatus, () => void undoBought(item, key));
 	}
 
-	async function removeSelectedManual() {
-		const source = selectedManualSource;
-		const item = selectedManualItem;
-		if (!source || !item) return;
+	async function removeManual(item: ShoppingListItem, source: ShoppingListSource) {
+		if (actionPending) return;
+		actionPending = true;
 		const removed = await onDeleteManual(source);
+		actionPending = false;
 		if (!removed) return;
 		itemActionOpen = false;
 		toast.undo(m.shopping_toast_removed({ name: item.name }), () => {
@@ -187,267 +252,469 @@
 	}
 </script>
 
-<div class="market-tabs">
-	<SegmentedTabs {tabs} bind:value={tab} cols={3} ariaLabel={m.shopping_heading()} idPrefix="shopping" />
-</div>
-{#if notices && tab === 'buy'}{@render notices()}{/if}
-<p class="sr-only" aria-live="polite">{shoppingStatus}</p>
-
-<div id="shopping-panel-buy" role="tabpanel" aria-labelledby="shopping-tab-buy" hidden={tab !== 'buy'}>
-	{#if coveredCount}
-		<div class="market-covered-toggle">
+<section class="shopping-controls" aria-label={m.shopping_list_controls()}>
+	<div class="shopping-filter-rail" role="toolbar" aria-label={m.shopping_filter_label()}>
+		<button
+			type="button"
+			class:active={filterIs({ kind: 'all' })}
+			aria-pressed={filterIs({ kind: 'all' })}
+			onclick={() => (filter = { kind: 'all' })}
+		>
+			{m.shopping_filter_all()}
+		</button>
+		{#each filterOptions.meals as meal}
 			<button
 				type="button"
-				class:active={showCovered}
-				aria-pressed={showCovered}
-				onclick={() => (showCovered = !showCovered)}
+				class:active={filterIs({ kind: 'meal', mealName: meal })}
+				aria-pressed={filterIs({ kind: 'meal', mealName: meal })}
+				title={meal}
+				onclick={() => (filter = { kind: 'meal', mealName: meal })}
 			>
-				{m.shopping_in_stock_chip({ count: coveredCount })}
+				{meal}
 			</button>
-		</div>
-	{/if}
-
-	{#if !hasAnyContent}
-		<EmptyState
-			iconName={emptyState === 'no_meals' ? 'calendar' : 'jar'}
-			title={emptyState === 'no_meals' ? m.shopping_empty_no_meals_title() : m.shopping_empty_nothing_title()}
-			description={emptyState === 'no_meals' ? m.shopping_empty_no_meals_desc() : m.shopping_empty_nothing_desc()}
-		>
-			{#snippet action()}
-				<a
-					class="btn btn-primary min-h-11"
-					href={emptyState === 'no_meals' ? `${base}/meal-plan` : `${base}/inventory`}
-				>
-					{emptyState === 'no_meals' ? m.shopping_plan_meals_button() : m.shopping_view_stock_button()}
-				</a>
-			{/snippet}
-		</EmptyState>
-	{:else if activePending.length}
-		<ul class="market-run-list">
-			{#each activePending as item, index (shoppingKey(item))}
-				{@const key = shoppingKey(item)}
-				{@const manualSource =
-					item.sources?.length === 1 && item.sources[0].sourceKind === 'manual'
-						? item.sources[0]
-						: null}
-				<li class:warning={item.incompatibleQuantities} class="market-run-row">
-					<label class="market-check-hit" aria-label={m.shopping_mark_bought_aria({ name: item.name })}>
-						<input
-							id={`buy-${index}`}
-							data-shopping-key={key}
-							type="checkbox"
-							checked={item.bought}
-							onchange={() => void toggleBought(item)}
-						/>
-						<span><Icon name="check" /></span>
-					</label>
-					<label for={`buy-${index}`} class="market-row-copy">
-						<strong title={item.name}>{item.name}</strong>
-						{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
-						{#if item.incompatibleQuantities && item.sources?.length}
-							<ul class="market-source-lines" aria-label={m.shopping_quantity_sources_label()}>
-								{#each item.sources as source (source.id)}
-									{@const contexts = sourceContextLabels(source)}
-									<li>
-										{#if itemLabel(source)}<b>{itemLabel(source)}</b>{/if}
-										<span>
-											{contexts.length
-												? contexts.join(' · ')
-												: source.sourceKind === 'weekly'
-													? m.shopping_source_weekly()
-													: m.shopping_source_manual()}
-										</span>
-									</li>
-								{/each}
-							</ul>
-						{/if}
-					</label>
-					<div class="market-row-trailing">
-						{#if bonusByName[item.name]}<span class="market-item-badge bonus">{m.shopping_bonus_chip()}</span>{/if}
-						{#if manualSource}
-							<button
-								type="button"
-								class="market-row-more"
-								aria-label={m.shopping_item_actions_title()}
-								onclick={() => openManualActions(item, manualSource)}
-							>
-								<span aria-hidden="true">•••</span>
-							</button>
-						{/if}
-					</div>
-				</li>
-			{/each}
-		</ul>
-	{:else if done.length}
-		<div class="market-complete">
-			<div><Icon name="check" /></div>
-			<h2>{m.shopping_run_complete_title()}</h2>
-			<p>{m.shopping_run_complete_desc()}</p>
-			<button id="shopping-basket-toggle" type="button" onclick={() => (basketOpen = !basketOpen)}>
-				{basketOpen ? m.shopping_hide_basket() : `${m.shopping_review_basket()} · ${done.length}`}
+		{/each}
+		{#if filterOptions.hasWeekly}
+			<button
+				type="button"
+				class:active={filterIs({ kind: 'weekly' })}
+				aria-pressed={filterIs({ kind: 'weekly' })}
+				onclick={() => (filter = { kind: 'weekly' })}
+			>
+				{m.shopping_filter_weekly()}
 			</button>
-		</div>
-	{:else}
-		<EmptyState mini title={m.shopping_empty_stock_covers()} />
-	{/if}
-
-	{#if showCovered && coveredPending.length}
-		<ul class="market-run-list market-covered-list" aria-label={m.shopping_in_stock_chip({ count: coveredCount })}>
-			{#each coveredPending as item (shoppingKey(item))}
-				<li class="market-run-row covered">
-					<div class="market-covered-marker" aria-hidden="true"><Icon name="check" /></div>
-					<div class="market-row-copy">
-						<strong title={item.name}>{item.name}</strong>
-						{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
-					</div>
-					<div class="market-row-trailing">
-						<span class="market-item-badge stock">{m.shopping_covered_badge()}</span>
-					</div>
-				</li>
-			{/each}
-		</ul>
-	{/if}
-
-	{#if done.length && activePending.length}
+		{/if}
+	</div>
+	<div class="shopping-list-tools">
+		<label>
+			<span class="sr-only">{m.shopping_sort_label()}</span>
+			<select
+				class="select min-h-11"
+				value={sort}
+				aria-label={m.shopping_sort_label()}
+				onchange={(event) => (sort = event.currentTarget.value as ShoppingListSort)}
+			>
+				<option value="list">{m.shopping_sort_list()}</option>
+				<option value="alpha">{m.shopping_sort_az()}</option>
+				<option value="store">{m.shopping_sort_store()}</option>
+			</select>
+		</label>
+		<RecurringShoppingList
+			bind:this={weeklyManager}
+			items={recurring}
+			onAdd={onAddRecurring}
+			onEdit={onEditRecurring}
+			onSkip={onSkipRecurring}
+			onDisable={onDisableRecurring}
+		/>
 		<button
-			id="shopping-basket-toggle"
 			type="button"
-			class="market-basket-summary"
-			aria-expanded={basketOpen}
-			onclick={() => (basketOpen = !basketOpen)}
+			class="shopping-rules-trigger"
+			disabled={!recipeSources.length}
+			onclick={() => openRules('all')}
 		>
-			<span><strong>{m.shopping_in_basket_heading({ count: done.length })}</strong></span>
-			<span>{basketOpen ? m.shopping_hide_basket() : m.shopping_review_basket()}</span>
+			<Icon name="settings" />
+			{m.shopping_manage_rules()}
 		</button>
-	{/if}
+	</div>
+</section>
 
-	{#if done.length && basketOpen}
-		<ul class="market-run-list market-done-list">
-			{#each done as item, index (shoppingKey(item))}
-				<li class="market-run-row">
-					<label class="market-check-hit" aria-label={m.shopping_mark_not_bought_aria({ name: item.name })}>
-						<input
-							id={`done-${index}`}
-							data-shopping-key={shoppingKey(item)}
-							type="checkbox"
-							checked
-							onchange={() => void toggleBought(item)}
-						/>
-						<span><Icon name="check" /></span>
-					</label>
-					<label for={`done-${index}`} class="market-row-copy"><strong>{item.name}</strong></label>
-				</li>
-			{/each}
-		</ul>
-	{/if}
-</div>
+{#if excludedRecipeSources.length}
+	<button type="button" class="shopping-excluded-rules" onclick={() => openRules('excluded')}>
+		{m.shopping_excluded_rules({ count: excludedRecipeSources.length })}
+	</button>
+{/if}
 
-<div id="shopping-panel-meals" role="tabpanel" aria-labelledby="shopping-tab-meals" hidden={tab !== 'meals'}>
-	<LegacyShoppingReview items={legacy} onResolve={onResolveLegacy} />
-	{#if recipeSources.length}
-		<div class="market-meal-list">
-			{#each recipeSources as source (source.id)}
-				<article>
-					<div class="min-w-0 flex-1">
-						<p class="truncate text-sm font-semibold">{source.name}</p>
-						<p class="truncate text-xs text-base-content/70">
-							{[source.recipeTitle, source.component].filter(Boolean).join(' · ')}
-						</p>
-						<div class="mt-1 flex flex-wrap gap-1">
-							<span class="market-policy-chip">
-								{source.staple
-									? m.shopping_need_usually_stocked()
-									: source.optional
-										? m.shopping_need_nice_to_have()
-										: m.shopping_need_every_time()}
-							</span>
-							{#if source.term !== source.name}<span class="market-policy-chip">{source.term}</span>{/if}
+{#if notices}{@render notices()}{/if}
+<LegacyShoppingReview items={legacy} onResolve={onResolveLegacy} />
+<p class="sr-only" aria-live="polite">{shoppingStatus}</p>
+
+{#if coveredPending.length}
+	<div class="market-covered-toggle">
+		<button
+			type="button"
+			class:active={showCovered}
+			aria-pressed={showCovered}
+			onclick={() => (showCovered = !showCovered)}
+		>
+			{m.shopping_in_stock_chip({ count: coveredPending.length })}
+		</button>
+	</div>
+{/if}
+
+{#if pending.length === 0 && done.length === 0}
+	<EmptyState
+		iconName={emptyState === 'no_meals' ? 'calendar' : 'jar'}
+		title={emptyState === 'no_meals' ? m.shopping_empty_no_meals_title() : m.shopping_empty_nothing_title()}
+		description={emptyState === 'no_meals' ? m.shopping_empty_no_meals_desc() : m.shopping_empty_nothing_desc()}
+	>
+		{#snippet action()}
+			<a
+				class="btn btn-primary min-h-11"
+				href={emptyState === 'no_meals' ? `${base}/meal-plan` : `${base}/inventory`}
+			>
+				{emptyState === 'no_meals' ? m.shopping_plan_meals_button() : m.shopping_view_stock_button()}
+			</a>
+		{/snippet}
+	</EmptyState>
+{:else if !filterHasResults}
+	<div class="shopping-filter-empty">
+		<h2>{m.shopping_filter_empty()}</h2>
+		<button type="button" onclick={() => (filter = { kind: 'all' })}>{m.shopping_clear_filter()}</button>
+	</div>
+{:else if activePending.length}
+	<div class="shopping-active-groups">
+		{#each activeGroups as group}
+			{#if group.section}<h2>{routeLabel(group.section)}</h2>{/if}
+			<ul class="market-run-list">
+				{#each group.items as item, index (shoppingItemKey(item))}
+					{@const key = shoppingItemKey(item)}
+					{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
+					<li class:warning={item.incompatibleQuantities} class="market-run-row">
+						<label class="market-check-hit" aria-label={m.shopping_mark_bought_aria({ name: item.name })}>
+							<input
+								id={`buy-${key}`}
+								data-shopping-key={key}
+								type="checkbox"
+								checked={item.bought}
+								onchange={() => void toggleBought(item)}
+							/>
+							<span><Icon name="check" /></span>
+						</label>
+						<label for={`buy-${key}`} class="market-row-copy">
+							<strong title={item.name}>{item.name}</strong>
+							{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
+							{#if !item.incompatibleQuantities && recipeOwned.length > 1}
+								<span class="market-shared-context">
+									{m.shopping_shared_recipes({ count: recipeOwned.length })} ·
+									{recipeOwned.map((source) => source.recipeTitle).filter(Boolean).join(', ')}
+								</span>
+							{/if}
+							{#if item.incompatibleQuantities && item.sources?.length}
+								<ul class="market-source-lines" aria-label={m.shopping_quantity_sources_label()}>
+									{#each item.sources as source (source.id)}
+										{@const contexts = sourceContextLabels(source)}
+										<li>
+											<strong>{itemLabel(source) || source.name}</strong>
+											<span>
+												{contexts.length
+													? contexts.join(' · ')
+													: source.sourceKind === 'weekly'
+														? m.shopping_filter_weekly()
+														: m.shopping_source_manual()}
+											</span>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</label>
+						<div class="market-row-trailing">
+							{#if bonusByName[item.name]}<span class="market-item-badge bonus">{m.shopping_bonus_chip()}</span>{/if}
+							{#if item.sources?.length}
+								<button
+									type="button"
+									class="market-row-more"
+									aria-label={m.shopping_item_actions_aria({ name: item.name })}
+									onclick={() => openActions(item)}
+								>
+									<span aria-hidden="true">•••</span>
+								</button>
+							{/if}
 						</div>
-					</div>
+					</li>
+				{/each}
+			</ul>
+		{/each}
+	</div>
+{:else if completed.length}
+	<div class="market-complete">
+		<div><Icon name="check" /></div>
+		<h2>{m.shopping_list_complete_title()}</h2>
+		<p>{m.shopping_list_complete_desc()}</p>
+		<button id="shopping-basket-toggle" type="button" onclick={() => (basketOpen = !basketOpen)}>
+			{basketOpen ? m.shopping_hide_basket() : `${m.shopping_review_basket()} · ${completed.length}`}
+		</button>
+	</div>
+{:else}
+	<EmptyState mini title={m.shopping_empty_stock_covers()} />
+{/if}
+
+{#if showCovered && coveredPending.length}
+	<ul class="market-run-list market-covered-list" aria-label={m.shopping_in_stock_chip({ count: coveredPending.length })}>
+		{#each coveredPending as item (shoppingItemKey(item))}
+			<li class="market-run-row covered">
+				<div class="market-covered-marker" aria-hidden="true"><Icon name="check" /></div>
+				<div class="market-row-copy">
+					<strong title={item.name}>{item.name}</strong>
+					{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
+				</div>
+				<div class="market-row-trailing">
+					<span class="market-item-badge stock">{m.shopping_covered_badge()}</span>
+					{#if item.sources?.length}
+						<button
+							type="button"
+							class="market-row-more"
+							aria-label={m.shopping_item_actions_aria({ name: item.name })}
+							onclick={() => openActions(item)}
+						><span aria-hidden="true">•••</span></button>
+					{/if}
+				</div>
+			</li>
+		{/each}
+	</ul>
+{/if}
+
+{#if completed.length && activePending.length}
+	<button
+		id="shopping-basket-toggle"
+		type="button"
+		class="market-basket-summary"
+		aria-expanded={basketOpen}
+		onclick={() => (basketOpen = !basketOpen)}
+	>
+		<span><strong>{m.shopping_in_basket_heading({ count: completed.length })}</strong></span>
+		<span>{basketOpen ? m.shopping_hide_basket() : m.shopping_review_basket()}</span>
+	</button>
+{/if}
+
+{#if completed.length && basketOpen}
+	<ul class="market-run-list market-done-list">
+		{#each completed as item (shoppingItemKey(item))}
+			{@const key = shoppingItemKey(item)}
+			<li class="market-run-row">
+				<label class="market-check-hit" aria-label={m.shopping_mark_not_bought_aria({ name: item.name })}>
+					<input
+						id={`done-${key}`}
+						data-shopping-key={key}
+						type="checkbox"
+						checked
+						onchange={() => void toggleBought(item)}
+					/>
+					<span><Icon name="check" /></span>
+				</label>
+				<label for={`done-${key}`} class="market-row-copy"><strong>{item.name}</strong></label>
+				{#if item.sources?.length}
 					<button
 						type="button"
-						aria-label={m.shopping_source_change_aria({ name: source.name })}
-						onclick={() => openSource(source)}
-					>
-						{m.shopping_source_change()}
-					</button>
-				</article>
-			{/each}
-		</div>
-	{:else}
-		<EmptyState mini title={m.shopping_empty_no_meals_title()} />
-	{/if}
-</div>
-
-<div id="shopping-panel-weekly" role="tabpanel" aria-labelledby="shopping-tab-weekly" hidden={tab !== 'weekly'}>
-	<RecurringShoppingList
-		items={recurring}
-		onAdd={onAddRecurring}
-		onEdit={onEditRecurring}
-		onSkip={onSkipRecurring}
-		onDisable={onDisableRecurring}
-	/>
-</div>
+						class="market-row-more"
+						aria-label={m.shopping_item_actions_aria({ name: item.name })}
+						onclick={() => openActions(item)}
+					><span aria-hidden="true">•••</span></button>
+				{/if}
+			</li>
+		{/each}
+	</ul>
+{/if}
 
 <SourceDecisionSheet bind:open={sourceSheetOpen} source={selectedSource} onSave={onSaveSource} />
 
-<BottomSheet bind:open={itemActionOpen} title={selectedManualItem?.name ?? m.shopping_item_actions_title()} desktopSide>
-	{#if selectedManualItem && selectedManualSource}
-		<p class="text-sm text-base-content/70">
-			{[itemLabel(selectedManualSource), m.shopping_source_manual()].filter(Boolean).join(' · ')}
-		</p>
-		<button
-			type="button"
-			class="btn btn-ghost mt-4 min-h-11 w-full justify-start text-error"
-			onclick={() => void removeSelectedManual()}
-		>
-			<Icon name="trash" />
-			{m.shopping_remove_this_week()}
-		</button>
+<BottomSheet
+	bind:open={itemActionOpen}
+	title={selectedItem?.name ?? m.shopping_item_actions_title_generic()}
+	desktopSide
+	dismissible={!actionPending}
+	onclose={handleActionClose}
+>
+	{#if selectedItem}
+		{@const itemRecipeSources = selectedItem.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
+		{@const itemManualSources = selectedItem.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
+		{@const hasWeeklySource = selectedItem.sources?.some((source) => source.sourceKind === 'weekly')}
+		{#if itemRecipeSources.length}
+			<div class="source-action-group">
+				<h3>
+					{itemRecipeSources.length > 1
+						? m.shopping_choose_rule()
+						: m.shopping_edit_rule()}
+				</h3>
+				{#each itemRecipeSources as source (source.id)}
+					<button
+						type="button"
+						disabled={actionPending}
+						onclick={() => editSourceAfterClose(source, 'actions')}
+					>
+						<span>
+							<strong>{m.shopping_edit_rule()}</strong>
+							<small>{[source.name, source.recipeTitle, source.component].filter(Boolean).join(' · ')}</small>
+						</span>
+						<Icon name="chevronRight" />
+					</button>
+				{/each}
+			</div>
+		{/if}
+		{#if itemManualSources.length}
+			<div class="source-action-group">
+				<h3>{m.shopping_source_manual()}</h3>
+				{#each itemManualSources as source (source.id)}
+					<button
+						type="button"
+						class="danger"
+						disabled={actionPending}
+						onclick={() => void removeManual(selectedItem!, source)}
+					>
+						<span>
+							<strong>{m.shopping_remove_this_week()}</strong>
+							<small>{[source.name, itemLabel(source)].filter(Boolean).join(' · ')}</small>
+						</span>
+						<Icon name="trash" />
+					</button>
+				{/each}
+			</div>
+		{/if}
+		{#if hasWeeklySource}
+			<div class="source-action-group">
+				<h3>{m.shopping_filter_weekly()}</h3>
+				<button
+					type="button"
+					disabled={actionPending}
+					onclick={() => {
+						openWeeklyAfterAction = true;
+						itemActionOpen = false;
+					}}
+				>
+					<span><strong>{m.shopping_manage_weekly_items()}</strong></span>
+					<Icon name="chevronRight" />
+				</button>
+			</div>
+		{/if}
+	{/if}
+</BottomSheet>
+
+<BottomSheet
+	bind:open={rulesOpen}
+	title={m.shopping_manage_rules()}
+	desktopSide
+	onclose={handleRulesClose}
+>
+	<p class="rules-help">{m.shopping_manage_rules_help()}</p>
+	{#if excludedRecipeSources.length}
+		<div class="rules-scope" role="group" aria-label={m.shopping_manage_rules()}>
+			<button
+				type="button"
+				class:active={rulesScope === 'excluded'}
+				aria-pressed={rulesScope === 'excluded'}
+				onclick={() => (rulesScope = 'excluded')}
+			>{m.shopping_rules_not_on_list({ count: excludedRecipeSources.length })}</button>
+			<button
+				type="button"
+				class:active={rulesScope === 'all'}
+				aria-pressed={rulesScope === 'all'}
+				onclick={() => (rulesScope = 'all')}
+			>{m.shopping_rules_all({ count: recipeSources.length })}</button>
+		</div>
+	{/if}
+	{#if visibleRuleSources.length}
+		<ul class="rules-list">
+			{#each visibleRuleSources as source (source.id)}
+				<li>
+					<div>
+						<strong>{source.name}</strong>
+						<span>{[source.recipeTitle, source.component].filter(Boolean).join(' · ')}</span>
+						<small>
+							{source.staple
+								? m.shopping_need_usually_stocked()
+								: source.optional
+									? m.shopping_need_nice_to_have()
+									: m.shopping_need_every_time()}
+						</small>
+					</div>
+					<button type="button" onclick={() => editSourceAfterClose(source, 'rules')}>
+						{m.shopping_edit_rule()}
+					</button>
+				</li>
+			{/each}
+		</ul>
+	{:else}
+		<EmptyState mini title={m.shopping_rules_none_excluded()} />
 	{/if}
 </BottomSheet>
 
 <style>
-	.market-tabs {
-		position: sticky;
-		top: 0;
-		z-index: 20;
+	.shopping-controls {
+		display: grid;
+		gap: 0.5rem;
 		margin-bottom: 0.55rem;
 	}
 
-	.market-tabs :global([role='tablist']) {
-		width: 100%;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 18%, var(--color-base-300));
-		border-radius: 0.75rem;
-		padding: 0.2rem;
-		background: color-mix(in oklab, var(--color-base-100) 96%, transparent);
-		box-shadow: 0 3px 10px rgb(48 75 58 / 5%);
-		backdrop-filter: blur(10px);
+	.shopping-filter-rail {
+		display: flex;
+		gap: 0.35rem;
+		overflow-x: auto;
+		padding-bottom: 0.1rem;
+		scrollbar-width: thin;
 	}
 
-	.market-tabs :global([role='tab']) {
+	.shopping-filter-rail button,
+	.shopping-excluded-rules {
 		min-height: 2.75rem;
-		border-radius: 0.55rem;
+		flex: 0 0 auto;
+		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 20%, var(--color-base-300));
+		border-radius: 999px;
+		padding: 0 0.8rem;
+		background: var(--color-base-100);
+		color: color-mix(in oklab, var(--color-base-content) 76%, transparent);
+		font-size: 0.7rem;
+		font-weight: 750;
+	}
+
+	.shopping-filter-rail button.active {
+		border-color: var(--market-olive, #304b3a);
+		background: var(--market-olive, #304b3a);
+		color: white;
+	}
+
+	.shopping-list-tools {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.shopping-list-tools label {
+		min-width: 8.5rem;
+		flex: 1 1 8.5rem;
+	}
+
+	.shopping-list-tools select {
+		width: 100%;
+		border-color: color-mix(in oklab, var(--market-olive, #304b3a) 20%, var(--color-base-300));
+		background-color: var(--color-base-100);
+		font-size: 0.72rem;
+		font-weight: 700;
+	}
+
+	.shopping-rules-trigger {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		gap: 0.45rem;
+		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 24%, var(--color-base-300));
+		border-radius: 0.7rem;
+		padding: 0 0.75rem;
+		background: var(--color-base-100);
+		color: var(--market-olive-ink, #304b3a);
 		font-size: 0.72rem;
 		font-weight: 750;
 	}
 
-	.market-tabs :global([role='tab'][aria-selected='true']) {
-		background: var(--market-olive, #304b3a);
-		color: white;
-		box-shadow: 0 4px 12px rgb(48 75 58 / 16%);
+	.shopping-rules-trigger:disabled {
+		opacity: 0.45;
 	}
 
-	.market-tabs :global(.badge) {
-		border: 0;
-		background: rgb(255 255 255 / 17%);
-		color: inherit;
+	.shopping-rules-trigger :global(svg) {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.shopping-excluded-rules {
+		min-height: 2.4rem;
+		margin: -0.2rem 0 0.55rem;
+		border-style: dashed;
+		color: var(--market-olive-ink, #304b3a);
 	}
 
 	.market-covered-toggle {
 		display: flex;
 		justify-content: flex-end;
-		margin-bottom: 0.45rem;
+		margin: 0.5rem 0 0.45rem;
 	}
 
 	.market-covered-toggle button {
@@ -466,8 +733,47 @@
 		color: white;
 	}
 
-	.market-run-list,
-	.market-meal-list {
+	.shopping-filter-empty {
+		display: grid;
+		justify-items: center;
+		gap: 0.65rem;
+		border: 1px dashed var(--color-base-300);
+		border-radius: 0.85rem;
+		padding: 1.5rem 1rem;
+		background: var(--color-base-100);
+		text-align: center;
+	}
+
+	.shopping-filter-empty h2 {
+		font-size: 0.85rem;
+		font-weight: 700;
+	}
+
+	.shopping-filter-empty button {
+		min-height: 2.75rem;
+		border-radius: 0.65rem;
+		padding: 0 0.8rem;
+		background: var(--market-olive, #304b3a);
+		color: white;
+		font-size: 0.72rem;
+		font-weight: 750;
+	}
+
+	.shopping-active-groups {
+		display: grid;
+		gap: 0.45rem;
+	}
+
+	.shopping-active-groups h2 {
+		padding: 0.25rem 0.2rem 0;
+		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+		font-size: 0.64rem;
+		font-weight: 850;
+		letter-spacing: 0.09em;
+		text-transform: uppercase;
+	}
+
+	.market-run-list {
 		overflow: hidden;
 		margin: 0;
 		padding: 0;
@@ -480,9 +786,9 @@
 
 	.market-run-row {
 		display: grid;
-		grid-template-columns: 3rem minmax(0, 1fr) auto;
+		grid-template-columns: 2.75rem minmax(0, 1fr) auto;
 		align-items: center;
-		min-height: 3.6rem;
+		min-height: 3.125rem;
 		border-bottom: 1px solid var(--color-base-200);
 	}
 
@@ -495,14 +801,14 @@
 	}
 
 	.market-run-row.covered {
-		opacity: 0.58;
+		opacity: 0.62;
 	}
 
 	.market-check-hit,
 	.market-covered-marker {
 		display: grid;
-		width: 3rem;
-		height: 3rem;
+		width: 2.75rem;
+		height: 2.75rem;
 		place-items: center;
 	}
 
@@ -562,7 +868,7 @@
 	.market-row-copy {
 		min-width: 0;
 		cursor: pointer;
-		padding: 0.5rem 0.35rem 0.5rem 0;
+		padding: 0.4rem 0.3rem 0.4rem 0;
 	}
 
 	.market-row-copy > strong {
@@ -576,13 +882,21 @@
 
 	.market-row-copy > span {
 		display: block;
-		margin-top: 0.15rem;
-		color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
-		font-size: 0.64rem;
+		overflow: hidden;
+		margin-top: 0.1rem;
+		color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+		font-size: 0.63rem;
+		line-height: 1.3;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.market-shared-context {
+		color: color-mix(in oklab, var(--market-olive-ink, #304b3a) 78%, transparent) !important;
 	}
 
 	.market-source-lines {
-		margin-top: 0.4rem;
+		margin-top: 0.35rem;
 		border-left: 2px solid color-mix(in oklab, var(--color-warning) 55%, transparent);
 		padding-left: 0.5rem;
 	}
@@ -597,15 +911,15 @@
 		line-height: 1.45;
 	}
 
-	.market-source-lines b {
+	.market-source-lines strong {
 		font-variant-numeric: tabular-nums;
 	}
 
 	.market-row-trailing {
 		display: flex;
 		align-items: center;
-		gap: 0.2rem;
-		padding-right: 0.3rem;
+		gap: 0.15rem;
+		padding-right: 0.15rem;
 	}
 
 	.market-item-badge {
@@ -661,13 +975,13 @@
 		font-weight: 750;
 	}
 
-	.market-done-list {
-		margin-top: 0.45rem;
-		opacity: 0.58;
-	}
-
+	.market-done-list,
 	.market-covered-list {
 		margin-top: 0.45rem;
+	}
+
+	.market-done-list {
+		opacity: 0.62;
 	}
 
 	.market-done-list .market-row-copy strong {
@@ -694,7 +1008,7 @@
 	}
 
 	.market-complete h2 {
-		font-family: Georgia, 'Times New Roman', serif;
+		font-family: var(--kitchen-display);
 		font-size: 1.35rem;
 		font-weight: 500;
 	}
@@ -718,44 +1032,169 @@
 		font-weight: 750;
 	}
 
-	.market-meal-list {
-		display: grid;
+	.source-action-group + .source-action-group {
+		margin-top: 0.8rem;
+		border-top: 1px solid var(--color-base-200);
+		padding-top: 0.8rem;
 	}
 
-	.market-meal-list article {
+	.source-action-group h3 {
+		margin-bottom: 0.35rem;
+		color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+		font-size: 0.65rem;
+		font-weight: 850;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+	}
+
+	.source-action-group button {
 		display: flex;
-		min-height: 4rem;
+		width: 100%;
+		min-height: 2.75rem;
 		align-items: center;
+		justify-content: space-between;
 		gap: 0.75rem;
-		border-bottom: 1px solid var(--color-base-200);
-		padding: 0.65rem 0.75rem;
+		border-radius: 0.65rem;
+		padding: 0.45rem 0.6rem;
+		text-align: left;
 	}
 
-	.market-meal-list article:last-child {
+	.source-action-group button:hover,
+	.source-action-group button:focus-visible {
+		background: var(--color-base-200);
+	}
+
+	.source-action-group button span {
+		min-width: 0;
+	}
+
+	.source-action-group button strong,
+	.source-action-group button small {
+		display: block;
+	}
+
+	.source-action-group button strong {
+		font-size: 0.75rem;
+	}
+
+	.source-action-group button small {
+		overflow: hidden;
+		margin-top: 0.1rem;
+		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+		font-size: 0.65rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.source-action-group button :global(svg) {
+		width: 1rem;
+		height: 1rem;
+		flex: 0 0 auto;
+	}
+
+	.source-action-group button.danger {
+		color: var(--color-error);
+	}
+
+	.rules-help {
+		color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+		font-size: 0.75rem;
+		line-height: 1.45;
+	}
+
+	.rules-scope {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.25rem;
+		margin-top: 0.75rem;
+		border-radius: 0.75rem;
+		padding: 0.2rem;
+		background: var(--color-base-200);
+	}
+
+	.rules-scope button {
+		min-height: 2.75rem;
+		border-radius: 0.6rem;
+		padding: 0 0.5rem;
+		font-size: 0.68rem;
+		font-weight: 750;
+	}
+
+	.rules-scope button.active {
+		background: var(--color-base-100);
+		color: var(--market-olive-ink, #304b3a);
+		box-shadow: 0 2px 8px rgb(0 0 0 / 7%);
+	}
+
+	.rules-list {
+		overflow: hidden;
+		margin-top: 0.65rem;
+		border: 1px solid var(--color-base-300);
+		border-radius: 0.85rem;
+	}
+
+	.rules-list li {
+		display: flex;
+		min-height: 3.8rem;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.6rem;
+		border-bottom: 1px solid var(--color-base-200);
+		padding: 0.5rem 0.55rem 0.5rem 0.75rem;
+	}
+
+	.rules-list li:last-child {
 		border-bottom: 0;
 	}
 
-	.market-meal-list article > button {
+	.rules-list div {
+		min-width: 0;
+	}
+
+	.rules-list strong,
+	.rules-list span,
+	.rules-list small {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.rules-list strong {
+		font-size: 0.76rem;
+	}
+
+	.rules-list span,
+	.rules-list small {
+		margin-top: 0.1rem;
+		color: color-mix(in oklab, var(--color-base-content) 64%, transparent);
+		font-size: 0.64rem;
+	}
+
+	.rules-list li > button {
 		min-height: 2.75rem;
-		border: 1px solid var(--color-base-300);
+		flex: 0 0 auto;
 		border-radius: 0.6rem;
-		padding: 0 0.65rem;
-		background: var(--color-base-100);
+		padding: 0 0.6rem;
 		color: var(--market-olive-ink, #304b3a);
 		font-size: 0.68rem;
 		font-weight: 750;
 	}
 
-	.market-policy-chip {
-		display: inline-flex;
-		min-height: 1.6rem;
-		align-items: center;
-		border-radius: 999px;
-		padding: 0 0.45rem;
-		background: var(--color-base-200);
-		color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
-		font-size: 0.58rem;
-		font-weight: 700;
+	@media (max-width: 20rem) {
+		.shopping-list-tools {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.shopping-list-tools label,
+		.shopping-rules-trigger {
+			width: 100%;
+		}
+
+		.rules-scope {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {

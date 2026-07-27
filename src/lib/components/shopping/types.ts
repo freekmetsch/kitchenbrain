@@ -51,7 +51,12 @@ export type ShoppingListItem = {
 };
 
 /** Per-item push decision inside the AH preview sheet. */
-export type Decision = { mode: 'product' | 'freetext' | 'exclude'; pick: number; qty: number };
+export type Decision = {
+	mode: 'product' | 'freetext' | 'exclude';
+	pick: number;
+	qty: number;
+	quantityConfirmed: boolean;
+};
 
 /** Outcome summary of one AH push, shown in the sheet's result view. */
 export type AhPushOutcome = {

@@ -8,6 +8,8 @@ export type AhPreviewBinding = {
 	term: string;
 	amount: string | null;
 	unit: string | null;
+	incompatibleQuantities?: boolean;
+	quantitySummary?: string | null;
 	offeredProducts: Array<{ id: string; name: string }>;
 };
 
@@ -20,7 +22,13 @@ export type AhPreviewToken = {
 };
 
 export const AhPushDecisionSchema = z.discriminatedUnion('mode', [
-	z.object({ ref: z.string().min(1).max(256), mode: z.literal('product'), productId: z.string().min(1).max(256), qty: z.number().int().min(1).max(99) }).strict(),
+	z.object({
+		ref: z.string().min(1).max(256),
+		mode: z.literal('product'),
+		productId: z.string().min(1).max(256),
+		qty: z.number().int().min(1).max(99),
+		quantityConfirmed: z.boolean().optional()
+	}).strict(),
 	z.object({ ref: z.string().min(1).max(256), mode: z.literal('freetext') }).strict(),
 	z.object({ ref: z.string().min(1).max(256), mode: z.literal('exclude') }).strict()
 ]);
@@ -50,6 +58,9 @@ export function bindAhPushDecisions(items: AhPreviewBinding[], decisions: AhPush
 		const decision = byRef.get(item.ref)!;
 		if (decision.mode === 'product' && !item.offeredProducts.some((product) => product.id === decision.productId)) {
 			throw new Error('Choose a product offered for this shopping item');
+		}
+		if (decision.mode === 'product' && item.incompatibleQuantities && decision.quantityConfirmed !== true) {
+			throw new Error('Confirm the pack quantity for items with different source amounts');
 		}
 	}
 	return byRef;

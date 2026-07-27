@@ -25,7 +25,7 @@
 
 	type Props = {
 		weekStart: string;
-		/** The page's visible "To buy" items — the preview sends the uncovered ones. */
+		/** Canonical unfiltered pending items; client filters and Store Route never narrow AH. */
 		pending: ShoppingListItem[];
 		/** Bonus status per item name, rendered on the page's list rows. */
 		bonusByName: Record<string, boolean>;
@@ -83,13 +83,17 @@
 		let products = 0;
 		let text = 0;
 		let excluded = 0;
+		let unconfirmed = 0;
 		for (const it of ahItems ?? []) {
 			const d = decisions[it.ref];
 			if (!d || d.mode === 'exclude') excluded++;
-			else if (d.mode === 'product' && it.candidates[d.pick]) products++;
+			else if (d.mode === 'product' && it.candidates[d.pick]) {
+				products++;
+				if (it.incompatibleQuantities && !d.quantityConfirmed) unconfirmed++;
+			}
 			else text++;
 		}
-		return { products, text, excluded };
+		return { products, text, excluded, unconfirmed };
 	});
 
 	export async function openAhModal() {
@@ -140,7 +144,12 @@
 			const nextBonus: Record<string, boolean> = {};
 			const nextFavorites: Record<string, string> = {};
 			for (const it of previewItems) {
-				nextDecisions[it.ref] = { mode: it.status === 'product' ? 'product' : 'freetext', pick: 0, qty: it.candidates[0]?.qty ?? 1 };
+				nextDecisions[it.ref] = {
+					mode: it.status === 'product' ? 'product' : 'freetext',
+					pick: 0,
+					qty: it.candidates[0]?.qty ?? 1,
+					quantityConfirmed: !it.incompatibleQuantities
+				};
 				if (it.status === 'product') nextBonus[it.sourceName] = it.candidates[0]?.isBonus ?? false;
 				const fav = it.candidates.find((c) => c.isFavorite);
 				if (fav) nextFavorites[it.term] = fav.id;
@@ -160,7 +169,15 @@
 
 	function pickProduct(ref: string, idx: number) {
 		const item = ahItems?.find((entry) => entry.ref === ref);
-		decisions = { ...decisions, [ref]: { mode: 'product', pick: idx, qty: item?.candidates[idx]?.qty ?? 1 } };
+		decisions = {
+			...decisions,
+			[ref]: {
+				mode: 'product',
+				pick: idx,
+				qty: item?.candidates[idx]?.qty ?? 1,
+				quantityConfirmed: !item?.incompatibleQuantities
+			}
+		};
 		expanded = { ...expanded, [ref]: false };
 	}
 
@@ -168,7 +185,13 @@
 		const current = decisions[ref];
 		if (!current) return;
 		const safe = Number.isFinite(qty) ? Math.max(1, Math.min(99, Math.round(qty))) : current.qty;
-		decisions = { ...decisions, [ref]: { ...current, qty: safe } };
+		decisions = { ...decisions, [ref]: { ...current, qty: safe, quantityConfirmed: true } };
+	}
+
+	function confirmQuantity(ref: string) {
+		const current = decisions[ref];
+		if (!current) return;
+		decisions = { ...decisions, [ref]: { ...current, quantityConfirmed: true } };
 	}
 
 	/**
@@ -184,7 +207,15 @@
 			favorites = rest;
 		} else {
 			favorites = { ...favorites, [item.term]: cand.id };
-			decisions = { ...decisions, [item.ref]: { mode: 'product', pick: idx, qty: cand.qty } };
+			decisions = {
+				...decisions,
+				[item.ref]: {
+					mode: 'product',
+					pick: idx,
+					qty: cand.qty ?? 1,
+					quantityConfirmed: !item.incompatibleQuantities
+				}
+			};
 		}
 		await optimistic(
 			() =>
@@ -203,15 +234,27 @@
 	}
 
 	function demoteToText(ref: string) {
-		decisions = { ...decisions, [ref]: { mode: 'freetext', pick: 0, qty: 1 } };
+		decisions = { ...decisions, [ref]: { mode: 'freetext', pick: 0, qty: 1, quantityConfirmed: true } };
 		expanded = { ...expanded, [ref]: false };
 	}
 
 	function toggleExclude(ref: string, item: PreviewItem) {
 		const cur = decisions[ref];
 		const back: Decision =
-			item.status === 'product' ? { mode: 'product', pick: cur?.pick ?? 0, qty: cur?.qty ?? 1 } : { mode: 'freetext', pick: 0, qty: 1 };
-		decisions = { ...decisions, [ref]: cur?.mode === 'exclude' ? back : { mode: 'exclude', pick: cur?.pick ?? 0, qty: cur?.qty ?? 1 } };
+			item.status === 'product'
+				? {
+						mode: 'product',
+						pick: cur?.pick ?? 0,
+						qty: cur?.qty ?? 1,
+						quantityConfirmed: cur?.quantityConfirmed ?? !item.incompatibleQuantities
+					}
+				: { mode: 'freetext', pick: 0, qty: 1, quantityConfirmed: true };
+		decisions = {
+			...decisions,
+			[ref]: cur?.mode === 'exclude'
+				? back
+				: { mode: 'exclude', pick: cur?.pick ?? 0, qty: cur?.qty ?? 1, quantityConfirmed: true }
+		};
 	}
 
 	async function confirmPush() {
@@ -220,7 +263,13 @@
 			const decision = decisions[item.ref];
 			const product = decision?.mode === 'product' ? item.candidates[decision.pick] : null;
 			return decision?.mode === 'product' && product
-				? { ref: item.ref, mode: 'product' as const, productId: product.id, qty: decision.qty }
+				? {
+						ref: item.ref,
+						mode: 'product' as const,
+						productId: product.id,
+						qty: decision.qty,
+						quantityConfirmed: decision.quantityConfirmed
+					}
 				: { ref: item.ref, mode: decision?.mode === 'freetext' ? 'freetext' as const : 'exclude' as const };
 		});
 		if (pushDecisions.every((decision) => decision.mode === 'exclude')) {
@@ -387,6 +436,7 @@
 					onToggleExclude={() => toggleExclude(item.ref, item)}
 					onPickProduct={(idx) => pickProduct(item.ref, idx)}
 					onQuantityChange={(qty) => setQuantity(item.ref, qty)}
+					onQuantityConfirm={() => confirmQuantity(item.ref)}
 					onToggleFavorite={(cand, idx) => void toggleFavorite(item, cand, idx)}
 					onDemoteToText={() => demoteToText(item.ref)}
 					onToggleExpanded={() => (expanded = { ...expanded, [item.ref]: !expanded[item.ref] })}
@@ -405,7 +455,7 @@
 				type="button"
 				class="btn btn-primary min-h-11"
 				onclick={confirmPush}
-				disabled={ahPushing || (pushSummary.products === 0 && pushSummary.text === 0)}
+				disabled={ahPushing || pushSummary.unconfirmed > 0 || (pushSummary.products === 0 && pushSummary.text === 0)}
 			>
 				{#if ahPushing}
 					<Spinner size="xs" />

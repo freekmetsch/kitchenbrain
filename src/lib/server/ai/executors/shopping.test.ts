@@ -18,7 +18,12 @@ const WEEK = weekStartFor(todayIso(), 2);
 
 type ShoppingResult = {
 	week: string;
-	shopping_list: { name: string; amount: string; unit: string | null }[];
+	shopping_list: {
+		name: string;
+		amount: string | null;
+		unit: string | null;
+		incompatible_quantities: boolean;
+	}[];
 	meals_without_recipe: string[];
 	note: string;
 };
@@ -114,6 +119,30 @@ describe('generate_shopping_list', () => {
 		expect(res.shopping_list.map((i) => ({ name: i.name, amount: i.amount }))).toEqual([
 			{ name: 'Rijst', amount: '300' }
 		]);
+	});
+
+	it('returns one Dutch item with an incompatible-quantity warning for unlike source units', async () => {
+		const db = createTestDb();
+		seedRecipe(db, 'tomatensoep', [{ name: 'Tomaten', amount: '4', unit: 'stuks' }]);
+		seedRecipe(db, 'pastasaus', [{ name: 'Tomaten', amount: '1', unit: 'blik' }]);
+		await planMeal(db, 'Tomatensoep', 'tomatensoep');
+		await planMeal(db, 'Pastasaus', 'pastasaus');
+
+		const res = (await executeToolCall(
+			'generate_shopping_list',
+			{ week_start_date: WEEK },
+			db,
+			1,
+			turnCtx()
+		)) as ShoppingResult;
+
+		expect(res.shopping_list).toHaveLength(1);
+		expect(res.shopping_list[0]).toMatchObject({
+			name: 'Tomaten',
+			amount: null,
+			unit: null,
+			incompatible_quantities: true
+		});
 	});
 
 	it('uses source-owned choices and ignores retired override rows', async () => {

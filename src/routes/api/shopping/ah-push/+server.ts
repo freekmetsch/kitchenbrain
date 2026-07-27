@@ -9,6 +9,7 @@ import { AhPushBodySchema, bindAhPushDecisions, claimAhPreviewToken, isAhEligibl
 import { getShoppingWeekView } from '$lib/server/shopping_view';
 
 function freetextDescription(item: AhPreviewBinding): string {
+	if (item.incompatibleQuantities) return [item.term, item.quantitySummary].filter(Boolean).join(' — ');
 	return [item.term, item.amount, item.unit].filter((value) => value && value.trim()).join(' ');
 }
 
@@ -18,7 +19,13 @@ function assertCurrentPreview(weekStart: string, bindings: AhPreviewBinding[]): 
 	const currentRows = new Map(getShoppingWeekView(db, weekStart).toBuy.filter(isAhEligibleShoppingRow).map((row) => [`entries:${[...row.entryIds].sort((a, b) => a - b).join(',')}`, row]));
 	for (const binding of bindings) {
 		const row = currentRows.get(binding.ref);
-		if (!row || row.name !== binding.term || row.amount !== binding.amount || row.unit !== binding.unit) error(409, 'The shopping list changed; review it again');
+		if (
+			!row ||
+			row.name !== binding.term ||
+			row.amount !== binding.amount ||
+			row.unit !== binding.unit ||
+			row.incompatibleQuantities !== (binding.incompatibleQuantities ?? false)
+		) error(409, 'The shopping list changed; review it again');
 		const ids = [...row.entryIds].sort((a, b) => a - b);
 		const expectedIds = [...binding.entryIds].sort((a, b) => a - b);
 		if (JSON.stringify(ids) !== JSON.stringify(expectedIds)) error(409, 'The shopping sources changed; review them again');

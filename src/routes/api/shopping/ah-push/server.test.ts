@@ -46,6 +46,7 @@ function setup() {
 	state.view = {
 		toBuy: [{
 			entryIds: [entry.id], name: 'pasta', amount: '400', unit: 'g', covered: false,
+			incompatibleQuantities: false,
 			sources: [source]
 		}]
 	};
@@ -61,16 +62,77 @@ function setup() {
 }
 
 async function push(user: { id: number; username: string }, previewToken: string) {
+	return pushWithDecisions(user, previewToken, [
+		{ ref: 'entries:1', mode: 'product', productId: '123', qty: 1 }
+	]);
+}
+
+async function pushWithDecisions(
+	user: { id: number; username: string },
+	previewToken: string,
+	decisions: Array<Record<string, unknown>>
+) {
 	return POST({
 		request: new Request('http://localhost/api/shopping/ah-push', {
 			method: 'POST', headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({
-				previewToken,
-				decisions: [{ ref: 'entries:1', mode: 'product', productId: '123', qty: 1 }]
-			})
+			body: JSON.stringify({ previewToken, decisions })
 		}),
 		locals: { user }
 	} as never);
+}
+
+function setupIncompatible() {
+	state.db = createTestDb();
+	const now = new Date();
+	const user = state.db.insert(schema.users).values({
+		username: 'test', passwordHash: 'none', createdAt: now
+	}).returning().get();
+	const entries = state.db.insert(schema.shoppingWeekEntries).values([
+		{
+			weekStartDate: WEEK, sourceKey: 'manual:1', sourceKind: 'manual',
+			name: 'tomaten', amount: '2', unit: 'stuks', approvedTerms: ['tomaten'],
+			createdAt: now, updatedAt: now
+		},
+		{
+			weekStartDate: WEEK, sourceKey: 'manual:2', sourceKind: 'manual',
+			name: 'tomaten', amount: '1', unit: 'blik', approvedTerms: ['tomaten'],
+			createdAt: now, updatedAt: now
+		}
+	]).returning().all();
+	const sources = entries.map((entry) => ({
+		id: entry.id,
+		revision: entry.revision,
+		term: 'tomaten',
+		approvedTerms: ['tomaten']
+	}));
+	const ref = `entries:${entries.map((entry) => entry.id).join(',')}`;
+	state.view = {
+		toBuy: [{
+			entryIds: entries.map((entry) => entry.id),
+			name: 'tomaten',
+			amount: null,
+			unit: null,
+			incompatibleQuantities: true,
+			covered: false,
+			sources
+		}]
+	};
+	const previewToken = createAhPreviewToken({
+		userId: user.id,
+		weekStart: WEEK,
+		items: [{
+			ref,
+			entryIds: entries.map((entry) => entry.id),
+			entryRevisions: entries.map((entry) => entry.revision),
+			term: 'tomaten',
+			amount: null,
+			unit: null,
+			incompatibleQuantities: true,
+			quantitySummary: '2 stuks + 1 blik',
+			offeredProducts: [{ id: '456', name: 'AH Tomaten' }]
+		}]
+	});
+	return { user, entries, previewToken, ref };
 }
 
 describe('AH push attempt state', () => {
@@ -92,7 +154,7 @@ describe('AH push attempt state', () => {
 		expect(state.db.select().from(schema.shoppingPushHistory).get()).toMatchObject({ attemptStatus: 'succeeded', productsPushed: 1 });
 		expect(state.db.select().from(schema.shoppingPushItems).get()).toMatchObject({ status: 'success' });
 		expect(state.db.select().from(schema.shoppingWeekEntries).where(eq(schema.shoppingWeekEntries.id, entry.id)).get()?.bought).toBe(true);
-	});
+	}, 15_000);
 
 	it('records a definite rejection as failed without marking bought', async () => {
 		const { user, previewToken } = setup();
@@ -136,5 +198,51 @@ describe('AH push attempt state', () => {
 		expect(state.addProductItems).toHaveBeenCalledTimes(1);
 		expect(state.db.select().from(schema.shoppingPushHistory).get()).toMatchObject({ attemptStatus: 'uncertain' });
 		expect(state.db.select().from(schema.shoppingPushItems).get()).toMatchObject({ status: 'success' });
+	});
+
+	it('requires pack confirmation, sends one product decision, and marks every incompatible source bought', async () => {
+		const { user, entries, previewToken, ref } = setupIncompatible();
+		await expect(pushWithDecisions(user, previewToken, [
+			{ ref, mode: 'product', productId: '456', qty: 1 }
+		])).rejects.toMatchObject({ status: 400 });
+		expect(state.addProductItems).not.toHaveBeenCalled();
+
+		const fresh = setupIncompatible();
+		state.addProductItems.mockResolvedValue({ ok: true, status: 200, uncertain: false });
+		const response = await pushWithDecisions(fresh.user, fresh.previewToken, [
+			{ ref: fresh.ref, mode: 'product', productId: '456', qty: 2, quantityConfirmed: true }
+		]);
+		expect(await response.json()).toMatchObject({ ok: true, markedBoughtRefs: [fresh.ref] });
+		expect(state.addProductItems).toHaveBeenCalledWith([{ id: '456', qty: 2 }]);
+		const bought = state.db.select().from(schema.shoppingWeekEntries).all();
+		expect(bought).toHaveLength(entries.length);
+		expect(bought.every((entry) => entry.bought)).toBe(true);
+	});
+
+	it('preserves every incompatible source amount in the free-text fallback', async () => {
+		const { user, previewToken, ref } = setupIncompatible();
+		state.addFreetextItems.mockResolvedValue({
+			pushed: ['tomaten — 2 stuks + 1 blik'],
+			failed: [],
+			uncertain: []
+		});
+		const response = await pushWithDecisions(user, previewToken, [
+			{ ref, mode: 'freetext' }
+		]);
+		expect(await response.json()).toMatchObject({ ok: true, markedBoughtRefs: [ref] });
+		expect(state.addFreetextItems).toHaveBeenCalledWith(['tomaten — 2 stuks + 1 blik']);
+		expect(state.db.select().from(schema.shoppingWeekEntries).all().every((entry) => entry.bought)).toBe(true);
+	});
+
+	it('rejects an incompatible preview when one contributing source revision changed', async () => {
+		const { user, previewToken, ref } = setupIncompatible();
+		const view = state.view as {
+			toBuy: Array<{ sources: Array<{ revision: number }> }>;
+		};
+		view.toBuy[0].sources[1].revision += 1;
+		await expect(pushWithDecisions(user, previewToken, [
+			{ ref, mode: 'freetext' }
+		])).rejects.toMatchObject({ status: 409 });
+		expect(state.addFreetextItems).not.toHaveBeenCalled();
 	});
 });

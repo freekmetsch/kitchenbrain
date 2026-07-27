@@ -1,7 +1,4 @@
-<!--
-	The Market Run hero: page identity, AH connection state, week navigation,
-	delivery context, and run progress in one compact source-aware surface.
--->
+<!-- Shopping utility band: one page identity plus week, delivery, AH, and progress context. -->
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
@@ -63,8 +60,7 @@
 <header class="market-hero">
 	<div class="market-hero-top">
 		<div class="market-identity">
-			<p>{m.shopping_market_context()}</p>
-			<h1>{m.shopping_market_heading()}</h1>
+			<h1>{m.shopping_heading()}</h1>
 		</div>
 		<span class:offline={!ahConnected} class="market-ah-status">
 			<i aria-hidden="true"></i>
@@ -172,14 +168,6 @@
 		min-width: 0;
 		align-items: baseline;
 		gap: 0.55rem;
-	}
-
-	.market-identity p {
-		color: #f2ca74;
-		font-size: 0.62rem;
-		font-weight: 800;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
 	}
 
 	.market-ah-status {

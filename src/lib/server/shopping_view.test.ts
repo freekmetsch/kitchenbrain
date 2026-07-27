@@ -20,7 +20,7 @@ describe('shopping week projection', () => {
 		expect(view.toBuy[0].entryIds).toHaveLength(2);
 	});
 
-	it('keeps incompatible quantities separate and excludes unresolved legacy rows', () => {
+	it('keeps one Dutch-term row with every incompatible quantity source and excludes unresolved legacy rows', () => {
 		const db = createTestDb();
 		const now = new Date();
 		db.insert(schema.shoppingWeekEntries).values([
@@ -30,8 +30,19 @@ describe('shopping week projection', () => {
 		]).run();
 
 		const view = getShoppingWeekView(db, WEEK);
-		expect(view.toBuy).toHaveLength(2);
-		expect(view.toBuy.every((row) => row.incompatibleQuantities)).toBe(true);
+		expect(view.toBuy).toHaveLength(1);
+		expect(view.toBuy[0]).toMatchObject({
+			name: 'tomaten',
+			amount: null,
+			unit: null,
+			incompatibleQuantities: true
+		});
+		expect(view.toBuy[0].entryIds).toEqual(view.toBuy[0].sources.map((source) => source.id));
+		expect(view.toBuy[0].entryIds).toHaveLength(2);
+		expect(view.toBuy[0].sources.map(({ term, amount, unit }) => ({ term, amount, unit }))).toEqual([
+			{ term: 'tomaten', amount: '2', unit: 'stuks' },
+			{ term: 'tomaten', amount: '1', unit: 'blik' }
+		]);
 		expect(view.legacy).toHaveLength(1);
 	});
 

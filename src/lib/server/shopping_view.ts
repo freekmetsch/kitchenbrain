@@ -91,20 +91,14 @@ function effectiveAmount(entry: WeekEntry): { amount: string | null; unit: strin
 
 function aggregateRows(sources: ShoppingSourceView[], inventoryNames: string[]): ShoppingBuyRow[] {
 	const rows: ShoppingBuyRow[] = [];
+	const rowsByTerm = new Map<string, ShoppingBuyRow>();
 	const inventoryKeys = new Set(inventoryNames.map(inventoryMatchKey).filter(Boolean));
 	for (const source of sources.filter((entry) => entry.included && !entry.needsReview)) {
 		const termKey = normalizeNameKey(source.term);
-		const candidates = rows.filter((row) => normalizeNameKey(row.name) === termKey);
-		let target = candidates.find((row) => {
-			if (!row.amount && !source.amount) return true;
-			return sumCompatibleQuantities([
-				...row.sources.map((item) => ({ amount: item.amount ?? '', unit: item.unit ?? undefined })),
-				{ amount: source.amount ?? '', unit: source.unit ?? undefined }
-			]) != null;
-		});
+		let target = rowsByTerm.get(termKey);
 		if (!target) {
 			target = {
-				key: `${termKey}:${candidates.length}`,
+				key: `${termKey}:0`,
 				name: source.term,
 				amount: source.amount,
 				unit: source.unit,
@@ -112,9 +106,9 @@ function aggregateRows(sources: ShoppingSourceView[], inventoryNames: string[]):
 				covered: inventoryKeys.has(inventoryMatchKey(source.term)),
 				entryIds: [source.id],
 				sources: [source],
-				incompatibleQuantities: candidates.length > 0
+				incompatibleQuantities: false
 			};
-			for (const candidate of candidates) candidate.incompatibleQuantities = true;
+			rowsByTerm.set(termKey, target);
 			rows.push(target);
 			continue;
 		}
@@ -127,6 +121,11 @@ function aggregateRows(sources: ShoppingSourceView[], inventoryNames: string[]):
 		if (sum) {
 			target.amount = sum.amount;
 			target.unit = sum.unit ?? null;
+			target.incompatibleQuantities = false;
+		} else {
+			target.amount = null;
+			target.unit = null;
+			target.incompatibleQuantities = target.sources.some((item) => item.amount || item.unit);
 		}
 	}
 	return rows;
