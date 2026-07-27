@@ -7,7 +7,7 @@ import * as schema from '$lib/server/db/schema';
 import type { Db as DB } from '$lib/server/db/types';
 import { checkDailyCap, createMessage, loadPrompt, logSpend, parseModelJson } from '$lib/server/ai/client';
 import { getBackgroundModel } from '$lib/server/ai/config';
-import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
+import { updateCanonicalRecipe } from '$lib/server/domains/recipes';
 import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 import { addInventory } from '$lib/server/domains/inventory/commands';
 

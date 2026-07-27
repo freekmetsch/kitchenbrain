@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
-import { createMealRecipe } from '$lib/server/meal_recipes';
+import { createMealRecipe } from '$lib/server/domains/recipes';
 import { deriveWeekNeeds, type PlannedMealForNeeds } from './shopping_needs';
 
 function seedRecipe(db: TestDb, slug: string, ingredients: Ingredient[], servings: number | null = 4) {

@@ -5,9 +5,9 @@
 // are display-only and never feed matching or the shopping list.
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
-import type { Db as DB } from '$lib/server/db/types';
+import type { DbOrTx } from '$lib/server/db/types';
 import { inferFoodClassFromName, normalizeFoodClass } from '$lib/food_class';
-import { expandMealIngredients, type SubRecipeRef } from '$lib/server/meal_recipes';
+import { expandMealIngredients, type SubRecipeRef } from './composition';
 
 type Recipe = typeof schema.recipes.$inferSelect;
 
@@ -33,7 +33,7 @@ export function ingredientRoleCoverage(ingredients: Ingredient[]): IngredientRol
 }
 
 export function expandedIngredientRoleCoverage(
-	db: DB,
+	db: DbOrTx,
 	recipe: { id: number; ingredients: unknown },
 	subRecipes?: SubRecipeRef[]
 ): IngredientRoleCoverage {

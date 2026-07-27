@@ -1,7 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { db } from '$lib/server/db/index';
-import { saveRecipeIngredientDefault } from '$lib/server/shopping_recipe_choice';
+import { saveRecipeIngredientChoice } from '$lib/server/workflows/recipe-ingredient-choice';
 import { ShoppingMutationError } from '$lib/server/shopping_mutations';
 import type { RequestHandler } from './$types';
 
@@ -18,7 +17,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		return json({ status: 'error', message: 'Invalid ingredient swap' }, { status: 400 });
 	}
 	try {
-		const recipe = saveRecipeIngredientDefault(db, {
+		const recipe = saveRecipeIngredientChoice({
 			recipeSlug: params.slug,
 			...parsed.data
 		});

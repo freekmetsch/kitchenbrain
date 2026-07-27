@@ -17,7 +17,7 @@
 	import { labelWeeks, type Recipe } from '$lib/components/recipe-detail/types';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import type { IngredientRoleCoverage } from '$lib/server/recipe_links';
+	import type { IngredientRoleCoverage } from '$lib/server/domains/recipes';
 	import { isCookModeEligibleForNewSession } from '$lib/components/cook-mode/staleness';
 
 	let {

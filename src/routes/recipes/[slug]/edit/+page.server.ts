@@ -1,18 +1,14 @@
 import { fail, redirect, error } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { base } from '$app/paths';
-import { db } from '$lib/server/db/index';
-import { recipes } from '$lib/server/db/schema';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import {
 	recipeEditChangesCookingStructure,
 	recipeIngredientsEqual
 } from '$lib/recipe_edit';
-import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
+import { getRecipeForEdit, saveRecipeEdit } from '$lib/server/workflows/recipe-edit';
 import type { Actions, PageServerLoad } from './$types';
 import { LiveIngredientSchema, mergeLiveIngredients } from '$lib/recipe_ingredient';
-import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 
 const RecipeEditSchema = z.object({
 	title: z.string().trim().min(1, 'title required').max(200),
@@ -78,7 +74,7 @@ function parseFormPayload(form: FormData): FormPayload {
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
-	const recipe = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
+	const recipe = getRecipeForEdit(params.slug);
 	if (!recipe) throw error(404, 'Recipe not found');
 	const reviewingStructureDraft =
 		recipe.structureDraft != null &&
@@ -107,7 +103,7 @@ export const actions: Actions = {
 			return fail(400, { error: message });
 		}
 
-		const current = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
+		const current = getRecipeForEdit(params.slug);
 		if (!current) return fail(404, { error: 'Recipe not found' });
 		if (current.contentRevision !== payload.contentRevision) {
 			return fail(409, { error: 'This recipe changed while you were editing it. Reload and try again.' });
@@ -147,7 +143,7 @@ export const actions: Actions = {
 			ingredientsChanged ||
 			!sameJson(current.directions, payload.directions);
 
-		const updated = updateCanonicalRecipe(db, {
+		const updated = saveRecipeEdit({
 			recipeId: current.id,
 			expectedRevision: payload.contentRevision,
 			changes: {
@@ -178,10 +174,10 @@ export const actions: Actions = {
 				// A manual save IS the human review — clear any import review flag.
 				needsReview: false,
 				reviewReason: null,
-			}
+			},
+			reconcileShopping: ingredientsChanged || current.servings !== payload.servings
 		});
 		if (!updated) return fail(409, { error: 'This recipe changed while you were editing it. Reload and try again.' });
-		if (ingredientsChanged || current.servings !== payload.servings) reconcileShoppingAfterWrite(db);
 
 		if (semanticStructureChanged) {
 			kickCookModeGeneration(params.slug);

@@ -41,6 +41,30 @@ export function frozenPortionsByRecipe(db: DbOrTx): Map<number, number> {
 	return portions;
 }
 
+export function listFreezerStaples(db: DbOrTx) {
+	const onHand = frozenPortionsByRecipe(db);
+	return db
+		.select({
+			id: schema.recipes.id,
+			slug: schema.recipes.slug,
+			title: schema.recipes.title,
+			targetPortions: schema.recipes.targetPortions
+		})
+		.from(schema.recipes)
+		.where(eq(schema.recipes.isFreezerStaple, true))
+		.all()
+		.map((recipe) => {
+			const current = onHand.get(recipe.id) ?? 0;
+			return {
+				slug: recipe.slug,
+				title: recipe.title,
+				target_portions: recipe.targetPortions,
+				on_hand_portions: current,
+				below_target: recipe.targetPortions != null && current < recipe.targetPortions
+			};
+		});
+}
+
 export function recipeSuggestionsForName(
 	name: string,
 	recipes: RecipeTitleRow[],

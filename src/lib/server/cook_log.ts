@@ -1,7 +1,7 @@
 import { eq, max, count } from 'drizzle-orm';
 import * as schema from './db/schema';
 import type { Db as DB } from './db/types';
-import { subRecipesOf } from './meal_recipes';
+import { subRecipesOf } from './domains/recipes';
 import type { BenchSheetRating } from '$lib/types';
 
 type CookSource = 'plan' | 'manual' | 'backfill' | 'meal';

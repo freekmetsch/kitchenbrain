@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
-import { addSubRecipe, removeSubRecipe } from '$lib/server/meal_recipes';
-import { updateCanonicalRecipe, updateCookModeCache } from './recipe_mutations';
+import { addSubRecipe, removeSubRecipe } from './composition';
+import { updateCanonicalRecipe, updateCookModeCache } from './commands';
 
 describe('updateCanonicalRecipe', () => {
 	it('writes cook structure without changing canonical revision', () => {

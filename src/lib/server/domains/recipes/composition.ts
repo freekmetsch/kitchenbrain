@@ -11,8 +11,7 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
-import type { Db as DB } from '$lib/server/db/types';
-import { slugify, uniqueSlug } from '$lib/server/ai/recipe_ingest';
+import type { DbOrTx } from '$lib/server/db/types';
 import { projectIngredient } from '$lib/recipe_scale';
 import { captureRecipeSource } from '$lib/recipe_source_snapshot';
 
@@ -50,8 +49,37 @@ export class MealCompositionError extends Error {
 	}
 }
 
+export function slugifyRecipeTitle(title: string): string {
+	return title
+		.toLowerCase()
+		.replace(/[àáâãäå]/g, 'a')
+		.replace(/[èéêë]/g, 'e')
+		.replace(/[ìíîï]/g, 'i')
+		.replace(/[òóôõö]/g, 'o')
+		.replace(/[ùúûü]/g, 'u')
+		.replace(/[ñ]/g, 'n')
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.slice(0, 60);
+}
+
+export function uniqueRecipeSlug(db: DbOrTx, base: string): string {
+	let slug = base;
+	let n = 1;
+	while (
+		db
+			.select({ id: schema.recipes.id })
+			.from(schema.recipes)
+			.where(eq(schema.recipes.slug, slug))
+			.get()
+	) {
+		slug = `${base}-${n++}`;
+	}
+	return slug;
+}
+
 /** Sub-recipes of a meal recipe, in sort order. Empty = not a meal recipe. */
-export function subRecipesOf(db: DB, mealRecipeId: number): SubRecipeRef[] {
+export function subRecipesOf(db: DbOrTx, mealRecipeId: number): SubRecipeRef[] {
 	return db
 		.select({
 			id: schema.recipes.id,
@@ -68,7 +96,7 @@ export function subRecipesOf(db: DB, mealRecipeId: number): SubRecipeRef[] {
 }
 
 /** Meals that contain the given recipe as a sub — the "Part of" display. */
-export function mealsContaining(db: DB, subRecipeId: number): MealRef[] {
+export function mealsContaining(db: DbOrTx, subRecipeId: number): MealRef[] {
 	return db
 		.select({
 			id: schema.recipes.id,
@@ -83,7 +111,7 @@ export function mealsContaining(db: DB, subRecipeId: number): MealRef[] {
 }
 
 /** Sub-recipe count per meal recipe id — recipes-list badges in one query. */
-export function subRecipeCountByMeal(db: DB): Map<number, number> {
+export function subRecipeCountByMeal(db: DbOrTx): Map<number, number> {
 	const rows = db
 		.select({ mealRecipeId: schema.mealSubRecipes.mealRecipeId })
 		.from(schema.mealSubRecipes)
@@ -99,7 +127,7 @@ export function subRecipeCountByMeal(db: DB): Map<number, number> {
  * returns its own ingredients unchanged.
  */
 export function expandMealIngredients(
-	db: DB,
+	db: DbOrTx,
 	recipe: { id: number; slug?: string; title?: string; ingredients: unknown },
 	subRecipes?: SubRecipeRef[]
 ): Ingredient[] {
@@ -107,7 +135,7 @@ export function expandMealIngredients(
 }
 
 function sourceRows(
-	db: DB,
+	db: DbOrTx,
 	recipe: { id: number; slug?: string; title?: string; servings?: number | null; ingredients: unknown },
 	subRecipes?: SubRecipeRef[]
 ) {
@@ -140,7 +168,7 @@ function sourceRows(
  * order stays identical to the compatibility Ingredient[] projection.
  */
 export function expandMealIngredientSources(
-	db: DB,
+	db: DbOrTx,
 	recipe: { id: number; slug?: string; title?: string; ingredients: unknown },
 	subRecipes?: SubRecipeRef[]
 ): ExpandedMealIngredient[] {
@@ -164,7 +192,7 @@ export function expandMealIngredientSources(
  * requested portions are shared.
  */
 export function expandMealIngredientsForServings(
-	db: DB,
+	db: DbOrTx,
 	recipe: { id: number; slug?: string; title?: string; servings: number | null; ingredients: unknown },
 	occasionServings: number | null | undefined,
 	subRecipes?: SubRecipeRef[]
@@ -175,7 +203,7 @@ export function expandMealIngredientsForServings(
 }
 
 export function expandMealIngredientSourcesForServings(
-	db: DB,
+	db: DbOrTx,
 	recipe: { id: number; slug?: string; title?: string; servings: number | null; ingredients: unknown },
 	occasionServings: number | null | undefined,
 	subRecipes?: SubRecipeRef[]
@@ -200,7 +228,7 @@ export function expandMealIngredientSourcesForServings(
  * edit page adds tortillas/assembly later) plus links to ≥ 2 sub-recipes.
  */
 export function createMealRecipe(
-	db: DB,
+	db: DbOrTx,
 	opts: { title: string; subRecipeIds: number[] }
 ): typeof schema.recipes.$inferSelect {
 	const subIds = [...new Set(opts.subRecipeIds)];
@@ -218,7 +246,7 @@ export function createMealRecipe(
 	const now = new Date();
 	const knownYields = found.map((recipe) => recipe.servings).filter((value): value is number => value != null && value > 0);
 	const servings = knownYields.length ? Math.max(...knownYields) : 4;
-	const slug = uniqueSlug(db, slugify(opts.title));
+	const slug = uniqueRecipeSlug(db, slugifyRecipeTitle(opts.title) || 'recipe');
 	const meal = db
 		.insert(schema.recipes)
 		.values({
@@ -249,7 +277,7 @@ export function createMealRecipe(
 	return meal;
 }
 
-function assertLinkable(db: DB, mealRecipeId: number, subRecipeId: number): void {
+function assertLinkable(db: DbOrTx, mealRecipeId: number, subRecipeId: number): void {
 	if (mealRecipeId === subRecipeId) {
 		throw new MealCompositionError('self_reference', 'A recipe cannot contain itself.');
 	}
@@ -278,7 +306,7 @@ function assertLinkable(db: DB, mealRecipeId: number, subRecipeId: number): void
 }
 
 /** Link one sub-recipe to a meal (idempotent on the unique pair). */
-export function addSubRecipe(db: DB, mealRecipeId: number, subRecipeId: number): boolean {
+export function addSubRecipe(db: DbOrTx, mealRecipeId: number, subRecipeId: number): boolean {
 	assertLinkable(db, mealRecipeId, subRecipeId);
 	const existing = db
 		.select({ id: schema.mealSubRecipes.id })
@@ -297,7 +325,7 @@ export function addSubRecipe(db: DB, mealRecipeId: number, subRecipeId: number):
 	return result.changes > 0;
 }
 
-export function removeSubRecipe(db: DB, mealRecipeId: number, subRecipeId: number): boolean {
+export function removeSubRecipe(db: DbOrTx, mealRecipeId: number, subRecipeId: number): boolean {
 	const result = db.delete(schema.mealSubRecipes)
 		.where(
 			and(

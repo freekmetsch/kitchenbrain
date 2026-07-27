@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import { expandMealIngredientsForServings, subRecipesOf } from '$lib/server/meal_recipes';
+import { expandMealIngredientsForServings, subRecipesOf } from '$lib/server/domains/recipes';
 import {
 	createMessage,
 	checkDailyCap,
@@ -24,7 +24,7 @@ import {
 	violatesActionState
 } from '$lib/components/cook-mode/staleness';
 import { inaccessibleCookModeTerm } from '$lib/components/cook-mode/plain-language';
-import { updateCanonicalRecipe, updateCookModeCache } from '$lib/server/recipe_mutations';
+import { updateCanonicalRecipe, updateCookModeCache } from '$lib/server/domains/recipes';
 
 const LocalizedTextSchema = z.object({
 	en: z.string().min(1),

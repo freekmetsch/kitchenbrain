@@ -4,7 +4,7 @@ import type { Db as DB } from '$lib/server/db/types';
 import { mergeLiveIngredients, type Ingredient } from '$lib/recipe_ingredient';
 import { checkDailyCap } from '$lib/server/ai/client';
 import { enrichRecipeStructure, type ScrapedRecipe } from '$lib/server/ai/recipe_ingest';
-import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
+import { stageRecipeStructureDraft, updateCanonicalRecipe } from '$lib/server/domains/recipes';
 import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 
 export type NormalizationBatchResult = {
@@ -101,15 +101,16 @@ export async function normalizeLegacyRecipes(
 					}
 				}) ? 1 : 0;
 			}
-			return tx.update(schema.recipes).set({
+			return stageRecipeStructureDraft(tx, {
+				recipeId: candidate.id,
+				expectedRevision: candidate.contentRevision,
 				structureDraft: compatibleIngredients,
 				structureDraftSourceUpdatedAt: sourceUpdatedAt,
-				needsReview: true,
-				reviewReason: proposed.enrichmentReviewReason ?? 'Check the proposed ingredient structure.'
-			}).where(and(
-				eq(schema.recipes.id, candidate.id),
-				eq(schema.recipes.contentRevision, candidate.contentRevision)
-			)).run().changes;
+				reviewReason:
+					proposed.enrichmentReviewReason ?? 'Check the proposed ingredient structure.'
+			})
+				? 1
+				: 0;
 		});
 		if (changed === 0) {
 			stale += 1;

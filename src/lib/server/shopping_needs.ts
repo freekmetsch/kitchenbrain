@@ -17,8 +17,10 @@ import { inArray } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient, MealSource } from '$lib/server/db/schema';
 import type { Db as DB } from '$lib/server/db/types';
-import { expandMealIngredientSourcesForServings } from '$lib/server/meal_recipes';
-import { ingredientRoleCoverage } from '$lib/server/recipe_links';
+import {
+	expandMealIngredientSourcesForServings,
+	ingredientRoleCoverage
+} from '$lib/server/domains/recipes';
 import { sumCompatibleQuantities } from '$lib/recipe_scale';
 
 export type PlannedMealForNeeds = {

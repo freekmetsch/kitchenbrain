@@ -2,7 +2,7 @@ import { and, eq, gte, isNull, ne, sql } from 'drizzle-orm';
 import type { Ingredient } from '$lib/recipe_ingredient';
 import * as schema from '$lib/server/db/schema';
 import type { Db as DB } from '$lib/server/db/types';
-import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
+import { updateCanonicalRecipe } from '$lib/server/domains/recipes';
 import { reconcileShoppingAfterWrite, shoppingPlanningConfig } from '$lib/server/shopping_entries';
 import { addInventory, updateInventory } from '$lib/server/domains/inventory/commands';
 import { findExistingItem } from '$lib/server/domains/inventory/merge';

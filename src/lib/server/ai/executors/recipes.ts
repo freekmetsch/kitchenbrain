@@ -1,52 +1,51 @@
 import { z } from 'zod';
-import { eq, like, inArray } from 'drizzle-orm';
-import * as schema from '$lib/server/db/schema';
-import type { Ingredient } from '$lib/server/db/schema';
+import type { Ingredient } from '$lib/recipe_ingredient';
 import { namesMatch } from '$lib/match';
-import { foodCategoryMatches, normalizeFoodCategory } from '$lib/food_categories';
+import { foodCategoryMatches } from '$lib/food_categories';
 import {
 	scrapeRecipeFromUrl,
 	insertScrapedRecipe,
-	reviewFields,
 	RecipeIngestError
 } from '$lib/server/ai/recipe_ingest';
 import {
-	frozenPortionsByRecipe,
+	listFreezerStaples,
 	setFreezerStaple
 } from '$lib/server/domains/inventory/freezer';
-import { createMealRecipe, MealCompositionError, subRecipesOf } from '$lib/server/meal_recipes';
-import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
-import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';
+import {
+	createCanonicalRecipe,
+	createMealRecipe,
+	findRecipeByTitle,
+	getRecipeBySlug,
+	getRecipesBySlugs,
+	ingredientStructureVersion,
+	listRecipes,
+	MealCompositionError,
+	reviewFields,
+	subRecipesOf,
+	updateCanonicalRecipe,
+	type CanonicalRecipeUpdate
+} from '$lib/server/domains/recipes';
 import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
-import { db as appDb } from '$lib/server/db/index';
-import { updateCanonicalRecipe, type CanonicalRecipeUpdate } from '$lib/server/recipe_mutations';
 import type { DB, ExecutorFn } from './shared';
 import { NewIngredientSchema } from '$lib/recipe_ingredient';
 import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
 import { generateRecipeEnhancement } from '$lib/server/ai/recipe_enhancement';
-import { captureRecipeSource, ensureDirectionIds } from '$lib/recipe_source_snapshot';
+import {
+	kickCookModeForDb,
+	kickTranslationForDb
+} from '$lib/server/workflows/recipe-background';
 
 // Pre-generate a bench sheet after a chat-side recipe write, so the recipe is
 // ready by the time it's opened. generateCookMode reads the module-level app
 // DB — skip when the executor runs against a different (test) database.
 function kickCookModeIfAppDb(db: DB, slug: string) {
-	if (db === appDb) kickCookModeGeneration(slug);
+	kickCookModeForDb(db, slug);
 }
 
 // Same app-db guard, for the auto-translate-on-import toggle (Phase 4) —
 // translateRecipe also reads the module-level app DB.
 function kickTranslateIfAppDb(db: DB, slug: string) {
-	if (db === appDb) kickTranslateOnImport(slug);
-}
-
-function ingredientStructureVersion(ingredients: Ingredient[]): 1 | 2 {
-	return ingredients.length > 0 && ingredients.every((ingredient) =>
-		(ingredient.role === 'cook_in' || ingredient.role === 'serve_fresh') &&
-		typeof ingredient.optional === 'boolean' &&
-		Boolean(ingredient.purchaseForm) &&
-		Boolean(ingredient.scale) &&
-		Boolean(ingredient.origin)
-	) ? 2 : 1;
+	kickTranslationForDb(db, slug);
 }
 
 export const recipeExecutors: Record<string, ExecutorFn> = {
@@ -61,13 +60,9 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			.parse(raw);
 
 		const recipe = input.slug
-			? db.select().from(schema.recipes).where(eq(schema.recipes.slug, input.slug)).get()
+			? getRecipeBySlug(db, input.slug)
 			: input.name
-				? db
-						.select()
-						.from(schema.recipes)
-						.where(like(schema.recipes.title, `%${input.name}%`))
-						.get()
+				? findRecipeByTitle(db, input.name)
 				: undefined;
 		if (!recipe) return { found: false };
 		return { found: true, recipe };
@@ -82,7 +77,7 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			})
 			.parse(raw);
 
-		let results = db.select().from(schema.recipes).all();
+		let results = listRecipes(db);
 		if (input.query) {
 			const q = input.query.toLowerCase();
 			results = results.filter((r) => r.title.toLowerCase().includes(q));
@@ -114,11 +109,7 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 				sub_recipe_slugs: z.array(z.string().min(1)).min(2).max(12)
 			})
 			.parse(raw);
-		const subs = db
-			.select({ id: schema.recipes.id, slug: schema.recipes.slug, title: schema.recipes.title })
-			.from(schema.recipes)
-			.where(inArray(schema.recipes.slug, input.sub_recipe_slugs))
-			.all();
+		const subs = getRecipesBySlugs(db, input.sub_recipe_slugs);
 		const missing = input.sub_recipe_slugs.filter((s) => !subs.some((r) => r.slug === s));
 		if (missing.length) {
 			return { created: false, error: `Recipes not found: ${missing.join(', ')}` };
@@ -158,44 +149,23 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			})
 			.parse(raw);
 
-		const now = new Date();
 		// Policy: an explicit needs_review from the agent carries its reason (or a
 		// sentinel when none is given); reviewFields encodes the column pairing.
 		const review = reviewFields(
 			input.needs_review ? (input.review_reason ?? 'flagged_by_ai') : null
 		);
-		const directionIdsJson = ensureDirectionIds(input.directions);
-		const sourceSnapshotJson = captureRecipeSource(
-			{
-				title: input.title,
-				servings: input.servings ?? null,
-				sourceUrl: input.source_url ?? null,
-				ingredients: input.ingredients,
-				directions: input.directions
-			},
-			{ capturedAt: now.getTime() }
-		);
-		const recipe = db
-			.insert(schema.recipes)
-			.values({
-				title: input.title,
-				slug: input.slug,
-				category: normalizeFoodCategory(input.category),
-				servings: input.servings ?? null,
-				structureVersion: ingredientStructureVersion(input.ingredients),
-				totalTimeMin: input.total_time_min ?? null,
-				ingredients: input.ingredients,
-				directions: input.directions,
-				directionIdsJson,
-				sourceSnapshotJson,
-				notes: input.notes ?? null,
-				sourceUrl: input.source_url ?? null,
-				...review,
-				createdAt: now,
-				updatedAt: now
-			})
-			.returning()
-			.get();
+		const recipe = createCanonicalRecipe(db, {
+			title: input.title,
+			slug: input.slug,
+			category: input.category,
+			servings: input.servings,
+			totalTimeMin: input.total_time_min,
+			ingredients: input.ingredients,
+			directions: input.directions,
+			notes: input.notes,
+			sourceUrl: input.source_url,
+			reviewReason: review.reviewReason
+		});
 		// Ordinary cooking steps are projected directly from the saved directions.
 		// Semantic planning and translation are both non-blocking caches.
 		kickCookModeIfAppDb(db, recipe.slug);
@@ -238,11 +208,7 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			.strict()
 			.parse(raw);
 
-		const recipe = db
-			.select()
-			.from(schema.recipes)
-			.where(eq(schema.recipes.slug, input.slug))
-			.get();
+		const recipe = getRecipeBySlug(db, input.slug);
 		if (!recipe) return { ok: false, error: 'Recipe not found' };
 
 		const ingredients = [...(recipe.ingredients as Ingredient[])];
@@ -340,11 +306,7 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 				target_portions: z.number().int().min(1).max(99).optional()
 			})
 			.parse(raw);
-		const recipe = db
-			.select()
-			.from(schema.recipes)
-			.where(eq(schema.recipes.slug, input.slug))
-			.get();
+		const recipe = getRecipeBySlug(db, input.slug);
 		if (!recipe) return { ok: false, error: 'Recipe not found' };
 
 		// Through the keep-stocked seam: off records the opt-out so the next
@@ -363,28 +325,6 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 	},
 
 	async get_freezer_staples(_raw, db) {
-		const onHand = frozenPortionsByRecipe(db);
-		const rows = db
-			.select({
-				id: schema.recipes.id,
-				slug: schema.recipes.slug,
-				title: schema.recipes.title,
-				targetPortions: schema.recipes.targetPortions
-			})
-			.from(schema.recipes)
-			.where(eq(schema.recipes.isFreezerStaple, true))
-			.all();
-		return {
-			freezer_staples: rows.map((r) => {
-				const current = onHand.get(r.id) ?? 0;
-				return {
-					slug: r.slug,
-					title: r.title,
-					target_portions: r.targetPortions,
-					on_hand_portions: current,
-					below_target: r.targetPortions != null && current < r.targetPortions
-				};
-			})
-		};
+		return { freezer_staples: listFreezerStaples(db) };
 	}
 };

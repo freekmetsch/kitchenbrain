@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
-import type { Db as DB } from '$lib/server/db/types';
+import type { DbOrTx } from '$lib/server/db/types';
 import { reconcileDirectionIds } from '$lib/recipe_source_snapshot';
 
 type RecipeInsert = typeof schema.recipes.$inferInsert;
@@ -39,13 +39,8 @@ export type CanonicalRecipeUpdate = Partial<
 	>
 >;
 
-/**
- * The sole update seam for canonical recipe content. The compare-and-swap on
- * contentRevision prevents stale writers, while SQL arithmetic guarantees a
- * distinct revision even when several writes share one clock tick.
- */
 export function updateCanonicalRecipe(
-	db: DB,
+	db: DbOrTx,
 	options: {
 		recipeId: number;
 		expectedRevision: number;
@@ -92,9 +87,8 @@ export function updateCanonicalRecipe(
 		.get();
 }
 
-/** Cache-only compare-and-swap. Planning metadata never changes canonical revision. */
 export function updateCookModeCache(
-	db: DB,
+	db: DbOrTx,
 	options: {
 		recipeId: number;
 		expectedRevision: number;
@@ -108,6 +102,85 @@ export function updateCookModeCache(
 			cookModeJson: options.cookModeJson,
 			cookModeGeneratedAt: options.cookModeGeneratedAt
 		})
+		.where(
+			and(
+				eq(schema.recipes.id, options.recipeId),
+				eq(schema.recipes.contentRevision, options.expectedRevision)
+			)
+		)
+		.returning()
+		.get();
+}
+
+export function stageRecipeStructureDraft(
+	db: DbOrTx,
+	options: {
+		recipeId: number;
+		expectedRevision: number;
+		structureDraft: RecipeInsert['structureDraft'];
+		structureDraftSourceUpdatedAt: Date;
+		reviewReason: string;
+	}
+): boolean {
+	return (
+		db
+			.update(schema.recipes)
+			.set({
+				structureDraft: options.structureDraft,
+				structureDraftSourceUpdatedAt: options.structureDraftSourceUpdatedAt,
+				needsReview: true,
+				reviewReason: options.reviewReason
+			})
+			.where(
+				and(
+					eq(schema.recipes.id, options.recipeId),
+					eq(schema.recipes.contentRevision, options.expectedRevision)
+				)
+			)
+			.run().changes > 0
+	);
+}
+
+export function updateRecipeMetadata(
+	db: DbOrTx,
+	recipeId: number,
+	changes: {
+		targetPortions?: number | null;
+		needsReview?: boolean;
+		reviewReason?: string | null;
+	},
+	now = new Date()
+) {
+	return db
+		.update(schema.recipes)
+		.set({ ...changes, updatedAt: now })
+		.where(eq(schema.recipes.id, recipeId))
+		.returning()
+		.get();
+}
+
+export function updateRecipeTranslationCache(
+	db: DbOrTx,
+	options: {
+		recipeId: number;
+		expectedRevision: number;
+		changes: Pick<
+			RecipeInsert,
+			| 'titleEn'
+			| 'categoryEn'
+			| 'cuisineEn'
+			| 'notesEn'
+			| 'ingredientsEn'
+			| 'directionsEn'
+			| 'translationStatus'
+			| 'translatedAt'
+		>;
+		now?: Date;
+	}
+) {
+	return db
+		.update(schema.recipes)
+		.set({ ...options.changes, updatedAt: options.now ?? new Date() })
 		.where(
 			and(
 				eq(schema.recipes.id, options.recipeId),

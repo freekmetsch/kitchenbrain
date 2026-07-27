@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ingredientRoleCoverage } from './recipe_links';
+import { ingredientRoleCoverage } from './projections';
 
 describe('ingredientRoleCoverage', () => {
 	it('distinguishes zero, partial, and complete coverage', () => {
