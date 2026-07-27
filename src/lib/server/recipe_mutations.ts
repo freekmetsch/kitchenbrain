@@ -1,9 +1,8 @@
 import { and, eq, sql } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { reconcileDirectionIds } from '$lib/recipe_source_snapshot';
 
-type DB = BetterSQLite3Database<typeof schema>;
 type RecipeInsert = typeof schema.recipes.$inferInsert;
 
 export type CanonicalRecipeUpdate = Partial<

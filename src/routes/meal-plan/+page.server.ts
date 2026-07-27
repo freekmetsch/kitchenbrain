@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { asc, gte } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { mealPlanMeals, recipes } from '$lib/server/db/schema';
-import { frozenPortionsByRecipe } from '$lib/server/recipe_links';
+import { frozenPortionsByRecipe } from '$lib/server/domains/inventory/freezer';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
 import {
 	addDays,

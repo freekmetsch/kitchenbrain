@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { recipes } from '$lib/server/db/schema';
-import { setFreezerStaple } from '$lib/server/freezer_staple';
+import { setFreezerStaple } from '$lib/server/domains/inventory/freezer';
 import { readJsonBody } from '$lib/server/api_body';
 
 const PatchSchema = z.object({

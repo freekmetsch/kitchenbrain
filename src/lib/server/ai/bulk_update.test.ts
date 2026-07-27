@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
-import { addInventory } from '$lib/server/inventory_writes';
+import { addInventory } from '$lib/server/workflows/inventory';
 import { executeToolCall } from './executors';
 import type { TurnExecutionContext } from './commit_risk';
 

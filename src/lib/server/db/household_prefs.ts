@@ -2,10 +2,8 @@
 // table. Generic on purpose — chat tuning and any future app-wide setting share
 // this one seam. (`prefs` is the separate per-user store.)
 import { eq } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
-
-type DB = BetterSQLite3Database<typeof schema>;
+import type { Db as DB } from '$lib/server/db/types';
 
 // Free-text household profile injected into the AI system prompt
 // ({{household_profile}}); written from Settings, read per chat turn.

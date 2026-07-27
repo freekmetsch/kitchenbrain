@@ -5,11 +5,9 @@
 // recipes/prefs.ts — none of these knobs has a Railway env-var layer, so
 // precedence collapses to household_prefs → hardcoded default.
 import { db as appDb } from '$lib/server/db/index';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import { getHouseholdPref, setHouseholdPref } from '$lib/server/db/household_prefs';
-
-type DB = BetterSQLite3Database<typeof schema>;
+import type { Db as DB } from '$lib/server/db/types';
 
 export const K_WEEK_START_DAY = 'mealplan.week_start_day';
 export const K_GROCERY_DAY = 'mealplan.grocery_day';

@@ -1,13 +1,10 @@
-// Centralized inventory mutation boundary (P1.5, ADR 0001).
-// The ONLY module allowed to mutate inventory_items. Every mutation runs in a
-// transaction, applies the taxonomy rules (canonical units, leftover portions,
-// deterministic review flags), and writes exactly one inventory_ops_log row
-// with actor attribution and before/after snapshots. Undo never rewrites
-// history: it applies the inverse as a new op with undo_of set (G3).
+// Inventory commands (P1.5, ADR 0001). Commands accept DbOrTx and never start
+// transactions; standalone adapters use the inventory workflow, while a
+// cross-domain workflow can compose these commands in its own transaction.
 import { and, desc, eq, isNull, like, asc } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import type { InventoryActor } from '$lib/server/db/schema';
+import type { DbOrTx } from '$lib/server/db/types';
 import { normalizeFoodCategory } from '$lib/food_categories';
 import {
 	inferFoodClassFromName,
@@ -20,13 +17,11 @@ import {
 import {
 	findOrMergeInventory,
 	readInventoryItem,
-	type DbOrTx,
 	type FindOrMergeInventoryInput
-} from '$lib/server/inventory_merge';
-import { autoStapleOnLink } from '$lib/server/freezer_staple';
+} from './merge';
+import { autoStapleOnLink } from './freezer';
 import { isRuleReason, reasonTokens } from '$lib/review_reasons';
 
-type DB = BetterSQLite3Database<typeof schema>;
 type InventoryItem = typeof schema.inventoryItems.$inferSelect;
 type InventoryOp = typeof schema.inventoryOpsLog.$inferSelect;
 type Section = 'freezer' | 'pantry';
@@ -258,60 +253,58 @@ export type AddInventoryResult = {
 };
 
 export function addInventory(
-	db: DB,
+	db: DbOrTx,
 	input: AddInventoryInput,
 	ctx: WriteCtx,
 	precondition?: WritePrecondition
 ): AddInventoryResult {
 	const rules = applyTaxonomyRules(input);
-	return db.transaction((tx) => {
-		// P5.3 approve path: the merge target must still match what the user saw.
-		if (precondition) assertPrecondition(readInventoryItem(tx, precondition.itemId), precondition);
-		const result = findOrMergeInventory(tx, {
-			...input,
-			unit: rules.unit,
-			kind: rules.kind,
-			foodClass: rules.foodClass,
-			needsReview: rules.needsReview,
-			reviewReason: rules.reviewReason
-		});
-		// Keep-stocked contract (UX-STOCK-14): a linked leftover implies its
-		// recipe is a freezer staple, unless the recipe carries an opt-out.
-		// Same transaction; every write path (freeze, chat, UI) funnels here.
-		if (result.item.kind === 'leftover' && result.item.madeFromRecipeId != null) {
-			autoStapleOnLink(tx, result.item.madeFromRecipeId);
-		}
-		const opId = logOp(tx, ctx, {
-			opType: result.action,
-			itemId: result.item.id,
-			before: result.before ? toSnapshot(result.before) : null,
-			after: toSnapshot(result.item),
-			provenance:
-				result.action === 'update'
-					? {
-							source: 'find_or_merge',
-							mergedFrom: {
-								name: input.name,
-								section: input.section,
-								qtyText: input.qtyText ?? null,
-								qtyNum: input.qtyNum ?? null,
-								unit: input.unit ?? null,
-								createdAt: input.createdAt ?? null
-							},
-							matchedBy: result.matchedBy,
-							warnings: result.warnings
-						}
-					: { source: 'find_or_merge' }
-		});
-		return {
-			action: result.action,
-			item: result.item,
-			verified: result.verified,
-			matchedBy: result.matchedBy,
-			warnings: result.warnings,
-			opId
-		};
+	// P5.3 approve path: the merge target must still match what the user saw.
+	if (precondition) assertPrecondition(readInventoryItem(db, precondition.itemId), precondition);
+	const result = findOrMergeInventory(db, {
+		...input,
+		unit: rules.unit,
+		kind: rules.kind,
+		foodClass: rules.foodClass,
+		needsReview: rules.needsReview,
+		reviewReason: rules.reviewReason
 	});
+	// Keep-stocked contract (UX-STOCK-14): a linked leftover implies its
+	// recipe is a freezer staple, unless the recipe carries an opt-out.
+	// The owning workflow keeps this recipe write atomic with inventory + log.
+	if (result.item.kind === 'leftover' && result.item.madeFromRecipeId != null) {
+		autoStapleOnLink(db, result.item.madeFromRecipeId);
+	}
+	const opId = logOp(db, ctx, {
+		opType: result.action,
+		itemId: result.item.id,
+		before: result.before ? toSnapshot(result.before) : null,
+		after: toSnapshot(result.item),
+		provenance:
+			result.action === 'update'
+				? {
+						source: 'find_or_merge',
+						mergedFrom: {
+							name: input.name,
+							section: input.section,
+							qtyText: input.qtyText ?? null,
+							qtyNum: input.qtyNum ?? null,
+							unit: input.unit ?? null,
+							createdAt: input.createdAt ?? null
+						},
+						matchedBy: result.matchedBy,
+						warnings: result.warnings
+					}
+				: { source: 'find_or_merge' }
+	});
+	return {
+		action: result.action,
+		item: result.item,
+		verified: result.verified,
+		matchedBy: result.matchedBy,
+		warnings: result.warnings,
+		opId
+	};
 }
 
 export type UpdateInventoryInput = Partial<{
@@ -338,13 +331,12 @@ export type UpdateInventoryResult =
 	| { ok: false; error: string };
 
 export function updateInventory(
-	db: DB,
+	db: DbOrTx,
 	id: number,
 	input: UpdateInventoryInput,
 	ctx: WriteCtx
 ): UpdateInventoryResult {
-	return db.transaction((tx) => {
-		const before = readInventoryItem(tx, id);
+		const before = readInventoryItem(db, id);
 		if (!before) return { ok: false as const, error: 'Item not found' };
 
 		const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -399,7 +391,7 @@ export function updateInventory(
 		updates.needsReview = allReasons.length > 0;
 		updates.reviewReason = allReasons.length ? allReasons.join('; ') : null;
 
-		const item = tx
+		const item = db
 			.update(schema.inventoryItems)
 			.set(updates)
 			.where(eq(schema.inventoryItems.id, id))
@@ -415,17 +407,16 @@ export function updateInventory(
 			item.madeFromRecipeId != null &&
 			(before.kind !== 'leftover' || before.madeFromRecipeId !== item.madeFromRecipeId)
 		) {
-			autoStapleOnLink(tx, item.madeFromRecipeId);
+			autoStapleOnLink(db, item.madeFromRecipeId);
 		}
 
-		const opId = logOp(tx, ctx, {
+		const opId = logOp(db, ctx, {
 			opType: 'update',
 			itemId: id,
 			before: toSnapshot(before),
 			after: toSnapshot(item)
 		});
 		return { ok: true as const, item, opId };
-	});
 }
 
 export type RemoveInventoryTarget = { id?: number; name?: string; section?: Section };
@@ -462,26 +453,25 @@ export function resolveInventoryTarget(
 }
 
 export function removeInventory(
-	db: DB,
+	db: DbOrTx,
 	target: RemoveInventoryTarget,
 	ctx: WriteCtx,
 	precondition?: WritePrecondition
 ): RemoveInventoryResult {
-	return db.transaction((tx) => {
-		const item = resolveInventoryTarget(tx, target);
+		const item = resolveInventoryTarget(db, target);
 		if (!item) return { ok: false as const, error: 'Item not found' };
 
 		// P5.3 approve path: refuse if the target drifted since the card was shown.
 		if (precondition) assertPrecondition(item, precondition);
 
 		const before = toSnapshot(item);
-		tx.update(schema.inventoryItems)
+		db.update(schema.inventoryItems)
 			.set({ deletedAt: new Date() })
 			.where(eq(schema.inventoryItems.id, item.id))
 			.run();
 
-		const verified = readInventoryItem(tx, item.id);
-		const opId = logOp(tx, ctx, {
+		const verified = readInventoryItem(db, item.id);
+		const opId = logOp(db, ctx, {
 			opType: 'remove',
 			itemId: item.id,
 			before,
@@ -493,7 +483,6 @@ export function removeInventory(
 			verified: Boolean(verified?.deletedAt),
 			opId
 		};
-	});
 }
 
 // ── Undo (compensating ops, G3) ──────────────────────────────────────────────
@@ -547,9 +536,8 @@ function flagUndoConflict(tx: DbOrTx, ctx: WriteCtx, itemId: number, opId: numbe
  * state matches the op's after-state; otherwise flag the item Needs Review and
  * refuse. The inverse is written as a NEW op with undo_of set.
  */
-export function undoOp(db: DB, opId: number, ctx: WriteCtx): UndoResult {
-	return db.transaction((tx) => {
-		const op: InventoryOp | undefined = tx
+export function undoOp(db: DbOrTx, opId: number, ctx: WriteCtx): UndoResult {
+		const op: InventoryOp | undefined = db
 			.select()
 			.from(schema.inventoryOpsLog)
 			.where(eq(schema.inventoryOpsLog.id, opId))
@@ -559,7 +547,7 @@ export function undoOp(db: DB, opId: number, ctx: WriteCtx): UndoResult {
 			return { ok: false as const, error: 'Op has no item reference (legacy history is display-only)' };
 		}
 
-		const current = readInventoryItem(tx, op.itemId);
+		const current = readInventoryItem(db, op.itemId);
 		if (!current) return { ok: false as const, error: 'Item no longer exists' };
 
 		const after = op.afterSnapshot as ItemSnapshot | null;
@@ -568,16 +556,16 @@ export function undoOp(db: DB, opId: number, ctx: WriteCtx): UndoResult {
 		if (op.opType === 'add') {
 			if (!after) return { ok: false as const, error: 'Op is not undoable (no after-state stored)' };
 			if (current.deletedAt || !snapshotsEqual(toSnapshot(current), after)) {
-				flagUndoConflict(tx, ctx, current.id, opId);
+				flagUndoConflict(db, ctx, current.id, opId);
 				return { ok: false as const, conflict: true, error: 'Item changed since this op; flagged for review instead' };
 			}
-			const item = tx
+			const item = db
 				.update(schema.inventoryItems)
 				.set({ deletedAt: new Date() })
 				.where(eq(schema.inventoryItems.id, current.id))
 				.returning()
 				.get();
-			const newOpId = logOp(tx, ctx, {
+			const newOpId = logOp(db, ctx, {
 				opType: 'remove',
 				itemId: current.id,
 				before: toSnapshot(current),
@@ -592,16 +580,16 @@ export function undoOp(db: DB, opId: number, ctx: WriteCtx): UndoResult {
 				return { ok: false as const, error: 'Op is not undoable (legacy history is display-only)' };
 			}
 			if (current.deletedAt || !snapshotsEqual(toSnapshot(current), after)) {
-				flagUndoConflict(tx, ctx, current.id, opId);
+				flagUndoConflict(db, ctx, current.id, opId);
 				return { ok: false as const, conflict: true, error: 'Item changed since this op; flagged for review instead' };
 			}
-			const item = tx
+			const item = db
 				.update(schema.inventoryItems)
 				.set(restoreUpdatesFromSnapshot(before))
 				.where(eq(schema.inventoryItems.id, current.id))
 				.returning()
 				.get();
-			const newOpId = logOp(tx, ctx, {
+			const newOpId = logOp(db, ctx, {
 				opType: 'update',
 				itemId: current.id,
 				before: toSnapshot(current),
@@ -614,16 +602,16 @@ export function undoOp(db: DB, opId: number, ctx: WriteCtx): UndoResult {
 		// op_type === 'remove': restore the soft-deleted item.
 		if (!before) return { ok: false as const, error: 'Op is not undoable (no before-state stored)' };
 		if (!current.deletedAt) {
-			flagUndoConflict(tx, ctx, current.id, opId);
+			flagUndoConflict(db, ctx, current.id, opId);
 			return { ok: false as const, conflict: true, error: 'Item is not deleted anymore; flagged for review instead' };
 		}
-		const item = tx
+		const item = db
 			.update(schema.inventoryItems)
 			.set({ deletedAt: null, updatedAt: new Date() })
 			.where(eq(schema.inventoryItems.id, current.id))
 			.returning()
 			.get();
-		const newOpId = logOp(tx, ctx, {
+		const newOpId = logOp(db, ctx, {
 			opType: 'add',
 			itemId: current.id,
 			before: null,
@@ -631,7 +619,6 @@ export function undoOp(db: DB, opId: number, ctx: WriteCtx): UndoResult {
 			undoOf: opId
 		});
 		return { ok: true as const, item, opId: newOpId };
-	});
 }
 
 /**
@@ -639,7 +626,7 @@ export function undoOp(db: DB, opId: number, ctx: WriteCtx): UndoResult {
  * op for the item. Falls back to a plain logged restore for soft-deleted items
  * whose remove predates op-level history.
  */
-export function undoLatestRemoveForItem(db: DB, itemId: number, ctx: WriteCtx): UndoResult {
+export function undoLatestRemoveForItem(db: DbOrTx, itemId: number, ctx: WriteCtx): UndoResult {
 	const lastRemove = db
 		.select({ id: schema.inventoryOpsLog.id })
 		.from(schema.inventoryOpsLog)
@@ -652,17 +639,16 @@ export function undoLatestRemoveForItem(db: DB, itemId: number, ctx: WriteCtx): 
 
 	if (lastRemove) return undoOp(db, lastRemove.id, ctx);
 
-	return db.transaction((tx) => {
-		const current = readInventoryItem(tx, itemId);
+		const current = readInventoryItem(db, itemId);
 		if (!current) return { ok: false as const, error: 'Item not found' };
 		if (!current.deletedAt) return { ok: false as const, error: 'Item is not deleted' };
-		const item = tx
+		const item = db
 			.update(schema.inventoryItems)
 			.set({ deletedAt: null, updatedAt: new Date() })
 			.where(eq(schema.inventoryItems.id, itemId))
 			.returning()
 			.get();
-		const opId = logOp(tx, ctx, {
+		const opId = logOp(db, ctx, {
 			opType: 'add',
 			itemId,
 			before: null,
@@ -670,7 +656,6 @@ export function undoLatestRemoveForItem(db: DB, itemId: number, ctx: WriteCtx): 
 			provenance: { source: 'legacy_restore' }
 		});
 		return { ok: true as const, item, opId };
-	});
 }
 
 export type ReviewFlagResult =
@@ -679,7 +664,7 @@ export type ReviewFlagResult =
 
 /** Flag (reason set) or resolve (reason null) an item's Needs Review state. */
 export function setReviewFlag(
-	db: DB,
+	db: DbOrTx,
 	itemId: number,
 	reason: string | null,
 	ctx: WriteCtx

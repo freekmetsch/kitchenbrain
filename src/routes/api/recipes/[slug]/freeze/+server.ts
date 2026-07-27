@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { recipes } from '$lib/server/db/schema';
-import { addInventory } from '$lib/server/inventory_writes';
+import { addInventory } from '$lib/server/workflows/inventory';
 import { readJsonBody } from '$lib/server/api_body';
 
 const FreezeSchema = z.object({

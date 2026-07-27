@@ -14,14 +14,12 @@
 // `recipes.ingredients[].name`; sub-recipe expansion (ADR 0003) happens via
 // expandMealIngredients before any filtering.
 import { inArray } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient, MealSource } from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { expandMealIngredientSourcesForServings } from '$lib/server/meal_recipes';
 import { ingredientRoleCoverage } from '$lib/server/recipe_links';
 import { sumCompatibleQuantities } from '$lib/recipe_scale';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 export type PlannedMealForNeeds = {
 	id?: number;

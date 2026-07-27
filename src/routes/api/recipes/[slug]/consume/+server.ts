@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { inventoryItems, recipes } from '$lib/server/db/schema';
-import { removeInventory, updateInventory } from '$lib/server/inventory_writes';
+import { removeInventory, updateInventory } from '$lib/server/workflows/inventory';
 import { readJsonBody } from '$lib/server/api_body';
 
 const ConsumeSchema = z.object({

@@ -10,8 +10,10 @@ import {
 	reviewFields,
 	RecipeIngestError
 } from '$lib/server/ai/recipe_ingest';
-import { frozenPortionsByRecipe } from '$lib/server/recipe_links';
-import { setFreezerStaple } from '$lib/server/freezer_staple';
+import {
+	frozenPortionsByRecipe,
+	setFreezerStaple
+} from '$lib/server/domains/inventory/freezer';
 import { createMealRecipe, MealCompositionError, subRecipesOf } from '$lib/server/meal_recipes';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';

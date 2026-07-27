@@ -1,11 +1,9 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { addDays, todayIso, weekStartFor } from '$lib/week';
 import { materializeShoppingWeek } from '$lib/server/shopping_entries';
 import { normalizeNameKey } from '$lib/match';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 export class ShoppingMutationError extends Error {
 	constructor(

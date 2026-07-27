@@ -5,21 +5,16 @@
 // every change is logged, attributed to 'pipeline', and undoable — no raw
 // SQL writes here (architectural guard, P1.5).
 import { isNull } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { inferFoodClassFromName, isUnclassified } from '$lib/food_class';
-import {
-	setReviewFlag,
-	updateInventory,
-	type UpdateInventoryInput,
-	type WriteCtx
-} from '$lib/server/inventory_writes';
-
-type DB = BetterSQLite3Database<typeof schema>;
+import { type UpdateInventoryInput, type WriteCtx } from '$lib/server/domains/inventory/commands';
+import { createInventoryService } from './inventory';
 
 const CTX: WriteCtx = { actor: 'pipeline' };
 
 export function runTaxonomyGuardianSweep(db: DB): { classified: number; flagged: number } {
+	const inventory = createInventoryService(db);
 	const items = db
 		.select()
 		.from(schema.inventoryItems)
@@ -40,7 +35,7 @@ export function runTaxonomyGuardianSweep(db: DB): { classified: number; flagged:
 				if (inferred) updates.foodClass = inferred;
 			}
 			if (Object.keys(updates).length > 0) {
-				const result = updateInventory(db, current.id, updates, CTX);
+				const result = inventory.update(current.id, updates, CTX);
 				if (result.ok) {
 					classified++;
 					current = result.item;
@@ -51,7 +46,7 @@ export function runTaxonomyGuardianSweep(db: DB): { classified: number; flagged:
 		// Still unclassified after inference: flag once for the review queue.
 		// Items already flagged (for any reason) are never re-flagged.
 		if (isUnclassified(current.kind, current.foodClass) && !current.needsReview) {
-			if (setReviewFlag(db, current.id, 'unclassified', CTX).ok) flagged++;
+			if (inventory.setReviewFlag(current.id, 'unclassified', CTX).ok) flagged++;
 		}
 	}
 

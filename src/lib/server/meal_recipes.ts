@@ -9,14 +9,12 @@
 // entries only — sub-recipe expansion happens BEFORE the existing shopping
 // derivation, never instead of it.
 import { and, asc, eq, inArray } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { slugify, uniqueSlug } from '$lib/server/ai/recipe_ingest';
 import { projectIngredient } from '$lib/recipe_scale';
 import { captureRecipeSource } from '$lib/recipe_source_snapshot';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 export type SubRecipeRef = {
 	id: number;

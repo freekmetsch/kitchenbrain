@@ -5,11 +5,11 @@
 // AH-INVARIANT (CLAUDE.md §Critical): ingredient names stay Dutch — never translate
 // them here; English display fields are produced lazily by translate_recipe.ts.
 import { eq } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { checkDailyCap, createMessage, loadPrompt, logSpend, parseModelJson } from '$lib/server/ai/client';
 import { getChatModel } from '$lib/server/ai/config';
 import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';
@@ -19,8 +19,6 @@ import { z } from 'zod';
 import { NewIngredientArraySchema } from '$lib/recipe_ingredient';
 import { getBackgroundModel } from '$lib/server/ai/config';
 import { captureRecipeSource, ensureDirectionIds } from '$lib/recipe_source_snapshot';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 /** Structured recipe extracted from a page, before it is inserted. */
 export type ScrapedRecipe = {

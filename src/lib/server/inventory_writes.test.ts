@@ -4,7 +4,7 @@ import path from 'path';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from './test_db';
-import { setFreezerStaple } from './freezer_staple';
+import { setFreezerStaple } from './domains/inventory/freezer';
 import {
 	addInventory,
 	removeInventory,
@@ -12,7 +12,7 @@ import {
 	undoLatestRemoveForItem,
 	undoOp,
 	updateInventory
-} from './inventory_writes';
+} from './workflows/inventory';
 
 const CTX = { actor: 'alice' as const, userId: 1 };
 

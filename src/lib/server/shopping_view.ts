@@ -1,10 +1,8 @@
 import { and, asc, eq, inArray, isNull, lte, or, gte } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { normalizeNameKey, tokenize } from '$lib/match';
 import { sumCompatibleQuantities } from '$lib/recipe_scale';
 import * as schema from '$lib/server/db/schema';
-
-type DB = BetterSQLite3Database<typeof schema>;
+import type { Db as DB } from '$lib/server/db/types';
 type WeekEntry = typeof schema.shoppingWeekEntries.$inferSelect;
 
 function inventoryMatchKey(name: string): string {

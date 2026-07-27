@@ -1,11 +1,11 @@
-// Shared read of the inventory op-log as an enriched, human-readable timeline.
+// Shared inventory-domain read of the op-log as an enriched, human-readable timeline.
 // One implementation behind the P2.3 history endpoint (GET /api/inventory/history)
 // AND the chat agent's get_inventory_history tool (P5.5), so both speak the same
 // language and compute undoability identically. Pure formatters live in
 // $lib/inventory_history; this is the server-side query that feeds them.
 import { desc, eq, isNotNull } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import {
 	actorLabel,
 	isUndoable,
@@ -14,8 +14,6 @@ import {
 	type OpSnapshot,
 	type OpType
 } from '$lib/inventory_history';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 export type InventoryHistoryEvent = {
 	id: number;

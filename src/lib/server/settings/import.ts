@@ -6,8 +6,8 @@
 // same sync transaction that performs the inserts (Correctness Req #3) — the
 // eligibility check can never run outside the transaction that acts on it.
 import { z } from 'zod';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import {
 	rowCount,
 	type ResetGroupKey
@@ -20,8 +20,6 @@ import {
 	captureRecipeSource,
 	ensureDirectionIds
 } from '$lib/recipe_source_snapshot';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 // Export serializes Date columns via JSON.stringify → ISO strings; drizzle's
 // `mode: 'timestamp'` insert columns expect real Date objects (verified fact,

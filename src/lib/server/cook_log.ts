@@ -1,10 +1,8 @@
 import { eq, max, count } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './db/schema';
+import type { Db as DB } from './db/types';
 import { subRecipesOf } from './meal_recipes';
 import type { BenchSheetRating } from '$lib/types';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 type CookSource = 'plan' | 'manual' | 'backfill' | 'meal';
 

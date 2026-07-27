@@ -5,10 +5,8 @@ import { db } from '$lib/server/db/index';
 import { recipes, inventoryItems, mealPlanMeals } from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { namesMatch } from '$lib/match';
-import {
-	expandedIngredientRoleCoverage,
-	frozenPortionsByRecipe
-} from '$lib/server/recipe_links';
+import { expandedIngredientRoleCoverage } from '$lib/server/recipe_links';
+import { frozenPortionsByRecipe } from '$lib/server/domains/inventory/freezer';
 import { expandMealIngredientsForServings, mealsContaining, subRecipesOf } from '$lib/server/meal_recipes';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
 import { addDays, isoWeekNumber, todayIso, weekStartFor } from '$lib/week';

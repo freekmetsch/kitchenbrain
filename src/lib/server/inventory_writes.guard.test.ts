@@ -1,5 +1,5 @@
-// Architectural guard (P1.5): inventory_writes.ts is the ONLY module allowed
-// to mutate inventory_items for domain writes (inventory_merge.ts is its
+// Architectural guard (P1.5): inventory commands are the ONLY module allowed
+// to mutate inventory_items for domain writes (merge.ts is its
 // internal engine) — taxonomy rules, ops-log, and freezer-staple side effects
 // all live behind that boundary. This test fails when a new direct
 // insert/update/delete sneaks in elsewhere, so the boundary holds without
@@ -9,15 +9,15 @@
 // exception (FEATURE_LIST_SETTINGS_MENU.md Phase 3): a full-table wipe and an
 // id-preserving bootstrap restore are administrative bulk operations, not
 // domain merges — neither taxonomy inference nor a per-row ops-log entry
-// makes sense for either, and inventory_writes.ts's per-item API has no
+// makes sense for either, and the inventory service's per-item API has no
 // signature that could express "insert this exact historical row verbatim."
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import path from 'path';
 
 const ALLOWED_FILES = new Set([
-	path.join('lib', 'server', 'inventory_writes.ts'),
-	path.join('lib', 'server', 'inventory_merge.ts'),
+	path.join('lib', 'server', 'domains', 'inventory', 'commands.ts'),
+	path.join('lib', 'server', 'domains', 'inventory', 'merge.ts'),
 	path.join('lib', 'server', 'settings', 'reset.ts'),
 	path.join('lib', 'server', 'settings', 'import.ts')
 ]);
@@ -33,7 +33,7 @@ function walk(dir: string): string[] {
 }
 
 describe('inventory mutation boundary', () => {
-	it('only inventory_writes.ts and inventory_merge.ts mutate inventory_items', () => {
+	it('only inventory commands and merge mutate inventory_items', () => {
 		const srcRoot = path.join(process.cwd(), 'src');
 		const offenders = walk(srcRoot).filter((file) => {
 			const relative = path.relative(srcRoot, file);

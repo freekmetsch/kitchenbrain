@@ -1,14 +1,13 @@
 import { and, eq, gte, isNull, ne, sql } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { Ingredient } from '$lib/recipe_ingredient';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
 import { reconcileShoppingAfterWrite, shoppingPlanningConfig } from '$lib/server/shopping_entries';
-import { addInventory, updateInventory } from '$lib/server/inventory_writes';
-import { findExistingItem } from '$lib/server/inventory_merge';
+import { addInventory, updateInventory } from '$lib/server/domains/inventory/commands';
+import { findExistingItem } from '$lib/server/domains/inventory/merge';
 import { ShoppingMutationError } from '$lib/server/shopping_mutations';
 
-type DB = BetterSQLite3Database<typeof schema>;
 export type ShoppingNeed = 'required' | 'optional' | 'stocked';
 
 function promotedIngredient(current: Ingredient, term: string): Ingredient {

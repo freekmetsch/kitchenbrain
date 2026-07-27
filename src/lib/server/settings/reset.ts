@@ -4,13 +4,11 @@
 // Never-resettable: users, sessions, household_prefs, prefs — deliberately
 // absent from RESET_GROUPS below, not just unwired in the UI.
 import { count, getTableName } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { AnySQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { delHouseholdPref } from '$lib/server/db/household_prefs';
 import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/shopping_entries';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 export type ResetGroupKey =
 	| 'inventory'

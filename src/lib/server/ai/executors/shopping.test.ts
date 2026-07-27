@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
-import { addInventory } from '$lib/server/inventory_writes';
+import { addInventory } from '$lib/server/workflows/inventory';
 import { updateShoppingEntry } from '$lib/server/shopping_mutations';
 import { todayIso, weekStartFor } from '$lib/week';
 import { executeToolCall } from './index';

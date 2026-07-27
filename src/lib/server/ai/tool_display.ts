@@ -4,8 +4,8 @@
 // from the committed inventory_ops_log row, reusing the pure history formatters
 // so chat and the inventory history view speak the same language.
 import { eq } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import {
 	isUndoable,
 	snapshotName,
@@ -25,7 +25,6 @@ import {
 	type ChatLocale
 } from '$lib/chat/tool_copy';
 
-type DB = BetterSQLite3Database<typeof schema>;
 type Result = Record<string, unknown>;
 
 function asObj(raw: unknown): Record<string, unknown> {

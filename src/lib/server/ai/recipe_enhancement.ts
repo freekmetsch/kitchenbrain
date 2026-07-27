@@ -1,17 +1,16 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { Ingredient } from '$lib/recipe_ingredient';
 import { createIngredientId, StoredIngredientSchema } from '$lib/recipe_ingredient';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { checkDailyCap, createMessage, loadPrompt, logSpend, parseModelJson } from '$lib/server/ai/client';
 import { getBackgroundModel } from '$lib/server/ai/config';
 import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
 import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
-import { addInventory } from '$lib/server/inventory_writes';
+import { addInventory } from '$lib/server/domains/inventory/commands';
 
-type DB = BetterSQLite3Database<typeof schema>;
 export type EnhancementNeed = 'required' | 'optional' | 'stocked';
 
 const AdditionSchema = z.object({

@@ -4,7 +4,7 @@ import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { namesMatch } from '$lib/match';
 import { recordCook } from '$lib/server/cook_log';
-import { frozenPortionsByRecipe } from '$lib/server/recipe_links';
+import { frozenPortionsByRecipe } from '$lib/server/domains/inventory/freezer';
 import { dateInputValue, daysSinceDate } from '$lib/inventory_dates';
 import { getMealPlanPrefs, getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { addDays, isoWeekNumber, todayIso, weekKeyRange, weekStartFor } from '$lib/week';

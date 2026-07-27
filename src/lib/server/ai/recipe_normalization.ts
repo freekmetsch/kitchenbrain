@@ -1,13 +1,11 @@
 import { and, asc, eq, isNull, lt } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { mergeLiveIngredients, type Ingredient } from '$lib/recipe_ingredient';
 import { checkDailyCap } from '$lib/server/ai/client';
 import { enrichRecipeStructure, type ScrapedRecipe } from '$lib/server/ai/recipe_ingest';
 import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
 import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 export type NormalizationBatchResult = {
 	processed: number;

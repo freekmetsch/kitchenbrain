@@ -1,17 +1,14 @@
 // Internal matching/merge engine for the inventory mutation boundary.
-// All writes (and their history logging) go through inventory_writes.ts;
+// All writes (and their history logging) go through commands.ts;
 // nothing else may import the mutating functions in this module.
 import { and, eq, isNull } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { normalizeFoodCategory } from '$lib/food_categories';
 import { normalizeUnit } from '$lib/food_class';
 import type { Kind } from '$lib/food_class';
 import { normalizeNameKey, tokenizeNameKey } from '$lib/match';
 import * as schema from '$lib/server/db/schema';
+import type { DbOrTx } from '$lib/server/db/types';
 
-type DB = BetterSQLite3Database<typeof schema>;
-type Tx = Parameters<Parameters<DB['transaction']>[0]>[0];
-export type DbOrTx = DB | Tx;
 type InventoryItem = typeof schema.inventoryItems.$inferSelect;
 type Section = 'freezer' | 'pantry';
 
