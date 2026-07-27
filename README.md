@@ -80,7 +80,19 @@ npm install
 npm run dev
 ```
 
-**Open** `http://localhost:5173`. **Draai** `npm run check` en `npm run test:unit` voordat je een pull request opent; beide zijn gratis, zonder netwerkverkeer en zonder API-kosten.
+**Open** `http://localhost:5173`.
+
+Installeer Chromium eenmalig en draai daarna de volledige testset:
+
+```
+npm run test:e2e:install
+npm test
+```
+
+`npm test` controleert Svelte, draait de unittests, maakt de productiebuild en test de echte inlogflow in
+Chromium. De browsertests maken hun eigen database en twee vaste testaccounts onder `.test-data/`; ze
+lezen je `.env` of huishoudendatabase niet. Gebruik `npm run test:unit`, `npm run test:e2e` of
+`npm run test:e2e:secondary` voor een gerichte run.
 
 ## Albert Heijn koppelen
 
@@ -184,7 +196,19 @@ npm install
 npm run dev
 ```
 
-**Open** `http://localhost:5173`. **Run** `npm run check` and `npm run test:unit` before opening a pull request; both are free, with no network calls and no API cost.
+**Open** `http://localhost:5173`.
+
+Install Chromium once, then run the complete test suite:
+
+```
+npm run test:e2e:install
+npm test
+```
+
+`npm test` checks Svelte, runs the unit tests, creates the production build, and exercises the real login
+flow in Chromium. The browser tests create their own database and two fixed test accounts under
+`.test-data/`; they do not read your `.env` or household database. Use `npm run test:unit`,
+`npm run test:e2e`, or `npm run test:e2e:secondary` for a focused run.
 
 ## Connecting Albert Heijn
 

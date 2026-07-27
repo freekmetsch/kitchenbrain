@@ -280,3 +280,10 @@ probes and authenticated local acceptance.
 
 Touched: docs/artifacts/2026-07-27-canary-primary-page-ui-unification.html,
 docs/deploys/2026-07.md
+
+## [2026-07-27 13:23] archive-scan | 1 feature list, 0 HTMLs archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_TESTING_HARNESS.md
+
+The repository has no `scripts/archive-scan.ps1`; the terminal feature list was moved with the
+validated inline fallback and the repo remains a candidate for the shared archive-script rollout.

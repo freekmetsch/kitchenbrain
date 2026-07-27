@@ -11,4 +11,5 @@ ah_tokens.json.tmp
 .env.*.local
 .env.production
 data/backups/
+.test-data/
 .idea/

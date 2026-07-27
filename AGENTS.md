@@ -29,11 +29,15 @@ Do not copy `.env.example` to a plaintext env file. The standard verification co
 secret-free. Any flow that needs a real provider credential must use the global 1Password contract
 and a committed repository wrapper; do not invent a local fallback.
 
-- `npm run check` — svelte-check (types + template diagnostics).
-- `npm run test:unit` — vitest, no network calls, no cost.
-- `npm run build` — production bundle; also the fastest way to catch a broken Tailwind class or Svelte compile error.
+- `npm test` — the complete gate: Svelte diagnostics, Vitest, production build, and authenticated Playwright smoke tests.
+- `npm run test:unit` — focused Vitest run, with no network calls or cost.
+- `npm run test:e2e` — focused Chromium run with the primary isolated test account.
+- `npm run test:e2e:secondary` — the same browser checks with the second isolated account.
+- `npm run check` / `npm run build` — focused diagnostics or production-bundle checks.
 
-Run all three before opening a PR. They replace the retired repo-local `verify` skill.
+Run `npm run test:e2e:install` once to install Chromium, then run `npm test` before opening a PR. The
+Playwright server recreates `.test-data/e2e/`, seeds fixed test-only users through `HOUSEHOLD_USERS`,
+binds only to `localhost:4173`, and never reads the household database or real provider credentials.
 
 This repo is the canonical dev repo for the app — it's what Railway (or any other deploy target) builds from directly, at the repo root.
 
