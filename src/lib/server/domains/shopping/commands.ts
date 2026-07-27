@@ -1,9 +1,10 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
-import type { Db as DB } from '$lib/server/db/types';
+import type { DbOrTx } from '$lib/server/db/types';
 import { addDays, todayIso, weekStartFor } from '$lib/week';
-import { materializeShoppingWeek } from '$lib/server/shopping_entries';
 import { normalizeNameKey } from '$lib/match';
+
+type DB = DbOrTx;
 
 export class ShoppingMutationError extends Error {
 	constructor(
@@ -53,8 +54,8 @@ export function editRecurringShoppingItem(
 	}
 ) {
 	assertNonpastWeek(input.effectiveWeek, input.weekStartDay);
-	return db.transaction((tx) => {
-		const executor = tx as unknown as DB;
+	{
+		const executor = db;
 		const current = executor
 			.select()
 			.from(schema.recurringShoppingItems)
@@ -114,7 +115,7 @@ export function editRecurringShoppingItem(
 			})
 			.returning()
 			.get();
-	});
+	}
 }
 
 export function disableRecurringShoppingItem(
@@ -185,8 +186,8 @@ export function addManualShoppingEntry(
 	input: { weekStart: string; weekStartDay: number; name: string; amount?: string | null; unit?: string | null }
 ) {
 	assertNonpastWeek(input.weekStart, input.weekStartDay);
-	return db.transaction((tx) => {
-		const executor = tx as unknown as DB;
+	{
+		const executor = db;
 		const now = new Date();
 		const row = executor
 			.insert(schema.shoppingWeekEntries)
@@ -209,7 +210,7 @@ export function addManualShoppingEntry(
 			.where(eq(schema.shoppingWeekEntries.id, row.id))
 			.returning()
 			.get();
-	});
+	}
 }
 
 export function removeManualShoppingEntry(
@@ -266,9 +267,6 @@ export function updateShoppingEntry(
 		throw new ShoppingMutationError('invalid_source', 'Resolve this legacy shopping item before changing it');
 	}
 	assertNonpastWeek(before.weekStartDate, input.weekStartDay);
-	if (before.sourceKind === 'recipe' || before.sourceKind === 'weekly') {
-		materializeShoppingWeek(db, before.weekStartDate, { weekStartDay: input.weekStartDay });
-	}
 	const current = db
 		.select()
 		.from(schema.shoppingWeekEntries)
@@ -310,8 +308,8 @@ export function setBoughtForEntries(
 	assertNonpastWeek(input.weekStart, input.weekStartDay);
 	const ids = [...new Set(input.entryIds)];
 	if (ids.length === 0) throw new ShoppingMutationError('invalid_source', 'No shopping sources supplied');
-	db.transaction((tx) => {
-		const executor = tx as unknown as DB;
+	{
+		const executor = db;
 		const entries = executor
 			.select()
 			.from(schema.shoppingWeekEntries)
@@ -328,7 +326,7 @@ export function setBoughtForEntries(
 			.set({ bought: input.bought, revision: sql`${schema.shoppingWeekEntries.revision} + 1`, updatedAt: new Date() })
 			.where(inArray(schema.shoppingWeekEntries.id, ids))
 			.run();
-	});
+	}
 }
 
 export function resolveLegacyShoppingEntry(
@@ -342,8 +340,8 @@ export function resolveLegacyShoppingEntry(
 		weekStartDay: number;
 	}
 ) {
-	return db.transaction((tx) => {
-		const executor = tx as unknown as DB;
+	{
+		const executor = db;
 		const legacy = executor
 			.select()
 			.from(schema.shoppingWeekEntries)
@@ -435,5 +433,26 @@ export function resolveLegacyShoppingEntry(
 			.get();
 		if (!resolved) throw new ShoppingMutationError('stale', 'Legacy shopping row changed');
 		return resolved;
-	});
+	}
+}
+
+export function upsertAhFavorite(
+	db: DbOrTx,
+	input: { nameKey: string; productId: string; productName: string }
+): void {
+	db.insert(schema.ahFavorites)
+		.values({ ...input, createdAt: new Date() })
+		.onConflictDoUpdate({
+			target: schema.ahFavorites.nameKey,
+			set: {
+				productId: input.productId,
+				productName: input.productName,
+				createdAt: new Date()
+			}
+		})
+		.run();
+}
+
+export function deleteAhFavorite(db: DbOrTx, nameKey: string): void {
+	db.delete(schema.ahFavorites).where(eq(schema.ahFavorites.nameKey, nameKey)).run();
 }

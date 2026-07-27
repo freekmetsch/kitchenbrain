@@ -4,7 +4,7 @@ import * as schema from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '../test_db';
 import { RESET_GROUP_KEYS, RESET_GROUPS, countGroupRows, resetGroup } from './reset';
 import { getHouseholdPref, setHouseholdPref } from '$lib/server/db/household_prefs';
-import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/shopping_entries';
+import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/domains/shopping';
 
 const NOW = new Date();
 

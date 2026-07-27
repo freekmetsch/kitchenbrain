@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
-import { materializeShoppingWeek } from '$lib/server/shopping_entries';
+import { materializeShoppingWeek } from './reconcile-shopping';
 import {
 	applyShoppingRecipeChoice,
 	saveRecipeIngredientDefault
-} from '$lib/server/shopping_recipe_choice';
+} from './choose-shopping-source';
 
 const WEEK = '2026-07-22';
 

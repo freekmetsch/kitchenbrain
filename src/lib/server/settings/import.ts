@@ -14,7 +14,7 @@ import {
 } from '$lib/server/settings/reset';
 import { ensureIngredientIds, TrustedRestoreIngredientSchema } from '$lib/recipe_ingredient';
 import { delHouseholdPref } from '$lib/server/db/household_prefs';
-import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/shopping_entries';
+import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/domains/shopping';
 import {
 	RecipeSourceSnapshotSchema,
 	captureRecipeSource,

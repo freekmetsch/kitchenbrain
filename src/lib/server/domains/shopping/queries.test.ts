@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
-import { getShoppingWeekView } from '$lib/server/shopping_view';
+import { getShoppingWeekView } from './queries';
 
 const WEEK = '2026-07-22';
 

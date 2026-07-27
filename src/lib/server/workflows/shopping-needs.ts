@@ -13,93 +13,34 @@
 // AH-INVARIANT: every name emitted here is the Dutch
 // `recipes.ingredients[].name`; sub-recipe expansion (ADR 0003) happens via
 // expandMealIngredients before any filtering.
-import { inArray } from 'drizzle-orm';
-import * as schema from '$lib/server/db/schema';
-import type { Ingredient, MealSource } from '$lib/server/db/schema';
-import type { Db as DB } from '$lib/server/db/types';
+import type { DbOrTx } from '$lib/server/db/types';
 import {
 	expandMealIngredientSourcesForServings,
+	getRecipesBySlugs,
 	ingredientRoleCoverage
 } from '$lib/server/domains/recipes';
 import { sumCompatibleQuantities } from '$lib/recipe_scale';
+import type {
+	FreezerMealRef,
+	NeededIngredient,
+	PlannedMealForNeeds,
+	ShoppingSourceContribution,
+	ShoppingSourceRef,
+	WeekNeeds
+} from '$lib/server/domains/shopping/types';
 
-export type PlannedMealForNeeds = {
-	id?: number;
-	dinner: string;
-	recipeSlug: string | null;
-	source: MealSource;
-	servings?: number | null;
-};
+export type {
+	FreezerMealRef,
+	NeededIngredient,
+	PlannedMealForNeeds,
+	ShoppingSourceContribution,
+	ShoppingSourceRef,
+	WeekNeeds
+} from '$lib/server/domains/shopping/types';
 
-export type ShoppingSourceRef = {
-	key: `recipe:${number}:${string}`;
-	recipeId: number;
-	recipeSlug: string;
-	ingredientId: string;
-	mealIds: number[];
-};
-
-export type ShoppingSourceContribution = {
-	ref: ShoppingSourceRef;
-	name: string;
-	amount: string;
-	unit?: string;
-	component: string | null;
-	forMeals: string[];
-	freshSideOnly: boolean;
-	optional: boolean;
-	suggested: boolean;
-	substitutes: string[];
-	purchaseForm: Ingredient['purchaseForm'];
-	incompatibleQuantities: boolean;
-};
-
-export type NeededIngredient = {
-	name: string;
-	amount: string;
-	unit?: string;
-	/** Dinner labels of the planned meals that need this item, in plan order. */
-	forMeals: string[];
-	/** True when only freezer-planned meals need it (it's a fresh side, not a cook-from-scratch ingredient). */
-	freshSideOnly: boolean;
-	optional: boolean;
-	suggested: boolean;
-	substitutes: string[];
-	purchaseForm: Ingredient['purchaseForm'];
-	/** True when matching names used units that cannot safely be summed. */
-	incompatibleQuantities: boolean;
-	/** Exact leaf-recipe ingredients that make up this final buy row. */
-	sources: ShoppingSourceContribution[];
-};
-
-export type FreezerMealRef = { dinner: string; recipeSlug: string };
-
-export type WeekNeeds = {
-	needed: NeededIngredient[];
-	/** Planned dinners with no recipe link (or whose linked recipe no longer exists). */
-	mealsWithoutRecipe: string[];
-	/** Meals served from the freezer this week (fresh sides only on the list). */
-	freezerMeals: FreezerMealRef[];
-	/** Freezer meals whose recipe role coverage is incomplete — some fresh sides may be unknown. */
-	freezerMealsMissingFreshInfo: FreezerMealRef[];
-};
-
-export function deriveWeekNeeds(db: DB, meals: PlannedMealForNeeds[]): WeekNeeds {
+export function deriveWeekNeeds(db: DbOrTx, meals: PlannedMealForNeeds[]): WeekNeeds {
 	const slugs = [...new Set(meals.filter((m) => m.recipeSlug).map((m) => m.recipeSlug!))];
-	const recipeRows =
-		slugs.length > 0
-			? db
-					.select({
-						id: schema.recipes.id,
-						slug: schema.recipes.slug,
-						title: schema.recipes.title,
-						ingredients: schema.recipes.ingredients,
-						servings: schema.recipes.servings
-					})
-					.from(schema.recipes)
-					.where(inArray(schema.recipes.slug, slugs))
-					.all()
-			: [];
+	const recipeRows = getRecipesBySlugs(db, slugs);
 	const recipeBySlug = new Map(recipeRows.map((r) => [r.slug, r]));
 
 	const rawContributions: Array<{

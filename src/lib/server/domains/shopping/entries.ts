@@ -1,12 +1,17 @@
-import { and, asc, eq, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { normalizeNameKey } from '$lib/match';
 import * as schema from '$lib/server/db/schema';
-import type { Db as DB } from '$lib/server/db/types';
-import { deriveWeekNeeds, type ShoppingSourceContribution } from '$lib/server/shopping_needs';
-import { addDays, todayIso, weekKeyRange, weekStartFor } from '$lib/week';
+import type { DbOrTx } from '$lib/server/db/types';
+import type { ShoppingSourceContribution } from './types';
+import { addDays, todayIso, weekStartFor } from '$lib/week';
 import { getHouseholdPref, setHouseholdPref } from '$lib/server/db/household_prefs';
 
 type WeekEntry = typeof schema.shoppingWeekEntries.$inferSelect;
+type DB = DbOrTx;
+export type ShoppingSourceProvider = (
+	db: DbOrTx,
+	weekStart: string
+) => ShoppingSourceContribution[];
 
 export type MaterializeResult = {
 	status: 'materialized' | 'existing' | 'history_not_captured';
@@ -47,25 +52,6 @@ export function shoppingPlanningConfig(db: DB): {
 
 export function isShoppingSourceMigrationComplete(db: DB): boolean {
 	return getHouseholdPref(db, K_SHOPPING_SOURCE_MIGRATION) === 'complete';
-}
-
-function mealsForWeek(db: DB, weekStart: string) {
-	const range = weekKeyRange(weekStart);
-	return db
-		.select()
-		.from(schema.mealPlanMeals)
-		.where(
-			and(
-				gte(schema.mealPlanMeals.weekStartDate, range.from),
-				lt(schema.mealPlanMeals.weekStartDate, range.to)
-			)
-		)
-		.orderBy(asc(schema.mealPlanMeals.sortOrder), asc(schema.mealPlanMeals.id))
-		.all();
-}
-
-function recipeSourcesForWeek(db: DB, weekStart: string): ShoppingSourceContribution[] {
-	return deriveWeekNeeds(db, mealsForWeek(db, weekStart)).needed.flatMap((item) => item.sources);
 }
 
 function activeRecurringForWeek(db: DB, weekStart: string) {
@@ -127,7 +113,8 @@ function insertRecipeEntry(
 export function materializeShoppingWeek(
 	db: DB,
 	weekStart: string,
-	options: { weekStartDay: number; today?: string; allowPastForMigration?: boolean }
+	options: { weekStartDay: number; today?: string; allowPastForMigration?: boolean },
+	sourceProvider: ShoppingSourceProvider
 ): MaterializeResult {
 	const currentWeek = weekStartFor(options.today ?? todayIso(), options.weekStartDay);
 	const existingCount = db
@@ -141,9 +128,9 @@ export function materializeShoppingWeek(
 			: { status: 'existing', created: 0, updated: 0, retired: 0 };
 	}
 
-	return db.transaction((tx): MaterializeResult => {
-		const executor = tx as unknown as DB;
-		const recipeSources = recipeSourcesForWeek(executor, weekStart);
+	{
+		const executor = db;
+		const recipeSources = sourceProvider(executor, weekStart);
 		const recurring = activeRecurringForWeek(executor, weekStart);
 		const expectedKeys = new Set<string>([
 			...recipeSources.map((source) => source.ref.key),
@@ -255,20 +242,24 @@ export function materializeShoppingWeek(
 			updated,
 			retired
 		};
-	});
+	}
 }
 
 function emptyLegacyReport(): LegacyImportReport {
 	return { total: 0, manual: 0, exact: 0, unmatched: 0, ambiguous: 0, alreadyImported: 0 };
 }
 
-function bucketLegacyOverride(db: DB, override: typeof schema.shoppingListOverrides.$inferSelect): {
+function bucketLegacyOverride(
+	db: DB,
+	override: typeof schema.shoppingListOverrides.$inferSelect,
+	sourceProvider: ShoppingSourceProvider
+): {
 	bucket: LegacyImportBucket;
 	candidates: ShoppingSourceContribution[];
 } {
 	if (override.manual) return { bucket: 'manual', candidates: [] };
 	const key = normalizeNameKey(override.name);
-	const candidates = recipeSourcesForWeek(db, override.weekStartDate).filter(
+	const candidates = sourceProvider(db, override.weekStartDate).filter(
 		(source) => normalizeNameKey(source.name) === key
 	);
 	if (
@@ -304,7 +295,10 @@ function reserveExactLegacySource(
 	return classified;
 }
 
-export function dryRunLegacyOverrideImport(db: DB): LegacyImportReport {
+export function dryRunLegacyOverrideImport(
+	db: DB,
+	sourceProvider: ShoppingSourceProvider
+): LegacyImportReport {
 	const report = emptyLegacyReport();
 	const claimed = claimedLegacySourceKeys(db);
 	const overrides = db.select().from(schema.shoppingListOverrides).orderBy(asc(schema.shoppingListOverrides.id)).all();
@@ -319,14 +313,21 @@ export function dryRunLegacyOverrideImport(db: DB): LegacyImportReport {
 			report.alreadyImported++;
 			continue;
 		}
-		const classified = reserveExactLegacySource(override.weekStartDate, bucketLegacyOverride(db, override), claimed);
+		const classified = reserveExactLegacySource(
+			override.weekStartDate,
+			bucketLegacyOverride(db, override, sourceProvider),
+			claimed
+		);
 		report[classified.bucket]++;
 	}
 	return report;
 }
 
 /** Import every legacy row once. No row is duplicated and no ambiguous match is guessed. */
-export function importLegacyShoppingOverrides(db: DB): LegacyImportReport {
+export function importLegacyShoppingOverrides(
+	db: DB,
+	sourceProvider: ShoppingSourceProvider
+): LegacyImportReport {
 	const report = emptyLegacyReport();
 	const claimed = claimedLegacySourceKeys(db);
 	const overrides = db.select().from(schema.shoppingListOverrides).orderBy(asc(schema.shoppingListOverrides.id)).all();
@@ -341,10 +342,14 @@ export function importLegacyShoppingOverrides(db: DB): LegacyImportReport {
 			report.alreadyImported++;
 			continue;
 		}
-		const classified = reserveExactLegacySource(override.weekStartDate, bucketLegacyOverride(db, override), claimed);
+		const classified = reserveExactLegacySource(
+			override.weekStartDate,
+			bucketLegacyOverride(db, override, sourceProvider),
+			claimed
+		);
 		report[classified.bucket]++;
-		db.transaction((tx) => {
-			const executor = tx as unknown as DB;
+		{
+			const executor = db;
 			const now = new Date();
 			if (classified.bucket === 'exact') {
 				const source = classified.candidates[0];
@@ -386,7 +391,7 @@ export function importLegacyShoppingOverrides(db: DB): LegacyImportReport {
 					})
 					.where(eq(schema.shoppingWeekEntries.id, target.id))
 					.run();
-				return;
+				continue;
 			}
 
 			const manual = classified.bucket === 'manual';
@@ -411,25 +416,29 @@ export function importLegacyShoppingOverrides(db: DB): LegacyImportReport {
 					updatedAt: now
 				})
 				.run();
-		});
+		}
 	}
 	return report;
 }
 
 export function materializePlanningHorizon(
 	db: DB,
-	options: { currentWeek: string; weekStartDay: number; planAheadWeeks: number }
+	options: { currentWeek: string; weekStartDay: number; planAheadWeeks: number },
+	sourceProvider: ShoppingSourceProvider
 ): MaterializeResult[] {
 	return Array.from({ length: options.planAheadWeeks }, (_, index) =>
 		materializeShoppingWeek(db, addDays(options.currentWeek, index * 7), {
 			weekStartDay: options.weekStartDay,
 			today: options.currentWeek
-		})
+		}, sourceProvider)
 	);
 }
 
 /** Idempotent boot transition. The completion marker is written last. */
-export function initializeShoppingSourceData(db: DB): {
+export function initializeShoppingSourceData(
+	db: DB,
+	sourceProvider: ShoppingSourceProvider
+): {
 	dryRun: LegacyImportReport;
 	imported: LegacyImportReport;
 	alreadyComplete: boolean;
@@ -439,9 +448,9 @@ export function initializeShoppingSourceData(db: DB): {
 		return { dryRun: empty, imported: empty, alreadyComplete: true };
 	}
 	const config = shoppingPlanningConfig(db);
-	const dryRun = dryRunLegacyOverrideImport(db);
-	materializePlanningHorizon(db, config);
-	const imported = importLegacyShoppingOverrides(db);
+	const dryRun = dryRunLegacyOverrideImport(db, sourceProvider);
+	materializePlanningHorizon(db, config, sourceProvider);
+	const imported = importLegacyShoppingOverrides(db, sourceProvider);
 	if (dryRun.total !== imported.total) {
 		throw new Error('Legacy shopping dry-run and import totals differ');
 	}
@@ -450,7 +459,11 @@ export function initializeShoppingSourceData(db: DB): {
 }
 
 /** Refresh captured nonpast weeks after a meal, recipe, or source write. */
-export function reconcileShoppingAfterWrite(db: DB, affectedWeeks: string[] = []): void {
+export function reconcileShoppingAfterWrite(
+	db: DB,
+	affectedWeeks: string[] = [],
+	sourceProvider: ShoppingSourceProvider
+): void {
 	if (!isShoppingSourceMigrationComplete(db)) return;
 	const config = shoppingPlanningConfig(db);
 	const horizonEnd = addDays(config.currentWeek, (config.planAheadWeeks - 1) * 7);
@@ -467,6 +480,11 @@ export function reconcileShoppingAfterWrite(db: DB, affectedWeeks: string[] = []
 		.map((row) => row.week);
 	const weeks = [...new Set([...capturedWeeks, ...affectedWeeks.filter((week) => week >= config.currentWeek)])];
 	for (const week of weeks) {
-		materializeShoppingWeek(db, week, { weekStartDay: config.weekStartDay, today: config.currentWeek });
+		materializeShoppingWeek(
+			db,
+			week,
+			{ weekStartDay: config.weekStartDay, today: config.currentWeek },
+			sourceProvider
+		);
 	}
 }

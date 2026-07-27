@@ -1,4 +1,3 @@
-import type { Db } from '$lib/server/db/types';
 import { db as appDb } from '$lib/server/db/index';
 import {
 	addSubRecipe,
@@ -10,7 +9,7 @@ import {
 	subRecipesOf,
 	updateCanonicalRecipe
 } from '$lib/server/domains/recipes';
-import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
+import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
 import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 
 export function getMealCandidates() {
@@ -48,7 +47,7 @@ export function changeMealComposition(input: {
 				changes: { cookModeJson: null, cookModeGeneratedAt: null }
 			});
 			if (!updated) return { status: 'stale' as const };
-			reconcileShoppingAfterWrite(tx as unknown as Db);
+			reconcileShoppingAfterWrite(tx);
 		}
 		return { status: 'ok' as const, changed, mealId: meal.id };
 	});

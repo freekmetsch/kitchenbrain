@@ -3,14 +3,14 @@ import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/recipe_ingredient';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
+import { isShoppingSourceMigrationComplete } from './entries';
 import {
 	dryRunLegacyOverrideImport,
 	initializeShoppingSourceData,
 	importLegacyShoppingOverrides,
-	isShoppingSourceMigrationComplete,
 	materializeShoppingWeek,
 	reconcileShoppingAfterWrite
-} from '$lib/server/shopping_entries';
+} from '$lib/server/workflows/reconcile-shopping';
 import {
 	addManualShoppingEntry,
 	addRecurringShoppingItem,
@@ -19,7 +19,7 @@ import {
 	resolveLegacyShoppingEntry,
 	skipShoppingEntry,
 	updateShoppingEntry
-} from '$lib/server/shopping_mutations';
+} from './commands';
 
 const CURRENT_WEEK = '2026-07-22';
 const WEEK_START_DAY = 2;

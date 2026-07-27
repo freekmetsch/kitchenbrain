@@ -153,19 +153,6 @@ function runtimeModuleImports(file: string): string[] {
 	return [...modules];
 }
 
-const APPROVED_CORE_ROUTE_BYPASSES = [
-	'routes/api/shopping/+server.ts',
-	'routes/api/shopping/ah-favorite/+server.ts',
-	'routes/api/shopping/ah-preview/+server.ts',
-	'routes/api/shopping/ah-push/+server.ts',
-	'routes/api/shopping/recipe-choice/+server.ts',
-	'routes/shopping/+page.server.ts'
-] as const;
-
-const APPROVED_AI_EXECUTOR_BYPASSES = [
-	'lib/server/ai/executors/shopping.ts'
-] as const;
-
 describe('server architecture boundaries', () => {
 	it('centralizes the Drizzle database and transaction types', () => {
 		const filesWithDatabaseType = productionSourceFiles(serverRoot)
@@ -199,7 +186,7 @@ describe('server architecture boundaries', () => {
 			.filter(importsDirectDatabaseModule)
 			.map(toRepoPath);
 
-		expect(current).toEqual([...APPROVED_CORE_ROUTE_BYPASSES].sort());
+		expect(current).toEqual([]);
 	});
 
 	it('inventories the approved AI-executor database bypasses', () => {
@@ -207,7 +194,7 @@ describe('server architecture boundaries', () => {
 			.filter(importsDirectDatabaseModule)
 			.map(toRepoPath);
 
-		expect(current).toEqual([...APPROVED_AI_EXECUTOR_BYPASSES].sort());
+		expect(current).toEqual([]);
 	});
 
 	it('keeps runtime LLM SDK imports behind the AI client seam', () => {

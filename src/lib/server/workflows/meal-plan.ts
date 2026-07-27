@@ -24,7 +24,7 @@ import {
 	updateRecipeCookStats
 } from '$lib/server/domains/recipes';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
-import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
+import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
 import type { BenchSheetRating } from '$lib/types';
 import { addDays, isoWeekNumber, todayIso, weekStartFor } from '$lib/week';
 

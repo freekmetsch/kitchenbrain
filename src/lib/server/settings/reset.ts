@@ -8,7 +8,7 @@ import type { AnySQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '$lib/server/db/schema';
 import type { Db as DB } from '$lib/server/db/types';
 import { delHouseholdPref } from '$lib/server/db/household_prefs';
-import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/shopping_entries';
+import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/domains/shopping';
 
 export type ResetGroupKey =
 	| 'inventory'

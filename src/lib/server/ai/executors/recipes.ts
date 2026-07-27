@@ -28,7 +28,7 @@ import {
 import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
 import type { DB, ExecutorFn } from './shared';
 import { NewIngredientSchema } from '$lib/recipe_ingredient';
-import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
+import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
 import { generateRecipeEnhancement } from '$lib/server/ai/recipe_enhancement';
 import {
 	kickCookModeForDb,
@@ -278,13 +278,18 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			updates.translatedAt = null;
 		}
 
-		const updated = updateCanonicalRecipe(db, {
-			recipeId: recipe.id,
-			expectedRevision: recipe.contentRevision,
-			changes: updates
+		const updated = db.transaction((tx) => {
+			const changed = updateCanonicalRecipe(tx, {
+				recipeId: recipe.id,
+				expectedRevision: recipe.contentRevision,
+				changes: updates
+			});
+			if (changed && ('ingredients' in updates || 'servings' in updates)) {
+				reconcileShoppingAfterWrite(tx);
+			}
+			return changed;
 		});
 		if (!updated) return { ok: false, error: 'Recipe changed during the edit' };
-		if ('ingredients' in updates || 'servings' in updates) reconcileShoppingAfterWrite(db);
 		if (sheetStale && subRecipesOf(db, recipe.id).length > 0) {
 			kickCookModeIfAppDb(db, input.slug);
 		}

@@ -2,8 +2,9 @@ import { and, asc, eq, inArray, isNull, lte, or, gte } from 'drizzle-orm';
 import { normalizeNameKey, tokenize } from '$lib/match';
 import { sumCompatibleQuantities } from '$lib/recipe_scale';
 import * as schema from '$lib/server/db/schema';
-import type { Db as DB } from '$lib/server/db/types';
+import type { DbOrTx } from '$lib/server/db/types';
 type WeekEntry = typeof schema.shoppingWeekEntries.$inferSelect;
+type DB = DbOrTx;
 
 function inventoryMatchKey(name: string): string {
 	return [...new Set(tokenize(name))].sort().join('\u0000');

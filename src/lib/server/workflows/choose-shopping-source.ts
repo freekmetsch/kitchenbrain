@@ -1,12 +1,14 @@
 import { and, eq, gte, isNull, ne, sql } from 'drizzle-orm';
+import { db as appDb } from '$lib/server/db/index';
 import type { Ingredient } from '$lib/recipe_ingredient';
 import * as schema from '$lib/server/db/schema';
 import type { Db as DB } from '$lib/server/db/types';
 import { updateCanonicalRecipe } from '$lib/server/domains/recipes';
-import { reconcileShoppingAfterWrite, shoppingPlanningConfig } from '$lib/server/shopping_entries';
+import { reconcileShoppingAfterWrite } from './reconcile-shopping';
+import { shoppingPlanningConfig } from '$lib/server/domains/shopping/entries';
 import { addInventory, updateInventory } from '$lib/server/domains/inventory/commands';
 import { findExistingItem } from '$lib/server/domains/inventory/merge';
-import { ShoppingMutationError } from '$lib/server/shopping_mutations';
+import { ShoppingMutationError } from '$lib/server/domains/shopping/commands';
 
 export type ShoppingNeed = 'required' | 'optional' | 'stocked';
 
@@ -220,4 +222,14 @@ export function applyShoppingRecipeChoice(
 			selectedName
 		};
 	});
+}
+
+export function chooseShoppingSource(
+	input: Parameters<typeof applyShoppingRecipeChoice>[1]
+) {
+	return applyShoppingRecipeChoice(appDb, input);
+}
+
+export function saveRecipeIngredientChoice(input: Parameters<typeof saveRecipeIngredientDefault>[1]) {
+	return saveRecipeIngredientDefault(appDb, input);
 }

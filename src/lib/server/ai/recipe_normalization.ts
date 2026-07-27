@@ -5,7 +5,7 @@ import { mergeLiveIngredients, type Ingredient } from '$lib/recipe_ingredient';
 import { checkDailyCap } from '$lib/server/ai/client';
 import { enrichRecipeStructure, type ScrapedRecipe } from '$lib/server/ai/recipe_ingest';
 import { stageRecipeStructureDraft, updateCanonicalRecipe } from '$lib/server/domains/recipes';
-import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
+import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
 
 export type NormalizationBatchResult = {
 	processed: number;
@@ -83,7 +83,7 @@ export async function normalizeLegacyRecipes(
 		);
 		const changed = db.transaction((tx) => {
 			if (proposed.structureVersion === 2) {
-				return updateCanonicalRecipe(tx, {
+				const updated = updateCanonicalRecipe(tx, {
 					recipeId: candidate.id,
 					expectedRevision: candidate.contentRevision,
 					changes: {
@@ -99,7 +99,9 @@ export async function normalizeLegacyRecipes(
 						translationStatus: candidate.language === 'en' ? 'ready' : 'pending',
 						translatedAt: null
 					}
-				}) ? 1 : 0;
+				});
+				if (updated) reconcileShoppingAfterWrite(tx);
+				return updated ? 1 : 0;
 			}
 			return stageRecipeStructureDraft(tx, {
 				recipeId: candidate.id,
@@ -116,7 +118,6 @@ export async function normalizeLegacyRecipes(
 			stale += 1;
 			continue;
 		}
-		if (proposed.structureVersion === 2) reconcileShoppingAfterWrite(db);
 		if (proposed.structureVersion === 2) improved += 1;
 		else needsReview += 1;
 	}

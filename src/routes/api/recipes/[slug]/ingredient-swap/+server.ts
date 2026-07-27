@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { saveRecipeIngredientChoice } from '$lib/server/workflows/recipe-ingredient-choice';
-import { ShoppingMutationError } from '$lib/server/shopping_mutations';
+import { saveRecipeIngredientChoice } from '$lib/server/workflows/choose-shopping-source';
+import { ShoppingMutationError } from '$lib/server/domains/shopping';
 import type { RequestHandler } from './$types';
 
 const InputSchema = z.object({

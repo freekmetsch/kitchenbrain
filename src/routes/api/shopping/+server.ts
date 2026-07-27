@@ -1,23 +1,15 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { db } from '$lib/server/db/index';
 import { readJsonBody } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
-import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import {
-	addManualShoppingEntry,
-	addRecurringShoppingItem,
-	disableRecurringShoppingItem,
-	editRecurringShoppingItem,
-	removeManualShoppingEntry,
-	resolveLegacyShoppingEntry,
-	setBoughtForEntries,
-	skipShoppingEntry,
-	ShoppingMutationError,
-	updateShoppingEntry
-} from '$lib/server/shopping_mutations';
-import { initializeShoppingSourceData, reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
+	ShoppingMutationError
+} from '$lib/server/domains/shopping';
+import {
+	shoppingService,
+	shoppingWeekStartDay
+} from '$lib/server/workflows/reconcile-shopping';
 
 // AH-INVARIANT: names/amounts/units are AH-coupled Dutch values — validate shape
 // and bounds only, never trim or normalize; write them exactly as received.
@@ -95,53 +87,49 @@ function throwShoppingMutation(errorValue: unknown): never {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	initializeShoppingSourceData(db);
 
 	const body = await readJsonBody(request, PostSchema);
-	const weekStartDay = getWeekStartDay(db);
+	const weekStartDay = shoppingWeekStartDay();
 
 	try {
 		if (body.action === 'add_recurring') {
-			const item = addRecurringShoppingItem(db, {
+			const item = shoppingService.addRecurring({
 					name: body.name,
 					amount: body.amount,
 					unit: body.unit,
 					startWeek: body.startWeek,
 					weekStartDay
 				});
-			reconcileShoppingAfterWrite(db, [body.startWeek]);
 			return json(item);
 		}
 		if (body.action === 'edit_recurring') {
-			const item = editRecurringShoppingItem(db, { ...body, id: body.itemId, weekStartDay });
-			reconcileShoppingAfterWrite(db, [body.effectiveWeek]);
+			const item = shoppingService.editRecurring({ ...body, id: body.itemId, weekStartDay });
 			return json(item);
 		}
 		if (body.action === 'disable_recurring' || body.action === 'remove_recurring') {
-			disableRecurringShoppingItem(db, { id: body.itemId, ...body, weekStartDay });
-			reconcileShoppingAfterWrite(db, [body.effectiveWeek]);
+			shoppingService.disableRecurring({ id: body.itemId, ...body, weekStartDay });
 			return json({ ok: true });
 		}
 		if (body.action === 'skip_recurring') {
-			return json(skipShoppingEntry(db, { ...body, weekStartDay }));
+			return json(shoppingService.skip({ ...body, weekStartDay }));
 		}
 		if (body.action === 'add_source_manual') {
-			return json(addManualShoppingEntry(db, { ...body, weekStartDay }));
+			return json(shoppingService.addManual({ ...body, weekStartDay }));
 		}
 		if (body.action === 'remove_source_manual') {
-			removeManualShoppingEntry(db, { ...body, weekStartDay });
+			shoppingService.removeManual({ ...body, weekStartDay });
 			return json({ ok: true });
 		}
 		if (body.action === 'update_source') {
-			return json(updateShoppingEntry(db, { ...body, weekStartDay }));
+			return json(shoppingService.updateSource({ ...body, weekStartDay }));
 		}
 		if (body.action === 'set_bought_entries') {
-			setBoughtForEntries(db, { ...body, weekStartDay });
+			shoppingService.setBought({ ...body, weekStartDay });
 			return json({ ok: true });
 		}
 		if (body.action === 'resolve_legacy') {
 			return json(
-				resolveLegacyShoppingEntry(db, {
+				shoppingService.resolveLegacy({
 					legacyEntryId: body.legacyEntryId,
 					expectedLegacyRevision: body.expectedLegacyRevision,
 					action: body.resolution,
