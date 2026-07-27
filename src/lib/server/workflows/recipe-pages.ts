@@ -1,9 +1,10 @@
 import { inArray, isNull } from 'drizzle-orm';
 import { db as appDb } from '$lib/server/db/index';
-import { inventoryItems, mealPlanMeals, recipes } from '$lib/server/db/schema';
+import { inventoryItems, recipes } from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
 import { getUserPref } from '$lib/server/db/user_prefs';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
+import { getMealPlanMeal } from '$lib/server/domains/meal-plan/queries';
 import {
 	expandedIngredientRoleCoverage,
 	expandMealIngredientsForServings,
@@ -246,7 +247,7 @@ export function loadRecipeDetailData(slug: string, input: { recipeLang: string; 
 	const planId = Number(input.url.searchParams.get('plan'));
 	const plannedMeal =
 		Number.isInteger(planId) && planId > 0
-			? appDb.select().from(mealPlanMeals).where(eq(mealPlanMeals.id, planId)).get()
+			? getMealPlanMeal(appDb, planId)
 			: null;
 	const linkedPlan = plannedMeal?.recipeSlug === recipe.slug ? plannedMeal : null;
 	const requestedServings = Number(input.url.searchParams.get('servings'));

@@ -1,14 +1,10 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
-import { db } from '$lib/server/db/index';
-import { mealPlanMeals } from '$lib/server/db/schema';
-import { recordCook, unrecordCook } from '$lib/server/cook_log';
 import { todayIso } from '$lib/week';
 import { readJsonBody, readPositiveIntParam } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
-import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
+import { mealPlanService } from '$lib/server/workflows/meal-plan';
 
 const UpdateSchema = z.object({
 	status: z.enum(['planned', 'cooked']).nullable().optional(),
@@ -33,57 +29,29 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		const updates: Partial<{ plannedDate: string | null; source: 'fresh' | 'freezer'; servings: number | null }> = {};
 		if (body.plannedDate !== undefined) updates.plannedDate = body.plannedDate;
 		if (body.servings !== undefined) updates.servings = body.servings;
-		if (body.source !== undefined) {
-			const current = db.select().from(mealPlanMeals).where(eq(mealPlanMeals.id, id)).get();
-			if (!current) throw error(404, 'Meal not found');
-			// Freezer service needs a recipe link to resolve frozen portions.
-			if (body.source === 'freezer' && !current.recipeSlug)
-				throw error(400, 'Only meals linked to a recipe can be served from the freezer');
-			updates.source = body.source;
+		if (body.source !== undefined) updates.source = body.source;
+		const result = mealPlanService.updateMetadata(id, updates);
+		if (!result.ok) {
+			throw error(result.code === 'not_found' ? 404 : 400, result.error);
 		}
-		const meal = db
-			.update(mealPlanMeals)
-			.set(updates)
-			.where(eq(mealPlanMeals.id, id))
-			.returning()
-			.get();
-		if (!meal) throw error(404, 'Meal not found');
-		reconcileShoppingAfterWrite(db, [meal.weekStartDate]);
-		return json(meal);
+		return json(result.meal);
 	}
 
 	const newStatus: 'planned' | 'cooked' = body.status ?? 'cooked';
 	const cookedDate = newStatus === 'planned' ? null : (body.cookedDate ?? todayIso());
 
-	const meal = db
-		.update(mealPlanMeals)
-		.set({ status: newStatus, cookedDate })
-		.where(eq(mealPlanMeals.id, id))
-		.returning()
-		.get();
-	if (!meal) throw error(404, 'Meal not found');
-
-	if (newStatus === 'cooked') {
-		recordCook(db, {
-			recipeSlug: meal.recipeSlug,
-			cookedDate: cookedDate as string,
-			source: 'plan',
-			mealPlanMealId: meal.id
-		});
-	} else {
-		unrecordCook(db, meal.id);
-	}
-
-	return json(meal);
+	const result =
+		newStatus === 'cooked'
+			? mealPlanService.cook(id, cookedDate as string)
+			: mealPlanService.uncook(id);
+	if (!result.ok) throw error(404, result.error);
+	return json(result.meal);
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 	const id = readPositiveIntParam(params.id);
-	const meal = db.select().from(mealPlanMeals).where(eq(mealPlanMeals.id, id)).get();
-	if (!meal) throw error(404, 'Meal not found');
-	if (meal.status === 'cooked') unrecordCook(db, meal.id);
-	db.delete(mealPlanMeals).where(eq(mealPlanMeals.id, id)).run();
-	reconcileShoppingAfterWrite(db, [meal.weekStartDate]);
-	return json({ ok: true, meal });
+	const result = mealPlanService.remove(id, { unrecordCooked: true });
+	if (!result.ok) throw error(404, result.error);
+	return json({ ok: true, meal: result.meal });
 };

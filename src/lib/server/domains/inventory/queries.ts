@@ -63,3 +63,18 @@ export function inventoryForAi(item: InventoryItem) {
 export function getInventoryItem(db: DbOrTx, id: number): InventoryItem | undefined {
 	return readInventoryItem(db, id);
 }
+
+export function listInventorySuggestionRows(db: DbOrTx) {
+	return db
+		.select({
+			name: schema.inventoryItems.name,
+			qty: schema.inventoryItems.qtyText,
+			section: schema.inventoryItems.section,
+			category: schema.inventoryItems.category,
+			expiryDate: schema.inventoryItems.expiryDate,
+			createdAt: schema.inventoryItems.createdAt
+		})
+		.from(schema.inventoryItems)
+		.where(isNull(schema.inventoryItems.deletedAt))
+		.all();
+}

@@ -190,3 +190,15 @@ export function updateRecipeTranslationCache(
 		.returning()
 		.get();
 }
+
+export function updateRecipeCookStats(
+	db: DbOrTx,
+	recipeId: number,
+	stats: { lastCookedAt: Date | null; cookedCount: number },
+	now = new Date()
+): void {
+	db.update(schema.recipes)
+		.set({ ...stats, updatedAt: now })
+		.where(eq(schema.recipes.id, recipeId))
+		.run();
+}

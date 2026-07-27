@@ -154,19 +154,15 @@ function runtimeModuleImports(file: string): string[] {
 }
 
 const APPROVED_CORE_ROUTE_BYPASSES = [
-	'routes/api/meal-plan/[id]/+server.ts',
-	'routes/api/meal-plan/+server.ts',
 	'routes/api/shopping/+server.ts',
 	'routes/api/shopping/ah-favorite/+server.ts',
 	'routes/api/shopping/ah-preview/+server.ts',
 	'routes/api/shopping/ah-push/+server.ts',
 	'routes/api/shopping/recipe-choice/+server.ts',
-	'routes/meal-plan/+page.server.ts',
 	'routes/shopping/+page.server.ts'
 ] as const;
 
 const APPROVED_AI_EXECUTOR_BYPASSES = [
-	'lib/server/ai/executors/meal_plan.ts',
 	'lib/server/ai/executors/shopping.ts'
 ] as const;
 

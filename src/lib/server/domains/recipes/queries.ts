@@ -1,4 +1,4 @@
-import { eq, inArray, like, notInArray } from 'drizzle-orm';
+import { desc, eq, inArray, like, notInArray } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
 
@@ -39,5 +39,44 @@ export function listMealCandidates(db: DbOrTx) {
 		})
 		.from(schema.recipes)
 		.where(mealIds.length ? notInArray(schema.recipes.id, mealIds) : undefined)
+		.all();
+}
+
+export function listRecipePlanningOptions(db: DbOrTx) {
+	return db
+		.select({
+			id: schema.recipes.id,
+			slug: schema.recipes.slug,
+			title: schema.recipes.title,
+			titleEn: schema.recipes.titleEn,
+			category: schema.recipes.category,
+			categoryEn: schema.recipes.categoryEn,
+			rating: schema.recipes.rating,
+			servings: schema.recipes.servings,
+			scalingMode: schema.recipes.scalingMode,
+			targetPortions: schema.recipes.targetPortions,
+			isFreezerStaple: schema.recipes.isFreezerStaple,
+			lastCookedAt: schema.recipes.lastCookedAt
+		})
+		.from(schema.recipes)
+		.orderBy(schema.recipes.title)
+		.all();
+}
+
+export function listRecipeSuggestionCandidates(db: DbOrTx, limit = 60) {
+	return db
+		.select({
+			id: schema.recipes.id,
+			slug: schema.recipes.slug,
+			title: schema.recipes.title,
+			category: schema.recipes.category,
+			rating: schema.recipes.rating,
+			ingredients: schema.recipes.ingredients,
+			lastCookedAt: schema.recipes.lastCookedAt,
+			cookedCount: schema.recipes.cookedCount
+		})
+		.from(schema.recipes)
+		.orderBy(desc(schema.recipes.rating))
+		.limit(limit)
 		.all();
 }
