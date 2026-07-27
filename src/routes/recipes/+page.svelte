@@ -5,6 +5,7 @@
 	import { CORE_FOOD_TYPE_OPTIONS, foodCategoryLabel } from '$lib/food_categories';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import SmartImage from '$lib/components/ui/SmartImage.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -338,41 +339,37 @@
 </svelte:head>
 
 <div class="recipe-page">
-	<section class="recipe-band">
-		<div class="recipe-band-inner">
-			<header class="recipe-identity">
-				<div>
-					<p>{m.recipes_title()}</p>
-					<h1>{m.recipes_heading()}</h1>
-				</div>
-				<div class="recipe-actions">
+	<KitchenPageHeader eyebrow={m.recipes_header_context()} title={m.recipes_heading()}>
+		{#snippet actions()}
 			<button
-				class="recipe-action recipe-new-meal"
+				class="ui-kitchen-header-action"
 				onclick={() => {
 					newMealOpen = true;
 					newMealTitle = '';
 					newMealQuery = '';
 					newMealSlugs = [];
 					newMealError = '';
-				}}>{m.recipes_new_meal_button()}</button
-			>
-					<button class="recipe-action recipe-import" onclick={() => { scrapeOpen = true; }}>{m.recipes_import_button()}</button>
-				</div>
-			</header>
+				}}>{m.recipes_new_meal_button()}</button>
+			<button
+				class="ui-kitchen-header-action ui-kitchen-header-action-primary"
+				onclick={() => {
+					scrapeOpen = true;
+				}}>{m.recipes_import_button()}</button>
+		{/snippet}
 
-			<div class="recipe-search-row">
-				<label class="recipe-search">
-					<svg
-						viewBox="0 0 16 16"
-						class="h-4 w-4"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						aria-hidden="true"
-					>
-						<path d="M11.25 11.25 14 14" />
-						<circle cx="7.25" cy="7.25" r="5" />
-					</svg>
+		<div class="recipe-search-row">
+			<label class="ui-kitchen-search ui-kitchen-search-on-dark">
+				<svg
+					viewBox="0 0 16 16"
+					class="h-4 w-4"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					aria-hidden="true"
+				>
+					<path d="M11.25 11.25 14 14" />
+					<circle cx="7.25" cy="7.25" r="5" />
+				</svg>
 			<input
 				type="search"
 				placeholder={m.recipes_search_placeholder()}
@@ -386,8 +383,13 @@
 					search();
 				}}
 			/>
-				</label>
-			<select class="recipe-sort" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
+			</label>
+			<select
+				class="ui-kitchen-select-on-dark"
+				bind:value={sortBy}
+				onchange={search}
+				aria-label={m.recipes_sort_aria()}
+			>
 				<option value="title">{m.recipes_sort_az()}</option>
 				<option value="rating">{m.recipes_sort_rating()}</option>
 				<option value="recent">{m.recipes_sort_recent()}</option>
@@ -395,12 +397,11 @@
 				<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
 			</select>
 		</div>
-		</div>
-	</section>
+	</KitchenPageHeader>
 
 	<!-- Chips toggle; the rail stays close to the results and scrolls on phones. -->
 	<section class="recipe-filter-shell">
-		<div class="recipe-filter-inner">
+		<div class="recipe-filter-inner ui-kitchen-content">
 		<div class="ui-scroll-rail flex items-center gap-1.5 pb-0.5" use:scrollRail>
 			<button
 				type="button"
@@ -444,7 +445,7 @@
 		</div>
 	</section>
 
-	<main class="recipe-ledger">
+	<main class="recipe-ledger ui-kitchen-content">
 	{#if ingredientFilter}
 		<div class="mb-3 flex items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-3 py-2 text-sm">
 			<span class="min-w-0 flex-1 truncate">{m.recipes_using_ingredient_prefix()} <strong>{ingredientFilter}</strong></span>
@@ -532,132 +533,10 @@
 		padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 	}
 
-	.recipe-band {
-		color: white;
-		background:
-			radial-gradient(circle at 86% 0, rgb(255 255 255 / 10%), transparent 13rem),
-			linear-gradient(135deg, var(--kitchen-olive-deep), var(--kitchen-olive-soft));
-	}
-
-	.recipe-band-inner,
-	.recipe-filter-inner,
-	.recipe-ledger {
-		max-width: 74rem;
-		margin: 0 auto;
-	}
-
-	.recipe-band-inner {
-		display: grid;
-		gap: 0.7rem;
-		padding: 0.65rem 0.875rem 0.8rem;
-	}
-
-	.recipe-identity {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-
-	.recipe-identity p {
-		color: #f2ca74;
-		font-size: 0.62rem;
-		font-weight: 800;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-	}
-
-	.recipe-identity h1 {
-		margin-top: 0.08rem;
-		font-family: var(--kitchen-display);
-		font-size: 1.15rem;
-		font-weight: 600;
-		line-height: 1;
-		letter-spacing: -0.025em;
-	}
-
-	.recipe-actions {
-		display: flex;
-		flex: 0 0 auto;
-		gap: 0.4rem;
-	}
-
-	.recipe-action {
-		display: inline-flex;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		border-radius: 0.7rem;
-		padding: 0 0.7rem;
-		font-size: 0.7rem;
-		font-weight: 750;
-	}
-
-	.recipe-new-meal {
-		border: 1px solid rgb(255 255 255 / 24%);
-		background: rgb(255 255 255 / 8%);
-	}
-
-	.recipe-import {
-		background: var(--kitchen-terra);
-		box-shadow: 0 5px 16px rgb(20 28 23 / 20%);
-	}
-
-	.recipe-action:hover,
-	.recipe-action:focus-visible {
-		background-color: rgb(255 255 255 / 16%);
-	}
-
-	.recipe-import:hover,
-	.recipe-import:focus-visible {
-		background-color: color-mix(in oklab, var(--kitchen-terra) 86%, white);
-	}
-
 	.recipe-search-row {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(7.75rem, 0.38fr);
 		gap: 0.5rem;
-	}
-
-	.recipe-search {
-		display: grid;
-		min-width: 0;
-		height: 2.9rem;
-		grid-template-columns: auto minmax(0, 1fr);
-		align-items: center;
-		gap: 0.55rem;
-		border: 1px solid rgb(255 255 255 / 25%);
-		border-radius: 0.75rem;
-		padding: 0 0.75rem;
-		background: rgb(255 255 255 / 12%);
-	}
-
-	.recipe-search input {
-		min-width: 0;
-		outline: 0;
-		color: white;
-		font-size: 0.78rem;
-	}
-
-	.recipe-search input::placeholder {
-		color: rgb(255 255 255 / 65%);
-	}
-
-	.recipe-sort {
-		min-width: 0;
-		height: 2.9rem;
-		border: 1px solid rgb(255 255 255 / 25%);
-		border-radius: 0.75rem;
-		padding: 0 1.9rem 0 0.65rem;
-		background: rgb(255 255 255 / 12%);
-		color: white;
-		font-size: 0.72rem;
-		font-weight: 700;
-	}
-
-	.recipe-sort option {
-		color: var(--color-base-content);
-		background: var(--color-base-100);
 	}
 
 	.recipe-filter-shell {
@@ -670,7 +549,7 @@
 	}
 
 	.recipe-filter-inner {
-		padding: 0.55rem 0.875rem;
+		padding-block: 0.55rem;
 	}
 
 	.recipe-filter-inner button {
@@ -678,7 +557,7 @@
 	}
 
 	.recipe-ledger {
-		padding: 0.9rem 0.875rem max(6.5rem, var(--ui-overlay-bottom));
+		padding-block: 0.9rem max(6.5rem, var(--ui-overlay-bottom));
 	}
 
 	.recipe-grid {
@@ -688,21 +567,8 @@
 	}
 
 	@media (min-width: 48rem) {
-		.recipe-band-inner {
-			grid-template-columns: minmax(13rem, 0.42fr) minmax(28rem, 1fr);
-			align-items: end;
-			gap: 1rem 1.5rem;
-			padding: 0.8rem 1.5rem 1rem;
-		}
-
-		.recipe-identity {
-			grid-column: 1;
-			grid-row: 1;
-		}
-
 		.recipe-search-row {
-			grid-column: 2;
-			grid-row: 1;
+			grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.32fr);
 		}
 
 		.recipe-grid {
@@ -710,10 +576,6 @@
 			gap: 0.75rem;
 		}
 
-		.recipe-filter-inner,
-		.recipe-ledger {
-			padding-inline: 1.5rem;
-		}
 	}
 
 	@media (min-width: 68rem) {
@@ -721,11 +583,6 @@
 			grid-template-columns: repeat(4, minmax(0, 1fr));
 		}
 
-		.recipe-band-inner,
-		.recipe-filter-inner,
-		.recipe-ledger {
-			padding-inline: 2rem;
-		}
 	}
 </style>
 

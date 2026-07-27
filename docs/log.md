@@ -238,6 +238,37 @@ docs/artifacts/archive/2026-07-25-plan-kitchen-visual-system-completion.html
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
 
+## 2026-07-27 | html-artifact | plan and design shotgun: Primary page UI unification
+
+Touched: docs/artifacts/2026-07-27-plan-primary-page-ui-unification.html,
+docs/feature-lists/FEATURE_LIST_PRIMARY_PAGE_UI_UNIFICATION.md
+
 ## 2026-07-27 09:59 archive-scan | 1 feature lists, 0 HTMLs archived
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md
+
+## 2026-07-27 | html-artifact | refinement: Direction A header-copy matrix
+
+Recorded Direction A as selected and added a selectable 5 × 5 copy matrix: five voices across
+five label structures, with the complete four-route header set shown in every cell.
+
+Touched: docs/artifacts/2026-07-27-plan-primary-page-ui-unification.html,
+docs/feature-lists/FEATURE_LIST_PRIMARY_PAGE_UI_UNIFICATION.md
+
+## 2026-07-27 | shipped | Primary page UI unification
+
+Shipped one shared olive page-header frame across Stock, Meal plan, Shopping, and Recipes while
+keeping each route's working payload local. All four routes now use the selected P2
+eyebrow-to-route copy hierarchy, one H1, shared action/search/content geometry, and natural
+payload height. Meal plan and Shopping share one previous/next owner; Stock uses the existing
+three-scope segmented control with Filters separated as an action. Verification passed 48/48
+English/Dutch light/dark browser cases at 320, 375, and 1280 pixels, populated interaction checks,
+445 unit tests, zero Svelte diagnostics, and a production build.
+
+## 2026-07-27 | archive-scan | 1 feature list, 1 HTML archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_PRIMARY_PAGE_UI_UNIFICATION.md,
+docs/artifacts/archive/2026-07-27-plan-primary-page-ui-unification.html
+
+The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
+validated inline fallback and the repo remains a candidate for the shared archive-script rollout.

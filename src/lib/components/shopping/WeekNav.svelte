@@ -1,7 +1,8 @@
 <!-- Shopping utility band: one page identity plus week, delivery, AH, and progress context. -->
 <script lang="ts">
 	import { base } from '$app/paths';
-	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
+	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { addDays, APP_TIME_ZONE } from '$lib/week';
@@ -57,119 +58,59 @@
 	}
 </script>
 
-<header class="market-hero">
-	<div class="market-hero-top">
-		<div class="market-identity">
-			<h1>{m.shopping_heading()}</h1>
-		</div>
+<KitchenPageHeader eyebrow={m.shopping_header_context()} title={m.shopping_heading()}>
+	{#snippet actions()}
 		<span class:offline={!ahConnected} class="market-ah-status">
 			<i aria-hidden="true"></i>
 			{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
 		</span>
-	</div>
+	{/snippet}
 
-	<div class="market-hero-grid">
-		<div class="market-run-state">
-			<div class="market-week-row">
-				<a
-					href="{base}/shopping?week={prevWeek}"
-					class="market-week-button"
-					aria-label={m.shopping_prev_week_aria()}
-				>
-					<Icon name="chevronLeft" />
-				</a>
-				<div class="market-week-copy">
-					<strong>
-						{#if isCurrentWeek}<span>{m.shopping_this_week_label()}</span><b aria-hidden="true"> · </b>{/if}
-						{weekRangeLabel(weekStart)}
-					</strong>
-					<div>
-						{#if deliveryDate}
-							<span>{m.shopping_delivery_label({ date: deliveryLabel(deliveryDate) })}</span>
-							<b aria-hidden="true"> · </b>
-						{/if}
-						<a href="{base}/meal-plan?week={weekStart}">{m.shopping_view_meal_plan_link()}</a>
-						{#if !isCurrentWeek}
-							<b aria-hidden="true"> · </b>
-							<a href="{base}/shopping">{m.shopping_back_to_week_button()}</a>
-						{/if}
-					</div>
+	<div class="market-run-state">
+		<KitchenWeekNavigator
+			previousHref={`${base}/shopping?week=${prevWeek}`}
+			nextHref={`${base}/shopping?week=${nextWeek}`}
+			previousLabel={m.shopping_prev_week_aria()}
+			nextLabel={m.shopping_next_week_aria()}
+			ariaLabel={m.shopping_week_navigation_aria()}
+		>
+			<div class="market-week-copy">
+				<strong>
+					{#if isCurrentWeek}<span>{m.shopping_this_week_label()}</span><b aria-hidden="true"> · </b>{/if}
+					{weekRangeLabel(weekStart)}
+				</strong>
+				<div>
+					{#if deliveryDate}
+						<span>{m.shopping_delivery_label({ date: deliveryLabel(deliveryDate) })}</span>
+						<b aria-hidden="true"> · </b>
+					{/if}
+					<a href="{base}/meal-plan?week={weekStart}">{m.shopping_view_meal_plan_link()}</a>
+					{#if !isCurrentWeek}
+						<b aria-hidden="true"> · </b>
+						<a href="{base}/shopping">{m.shopping_back_to_week_button()}</a>
+					{/if}
 				</div>
-				<a
-					href="{base}/shopping?week={nextWeek}"
-					class="market-week-button"
-					aria-label={m.shopping_next_week_aria()}
-				>
-					<Icon name="chevronRight" />
-				</a>
 			</div>
+		</KitchenWeekNavigator>
 
-			<div
-				class="market-progress"
-				role="progressbar"
-				aria-valuemin="0"
-				aria-valuemax="100"
-				aria-valuenow={progress}
-				aria-label={`${m.shopping_items_left({ count: remainingCount })}; ${m.shopping_in_basket_short({ count: doneCount })}`}
-			>
-				<div class="market-progress-copy">
-					<strong>{m.shopping_items_left({ count: remainingCount })}</strong>
-					<span>{m.shopping_in_basket_short({ count: doneCount })}</span>
-				</div>
-				<div class="market-progress-track"><i style={`width: ${progress}%`}></i></div>
+		<div
+			class="market-progress"
+			role="progressbar"
+			aria-valuemin="0"
+			aria-valuemax="100"
+			aria-valuenow={progress}
+			aria-label={`${m.shopping_items_left({ count: remainingCount })}; ${m.shopping_in_basket_short({ count: doneCount })}`}
+		>
+			<div class="market-progress-copy">
+				<strong>{m.shopping_items_left({ count: remainingCount })}</strong>
+				<span>{m.shopping_in_basket_short({ count: doneCount })}</span>
 			</div>
+			<div class="market-progress-track"><i style={`width: ${progress}%`}></i></div>
 		</div>
 	</div>
-</header>
+</KitchenPageHeader>
 
 <style>
-	.market-hero {
-		--market-olive: var(--kitchen-olive);
-		--market-olive-deep: var(--kitchen-olive-deep);
-		--market-olive-soft: var(--kitchen-olive-soft);
-		position: relative;
-		overflow: hidden;
-		color: white;
-		background:
-			radial-gradient(circle at 84% 2%, rgb(255 255 255 / 11%), transparent 13rem),
-			linear-gradient(135deg, var(--market-olive-deep), var(--market-olive-soft));
-	}
-
-	.market-hero::after {
-		position: absolute;
-		right: -4rem;
-		bottom: -6rem;
-		width: 12rem;
-		height: 12rem;
-		border: 1px solid rgb(255 255 255 / 8%);
-		border-radius: 999px;
-		content: '';
-		pointer-events: none;
-	}
-
-	.market-hero-top,
-	.market-hero-grid {
-		position: relative;
-		z-index: 1;
-		max-width: 74rem;
-		margin: 0 auto;
-	}
-
-	.market-hero-top {
-		display: flex;
-		align-items: end;
-		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.6rem 0.75rem 0;
-	}
-
-	.market-identity {
-		display: flex;
-		min-width: 0;
-		align-items: baseline;
-		gap: 0.55rem;
-	}
-
 	.market-ah-status {
 		display: inline-flex;
 		min-height: 1.75rem;
@@ -200,46 +141,9 @@
 		background: #f0b34b;
 	}
 
-	.market-hero-grid {
-		padding: 0.4rem 0.75rem 0.7rem;
-	}
-
-	.market-hero h1 {
-		margin: 0;
-		font-family: var(--kitchen-display);
-		font-size: 1.05rem;
-		font-weight: 600;
-		line-height: 1;
-		letter-spacing: -0.02em;
-	}
-
 	.market-run-state {
 		min-width: 0;
 		width: 100%;
-	}
-
-	.market-week-row {
-		display: grid;
-		grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
-		align-items: center;
-		gap: 0.45rem;
-	}
-
-	.market-week-button {
-		display: inline-flex;
-		width: 2.75rem;
-		height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		border: 1px solid rgb(255 255 255 / 23%);
-		border-radius: 0.7rem;
-		background: rgb(255 255 255 / 7%);
-		color: white;
-	}
-
-	.market-week-button:hover,
-	.market-week-button:focus-visible {
-		background: rgb(255 255 255 / 15%);
 	}
 
 	.market-week-copy {
@@ -320,14 +224,6 @@
 	}
 
 	@media (min-width: 48rem) {
-		.market-hero-top {
-			padding: 0.85rem 1.5rem 0;
-		}
-
-		.market-hero-grid {
-			padding: 0.5rem 1.5rem 1rem;
-		}
-
 		.market-run-state {
 			display: grid;
 			grid-template-columns: minmax(28rem, 1fr) minmax(13rem, 0.45fr);
@@ -337,13 +233,6 @@
 
 		.market-progress {
 			margin-top: 0;
-		}
-	}
-
-	@media (min-width: 64rem) {
-		.market-hero-top,
-		.market-hero-grid {
-			padding-inline: 2rem;
 		}
 	}
 

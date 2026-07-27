@@ -9,6 +9,8 @@
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
+	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { optimistic } from '$lib/optimistic';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -661,14 +663,12 @@
 
 <div class="meal-plan-page">
 	<p class="sr-only" aria-live="polite">{servingsStatus}</p>
-	<section class="plan-band">
-		<div class="plan-band-inner">
-			<header class="plan-identity">
-				<h1>{m.mealplan_heading()}</h1>
-				{#if selectedWeek}
+	<KitchenPageHeader eyebrow={m.mealplan_header_context()} title={m.mealplan_heading()}>
+		{#snippet actions()}
+			{#if selectedWeek}
 			<details class="dropdown dropdown-end">
 				<summary
-					class="plan-more"
+					class="plan-more ui-kitchen-header-action ui-kitchen-header-action-icon"
 					aria-label={m.mealplan_more_options_aria()}
 				>
 					<span aria-hidden="true">⋯</span>
@@ -700,80 +700,47 @@
 					</li>
 				</ul>
 			</details>
-				{/if}
-			</header>
-
-			{#if selectedWeek}
-				{@const week = selectedWeek}
-				<div class="plan-week-row" aria-label={m.mealplan_week_navigation_aria()}>
-			{#if adjacentWeeks.previous}
-				<a
-					href={mealPlanWeekHref(
-						base,
-						adjacentWeeks.previous.weekStartDate,
-						data.showPastWeeks
-					)}
-					class="plan-week-button"
-					aria-label={m.mealplan_previous_week_aria()}
-				>
-					<Icon name="chevronLeft" />
-				</a>
-			{:else}
-				<button
-					type="button"
-					class="plan-week-button"
-					aria-label={m.mealplan_previous_week_aria()}
-					disabled
-				>
-					<Icon name="chevronLeft" />
-				</button>
 			{/if}
+		{/snippet}
 
-			<div class="plan-week-copy">
-				<div class="flex items-center justify-center gap-2">
-					<h2>
-						{m.mealplan_week_heading({ number: week.weekNumber })}
-					</h2>
-					{#if week.weekStartDate === currentWeekStart}
-						<span
-							class="plan-now"
-						>
-							{m.mealplan_now_chip()}
-						</span>
-					{/if}
-				</div>
-				<p>{formatWeekRange(week.weekStartDate)}</p>
-				{#if week.deliveryDate}
-					<p class="plan-delivery">
-						<Icon name="cart" class="h-3 w-3" />
-						{m.mealplan_delivery_label({ date: deliveryLabel(week.deliveryDate) })}
-					</p>
-				{/if}
-			</div>
-
-			{#if adjacentWeeks.next}
-				<a
-					href={mealPlanWeekHref(
-						base,
-						adjacentWeeks.next.weekStartDate,
-						data.showPastWeeks
-					)}
-					class="plan-week-button"
-					aria-label={m.mealplan_next_week_aria()}
+		{#if selectedWeek}
+			{@const week = selectedWeek}
+			<div class="plan-header-payload">
+				<KitchenWeekNavigator
+					previousHref={adjacentWeeks.previous
+						? mealPlanWeekHref(
+								base,
+								adjacentWeeks.previous.weekStartDate,
+								data.showPastWeeks
+							)
+						: null}
+					nextHref={adjacentWeeks.next
+						? mealPlanWeekHref(base, adjacentWeeks.next.weekStartDate, data.showPastWeeks)
+						: null}
+					previousLabel={m.mealplan_previous_week_aria()}
+					nextLabel={m.mealplan_next_week_aria()}
+					ariaLabel={m.mealplan_week_navigation_aria()}
 				>
-					<Icon name="chevronRight" />
-				</a>
-			{:else}
-				<button
-					type="button"
-					class="plan-week-button"
-					aria-label={m.mealplan_next_week_aria()}
-					disabled
-				>
-					<Icon name="chevronRight" />
-				</button>
-			{/if}
-				</div>
+					<div class="plan-week-copy">
+						<div class="flex items-center justify-center gap-2">
+							<strong class="plan-week-title">
+								{m.mealplan_week_heading({ number: week.weekNumber })}
+							</strong>
+							{#if week.weekStartDate === currentWeekStart}
+								<span class="plan-now">
+									{m.mealplan_now_chip()}
+								</span>
+							{/if}
+						</div>
+						<p>{formatWeekRange(week.weekStartDate)}</p>
+						{#if week.deliveryDate}
+							<p class="plan-delivery">
+								<Icon name="cart" class="h-3 w-3" />
+								{m.mealplan_delivery_label({ date: deliveryLabel(week.deliveryDate) })}
+							</p>
+						{/if}
+					</div>
+				</KitchenWeekNavigator>
 
 				<div class="plan-actions">
 			<a
@@ -802,11 +769,11 @@
 				{m.mealplan_add_meal()}
 			</button>
 				</div>
-			{/if}
-		</div>
-	</section>
+			</div>
+		{/if}
+	</KitchenPageHeader>
 
-	<main class="plan-ledger">
+	<main class="plan-ledger ui-kitchen-content">
 		{#if selectedWeek}
 			{@const week = selectedWeek}
 		<div>
@@ -1018,53 +985,6 @@
 		padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 	}
 
-	.plan-band {
-		color: white;
-		background:
-			radial-gradient(circle at 88% 0, rgb(255 255 255 / 10%), transparent 13rem),
-			linear-gradient(135deg, var(--kitchen-olive-deep), var(--kitchen-olive-soft));
-	}
-
-	.plan-band-inner,
-	.plan-ledger {
-		max-width: 74rem;
-		margin: 0 auto;
-	}
-
-	.plan-band-inner {
-		display: grid;
-		gap: 0.55rem;
-		padding: 0.55rem 0.875rem 0.7rem;
-	}
-
-	.plan-identity {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-
-	.plan-identity h1 {
-		font-family: var(--kitchen-display);
-		font-size: 1.2rem;
-		font-weight: 600;
-		line-height: 1.1;
-		letter-spacing: -0.025em;
-	}
-
-	.plan-more,
-	.plan-week-button {
-		display: inline-flex;
-		width: 2.75rem;
-		height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		border: 1px solid rgb(255 255 255 / 23%);
-		border-radius: 0.72rem;
-		background: rgb(255 255 255 / 7%);
-		color: white;
-	}
-
 	.plan-more {
 		list-style: none;
 		padding-bottom: 0.2rem;
@@ -1079,25 +999,12 @@
 		content: '';
 	}
 
-	.plan-week-button:disabled {
-		opacity: 0.35;
-	}
-
-	.plan-more:hover,
-	.plan-more:focus-visible,
-	.plan-week-button:hover,
-	.plan-week-button:focus-visible {
-		background: rgb(255 255 255 / 15%);
-	}
-
-	.plan-identity .menu a {
+	.plan-more + .menu a {
 		min-height: 2.75rem;
 	}
 
-	.plan-week-row {
+	.plan-header-payload {
 		display: grid;
-		grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
-		align-items: center;
 		gap: 0.55rem;
 	}
 
@@ -1106,11 +1013,10 @@
 		text-align: center;
 	}
 
-	.plan-week-copy h2 {
-		font-family: var(--kitchen-display);
-		font-size: 1.2rem;
-		font-weight: 600;
-		line-height: 1.05;
+	.plan-week-title {
+		font-size: 0.8rem;
+		font-weight: 800;
+		line-height: 1.2;
 	}
 
 	.plan-week-copy > p {
@@ -1184,7 +1090,7 @@
 	}
 
 	.plan-ledger {
-		padding: 0.75rem 0.875rem max(6.5rem, var(--ui-overlay-bottom));
+		padding-block: 0.75rem max(6.5rem, var(--ui-overlay-bottom));
 	}
 
 	.meal-row {
@@ -1265,14 +1171,10 @@
 	}
 
 	@media (min-width: 48rem) {
-		.plan-band-inner {
+		.plan-header-payload {
 			grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.72fr);
-			gap: 0.75rem 1rem;
-			padding: 0.8rem 1.5rem 1rem;
-		}
-
-		.plan-identity {
-			grid-column: 1 / -1;
+			align-items: center;
+			gap: 1rem;
 		}
 
 		.plan-actions {
@@ -1280,20 +1182,11 @@
 		}
 
 		.plan-ledger {
-			padding: 1.1rem 1.5rem max(6.5rem, var(--ui-overlay-bottom));
+			padding-block: 1.1rem max(6.5rem, var(--ui-overlay-bottom));
 		}
 	}
 
 	@media (min-width: 64rem) {
-		.plan-band-inner {
-			grid-template-columns: minmax(14rem, 0.5fr) minmax(24rem, 1fr) minmax(20rem, 0.65fr);
-			gap: 1rem;
-		}
-
-		.plan-identity {
-			grid-column: auto;
-		}
-
 		.meal-row {
 			grid-template-columns: 2.75rem minmax(12rem, 1fr) 2.75rem auto;
 		}
@@ -1317,10 +1210,6 @@
 			gap: 0.5rem;
 		}
 
-		.plan-band-inner,
-		.plan-ledger {
-			padding-inline: 2rem;
-		}
 	}
 </style>
 

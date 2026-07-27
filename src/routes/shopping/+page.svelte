@@ -138,7 +138,7 @@
 		ahConnected={data.ah.connected}
 	/>
 
-	<div class="shopping-market-layout">
+	<div class="shopping-market-layout ui-kitchen-content">
 		<main class="min-w-0">
 			<ShoppingLists
 				{pending}
@@ -277,9 +277,7 @@
 
 	.shopping-market-layout {
 		display: grid;
-		max-width: 74rem;
-		margin: 0 auto;
-		padding: 0.65rem 0.75rem max(7rem, var(--ui-overlay-bottom));
+		padding-block: 0.65rem max(7rem, var(--ui-overlay-bottom));
 		gap: 0.75rem;
 	}
 
@@ -418,7 +416,7 @@
 			grid-template-columns: minmax(0, 1fr) 17rem;
 			align-items: start;
 			gap: 0.9rem;
-			padding: 0.85rem 1.5rem max(7rem, var(--ui-overlay-bottom));
+			padding-block: 0.85rem max(7rem, var(--ui-overlay-bottom));
 		}
 
 		.shopping-market-desktop {
@@ -430,7 +428,6 @@
 		.shopping-market-layout {
 			grid-template-columns: minmax(0, 1fr) 18.75rem;
 			gap: 1rem;
-			padding: 0.85rem 2rem max(7rem, var(--ui-overlay-bottom));
 		}
 
 		.shopping-market-dock {

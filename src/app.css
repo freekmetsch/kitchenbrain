@@ -164,6 +164,120 @@ html[data-theme='dark'] {
 	padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 }
 
+.ui-kitchen-content {
+	max-width: 74rem;
+	margin-inline: auto;
+	padding-inline: 1rem;
+}
+
+.ui-kitchen-header-action {
+	display: inline-flex;
+	min-height: 2.75rem;
+	align-items: center;
+	justify-content: center;
+	gap: 0.35rem;
+	border: 1px solid rgb(255 255 255 / 24%);
+	border-radius: 0.7rem;
+	padding-inline: 0.75rem;
+	background: rgb(255 255 255 / 8%);
+	color: white;
+	font-size: 0.72rem;
+	font-weight: 750;
+	transition:
+		background var(--motion-micro) var(--ease-standard),
+		border-color var(--motion-micro) var(--ease-standard);
+}
+
+.ui-kitchen-header-action:hover,
+.ui-kitchen-header-action:focus-visible {
+	border-color: rgb(255 255 255 / 34%);
+	background: rgb(255 255 255 / 16%);
+}
+
+.ui-kitchen-header-action-primary {
+	border-color: transparent;
+	background: var(--kitchen-terra);
+	box-shadow: 0 5px 16px rgb(20 28 23 / 20%);
+}
+
+.ui-kitchen-header-action-primary:hover,
+.ui-kitchen-header-action-primary:focus-visible {
+	border-color: transparent;
+	background: color-mix(in oklab, var(--kitchen-terra) 86%, white);
+}
+
+.ui-kitchen-header-action-icon {
+	width: 2.75rem;
+	padding-inline: 0;
+}
+
+.ui-kitchen-search {
+	display: grid;
+	min-width: 0;
+	height: 2.9rem;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.55rem;
+	border: 1px solid var(--kitchen-line);
+	border-radius: 0.75rem;
+	padding-inline: 0.75rem;
+	background: var(--kitchen-card);
+	color: var(--color-base-content);
+	transition:
+		border-color var(--motion-micro) var(--ease-standard),
+		box-shadow var(--motion-micro) var(--ease-standard);
+}
+
+.ui-kitchen-search:focus-within {
+	border-color: color-mix(in oklab, var(--kitchen-olive) 48%, var(--kitchen-line));
+	box-shadow: 0 0 0 3px color-mix(in oklab, var(--kitchen-olive) 12%, transparent);
+}
+
+.ui-kitchen-search input {
+	min-width: 0;
+	outline: 0;
+	color: inherit;
+	font-size: 0.78rem;
+}
+
+.ui-kitchen-search input::placeholder {
+	color: color-mix(in oklab, currentColor 58%, transparent);
+}
+
+.ui-kitchen-search-on-dark {
+	border-color: rgb(255 255 255 / 25%);
+	background: rgb(255 255 255 / 12%);
+	color: white;
+}
+
+.ui-kitchen-search-on-dark:focus-within {
+	border-color: rgb(255 255 255 / 48%);
+	box-shadow: 0 0 0 3px rgb(255 255 255 / 10%);
+}
+
+.ui-kitchen-select-on-dark {
+	min-width: 0;
+	height: 2.9rem;
+	border: 1px solid rgb(255 255 255 / 25%);
+	border-radius: 0.75rem;
+	padding: 0 1.9rem 0 0.65rem;
+	background: rgb(255 255 255 / 12%);
+	color: white;
+	font-size: 0.72rem;
+	font-weight: 700;
+}
+
+.ui-kitchen-select-on-dark option {
+	color: var(--color-base-content);
+	background: var(--color-base-100);
+}
+
+@media (min-width: 48rem) {
+	.ui-kitchen-content {
+		padding-inline: 1.5rem;
+	}
+}
+
 /* Grouped list / card surface (rows go inside; add `divide-y divide-base-200`). */
 @utility ui-list-card {
 	@apply overflow-hidden rounded-2xl border border-base-300/60 bg-base-100 shadow-sm;

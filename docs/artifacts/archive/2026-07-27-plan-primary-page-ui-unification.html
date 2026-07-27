@@ -1,0 +1,1458 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="data:," />
+	<title>Primary page UI unification — design directions and plan</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #f7f3e9;
+			--card: #fffdf7;
+			--ink: #243128;
+			--muted: #68736b;
+			--line: #d9d2c4;
+			--olive: #334638;
+			--olive-deep: #293b30;
+			--olive-soft: #49614f;
+			--honey: #d3a046;
+			--terra: #a84d2a;
+			--terra-bright: #bf4d24;
+			--display: Georgia, "Times New Roman", serif;
+			--sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			--shadow: 0 18px 50px rgb(36 49 40 / 11%);
+		}
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			background:
+				radial-gradient(circle at 90% 0, rgb(211 160 70 / 13%), transparent 28rem),
+				var(--paper);
+			color: var(--ink);
+			font-family: var(--sans);
+			line-height: 1.5;
+		}
+		button, input, textarea { font: inherit; }
+		button { cursor: pointer; }
+		a { color: inherit; }
+		.shell { width: min(100% - 28px, 1180px); margin: 0 auto; }
+		.hero {
+			position: relative;
+			overflow: hidden;
+			padding: 54px 0 38px;
+			background:
+				radial-gradient(circle at 82% 8%, rgb(255 255 255 / 11%), transparent 18rem),
+				linear-gradient(135deg, var(--olive-deep), var(--olive-soft));
+			color: white;
+		}
+		.hero::after {
+			position: absolute;
+			right: -90px;
+			bottom: -160px;
+			width: 330px;
+			height: 330px;
+			border: 1px solid rgb(255 255 255 / 9%);
+			border-radius: 50%;
+			content: "";
+		}
+		.eyebrow {
+			margin: 0 0 8px;
+			color: #f0c569;
+			font-size: 12px;
+			font-weight: 800;
+			letter-spacing: .12em;
+			text-transform: uppercase;
+		}
+		h1, h2, h3, p { margin-top: 0; }
+		h1 {
+			max-width: 780px;
+			margin-bottom: 12px;
+			font-family: var(--display);
+			font-size: clamp(36px, 6vw, 66px);
+			font-weight: 500;
+			letter-spacing: -.04em;
+			line-height: .98;
+		}
+		.hero-copy {
+			max-width: 730px;
+			margin: 0;
+			color: #dfe8e1;
+			font-size: 16px;
+		}
+		.status-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			margin-top: 22px;
+		}
+		.status {
+			display: inline-flex;
+			min-height: 32px;
+			align-items: center;
+			border: 1px solid rgb(255 255 255 / 20%);
+			border-radius: 999px;
+			padding: 0 11px;
+			background: rgb(255 255 255 / 8%);
+			color: #f2f5f3;
+			font-size: 12px;
+			font-weight: 700;
+		}
+		.hero-link {
+			position: relative;
+			z-index: 1;
+			margin-left: auto;
+		}
+		.hero-link a {
+			display: inline-flex;
+			min-height: 44px;
+			align-items: center;
+			border: 1px solid rgb(255 255 255 / 24%);
+			border-radius: 12px;
+			padding: 0 15px;
+			background: rgb(255 255 255 / 8%);
+			font-size: 13px;
+			font-weight: 750;
+			text-decoration: none;
+		}
+		.hero-grid {
+			position: relative;
+			z-index: 1;
+			display: grid;
+			grid-template-columns: 1fr auto;
+			gap: 24px;
+			align-items: end;
+		}
+		main { padding: 34px 0 80px; }
+		.section { margin-top: 34px; scroll-margin-top: 16px; }
+		.section:first-child { margin-top: 0; }
+		.section-head {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: end;
+			justify-content: space-between;
+			gap: 12px;
+			margin-bottom: 14px;
+		}
+		h2 {
+			margin-bottom: 4px;
+			font-family: var(--display);
+			font-size: clamp(26px, 4vw, 38px);
+			font-weight: 500;
+			letter-spacing: -.025em;
+			line-height: 1.05;
+		}
+		.section-intro {
+			max-width: 720px;
+			margin: 0;
+			color: var(--muted);
+			font-size: 14px;
+		}
+		.panel {
+			border: 1px solid color-mix(in srgb, var(--line), white 30%);
+			border-radius: 20px;
+			background: color-mix(in srgb, var(--card), transparent 3%);
+			box-shadow: var(--shadow);
+		}
+		.audit-panel { padding: 18px; }
+		.audit-grid {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 10px;
+		}
+		.audit-card {
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			padding: 14px;
+			background: white;
+		}
+		.audit-card strong {
+			display: block;
+			font-family: var(--display);
+			font-size: 21px;
+			font-weight: 600;
+		}
+		.audit-card span {
+			display: block;
+			margin-top: 3px;
+			color: var(--muted);
+			font-size: 11px;
+		}
+		.metric {
+			display: flex;
+			justify-content: space-between;
+			gap: 8px;
+			margin-top: 12px;
+			border-top: 1px solid var(--line);
+			padding-top: 10px;
+			color: var(--muted);
+			font-size: 11px;
+		}
+		.metric b { color: var(--ink); }
+		.finding {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 11px;
+			margin-top: 14px;
+			border-top: 1px solid var(--line);
+			padding-top: 14px;
+		}
+		.priority {
+			display: inline-flex;
+			height: 28px;
+			align-items: center;
+			border-radius: 999px;
+			padding: 0 9px;
+			background: #f4dfae;
+			color: #63440b;
+			font-size: 11px;
+			font-weight: 800;
+		}
+		.finding p { margin: 0; font-size: 13px; }
+		.decision-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 12px;
+		}
+		.choice {
+			position: relative;
+			display: grid;
+			min-height: 170px;
+			border: 1px solid var(--line);
+			border-radius: 17px;
+			padding: 16px;
+			background: var(--card);
+			cursor: pointer;
+			transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+		}
+		.choice:hover { transform: translateY(-2px); }
+		.choice:has(input:checked) {
+			border-color: var(--olive);
+			box-shadow: 0 0 0 3px rgb(51 70 56 / 10%), var(--shadow);
+		}
+		.choice input {
+			position: absolute;
+			top: 16px;
+			right: 16px;
+			width: 20px;
+			height: 20px;
+			accent-color: var(--olive);
+		}
+		.choice-kicker {
+			color: var(--terra);
+			font-size: 11px;
+			font-weight: 850;
+			letter-spacing: .08em;
+			text-transform: uppercase;
+		}
+		.choice h3 {
+			margin: 12px 32px 7px 0;
+			font-family: var(--display);
+			font-size: 21px;
+			font-weight: 600;
+			line-height: 1.1;
+		}
+		.choice p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
+		.choice .trade {
+			align-self: end;
+			margin-top: 14px;
+			border-top: 1px solid var(--line);
+			padding-top: 10px;
+			color: var(--ink);
+			font-size: 11px;
+		}
+		.recommended {
+			display: inline-flex;
+			width: fit-content;
+			min-height: 24px;
+			align-items: center;
+			border-radius: 999px;
+			padding: 0 8px;
+			background: #dfe8dd;
+			color: var(--olive);
+			font-size: 10px;
+			font-weight: 800;
+		}
+		.resolved-choice {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr);
+			gap: 14px;
+			align-items: center;
+			padding: 17px;
+		}
+		.resolved-mark {
+			display: grid;
+			width: 44px;
+			height: 44px;
+			place-items: center;
+			border-radius: 50%;
+			background: var(--olive);
+			color: white;
+			font-size: 18px;
+			font-weight: 850;
+		}
+		.resolved-choice h3 {
+			margin: 0 0 3px;
+			font-family: var(--display);
+			font-size: 22px;
+			font-weight: 600;
+		}
+		.resolved-choice p { margin: 0; color: var(--muted); font-size: 12px; }
+		.copy-key {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 7px;
+			margin-bottom: 12px;
+		}
+		.copy-key span {
+			display: inline-flex;
+			min-height: 29px;
+			align-items: center;
+			border: 1px solid var(--line);
+			border-radius: 999px;
+			padding: 0 10px;
+			background: var(--card);
+			color: var(--muted);
+			font-size: 10px;
+			font-weight: 750;
+		}
+		.copy-matrix-wrap {
+			overflow-x: auto;
+			border: 1px solid var(--line);
+			border-radius: 19px;
+			background: #eee8dc;
+			box-shadow: var(--shadow);
+			overscroll-behavior-inline: contain;
+		}
+		.copy-matrix {
+			display: grid;
+			min-width: 1320px;
+			grid-template-columns: 96px repeat(5, minmax(225px, 1fr));
+			gap: 1px;
+			background: var(--line);
+		}
+		.matrix-corner,
+		.matrix-column,
+		.matrix-row {
+			display: grid;
+			align-content: center;
+			min-height: 62px;
+			padding: 10px;
+			background: #eee8dc;
+		}
+		.matrix-corner,
+		.matrix-row {
+			position: sticky;
+			left: 0;
+			z-index: 2;
+		}
+		.matrix-corner {
+			color: var(--muted);
+			font-size: 9px;
+			font-weight: 800;
+			letter-spacing: .08em;
+			text-transform: uppercase;
+		}
+		.matrix-column b,
+		.matrix-row b {
+			font-size: 10px;
+			letter-spacing: .06em;
+			text-transform: uppercase;
+		}
+		.matrix-column span,
+		.matrix-row span {
+			margin-top: 3px;
+			color: var(--muted);
+			font-size: 9px;
+			line-height: 1.3;
+		}
+		.copy-cell {
+			position: relative;
+			display: grid;
+			min-height: 252px;
+			align-content: start;
+			padding: 11px;
+			background: var(--card);
+			cursor: pointer;
+		}
+		.copy-cell:hover { background: white; }
+		.copy-cell:has(input:checked) {
+			z-index: 1;
+			background: #f0f4ef;
+			box-shadow: inset 0 0 0 3px var(--olive);
+		}
+		.copy-cell input {
+			position: absolute;
+			top: 11px;
+			right: 11px;
+			width: 18px;
+			height: 18px;
+			accent-color: var(--olive);
+		}
+		.copy-cell-head {
+			min-height: 35px;
+			padding-right: 25px;
+		}
+		.copy-cell-head b { display: block; font-size: 10px; }
+		.copy-cell-head span { display: block; color: var(--muted); font-size: 8px; }
+		.copy-routes {
+			display: grid;
+			gap: 5px;
+			margin-top: 7px;
+		}
+		.copy-route {
+			display: grid;
+			grid-template-columns: 42px minmax(0, 1fr);
+			gap: 7px;
+			align-items: center;
+			min-height: 42px;
+			border: 1px solid rgb(255 255 255 / 14%);
+			border-radius: 8px;
+			padding: 6px 7px;
+			background: linear-gradient(135deg, var(--olive-deep), var(--olive-soft));
+			color: white;
+		}
+		.copy-route-key {
+			color: #bfcac1;
+			font-size: 7px;
+			font-weight: 800;
+			letter-spacing: .06em;
+			text-transform: uppercase;
+		}
+		.copy-preview { min-width: 0; }
+		.copy-preview small {
+			display: block;
+			overflow: hidden;
+			color: #f2ca74;
+			font-size: 6px;
+			font-weight: 850;
+			letter-spacing: .09em;
+			line-height: 1.2;
+			text-overflow: ellipsis;
+			text-transform: uppercase;
+			white-space: nowrap;
+		}
+		.copy-preview strong {
+			display: block;
+			overflow: hidden;
+			font-family: var(--display);
+			font-size: 11px;
+			font-weight: 600;
+			line-height: 1.05;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.copy-preview small + strong { margin-top: 2px; }
+		.copy-recommendation {
+			margin: 12px 0 0;
+			color: var(--muted);
+			font-size: 11px;
+		}
+		.copy-recommendation b { color: var(--olive); }
+		.direction {
+			margin-top: 18px;
+			overflow: hidden;
+			border: 1px solid var(--line);
+			border-radius: 22px;
+			background: #efe9db;
+			box-shadow: var(--shadow);
+		}
+		.direction-heading {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 18px;
+			align-items: start;
+			padding: 18px;
+			background: var(--card);
+		}
+		.direction-heading h3 {
+			margin: 0 0 4px;
+			font-family: var(--display);
+			font-size: 24px;
+			font-weight: 600;
+		}
+		.direction-heading p { max-width: 720px; margin: 0; color: var(--muted); font-size: 12px; }
+		.direction-meta {
+			display: grid;
+			gap: 3px;
+			text-align: right;
+			font-size: 10px;
+			color: var(--muted);
+		}
+		.direction-meta b { color: var(--ink); }
+		.route-grid {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(240px, 1fr));
+			gap: 14px;
+			overflow-x: auto;
+			padding: 16px;
+		}
+		.phone {
+			min-width: 240px;
+			overflow: hidden;
+			border: 1px solid rgb(36 49 40 / 18%);
+			border-radius: 18px;
+			background: var(--paper);
+			box-shadow: 0 8px 20px rgb(36 49 40 / 9%);
+		}
+		.phone-label {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			height: 27px;
+			border-bottom: 1px solid rgb(36 49 40 / 10%);
+			padding: 0 9px;
+			background: #fffdf7;
+			color: var(--muted);
+			font-size: 9px;
+			font-weight: 800;
+			letter-spacing: .08em;
+			text-transform: uppercase;
+		}
+		.mock-band { color: white; }
+		.mock-body {
+			height: 84px;
+			padding: 10px;
+			background: var(--paper);
+		}
+		.mock-body i {
+			display: block;
+			height: 9px;
+			margin-bottom: 7px;
+			border-radius: 999px;
+			background: #e2dccf;
+		}
+		.mock-body i:nth-child(1) { width: 78%; }
+		.mock-body i:nth-child(2) { width: 52%; }
+		.ident {
+			display: flex;
+			align-items: start;
+			justify-content: space-between;
+			gap: 8px;
+		}
+		.ident-copy { min-width: 0; }
+		.ident small {
+			display: block;
+			margin-bottom: 2px;
+			color: #f2ca74;
+			font-size: 7px;
+			font-weight: 850;
+			letter-spacing: .11em;
+			line-height: 1.2;
+			text-transform: uppercase;
+		}
+		.ident h4 { margin: 0; font-family: var(--display); font-weight: 600; line-height: 1; }
+		.mock-action {
+			display: inline-flex;
+			min-height: 30px;
+			flex: 0 0 auto;
+			align-items: center;
+			justify-content: center;
+			border: 1px solid rgb(255 255 255 / 23%);
+			border-radius: 8px;
+			padding: 0 8px;
+			background: rgb(255 255 255 / 8%);
+			color: white;
+			font-size: 8px;
+			font-weight: 800;
+		}
+		.mock-action.primary { border-color: transparent; background: var(--terra-bright); }
+		.payload { margin-top: 9px; }
+		.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+		.tile {
+			display: flex;
+			min-height: 38px;
+			align-items: center;
+			border: 1px solid rgb(255 255 255 / 18%);
+			border-radius: 9px;
+			padding: 0 8px;
+			background: rgb(255 255 255 / 7%);
+			font-size: 8px;
+			font-weight: 700;
+		}
+		.week {
+			display: grid;
+			grid-template-columns: 30px minmax(0, 1fr) 30px;
+			gap: 6px;
+			align-items: center;
+		}
+		.arrow {
+			display: grid;
+			height: 30px;
+			place-items: center;
+			border: 1px solid rgb(255 255 255 / 22%);
+			border-radius: 8px;
+			background: rgb(255 255 255 / 7%);
+			font-size: 11px;
+		}
+		.week-copy { min-width: 0; text-align: center; }
+		.week-copy b { display: block; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+		.week-copy span { display: block; margin-top: 1px; color: #d7e0d9; font-size: 7px; }
+		.mock-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 7px; }
+		.mock-actions span {
+			display: grid;
+			min-height: 27px;
+			place-items: center;
+			border-radius: 7px;
+			background: rgb(255 255 255 / 7%);
+			font-size: 7px;
+			font-weight: 800;
+		}
+		.mock-actions span:last-child { background: var(--terra-bright); }
+		.progress-copy { display: flex; justify-content: space-between; margin-top: 6px; font-size: 8px; font-weight: 800; }
+		.progress { height: 3px; margin-top: 4px; border-radius: 999px; background: rgb(255 255 255 / 18%); }
+		.search {
+			display: grid;
+			height: 32px;
+			grid-template-columns: 1fr 58px;
+			gap: 6px;
+		}
+		.search span {
+			display: flex;
+			align-items: center;
+			border: 1px solid rgb(255 255 255 / 23%);
+			border-radius: 8px;
+			padding: 0 8px;
+			background: rgb(255 255 255 / 10%);
+			color: #edf2ee;
+			font-size: 8px;
+		}
+		.dir-a .mock-band {
+			min-height: 112px;
+			padding: 10px;
+			background:
+				radial-gradient(circle at 88% 0, rgb(255 255 255 / 10%), transparent 8rem),
+				linear-gradient(135deg, var(--olive-deep), var(--olive-soft));
+		}
+		.dir-a .ident h4 { font-size: 15px; }
+		.dir-a .phone.stock .mock-band { min-height: 122px; }
+		.dir-a .phone.meals .mock-band { min-height: 146px; }
+		.dir-a .phone.shopping .mock-band { min-height: 137px; }
+		.dir-a .phone.recipes .mock-band { min-height: 112px; }
+		.dir-b .title-rail {
+			display: flex;
+			height: 50px;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			padding: 0 10px;
+			background: var(--olive);
+		}
+		.dir-b .title-rail h4 {
+			margin: 0;
+			font-family: var(--sans);
+			font-size: 13px;
+			font-weight: 800;
+			letter-spacing: -.01em;
+		}
+		.dir-b .quiet-payload {
+			min-height: 77px;
+			border-bottom: 1px solid var(--line);
+			padding: 9px 10px;
+			background: #fffdf7;
+			color: var(--ink);
+		}
+		.dir-b .quiet-payload .week .arrow {
+			border-color: var(--line);
+			background: var(--paper);
+		}
+		.dir-b .quiet-payload .week-copy span { color: var(--muted); }
+		.dir-b .quiet-payload .tile {
+			border-color: var(--line);
+			background: var(--paper);
+		}
+		.dir-b .quiet-payload .search span {
+			border-color: var(--line);
+			background: var(--paper);
+			color: var(--muted);
+		}
+		.dir-b .quiet-payload .progress { background: var(--line); }
+		.dir-b .mock-actions span { background: var(--paper); color: var(--ink); }
+		.dir-b .mock-actions span:last-child { background: var(--terra-bright); color: white; }
+		.dir-c .mock-band {
+			min-height: 137px;
+			padding: 12px;
+			background:
+				radial-gradient(circle at 86% 10%, rgb(211 160 70 / 22%), transparent 8rem),
+				linear-gradient(150deg, #20372b, #52614b);
+		}
+		.dir-c .task-label {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			color: #f2ca74;
+			font-size: 7px;
+			font-weight: 850;
+			letter-spacing: .12em;
+			text-transform: uppercase;
+		}
+		.dir-c .task {
+			max-width: 195px;
+			margin: 13px 0 5px;
+			font-family: var(--display);
+			font-size: 23px;
+			font-weight: 500;
+			letter-spacing: -.035em;
+			line-height: .98;
+		}
+		.dir-c .task-sub { max-width: 190px; color: #d7e0d9; font-size: 8px; }
+		.dir-c .task-tools { display: flex; gap: 6px; margin-top: 11px; }
+		.dir-c .task-tools span {
+			display: inline-flex;
+			min-height: 28px;
+			align-items: center;
+			border: 1px solid rgb(255 255 255 / 20%);
+			border-radius: 999px;
+			padding: 0 9px;
+			background: rgb(255 255 255 / 7%);
+			font-size: 7px;
+			font-weight: 800;
+		}
+		.dir-c .task-tools span.primary { border-color: transparent; background: var(--honey); color: #3a2b13; }
+		.compare {
+			width: 100%;
+			border-collapse: collapse;
+			overflow: hidden;
+			border-radius: 16px;
+			background: var(--card);
+			box-shadow: var(--shadow);
+			font-size: 12px;
+		}
+		.compare th, .compare td { border-bottom: 1px solid var(--line); padding: 12px; text-align: left; vertical-align: top; }
+		.compare th { background: #eee8dc; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+		.compare tr:last-child td { border-bottom: 0; }
+		.compare .winner { color: var(--olive); font-weight: 800; }
+		.architecture {
+			display: grid;
+			grid-template-columns: 1fr auto 1.1fr auto 1fr;
+			gap: 10px;
+			align-items: stretch;
+		}
+		.arch-box {
+			display: grid;
+			min-height: 120px;
+			align-content: center;
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			padding: 15px;
+			background: var(--card);
+		}
+		.arch-box b { font-family: var(--display); font-size: 18px; }
+		.arch-box span { margin-top: 5px; color: var(--muted); font-size: 11px; }
+		.arch-arrow { display: grid; place-items: center; color: var(--terra); font-size: 20px; }
+		.question {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(260px, .65fr);
+			gap: 16px;
+			padding: 18px;
+		}
+		.question h3 {
+			margin: 0 0 7px;
+			font-family: var(--display);
+			font-size: 21px;
+			font-weight: 600;
+		}
+		.question p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
+		.radio-stack { display: grid; gap: 7px; }
+		.radio-row {
+			display: flex;
+			gap: 9px;
+			align-items: start;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			padding: 10px;
+			background: white;
+			font-size: 11px;
+			cursor: pointer;
+		}
+		.radio-row:has(input:checked) { border-color: var(--olive); background: #f0f4ef; }
+		.radio-row input { margin-top: 2px; accent-color: var(--olive); }
+		.notes {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 12px;
+			margin-top: 14px;
+		}
+		label.field { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
+		textarea {
+			width: 100%;
+			min-height: 98px;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			padding: 10px;
+			background: white;
+			color: var(--ink);
+			font-size: 12px;
+			font-weight: 450;
+		}
+		textarea:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible {
+			outline: 3px solid color-mix(in srgb, var(--honey), white 22%);
+			outline-offset: 2px;
+		}
+		.prompt-panel { padding: 18px; }
+		.prompt-panel textarea { min-height: 260px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; line-height: 1.45; }
+		.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+		.btn {
+			display: inline-flex;
+			min-height: 44px;
+			align-items: center;
+			justify-content: center;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			padding: 0 14px;
+			background: white;
+			color: var(--ink);
+			font-size: 12px;
+			font-weight: 800;
+		}
+		.btn.primary { border-color: var(--olive); background: var(--olive); color: white; }
+		.storage {
+			margin: 10px 0 0;
+			color: var(--muted);
+			font-size: 11px;
+		}
+		.storage.bad { color: #8d351e; }
+		footer {
+			border-top: 1px solid var(--line);
+			padding: 24px 0 42px;
+			color: var(--muted);
+			font-size: 11px;
+		}
+		@media (max-width: 860px) {
+			.audit-grid, .decision-grid { grid-template-columns: 1fr 1fr; }
+			.architecture { grid-template-columns: 1fr; }
+			.arch-arrow { transform: rotate(90deg); min-height: 30px; }
+			.question { grid-template-columns: 1fr; }
+		}
+		@media (max-width: 620px) {
+			.shell { width: min(100% - 20px, 1180px); }
+			.hero { padding-top: 38px; }
+			.hero-grid { grid-template-columns: 1fr; }
+			.hero-link { margin-left: 0; }
+			.audit-grid, .decision-grid, .notes { grid-template-columns: 1fr; }
+			.resolved-choice { grid-template-columns: 1fr; }
+			.direction-heading { grid-template-columns: 1fr; }
+			.direction-meta { text-align: left; }
+			.compare { display: block; overflow-x: auto; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			html { scroll-behavior: auto; }
+			.choice { transition: none; }
+		}
+	</style>
+</head>
+<body>
+	<header class="hero">
+		<div class="shell hero-grid">
+			<div>
+				<p class="eyebrow">Header-copy refinement</p>
+				<h1>Direction A. Now choose the words.</h1>
+				<p class="hero-copy">
+					Five voices across five label structures. Every cell shows Stock, Meal plan,
+					Shopping, and Recipes together, so one choice becomes a coherent four-page system.
+				</p>
+				<div class="status-row">
+					<span class="status">Shipped 2026-07-27</span>
+					<span class="status">Direction A selected</span>
+					<span class="status">P2 copy selected</span>
+					<span class="status">25 copy systems</span>
+					<span class="status">No schema, auth, or data change</span>
+				</div>
+			</div>
+			<div class="hero-link">
+				<a href="../../feature-lists/archive/FEATURE_LIST_PRIMARY_PAGE_UI_UNIFICATION.md">Open shipped plan</a>
+			</div>
+		</div>
+	</header>
+
+	<main class="shell">
+		<section class="section" id="evidence">
+			<div class="section-head">
+				<div>
+					<h2>The current mismatch is measurable</h2>
+					<p class="section-intro">
+						Isolated empty-state browser evidence at the same 375 px phone width. All four
+						pages fit without horizontal overflow; the problem is repeated-role drift.
+					</p>
+				</div>
+			</div>
+			<div class="panel audit-panel">
+				<div class="audit-grid">
+					<div class="audit-card">
+						<strong>Stock</strong><span>One H1, oversized identity</span>
+						<div class="metric"><span>H1 <b>28 px</b></span><span>Band <b>157 px</b></span></div>
+					</div>
+					<div class="audit-card">
+						<strong>Meal planning</strong><span>H1 plus a competing week heading</span>
+						<div class="metric"><span>H1 <b>19.2 px</b></span><span>Band <b>171 px</b></span></div>
+					</div>
+					<div class="audit-card">
+						<strong>Market run</strong><span>Title wraps between eyebrow and AH status</span>
+						<div class="metric"><span>H1 <b>16.8 px</b></span><span>Band <b>134 px</b></span></div>
+					</div>
+					<div class="audit-card">
+						<strong>Recipes</strong><span>Compact identity with search inside the band</span>
+						<div class="metric"><span>H1 <b>18.4 px</b></span><span>Band <b>125 px</b></span></div>
+					</div>
+				</div>
+				<div class="finding">
+					<span class="priority">P2</span>
+					<p>
+						The olive color is the main common signal. Title scale, padding, action geometry,
+						week navigation, search treatment, and contextual hierarchy still have separate owners.
+					</p>
+				</div>
+			</div>
+		</section>
+
+		<section class="section" id="decision">
+			<div class="section-head">
+				<div>
+					<h2>Direction A is selected</h2>
+					<p class="section-intro">
+						The shared frame and bespoke working payload are fixed. This refinement changes
+						copy only.
+					</p>
+				</div>
+			</div>
+			<div class="panel resolved-choice">
+				<span class="resolved-mark" aria-hidden="true">A</span>
+				<div>
+					<h3>Shared Frame, Bespoke Payload</h3>
+					<p>One exact identity row and shared chrome; useful route-specific work stays inside the green band.</p>
+				</div>
+			</div>
+		</section>
+
+		<section class="section" id="copy-grid-section">
+			<div class="section-head">
+				<div>
+					<h2>Choose one complete copy system</h2>
+					<p class="section-intro">
+						Rows change the voice. Columns change the label structure. Select any cell;
+						the handoff records all four exact headers.
+					</p>
+				</div>
+			</div>
+			<div class="copy-key" aria-label="Matrix key">
+				<span>Rows: Plain · Home · Action-led · Kitchen editorial · Minimal</span>
+				<span>Columns: Title only · Context → route · Route → task · Task → route · Contextual title</span>
+			</div>
+			<div class="copy-matrix-wrap">
+				<div class="copy-matrix" id="copy-grid" role="radiogroup" aria-label="Header copy system"></div>
+			</div>
+			<p class="copy-recommendation">
+				<b>Selected: P2 — Plain × Context → route.</b>
+				Household → Stock · This week → Meal plan · This week → Shopping · Cookbook → Recipes.
+				The user accepted this complete four-route system on 2026-07-27.
+			</p>
+		</section>
+
+		<section class="section" id="mockups">
+			<div class="section-head">
+				<div>
+					<h2>Same routes, same phone width, three rules</h2>
+					<p class="section-intro">
+						These are structural mockups, not implementation screenshots. Every direction shows
+						the same four routes and equivalent content at a 320 px inner phone canvas.
+					</p>
+				</div>
+			</div>
+
+			<article class="direction dir-a">
+				<div class="direction-heading">
+					<div>
+						<h3>A — Shared Frame, Bespoke Payload</h3>
+						<p>Exact type, gutter, gradient, identity row, actions, and payload gap. Natural height follows useful content.</p>
+					</div>
+					<div class="direction-meta"><span>Type <b>Editorial serif identity</b></span><span>Density <b>Medium</b></span><span>Emphasis <b>Work inside green</b></span></div>
+				</div>
+				<div class="route-grid">
+					<div class="phone stock">
+						<div class="phone-label"><span>Stock</span><span>320 px</span></div>
+						<div class="mock-band">
+							<div class="ident"><div class="ident-copy"><h4>Stock</h4></div><span class="mock-action primary">Add</span></div>
+							<div class="payload tiles"><span class="tile">No meals ready</span><span class="tile">Targets covered</span></div>
+						</div><div class="mock-body"><i></i><i></i></div>
+					</div>
+					<div class="phone meals">
+						<div class="phone-label"><span>Meal planning</span><span>320 px</span></div>
+						<div class="mock-band">
+							<div class="ident"><div class="ident-copy"><h4>Meal plan</h4></div><span class="mock-action">More</span></div>
+							<div class="payload week"><span class="arrow">&larr;</span><span class="week-copy"><b>Week 30</b><span>22–28 Jul</span></span><span class="arrow">&rarr;</span></div>
+							<div class="mock-actions"><span>Shopping</span><span>Suggest</span><span>Add meal</span></div>
+						</div><div class="mock-body"><i></i><i></i></div>
+					</div>
+					<div class="phone shopping">
+						<div class="phone-label"><span>Market run</span><span>320 px</span></div>
+						<div class="mock-band">
+							<div class="ident"><div class="ident-copy"><h4>Shopping</h4></div><span class="mock-action">AH offline</span></div>
+							<div class="payload week"><span class="arrow">&larr;</span><span class="week-copy"><b>This week</b><span>22–28 Jul</span></span><span class="arrow">&rarr;</span></div>
+							<div class="progress-copy"><span>0 left</span><span>0 in basket</span></div><div class="progress"></div>
+						</div><div class="mock-body"><i></i><i></i></div>
+					</div>
+					<div class="phone recipes">
+						<div class="phone-label"><span>Recipes</span><span>320 px</span></div>
+						<div class="mock-band">
+							<div class="ident"><div class="ident-copy"><h4>Recipes</h4></div><span class="mock-action primary">Import</span></div>
+							<div class="payload search"><span>Search recipes</span><span>A–Z</span></div>
+						</div><div class="mock-body"><i></i><i></i></div>
+					</div>
+				</div>
+			</article>
+
+			<article class="direction dir-b">
+				<div class="direction-heading">
+					<div>
+						<h3>B — Quiet Title Rail</h3>
+						<p>The green component is identical in height and composition. Every task-specific control begins on paper.</p>
+					</div>
+					<div class="direction-meta"><span>Type <b>Compact sans identity</b></span><span>Density <b>High</b></span><span>Emphasis <b>Content below green</b></span></div>
+				</div>
+				<div class="route-grid">
+					<div class="phone">
+						<div class="phone-label"><span>Stock</span><span>320 px</span></div>
+						<div class="mock-band"><div class="title-rail"><h4>Stock</h4><span class="mock-action primary">Add</span></div></div>
+						<div class="quiet-payload tiles"><span class="tile">No meals ready</span><span class="tile">Targets covered</span></div>
+						<div class="mock-body"><i></i><i></i></div>
+					</div>
+					<div class="phone">
+						<div class="phone-label"><span>Meal planning</span><span>320 px</span></div>
+						<div class="mock-band"><div class="title-rail"><h4>Meal planning</h4><span class="mock-action">More</span></div></div>
+						<div class="quiet-payload"><div class="week"><span class="arrow">&larr;</span><span class="week-copy"><b>Week 30</b><span>22–28 Jul</span></span><span class="arrow">&rarr;</span></div><div class="mock-actions"><span>Shopping</span><span>Suggest</span><span>Add</span></div></div>
+						<div class="mock-body"><i></i><i></i></div>
+					</div>
+					<div class="phone">
+						<div class="phone-label"><span>Market run</span><span>320 px</span></div>
+						<div class="mock-band"><div class="title-rail"><h4>Market run</h4><span class="mock-action">AH offline</span></div></div>
+						<div class="quiet-payload"><div class="week"><span class="arrow">&larr;</span><span class="week-copy"><b>This week</b><span>22–28 Jul</span></span><span class="arrow">&rarr;</span></div><div class="progress-copy"><span>0 left</span><span>0 in basket</span></div><div class="progress"></div></div>
+						<div class="mock-body"><i></i><i></i></div>
+					</div>
+					<div class="phone">
+						<div class="phone-label"><span>Recipes</span><span>320 px</span></div>
+						<div class="mock-band"><div class="title-rail"><h4>Recipes</h4><span class="mock-action primary">Import</span></div></div>
+						<div class="quiet-payload"><div class="search"><span>Search recipes</span><span>A–Z</span></div></div>
+						<div class="mock-body"><i></i><i></i></div>
+					</div>
+				</div>
+			</article>
+
+			<article class="direction dir-c">
+				<div class="direction-heading">
+					<div>
+						<h3>C — Working Headline</h3>
+						<p>Shared context-first composition, richer editorial scale, and task pills. Route names become quiet labels.</p>
+					</div>
+					<div class="direction-meta"><span>Type <b>Large contextual serif</b></span><span>Density <b>Low</b></span><span>Emphasis <b>Current task or state</b></span></div>
+				</div>
+				<div class="route-grid">
+					<div class="phone">
+						<div class="phone-label"><span>Stock</span><span>320 px</span></div>
+						<div class="mock-band"><div class="task-label"><span>Stock</span><span>Household</span></div><div class="task">Stock is covered</div><div class="task-sub">No meals ready yet. Targets are on track.</div><div class="task-tools"><span class="primary">Add item</span><span>Activity</span></div></div>
+						<div class="mock-body"><i></i><i></i></div>
+					</div>
+					<div class="phone">
+						<div class="phone-label"><span>Meal planning</span><span>320 px</span></div>
+						<div class="mock-band"><div class="task-label"><span>Meal planning</span><span>Week 30</span></div><div class="task">Plan 22–28 July</div><div class="task-sub">The selected week has no meals yet.</div><div class="task-tools"><span class="primary">Add meal</span><span>Suggest</span><span>Shopping</span></div></div>
+						<div class="mock-body"><i></i><i></i></div>
+					</div>
+					<div class="phone">
+						<div class="phone-label"><span>Market run</span><span>320 px</span></div>
+						<div class="mock-band"><div class="task-label"><span>Market run</span><span>AH offline</span></div><div class="task">0 left this week</div><div class="task-sub">22–28 July. Nothing is in the basket.</div><div class="task-tools"><span class="primary">Add item</span><span>Plan meals</span></div></div>
+						<div class="mock-body"><i></i><i></i></div>
+					</div>
+					<div class="phone">
+						<div class="phone-label"><span>Recipes</span><span>320 px</span></div>
+						<div class="mock-band"><div class="task-label"><span>Recipes</span><span>Cookbook</span></div><div class="task">Find tonight's recipe</div><div class="task-sub">Search the cookbook or import a new recipe.</div><div class="task-tools"><span class="primary">Import</span><span>New meal</span></div></div>
+						<div class="mock-body"><i></i><i></i></div>
+					</div>
+				</div>
+			</article>
+		</section>
+
+		<section class="section" id="comparison">
+			<div class="section-head"><div><h2>Why A wins</h2><p class="section-intro">The responsible choice is the smallest shared contract that removes real drift.</p></div></div>
+			<table class="compare">
+				<thead><tr><th>Direction</th><th>Family resemblance</th><th>Useful context</th><th>Change risk</th><th>Long-term ownership</th></tr></thead>
+				<tbody>
+					<tr><td class="winner">A — Shared Frame</td><td>Exact where roles match</td><td>Stays in the green working surface</td><td>Medium, route-sized migration</td><td>One frame, one week navigator, local payloads</td></tr>
+					<tr><td>B — Quiet Rail</td><td>Maximum literal sameness</td><td>Moves to a second paper surface</td><td>Medium, broad recomposition</td><td>Simple rail, more page-level boundary code</td></tr>
+					<tr><td>C — Working Headline</td><td>Shared composition, varied copy</td><td>Most prominent</td><td>High, new state/copy branches</td><td>More conditional headline logic per route</td></tr>
+				</tbody>
+			</table>
+		</section>
+
+		<section class="section" id="architecture">
+			<div class="section-head"><div><h2>The implementation seam</h2><p class="section-intro">Behavior stays with each route. Only repeated presentation gets a shared owner.</p></div></div>
+			<div class="architecture">
+				<div class="arch-box"><b>Route-owned behavior</b><span>URLs, handlers, AH status, progress, quick views, search scheduling, sheets</span></div>
+				<div class="arch-arrow" aria-hidden="true">&rarr;</div>
+				<div class="arch-box"><b>Shared UI contract</b><span>Identity frame, action recipes, search geometry, previous/next geometry, gutters</span></div>
+				<div class="arch-arrow" aria-hidden="true">&rarr;</div>
+				<div class="arch-box"><b>Bespoke payload</b><span>Stock tiles, week copy, progress, Meal actions, Recipe search and sort</span></div>
+			</div>
+		</section>
+
+		<section class="section" id="height-decision">
+			<div class="section-head"><div><h2>One more design boundary</h2><p class="section-intro">Consistency should not turn into equal-height padding.</p></div></div>
+			<div class="panel question">
+				<div>
+					<h3>Should every green band have the same total height?</h3>
+					<p>
+						The plan recommends identical identity geometry and natural payload height.
+						Stock can keep two status tiles while Recipes remains compact. The alternative
+						forces either empty space or compressed controls.
+					</p>
+				</div>
+				<div class="radio-stack" role="radiogroup" aria-label="Header height rule">
+					<label class="radio-row"><input type="radio" name="height" value="Natural payload height" checked /><span><b>Natural payload height</b><br />Same frame and spacing; useful content sets total height.</span></label>
+					<label class="radio-row"><input type="radio" name="height" value="Equal total height" /><span><b>Equal total height</b><br />All four bands occupy the same vertical space.</span></label>
+				</div>
+			</div>
+			<div class="notes">
+				<label class="field">Copy notes
+					<textarea id="copy-notes" placeholder="Mix one phrase, change a word, or explain why the selected system is close but not finished."></textarea>
+				</label>
+				<label class="field">Implementation constraints
+					<textarea id="implementation-notes" placeholder="Add a route state, viewport, or behavior the implementation must preserve."></textarea>
+				</label>
+			</div>
+		</section>
+
+		<section class="section" id="handoff">
+			<div class="section-head"><div><h2>Paste-ready handoff</h2><p class="section-intro">The untouched workspace accepts both recommended defaults and is ready for <code>$run</code>.</p></div></div>
+			<div class="panel prompt-panel">
+				<textarea id="prompt" readonly aria-label="Generated handoff prompt"></textarea>
+				<div class="actions">
+					<button class="btn primary" id="copy" type="button">Copy handoff</button>
+					<button class="btn" id="reset" type="button">Reset decisions</button>
+				</div>
+				<p class="storage" id="storage-status">Selections and notes save in this browser.</p>
+			</div>
+		</section>
+	</main>
+
+	<footer>
+		<div class="shell">
+			Authoritative source:
+			<a href="../../feature-lists/archive/FEATURE_LIST_PRIMARY_PAGE_UI_UNIFICATION.md">FEATURE_LIST_PRIMARY_PAGE_UI_UNIFICATION.md</a>.
+			This HTML is a local review workspace, not the execution source of truth.
+		</div>
+	</footer>
+
+	<script>
+		(() => {
+			const artifactPath = "docs/artifacts/archive/2026-07-27-plan-primary-page-ui-unification.html";
+			const storageKey = artifactPath + "::v3";
+			const voices = [
+				{ id: "P", name: "Plain", description: "Literal and familiar" },
+				{ id: "H", name: "Home", description: "Warm household language" },
+				{ id: "A", name: "Action-led", description: "Verbs and next steps" },
+				{ id: "K", name: "Kitchen editorial", description: "Kitchen-specific nouns" },
+				{ id: "M", name: "Minimal", description: "Shortest viable labels" }
+			];
+			const structures = [
+				{ id: "1", name: "Title only", description: "One route label" },
+				{ id: "2", name: "Context → route", description: "Small context, route H1" },
+				{ id: "3", name: "Route → task", description: "Small route, task H1" },
+				{ id: "4", name: "Task → route", description: "Small task, route H1" },
+				{ id: "5", name: "Contextual title", description: "One qualified H1" }
+			];
+			const copySystems = [
+				{ id: "P1", voice: "P", structure: "1", routes: [
+					["Stock", "", "Stock"], ["Meal plan", "", "Meal plan"],
+					["Shopping", "", "Shopping"], ["Recipes", "", "Recipes"]
+				]},
+				{ id: "P2", voice: "P", structure: "2", routes: [
+					["Stock", "Household", "Stock"], ["Meal plan", "This week", "Meal plan"],
+					["Shopping", "This week", "Shopping"], ["Recipes", "Cookbook", "Recipes"]
+				]},
+				{ id: "P3", voice: "P", structure: "3", routes: [
+					["Stock", "Stock", "What we have"], ["Meal plan", "Meal plan", "This week"],
+					["Shopping", "Shopping", "What to buy"], ["Recipes", "Recipes", "What to cook"]
+				]},
+				{ id: "P4", voice: "P", structure: "4", routes: [
+					["Stock", "What we have", "Stock"], ["Meal plan", "This week", "Meal plan"],
+					["Shopping", "What to buy", "Shopping"], ["Recipes", "What to cook", "Recipes"]
+				]},
+				{ id: "P5", voice: "P", structure: "5", routes: [
+					["Stock", "", "Household stock"], ["Meal plan", "", "This week’s meal plan"],
+					["Shopping", "", "Shopping list"], ["Recipes", "", "Recipe library"]
+				]},
+				{ id: "H1", voice: "H", structure: "1", routes: [
+					["Stock", "", "Our stock"], ["Meal plan", "", "Our meals"],
+					["Shopping", "", "Our shopping"], ["Recipes", "", "Our recipes"]
+				]},
+				{ id: "H2", voice: "H", structure: "2", routes: [
+					["Stock", "At home", "Stock"], ["Meal plan", "For our week", "Meals"],
+					["Shopping", "For our home", "Shopping"], ["Recipes", "In our kitchen", "Recipes"]
+				]},
+				{ id: "H3", voice: "H", structure: "3", routes: [
+					["Stock", "Our stock", "What’s at home"], ["Meal plan", "Our meals", "This week’s dinners"],
+					["Shopping", "Our shopping", "What we need"], ["Recipes", "Our recipes", "What sounds good"]
+				]},
+				{ id: "H4", voice: "H", structure: "4", routes: [
+					["Stock", "At home", "Our stock"], ["Meal plan", "Around the table", "Our meals"],
+					["Shopping", "For the house", "Our shopping"], ["Recipes", "From our kitchen", "Our recipes"]
+				]},
+				{ id: "H5", voice: "H", structure: "5", routes: [
+					["Stock", "", "What we have at home"], ["Meal plan", "", "Our meals this week"],
+					["Shopping", "", "What the house needs"], ["Recipes", "", "Recipes we cook"]
+				]},
+				{ id: "A1", voice: "A", structure: "1", routes: [
+					["Stock", "", "Check stock"], ["Meal plan", "", "Plan meals"],
+					["Shopping", "", "Shop the list"], ["Recipes", "", "Find a recipe"]
+				]},
+				{ id: "A2", voice: "A", structure: "2", routes: [
+					["Stock", "Keep track", "Stock"], ["Meal plan", "Plan ahead", "Meals"],
+					["Shopping", "Get it done", "Shopping"], ["Recipes", "Choose dinner", "Recipes"]
+				]},
+				{ id: "A3", voice: "A", structure: "3", routes: [
+					["Stock", "Stock", "Use what we have"], ["Meal plan", "Meal plan", "Plan the week"],
+					["Shopping", "Shopping", "Work the list"], ["Recipes", "Recipes", "Pick a meal"]
+				]},
+				{ id: "A4", voice: "A", structure: "4", routes: [
+					["Stock", "Check first", "Stock"], ["Meal plan", "Plan ahead", "Meals"],
+					["Shopping", "Pick up", "Shopping"], ["Recipes", "Choose", "Recipes"]
+				]},
+				{ id: "A5", voice: "A", structure: "5", routes: [
+					["Stock", "", "Use what’s in stock"], ["Meal plan", "", "Plan this week’s meals"],
+					["Shopping", "", "Buy what we need"], ["Recipes", "", "Choose what to cook"]
+				]},
+				{ id: "K1", voice: "K", structure: "1", routes: [
+					["Stock", "", "Pantry & freezer"], ["Meal plan", "", "Weekly table"],
+					["Shopping", "", "Market run"], ["Recipes", "", "Recipe book"]
+				]},
+				{ id: "K2", voice: "K", structure: "2", routes: [
+					["Stock", "Pantry & freezer", "Stock"], ["Meal plan", "Weekly table", "Meal plan"],
+					["Shopping", "Market run", "Shopping"], ["Recipes", "Recipe book", "Recipes"]
+				]},
+				{ id: "K3", voice: "K", structure: "3", routes: [
+					["Stock", "Pantry & freezer", "Ready to use"], ["Meal plan", "Weekly table", "What we’re eating"],
+					["Shopping", "Market run", "What’s left"], ["Recipes", "Recipe book", "Choose tonight"]
+				]},
+				{ id: "K4", voice: "K", structure: "4", routes: [
+					["Stock", "On the shelves", "Pantry & freezer"], ["Meal plan", "At the table", "Weekly plan"],
+					["Shopping", "At the market", "Shopping list"], ["Recipes", "At the stove", "Recipe book"]
+				]},
+				{ id: "K5", voice: "K", structure: "5", routes: [
+					["Stock", "", "Pantry & freezer"], ["Meal plan", "", "The weekly table"],
+					["Shopping", "", "The market list"], ["Recipes", "", "The recipe book"]
+				]},
+				{ id: "M1", voice: "M", structure: "1", routes: [
+					["Stock", "", "Stock"], ["Meal plan", "", "Plan"],
+					["Shopping", "", "Shop"], ["Recipes", "", "Cook"]
+				]},
+				{ id: "M2", voice: "M", structure: "2", routes: [
+					["Stock", "Home", "Stock"], ["Meal plan", "Week", "Plan"],
+					["Shopping", "List", "Shop"], ["Recipes", "Book", "Recipes"]
+				]},
+				{ id: "M3", voice: "M", structure: "3", routes: [
+					["Stock", "Stock", "On hand"], ["Meal plan", "Plan", "This week"],
+					["Shopping", "Shop", "To buy"], ["Recipes", "Cook", "Ideas"]
+				]},
+				{ id: "M4", voice: "M", structure: "4", routes: [
+					["Stock", "Now", "Stock"], ["Meal plan", "Week", "Plan"],
+					["Shopping", "Next", "Shop"], ["Recipes", "Tonight", "Recipes"]
+				]},
+				{ id: "M5", voice: "M", structure: "5", routes: [
+					["Stock", "", "On hand"], ["Meal plan", "", "This week"],
+					["Shopping", "", "To buy"], ["Recipes", "", "To cook"]
+				]}
+			];
+
+			const escapeHtml = (value) => String(value)
+				.replaceAll("&", "&amp;")
+				.replaceAll("<", "&lt;")
+				.replaceAll(">", "&gt;")
+				.replaceAll('"', "&quot;")
+				.replaceAll("'", "&#039;");
+
+			const grid = document.getElementById("copy-grid");
+			grid.insertAdjacentHTML("beforeend", '<div class="matrix-corner">Voice ↓<br />Structure →</div>');
+			for (const structure of structures) {
+				grid.insertAdjacentHTML("beforeend",
+					`<div class="matrix-column"><b>${escapeHtml(structure.name)}</b><span>${escapeHtml(structure.description)}</span></div>`);
+			}
+			for (const voice of voices) {
+				grid.insertAdjacentHTML("beforeend",
+					`<div class="matrix-row"><b>${escapeHtml(voice.name)}</b><span>${escapeHtml(voice.description)}</span></div>`);
+				for (const structure of structures) {
+					const system = copySystems.find((candidate) =>
+						candidate.voice === voice.id && candidate.structure === structure.id);
+					const routeMarkup = system.routes.map(([route, eyebrow, title]) => `
+						<div class="copy-route">
+							<span class="copy-route-key">${escapeHtml(route)}</span>
+							<span class="copy-preview">
+								${eyebrow ? `<small>${escapeHtml(eyebrow)}</small>` : ""}
+								<strong>${escapeHtml(title)}</strong>
+							</span>
+						</div>`).join("");
+					grid.insertAdjacentHTML("beforeend", `
+						<label class="copy-cell">
+							<input type="radio" name="copy-system" value="${system.id}" ${system.id === "P2" ? "checked" : ""} />
+							<span class="copy-cell-head">
+								<b>${system.id} · ${escapeHtml(voice.name)}</b>
+								<span>${escapeHtml(structure.name)}</span>
+							</span>
+							<span class="copy-routes">${routeMarkup}</span>
+						</label>`);
+				}
+			}
+
+			const copyInputs = [...document.querySelectorAll('input[name="copy-system"]')];
+			const heightInputs = [...document.querySelectorAll('input[name="height"]')];
+			const copyNotes = document.getElementById("copy-notes");
+			const implementationNotes = document.getElementById("implementation-notes");
+			const prompt = document.getElementById("prompt");
+			const copy = document.getElementById("copy");
+			const reset = document.getElementById("reset");
+			const storageStatus = document.getElementById("storage-status");
+			let storageAvailable = true;
+
+			const selected = (inputs) => inputs.find((input) => input.checked)?.value || "";
+			const state = () => ({
+				copyId: selected(copyInputs),
+				height: selected(heightInputs),
+				copyNotes: copyNotes.value,
+				implementationNotes: implementationNotes.value
+			});
+
+			function copySummary(system) {
+				return system.routes
+					.map(([route, eyebrow, title]) => `${route}: ${eyebrow ? `${eyebrow} → ${title}` : title}`)
+					.join("\n");
+			}
+
+			function copyRecommendation(system) {
+				if (system.id === "P2") {
+					return "Selected by the user on 2026-07-27. Apply this complete four-route system consistently; do not mix cells route by route.";
+				}
+				if (system.id === "P1") {
+					return "Earlier recommendation, superseded by the user's P2 selection.";
+				}
+				return "Override accepted. Apply this complete four-route system consistently; do not mix cells route by route.";
+			}
+
+			function buildPrompt() {
+				const s = state();
+				const system = copySystems.find((candidate) => candidate.id === s.copyId) || copySystems[0];
+				const voice = voices.find((candidate) => candidate.id === system.voice);
+				const structure = structures.find((candidate) => candidate.id === system.structure);
+				const notesA = s.copyNotes.trim() || "(none)";
+				const notesB = s.implementationNotes.trim() || "(none)";
+				prompt.value =
+`Load docs/feature-lists/FEATURE_LIST_PRIMARY_PAGE_UI_UNIFICATION.md, then continue with $run.
+
+Goal
+Unify /inventory, /meal-plan, /shopping, and /recipes so repeated page-header roles have one visual and component owner while route-specific working payloads remain bespoke.
+
+Resolved decision — design direction
+Direction A — Shared Frame, Bespoke Payload was selected by the user on 2026-07-27. Do not reopen the direction choice. The frame owns identity geometry and shared chrome; each route keeps useful working content in a natural-height payload.
+
+Decision 1 — header copy system
+Selected: ${system.id} — ${voice.name} × ${structure.name}
+Exact four-route copy:
+${copySummary(system)}
+Option space: five voices (Plain, Home, Action-led, Kitchen editorial, Minimal) × five structures (Title only, Context → route, Route → task, Task → route, Contextual title).
+Recommendation and rationale: ${copyRecommendation(system)}
+Evidence: the rejected draft used filler eyebrows such as Household stock, Weekly meals, Weekly shop, and Cookbook. The user liked Direction A but asked for new header copy.
+Assumption: one selected cell applies to all four routes; mixing cells would recreate the drift this plan removes.
+Uncertainty: Dutch translations must be written for meaning and fit, not word-for-word symmetry, and remain a 320/375 px execution gate.
+Practical consequence: ${structure.name === "Title only" || structure.name === "Contextual title"
+	? "all four routes use one H1 with no eyebrow"
+	: "all four routes use the same eyebrow-plus-H1 hierarchy"}.
+Copy notes, reproduced verbatim:
+${notesA}
+
+Decision 2 — total green-band height
+Selected: ${s.height}
+Options:
+- Natural payload height: identity geometry is exact; useful route payload sets total height.
+- Equal total height: all four bands occupy the same vertical space.
+Recommendation: Natural payload height. Equal height would create padding on compact routes or compress useful controls on busy routes.
+Practical consequence: verify sameness through the selected copy structure, H1, gutters, actions, gradient, and payload spacing rather than one fixed band height.
+
+Implementation constraints and requested follow-up, reproduced verbatim:
+${notesB}
+
+Preserve these plan invariants
+- Exactly one H1 per primary route.
+- Use the complete selected copy cell across all four routes. Do not mix voices or structures route by route.
+- Route-owned URLs, handlers, AH state/progress, quick views, search behavior, mutations, and Dutch canonical shopping fields do not move into the shared frame.
+- Reuse existing EmptyState, SegmentedTabs, chips, list cards, icons, and bottom navigation; do not redesign them.
+- Meal planning and Market run share previous/next geometry but continue to supply complete route-owned hrefs.
+- Do not trigger provider spend or a real AH push during verification.
+- Run git diff --check, npm run check, npm run test:unit, npm run build, the full responsive English/Dutch light/dark browser matrix, and deploy-canary after shipment.`;
+			}
+
+			function save() {
+				buildPrompt();
+				if (!storageAvailable) return;
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state()));
+					storageStatus.textContent = "Selections and notes save in this browser.";
+					storageStatus.classList.remove("bad");
+				} catch {
+					storageAvailable = false;
+					storageStatus.textContent = "Browser storage is unavailable. This session still works, but changes will not persist.";
+					storageStatus.classList.add("bad");
+				}
+			}
+
+			function restore() {
+				try {
+					const raw = localStorage.getItem(storageKey);
+					if (!raw) return;
+					const saved = JSON.parse(raw);
+					const copyChoice = copyInputs.find((input) => input.value === saved.copyId);
+					const height = heightInputs.find((input) => input.value === saved.height);
+					if (copyChoice) copyChoice.checked = true;
+					if (height) height.checked = true;
+					copyNotes.value = saved.copyNotes || "";
+					implementationNotes.value = saved.implementationNotes || "";
+				} catch {
+					storageAvailable = false;
+					storageStatus.textContent = "Saved choices could not be restored. The recommended defaults are active.";
+					storageStatus.classList.add("bad");
+				}
+			}
+
+			[...copyInputs, ...heightInputs].forEach((input) => input.addEventListener("change", save));
+			copyNotes.addEventListener("input", save);
+			implementationNotes.addEventListener("input", save);
+
+			copy.addEventListener("click", async () => {
+				buildPrompt();
+				try {
+					await navigator.clipboard.writeText(prompt.value);
+					copy.textContent = "Copied";
+					setTimeout(() => { copy.textContent = "Copy handoff"; }, 1600);
+				} catch {
+					prompt.focus();
+					prompt.select();
+					storageStatus.textContent = "Clipboard access failed. The handoff text is selected; use your system copy command.";
+					storageStatus.classList.add("bad");
+				}
+			});
+
+			reset.addEventListener("click", () => {
+				copyInputs.find((input) => input.value === "P2").checked = true;
+				heightInputs[0].checked = true;
+				copyNotes.value = "";
+				implementationNotes.value = "";
+				if (storageAvailable) {
+					try { localStorage.removeItem(storageKey); } catch {}
+				}
+				save();
+			});
+
+			restore();
+			buildPrompt();
+		})();
+	</script>
+</body>
+</html>

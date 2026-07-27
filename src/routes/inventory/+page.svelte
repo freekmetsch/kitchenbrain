@@ -39,6 +39,8 @@
 		StockAttention
 	} from '$lib/components/inventory/shared';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
+	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
 	import { rollsUpTo } from '$lib/food_class';
 	import { patchKeepStocked } from '$lib/keep_stocked';
 	import { captureRemoval, restoreRemoval, type RemovedListItem } from '$lib/inventory_undo';
@@ -832,35 +834,28 @@
 
 <!-- ── Responsive Radar Band ───────────────────────────────────────────────── -->
 <div class="stock-radar pb-[calc(var(--ui-fixed-bar-height)+1.5rem)]">
-	<header class="stock-band">
-		<div class="stock-band-inner">
-			<div class="stock-band-top">
-				<div class="min-w-0">
-					<p class="stock-context">{m.inventory_radar_context()}</p>
-					<h1>{m.inventory_heading()}</h1>
-				</div>
-				<div class="flex shrink-0 items-center gap-1.5">
-					<button
-						type="button"
-						class="stock-icon-button"
-						aria-label={m.inventory_activity_aria()}
-						onclick={openActivity}
-					>
-						<Icon name="clock" class="h-4 w-4" />
-					</button>
-					<button
-						type="button"
-						class="stock-add-button"
-						aria-expanded={showAddForm}
-						onclick={() => (showAddForm = true)}
-					>
-						<Icon name="plus" class="h-3.5 w-3.5" />
-						{m.inventory_add_button()}
-					</button>
-				</div>
-			</div>
+	<KitchenPageHeader eyebrow={m.inventory_header_context()} title={m.inventory_heading()}>
+		{#snippet actions()}
+			<button
+				type="button"
+				class="ui-kitchen-header-action ui-kitchen-header-action-icon"
+				aria-label={m.inventory_activity_aria()}
+				onclick={openActivity}
+			>
+				<Icon name="clock" class="h-4 w-4" />
+			</button>
+			<button
+				type="button"
+				class="ui-kitchen-header-action ui-kitchen-header-action-primary"
+				aria-expanded={showAddForm}
+				onclick={() => (showAddForm = true)}
+			>
+				<Icon name="plus" class="h-3.5 w-3.5" />
+				{m.inventory_add_button()}
+			</button>
+		{/snippet}
 
-			<div class="stock-stats" aria-label={m.inventory_heading()}>
+		<div class="stock-stats" aria-label={m.inventory_heading()}>
 				{#if readyMealCount > 0}
 					<button
 						type="button"
@@ -902,17 +897,16 @@
 						<span>{m.inventory_radar_below_target_zero()}</span>
 					</div>
 				{/if}
-			</div>
 		</div>
-	</header>
+	</KitchenPageHeader>
 
-	<main class="stock-ledger">
+	<main class="stock-ledger ui-kitchen-content">
 		<div class="stock-tools">
-			<label class="stock-search">
+			<label class="ui-kitchen-search">
 				<span class="sr-only">{m.inventory_search_label()}</span>
 				<svg
 					viewBox="0 0 16 16"
-					class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-55"
+					class="pointer-events-none h-4 w-4 opacity-55"
 					fill="none"
 					stroke="currentColor"
 					stroke-width="1.5"
@@ -946,26 +940,27 @@
 				{/if}
 			</label>
 
-			<nav class="stock-scopes" aria-label={m.inventory_heading()}>
-				{#each SCOPES as value (value)}
-					<button
-						type="button"
-						aria-pressed={scope === value}
-						class:active={scope === value}
-						onclick={() => setScope(value)}
-					>
-						{scopeLabel(value)}
-					</button>
-				{/each}
+			<div class="stock-scope-row">
+				<div class="stock-scope-tabs">
+					<SegmentedTabs
+						tabs={SCOPES.map((value) => ({ value, label: scopeLabel(value) }))}
+						bind:value={scope}
+						onchange={setScope}
+						cols={3}
+						ariaLabel={m.inventory_heading()}
+						idPrefix="inventory-scope"
+					/>
+				</div>
 				<button
 					type="button"
+					class="stock-filter-action"
 					class:active={hasActiveFilters}
 					aria-pressed={hasActiveFilters}
 					onclick={() => (filtersOpen = true)}
 				>
 					{m.inventory_scope_filters()}
 				</button>
-			</nav>
+			</div>
 		</div>
 
 		{#if quickView}
@@ -1176,83 +1171,14 @@
 		color: var(--color-base-content);
 	}
 
-	.stock-band {
-		color: white;
-		background: linear-gradient(135deg, var(--stock-olive-deep), var(--stock-olive-soft));
-	}
-
-	.stock-band-inner {
-		max-width: 74rem;
-		margin: 0 auto;
-		padding: 1.35rem 1rem 1rem;
-	}
-
-	.stock-band-top {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.875rem;
-	}
-
-	.stock-context {
-		color: #f0c569;
-		font-size: 0.68rem;
-		font-weight: 750;
-		letter-spacing: 0.11em;
-		text-transform: uppercase;
-	}
-
-	.stock-band h1,
 	.stock-group-head h2 {
 		font-family: Georgia, 'Times New Roman', serif;
-	}
-
-	.stock-band h1 {
-		margin-top: 0.2rem;
-		font-size: clamp(1.75rem, 6vw, 2.25rem);
-		font-weight: 500;
-		line-height: 1;
-		letter-spacing: -0.035em;
-	}
-
-	.stock-icon-button,
-	.stock-add-button {
-		display: inline-flex;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		border: 1px solid rgb(255 255 255 / 24%);
-		border-radius: 0.75rem;
-		background: rgb(255 255 255 / 8%);
-		color: white;
-		transition:
-			background var(--motion-micro) var(--ease-standard),
-			border-color var(--motion-micro) var(--ease-standard);
-	}
-
-	.stock-icon-button {
-		width: 2.75rem;
-	}
-
-	.stock-add-button {
-		gap: 0.35rem;
-		padding: 0 0.8rem;
-		background: var(--stock-terra);
-		border-color: transparent;
-		font-size: 0.8rem;
-		font-weight: 750;
-	}
-
-	.stock-icon-button:hover,
-	.stock-icon-button:focus-visible {
-		background: rgb(255 255 255 / 16%);
 	}
 
 	.stock-stats {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 0.5rem;
-		margin-top: 1rem;
 	}
 
 	.stock-stat {
@@ -1330,9 +1256,7 @@
 	}
 
 	.stock-ledger {
-		max-width: 74rem;
-		margin: 0 auto;
-		padding: 0.9rem 0.875rem max(6.5rem, var(--ui-overlay-bottom));
+		padding-block: 0.9rem max(6.5rem, var(--ui-overlay-bottom));
 	}
 
 	.stock-tools {
@@ -1340,78 +1264,57 @@
 		gap: 0.55rem;
 	}
 
-	.stock-search {
-		position: relative;
-		display: block;
-	}
-
-	.stock-search input {
-		width: 100%;
-		height: 3rem;
-		border: 1px solid color-mix(in oklab, var(--stock-olive) 24%, var(--color-base-300));
-		border-radius: 0.8rem;
-		background: var(--stock-card);
-		padding: 0 2.9rem 0 2.55rem;
-		box-shadow: 0 6px 18px rgb(51 70 56 / 7%);
-		outline: none;
-	}
-
-	.stock-search input:focus {
-		border-color: var(--stock-honey);
-		box-shadow: 0 0 0 3px rgb(211 160 70 / 18%);
-	}
-
-	.stock-search button,
-	.stock-search kbd {
-		position: absolute;
-		top: 50%;
-		right: 0.3rem;
+	.stock-tools :global(.ui-kitchen-search button),
+	.stock-tools :global(.ui-kitchen-search kbd) {
 		display: inline-flex;
-		height: 2.4rem;
-		min-width: 2.4rem;
-		transform: translateY(-50%);
+		min-width: 2.25rem;
+		min-height: 2.25rem;
 		align-items: center;
 		justify-content: center;
 		border-radius: 0.6rem;
 		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
 	}
 
-	.stock-search kbd {
-		right: 0.7rem;
+	.stock-tools :global(.ui-kitchen-search kbd) {
 		width: auto;
 		min-width: 0;
 		font-size: 0.68rem;
 	}
 
-	.stock-scopes {
-		display: flex;
+	.stock-scope-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: stretch;
 		gap: 0.25rem;
-		overflow-x: auto;
-		padding: 0.2rem;
-		border: 1px solid color-mix(in oklab, var(--stock-olive) 16%, var(--color-base-300));
-		border-radius: 0.8rem;
-		background: color-mix(in oklab, var(--stock-card) 88%, transparent);
-		scrollbar-width: none;
 	}
 
-	.stock-scopes::-webkit-scrollbar {
-		display: none;
+	.stock-scope-tabs {
+		min-width: 0;
 	}
 
-	.stock-scopes button {
+	.stock-scope-tabs :global([role='tablist']) {
+		height: 100%;
+	}
+
+	.stock-scope-tabs :global([role='tab']) {
 		min-height: 2.75rem;
-		flex: 0 0 auto;
-		border-radius: 0.6rem;
-		padding: 0 0.72rem;
+	}
+
+	.stock-filter-action {
+		min-height: 2.75rem;
+		border: 1px solid color-mix(in oklab, var(--stock-olive) 18%, var(--color-base-300));
+		border-radius: 0.7rem;
+		padding-inline: 0.72rem;
+		background: var(--stock-card);
 		font-size: 0.76rem;
 		font-weight: 700;
 		white-space: nowrap;
 		color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
 	}
 
-	.stock-scopes button.active {
-		background: var(--stock-olive);
-		color: white;
+	.stock-filter-action.active {
+		border-color: color-mix(in oklab, var(--stock-olive) 55%, var(--color-base-300));
+		color: var(--stock-olive);
 		box-shadow: 0 3px 10px rgb(41 59 48 / 18%);
 	}
 
@@ -1543,12 +1446,9 @@
 	}
 
 	@media (min-width: 48rem) {
-		.stock-band-inner {
-			padding-inline: 1.5rem;
-		}
-
-		.stock-ledger {
-			padding-inline: 1.5rem;
+		.stock-stats {
+			max-width: 32rem;
+			margin-left: auto;
 		}
 
 		.stock-tools {
@@ -1558,24 +1458,8 @@
 	}
 
 	@media (min-width: 64rem) {
-		.stock-band-inner {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr) 21rem;
-			align-items: end;
-			gap: 2rem;
-			padding: 1.8rem 2rem;
-		}
-
-		.stock-band h1 {
-			font-size: 2.5rem;
-		}
-
-		.stock-stats {
-			margin-top: 0;
-		}
-
 		.stock-ledger {
-			padding: 1.15rem 2rem max(6.5rem, var(--ui-overlay-bottom));
+			padding-block: 1.15rem max(6.5rem, var(--ui-overlay-bottom));
 		}
 
 		.stock-columns {
