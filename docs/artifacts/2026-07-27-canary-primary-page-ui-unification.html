@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Primary page UI unification — deploy canary</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172019;
+      --muted: #637066;
+      --paper: #f4f2ea;
+      --surface: #fffdf8;
+      --line: #d9ddd4;
+      --olive: #435c35;
+      --olive-soft: #dfe9d7;
+      --good: #2d6b3f;
+      --shadow: 0 18px 50px rgb(30 42 32 / 10%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(135deg, rgb(67 92 53 / 8%), transparent 42rem),
+        var(--paper);
+      color: var(--ink);
+    }
+
+    main {
+      width: min(74rem, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: clamp(2rem, 5vw, 4.5rem) 0;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1rem 1.25rem;
+      align-items: start;
+      margin-bottom: 2rem;
+    }
+
+    .signal {
+      width: 0.8rem;
+      height: 0.8rem;
+      margin-top: 0.55rem;
+      border-radius: 999px;
+      background: var(--good);
+      box-shadow: 0 0 0 0.45rem var(--olive-soft);
+    }
+
+    .eyebrow {
+      margin: 0 0 0.45rem;
+      color: var(--olive);
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 17ch;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.2rem, 6vw, 4.5rem);
+      font-weight: 500;
+      line-height: 0.98;
+      letter-spacing: -0.035em;
+    }
+
+    .lede {
+      max-width: 70ch;
+      margin: 1rem 0 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.65;
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      overflow: hidden;
+      margin: 0 0 1.5rem;
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      background: var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .fact {
+      min-width: 0;
+      padding: 1.15rem;
+      background: var(--surface);
+    }
+
+    .fact span {
+      display: block;
+      margin-bottom: 0.35rem;
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .fact strong {
+      display: block;
+      overflow-wrap: anywhere;
+      font-size: 0.96rem;
+      line-height: 1.4;
+    }
+
+    section {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .section-head {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.15rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .badge {
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      background: var(--olive-soft);
+      color: var(--good);
+      font-size: 0.76rem;
+      font-weight: 800;
+    }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      min-width: 47rem;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    th,
+    td {
+      padding: 0.85rem 1.15rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+    code { font-size: 0.84em; }
+
+    .zero {
+      color: var(--good);
+      font-weight: 800;
+    }
+
+    aside {
+      margin-top: 1.5rem;
+      padding: 1.15rem 1.25rem;
+      border-left: 0.3rem solid var(--olive);
+      background: rgb(255 253 248 / 75%);
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    aside strong { color: var(--ink); }
+
+    @media (max-width: 44rem) {
+      main { width: min(100% - 1rem, 74rem); }
+      .facts { grid-template-columns: 1fr; }
+      header { padding-inline: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="signal" aria-hidden="true"></div>
+      <div>
+        <p class="eyebrow">Deploy canary · Healthy</p>
+        <h1>Primary page frame is live.</h1>
+        <p class="lede">
+          Railway is running the exact UI-unification commit. The public health check passed and
+          every protected primary route reached the expected signed-out boundary cleanly.
+        </p>
+      </div>
+    </header>
+
+    <div class="facts" aria-label="Deployment facts">
+      <div class="fact">
+        <span>Commit</span>
+        <strong><code>60b916c1d03eea4fdefc2a59770751a10aeaa889</code></strong>
+      </div>
+      <div class="fact">
+        <span>Railway</span>
+        <strong>SUCCESS · running instance</strong>
+      </div>
+      <div class="fact">
+        <span>Health</span>
+        <strong><code>/api/healthz</code> · 200 · <code>status: ok</code></strong>
+      </div>
+    </div>
+
+    <section>
+      <div class="section-head">
+        <h2>375 × 812 signed-out browser sweep</h2>
+        <span class="badge">4 / 4 healthy</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Requested route</th>
+              <th>Final boundary</th>
+              <th>HTTP</th>
+              <th>Console</th>
+              <th>Failed requests</th>
+              <th>4xx / 5xx</th>
+              <th>Overflow</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>/inventory</code></td>
+              <td><code>/login</code></td>
+              <td>200</td>
+              <td class="zero">0</td>
+              <td class="zero">0</td>
+              <td class="zero">0</td>
+              <td class="zero">No</td>
+            </tr>
+            <tr>
+              <td><code>/meal-plan</code></td>
+              <td><code>/login</code></td>
+              <td>200</td>
+              <td class="zero">0</td>
+              <td class="zero">0</td>
+              <td class="zero">0</td>
+              <td class="zero">No</td>
+            </tr>
+            <tr>
+              <td><code>/shopping</code></td>
+              <td><code>/login</code></td>
+              <td>200</td>
+              <td class="zero">0</td>
+              <td class="zero">0</td>
+              <td class="zero">0</td>
+              <td class="zero">No</td>
+            </tr>
+            <tr>
+              <td><code>/recipes</code></td>
+              <td><code>/login</code></td>
+              <td>200</td>
+              <td class="zero">0</td>
+              <td class="zero">0</td>
+              <td class="zero">0</td>
+              <td class="zero">No</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside>
+      <strong>Scope note.</strong> The live sweep stayed logged out and did not touch household
+      data. The authenticated page-header implementation was verified before deployment across
+      48 English/Dutch, light/dark, 320/375/1280 px cases, plus populated interaction checks.
+      There was no saved production visual baseline, so none was created automatically.
+    </aside>
+  </main>
+</body>
+</html>

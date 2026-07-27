@@ -272,3 +272,11 @@ docs/artifacts/archive/2026-07-27-plan-primary-page-ui-unification.html
 
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
+
+## 2026-07-27 | html-artifact | canary: Primary page UI unification
+
+Recorded the healthy four-route Railway canary and the boundary between signed-out production
+probes and authenticated local acceptance.
+
+Touched: docs/artifacts/2026-07-27-canary-primary-page-ui-unification.html,
+docs/deploys/2026-07.md
