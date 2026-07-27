@@ -1,7 +1,17 @@
 import path from 'node:path';
 
-export const E2E_ORIGIN = 'http://localhost:4173';
-export const E2E_DATA_DIR = path.resolve(process.cwd(), '.test-data', 'e2e');
+const portText = process.env.E2E_PORT ?? '4173';
+if (!/^\d+$/.test(portText)) {
+	throw new Error(`Invalid E2E_PORT: ${portText}`);
+}
+
+export const E2E_SERVER_PORT = Number(portText);
+export const E2E_ORIGIN = `http://localhost:${E2E_SERVER_PORT}`;
+export const E2E_DATA_DIR = path.resolve(
+	process.cwd(),
+	'.test-data',
+	E2E_SERVER_PORT === 4173 ? 'e2e' : `e2e-${E2E_SERVER_PORT}`
+);
 export const E2E_DATABASE = path.join(E2E_DATA_DIR, 'e2e.db');
 export const E2E_AUTH_DIR = path.join(E2E_DATA_DIR, 'auth');
 
