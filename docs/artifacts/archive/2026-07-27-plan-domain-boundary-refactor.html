@@ -1,0 +1,1228 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="data:," />
+	<title>Domain Boundary Refactor · Shipped</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--ink: #17201b;
+			--muted: #58635c;
+			--paper: #f6f2e8;
+			--paper-2: #fffcf4;
+			--line: #c8c4b7;
+			--olive: #334638;
+			--olive-2: #48604e;
+			--sage: #dce7d9;
+			--amber: #d69a2d;
+			--amber-soft: #f4e3ba;
+			--brick: #9a4639;
+			--blue: #426676;
+			--shadow: 0 18px 48px rgba(29, 39, 32, 0.12);
+		}
+
+		* { box-sizing: border-box; }
+
+		html {
+			scroll-behavior: smooth;
+			background: var(--paper);
+		}
+
+		body {
+			margin: 0;
+			color: var(--ink);
+			background:
+				linear-gradient(90deg, rgba(51, 70, 56, 0.04) 1px, transparent 1px) 0 0 / 24px 24px,
+				var(--paper);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			line-height: 1.5;
+		}
+
+		button, textarea, input { font: inherit; }
+
+		a { color: inherit; }
+
+		.skip-link {
+			position: fixed;
+			top: 0.75rem;
+			left: 0.75rem;
+			z-index: 50;
+			transform: translateY(-180%);
+			padding: 0.7rem 1rem;
+			border-radius: 0.5rem;
+			color: white;
+			background: var(--olive);
+		}
+
+		.skip-link:focus { transform: none; }
+
+		.shell {
+			width: min(1480px, 100%);
+			margin: 0 auto;
+			padding: clamp(1rem, 3vw, 2.5rem);
+		}
+
+		.hero {
+			position: relative;
+			overflow: hidden;
+			display: grid;
+			grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.7fr);
+			gap: clamp(1.5rem, 4vw, 4rem);
+			padding: clamp(1.6rem, 5vw, 4.5rem);
+			border: 1px solid #1f2d24;
+			border-radius: 1.4rem 1.4rem 0.35rem 0.35rem;
+			color: #f8f5ea;
+			background:
+				radial-gradient(circle at 85% 15%, rgba(244, 227, 186, 0.2), transparent 28rem),
+				var(--olive);
+			box-shadow: var(--shadow);
+		}
+
+		.hero::after {
+			content: "";
+			position: absolute;
+			width: 18rem;
+			height: 18rem;
+			right: -8rem;
+			bottom: -10rem;
+			border: 2.5rem solid rgba(255,255,255,0.05);
+			border-radius: 50%;
+		}
+
+		.eyebrow {
+			margin: 0 0 0.75rem;
+			color: #d9e4d8;
+			font-size: 0.78rem;
+			font-weight: 800;
+			letter-spacing: 0.13em;
+			text-transform: uppercase;
+		}
+
+		h1 {
+			max-width: 16ch;
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.5rem, 6.5vw, 6.3rem);
+			font-weight: 600;
+			letter-spacing: -0.055em;
+			line-height: 0.92;
+		}
+
+		.lede {
+			max-width: 66ch;
+			margin: 1.35rem 0 0;
+			color: #e3e8e1;
+			font-size: clamp(1rem, 1.5vw, 1.22rem);
+		}
+
+		.hero-aside {
+			position: relative;
+			z-index: 1;
+			align-self: end;
+			padding: 1.15rem;
+			border: 1px solid rgba(255,255,255,0.2);
+			border-radius: 0.9rem;
+			background: rgba(18, 27, 21, 0.32);
+			backdrop-filter: blur(8px);
+		}
+
+		.hero-aside strong {
+			display: block;
+			margin-bottom: 0.3rem;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.45rem;
+		}
+
+		.status-line {
+			display: flex;
+			align-items: center;
+			gap: 0.55rem;
+			margin-top: 0.8rem;
+			color: #dce4dc;
+			font-size: 0.9rem;
+		}
+
+		.status-dot {
+			width: 0.65rem;
+			height: 0.65rem;
+			border-radius: 50%;
+			background: #91c98c;
+			box-shadow: 0 0 0 0.25rem rgba(145, 201, 140, 0.15);
+		}
+
+		.baseline {
+			display: grid;
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+			border: 1px solid var(--line);
+			border-top: 0;
+			background: var(--paper-2);
+		}
+
+		.metric {
+			min-width: 0;
+			padding: 1.2rem clamp(0.7rem, 2vw, 1.5rem);
+			border-right: 1px solid var(--line);
+		}
+
+		.metric:last-child { border-right: 0; }
+
+		.metric strong {
+			display: block;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(1.7rem, 4vw, 3.2rem);
+			line-height: 1;
+		}
+
+		.metric span {
+			display: block;
+			margin-top: 0.38rem;
+			color: var(--muted);
+			font-size: 0.8rem;
+			font-weight: 750;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+		}
+
+		section {
+			scroll-margin-top: 1rem;
+			margin-top: clamp(2rem, 5vw, 5rem);
+		}
+
+		.section-head {
+			display: grid;
+			grid-template-columns: minmax(12rem, 0.5fr) minmax(0, 1fr);
+			gap: 1.5rem;
+			align-items: end;
+			padding-bottom: 0.85rem;
+			border-bottom: 2px solid var(--ink);
+		}
+
+		.section-head h2 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(1.9rem, 4vw, 3.5rem);
+			font-weight: 600;
+			letter-spacing: -0.04em;
+			line-height: 1;
+		}
+
+		.section-head p {
+			max-width: 70ch;
+			margin: 0;
+			color: var(--muted);
+		}
+
+		.flow {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 1px;
+			margin-top: 1rem;
+			padding: 1px;
+			background: var(--ink);
+			border: 1px solid var(--ink);
+		}
+
+		.flow-step {
+			position: relative;
+			min-height: 18rem;
+			padding: 1.35rem;
+			background: var(--paper-2);
+		}
+
+		.flow-step::after {
+			content: "→";
+			position: absolute;
+			z-index: 2;
+			top: 1rem;
+			right: -0.72rem;
+			display: grid;
+			width: 1.4rem;
+			height: 1.4rem;
+			place-items: center;
+			border-radius: 50%;
+			color: white;
+			background: var(--ink);
+			font-size: 0.8rem;
+		}
+
+		.flow-step:last-child::after { display: none; }
+
+		.step-no {
+			display: block;
+			color: var(--brick);
+			font-size: 0.75rem;
+			font-weight: 850;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+		}
+
+		.flow-step h3 {
+			margin: 2.7rem 0 0.65rem;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.55rem;
+			line-height: 1.05;
+		}
+
+		.flow-step p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.94rem;
+		}
+
+		.checkpoint {
+			position: absolute;
+			right: 1.35rem;
+			bottom: 1.35rem;
+			left: 1.35rem;
+			padding-top: 0.7rem;
+			border-top: 1px solid var(--line);
+			color: var(--olive);
+			font-size: 0.78rem;
+			font-weight: 780;
+		}
+
+		.architecture {
+			display: grid;
+			grid-template-columns: 1fr auto 1.3fr auto 1fr;
+			gap: 1rem;
+			align-items: stretch;
+			margin-top: 1rem;
+		}
+
+		.arch-node {
+			display: flex;
+			min-height: 12rem;
+			flex-direction: column;
+			justify-content: space-between;
+			padding: 1.2rem;
+			border: 1px solid var(--line);
+			background: var(--paper-2);
+		}
+
+		.arch-node.primary {
+			color: white;
+			border-color: var(--olive);
+			background: var(--olive);
+		}
+
+		.arch-node h3 {
+			margin: 0 0 0.5rem;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.35rem;
+		}
+
+		.arch-node p,
+		.arch-node ul {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.88rem;
+		}
+
+		.arch-node.primary p,
+		.arch-node.primary ul { color: #dfe8df; }
+
+		.arch-node ul {
+			padding-left: 1.1rem;
+		}
+
+		.arrow {
+			align-self: center;
+			color: var(--brick);
+			font-size: 1.6rem;
+			font-weight: 900;
+		}
+
+		.callout {
+			margin-top: 1rem;
+			padding: 1rem 1.15rem;
+			border-left: 0.4rem solid var(--amber);
+			background: var(--amber-soft);
+		}
+
+		.callout strong { color: #5d4212; }
+
+		.ticket-list {
+			margin-top: 1rem;
+			border: 1px solid var(--line);
+			background: var(--paper-2);
+		}
+
+		.ticket {
+			display: grid;
+			grid-template-columns: 5rem minmax(12rem, 0.85fr) minmax(0, 1.5fr) minmax(10rem, 0.7fr);
+			gap: 1rem;
+			padding: 1rem;
+			border-bottom: 1px solid var(--line);
+		}
+
+		.ticket:last-child { border-bottom: 0; }
+
+		.ticket-code {
+			color: var(--brick);
+			font-weight: 850;
+			letter-spacing: 0.04em;
+		}
+
+		.ticket h3 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.1rem;
+			line-height: 1.2;
+		}
+
+		.ticket p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.88rem;
+		}
+
+		.ticket-meta {
+			display: flex;
+			flex-wrap: wrap;
+			align-content: flex-start;
+			gap: 0.35rem;
+		}
+
+		.pill {
+			display: inline-flex;
+			min-height: 1.8rem;
+			align-items: center;
+			padding: 0.2rem 0.55rem;
+			border: 1px solid var(--line);
+			border-radius: 99rem;
+			color: var(--muted);
+			background: white;
+			font-size: 0.72rem;
+			font-weight: 750;
+		}
+
+		.pill.r2 {
+			color: #6a241b;
+			border-color: #d8afa9;
+			background: #f8e6e2;
+		}
+
+		.risk-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 1rem;
+			margin-top: 1rem;
+		}
+
+		.risk {
+			padding: 1.1rem;
+			border: 1px solid var(--line);
+			background: var(--paper-2);
+		}
+
+		.risk h3 {
+			display: flex;
+			align-items: baseline;
+			gap: 0.55rem;
+			margin: 0 0 0.5rem;
+			font-size: 1rem;
+		}
+
+		.risk h3 span {
+			color: var(--brick);
+			font-size: 0.68rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.risk p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.88rem;
+		}
+
+		.audit-strip {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 1px;
+			margin-top: 1rem;
+			padding: 1px;
+			background: var(--line);
+		}
+
+		.audit {
+			padding: 1rem;
+			background: var(--paper-2);
+		}
+
+		.audit strong {
+			display: block;
+			margin-bottom: 0.35rem;
+		}
+
+		.audit p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.82rem;
+		}
+
+		.decisions {
+			padding: clamp(1rem, 3vw, 2rem);
+			border: 1px solid var(--olive);
+			background: var(--sage);
+			box-shadow: var(--shadow);
+		}
+
+		.decision-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 1rem;
+			margin-top: 1.25rem;
+		}
+
+		fieldset {
+			min-width: 0;
+			margin: 0;
+			padding: 1rem;
+			border: 1px solid rgba(51, 70, 56, 0.35);
+			background: rgba(255,255,255,0.66);
+		}
+
+		legend {
+			padding: 0 0.4rem;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.2rem;
+			font-weight: 700;
+		}
+
+		.context {
+			margin: 0 0 0.8rem;
+			color: var(--muted);
+			font-size: 0.86rem;
+		}
+
+		.option {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr);
+			gap: 0.6rem;
+			margin-top: 0.55rem;
+			padding: 0.75rem;
+			border: 1px solid transparent;
+			border-radius: 0.6rem;
+			background: rgba(255,255,255,0.55);
+			cursor: pointer;
+		}
+
+		.option:has(input:checked) {
+			border-color: var(--olive);
+			background: white;
+		}
+
+		.option input {
+			width: 1.1rem;
+			height: 1.1rem;
+			margin: 0.18rem 0 0;
+			accent-color: var(--olive);
+		}
+
+		.option strong { display: block; }
+
+		.option span {
+			display: block;
+			margin-top: 0.2rem;
+			color: var(--muted);
+			font-size: 0.82rem;
+		}
+
+		.recommended {
+			display: inline-flex !important;
+			width: fit-content;
+			margin: 0 0 0.3rem !important;
+			padding: 0.12rem 0.4rem;
+			border-radius: 99rem;
+			color: white !important;
+			background: var(--olive);
+			font-size: 0.65rem !important;
+			font-weight: 800;
+			letter-spacing: 0.07em;
+			text-transform: uppercase;
+		}
+
+		label.note-label {
+			display: block;
+			margin-top: 0.9rem;
+			color: var(--olive);
+			font-size: 0.78rem;
+			font-weight: 800;
+		}
+
+		textarea {
+			width: 100%;
+			min-height: 5.5rem;
+			margin-top: 0.35rem;
+			padding: 0.75rem;
+			resize: vertical;
+			border: 1px solid rgba(51, 70, 56, 0.45);
+			border-radius: 0.45rem;
+			color: var(--ink);
+			background: white;
+		}
+
+		textarea:focus,
+		button:focus-visible,
+		input:focus-visible {
+			outline: 3px solid var(--amber);
+			outline-offset: 2px;
+		}
+
+		.prompt-zone {
+			margin-top: 1rem;
+			padding: 1rem;
+			color: white;
+			background: #1d2921;
+		}
+
+		.prompt-zone h3 {
+			margin: 0 0 0.4rem;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.25rem;
+		}
+
+		.prompt-zone p {
+			margin: 0 0 0.75rem;
+			color: #cfdbd0;
+			font-size: 0.85rem;
+		}
+
+		#prompt {
+			min-height: 16rem;
+			color: #18201a;
+			background: #fbfaf4;
+		}
+
+		.actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.65rem;
+			margin-top: 0.75rem;
+		}
+
+		.button {
+			min-height: 2.75rem;
+			padding: 0.6rem 0.95rem;
+			border: 1px solid rgba(255,255,255,0.32);
+			border-radius: 0.45rem;
+			color: white;
+			background: var(--olive-2);
+			font-weight: 800;
+			cursor: pointer;
+		}
+
+		.button.secondary {
+			color: #dfe8df;
+			background: transparent;
+		}
+
+		.storage-status {
+			align-self: center;
+			color: #bfcbbf;
+			font-size: 0.78rem;
+		}
+
+		.source {
+			margin: 2rem 0 1rem;
+			padding-top: 1rem;
+			border-top: 1px solid var(--line);
+			color: var(--muted);
+			font-size: 0.8rem;
+		}
+
+		.source code {
+			color: var(--ink);
+			overflow-wrap: anywhere;
+		}
+
+		@media (max-width: 980px) {
+			.hero,
+			.section-head { grid-template-columns: 1fr; }
+			.baseline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+			.metric { border-bottom: 1px solid var(--line); }
+			.metric:nth-child(2n) { border-right: 0; }
+			.metric:last-child { grid-column: 1 / -1; border-bottom: 0; }
+			.flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+			.flow-step:nth-child(2)::after { display: none; }
+			.architecture { grid-template-columns: 1fr; }
+			.arrow { transform: rotate(90deg); justify-self: center; }
+			.ticket { grid-template-columns: 4rem minmax(0, 1fr); }
+			.ticket > p,
+			.ticket-meta { grid-column: 2; }
+			.audit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		}
+
+		@media (max-width: 680px) {
+			.shell { padding: 0.65rem; }
+			.hero { border-radius: 0.8rem 0.8rem 0.2rem 0.2rem; }
+			h1 { font-size: clamp(2.7rem, 15vw, 4.8rem); }
+			.flow,
+			.risk-grid,
+			.decision-grid,
+			.audit-strip { grid-template-columns: 1fr; }
+			.flow-step { min-height: 14rem; }
+			.flow-step::after { display: none; }
+			.ticket { grid-template-columns: 1fr; }
+			.ticket > p,
+			.ticket-meta { grid-column: 1; }
+			.metric strong { font-size: 2rem; }
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			html { scroll-behavior: auto; }
+		}
+
+		@media print {
+			body { background: white; }
+			.shell { width: 100%; padding: 0; }
+			.hero, .decisions { box-shadow: none; }
+			.prompt-zone, .actions { display: none; }
+			section { break-inside: avoid; }
+		}
+	</style>
+</head>
+<body>
+	<a class="skip-link" href="#decisions">Skip to decisions</a>
+	<main class="shell">
+		<header class="hero">
+			<div>
+				<p class="eyebrow">Shipped plan · beta · R2 code-only wide sweep · 2026-07-27</p>
+				<h1>One path for every kitchen action.</h1>
+				<p class="lede">
+					The four-phase refactor shipped with explicit domain and workflow owners for HTTP,
+					AI, persistence, and the four primary kitchen surfaces—without a schema change,
+					redesign, new dependency, or live provider call.
+				</p>
+			</div>
+			<aside class="hero-aside">
+				<strong>Shipped on codex/domain-boundary-refactor.</strong>
+				Domain writes, cross-domain transactions, AI persistence, AH uncertainty, and
+				per-instance UI lifecycle state now have enforced owners.
+				<div class="status-line"><span class="status-dot"></span> Final review: GO</div>
+				<div class="status-line">No schema, auth, runtime-config, or dependency change.</div>
+			</aside>
+		</header>
+
+		<div class="baseline" aria-label="Shipped verification">
+			<div class="metric"><strong>540</strong><span>unit tests pass</span></div>
+			<div class="metric"><strong>17 + 17</strong><span>browser tests by account</span></div>
+			<div class="metric"><strong>0</strong><span>guarded boundary bypasses</span></div>
+			<div class="metric"><strong>4</strong><span>phases shipped</span></div>
+			<div class="metric"><strong>0</strong><span>production advisories</span></div>
+		</div>
+
+		<section aria-labelledby="sequence-title">
+			<div class="section-head">
+				<h2 id="sequence-title">The sequence is the safety mechanism.</h2>
+				<p>
+					No big-bang move. Every phase leaves a working checkpoint, and every vertical
+					server slice migrates all of its callers before the old path is deleted.
+				</p>
+			</div>
+			<div class="flow">
+				<article class="flow-step">
+					<span class="step-no">Phase 1</span>
+					<h3>Protect behavior</h3>
+					<p>
+						Seed isolated kitchen fixtures. Characterize Stock, Meal Plan, Shopping,
+						Recipes, and Cook Mode before moving production behavior.
+					</p>
+					<div class="checkpoint">Checkpoint: current journeys are executable evidence.</div>
+				</article>
+				<article class="flow-step">
+					<span class="step-no">Phase 2</span>
+					<h3>Move server seams</h3>
+					<p>
+						Migrate inventory → recipes → meal plan → shopping/AH. HTTP and AI converge
+						on the same commands and workflows.
+					</p>
+					<div class="checkpoint">Checkpoint: 29 core routes, one public boundary.</div>
+				</article>
+				<article class="flow-step">
+					<span class="step-no">Phase 3</span>
+					<h3>Split UI orchestration</h3>
+					<p>
+						Extract pure helpers, then per-instance rune controllers, then focused
+						markup for four 1,000-line surfaces.
+					</p>
+					<div class="checkpoint">Checkpoint: parity at 375 and 1280, no shared state.</div>
+				</article>
+				<article class="flow-step">
+					<span class="step-no">Phase 4</span>
+					<h3>Enforce and simplify</h3>
+					<p>
+						Turn import rules into failures, remove transitional names and aliases,
+						document the proven structure, and run both-account release gates.
+					</p>
+					<div class="checkpoint">Checkpoint: smaller than transition, ready for beta.</div>
+				</article>
+			</div>
+		</section>
+
+		<section aria-labelledby="architecture-title">
+			<div class="section-head">
+				<h2 id="architecture-title">The target boundary</h2>
+				<p>
+					Domains own local behavior. Workflows own cross-domain transactions and external
+					ordering. Routes and AI remain adapters. This avoids both circular dependencies
+					and a generic repository layer the SQLite app does not need.
+				</p>
+			</div>
+			<div class="architecture" aria-label="Target dependency direction">
+				<article class="arch-node">
+					<div>
+						<h3>Entry adapters</h3>
+						<ul>
+							<li>Svelte page/controller</li>
+							<li>HTTP route</li>
+							<li>AI tool executor</li>
+						</ul>
+					</div>
+					<p>Validate, authorize, translate. Do not own business transactions.</p>
+				</article>
+				<div class="arrow" aria-hidden="true">→</div>
+				<article class="arch-node primary">
+					<div>
+						<h3>Domains + workflows</h3>
+						<ul>
+							<li>Inventory</li>
+							<li>Recipes</li>
+							<li>Meal plan</li>
+							<li>Shopping</li>
+							<li>Cross-domain workflows</li>
+						</ul>
+					</div>
+					<p>One use-case entry, typed results/errors, explicit transaction owner.</p>
+				</article>
+				<div class="arrow" aria-hidden="true">→</div>
+				<article class="arch-node">
+					<div>
+						<h3>Persistence + integrations</h3>
+						<ul>
+							<li>Drizzle / SQLite</li>
+							<li>AH adapter</li>
+							<li>LLM adapter</li>
+						</ul>
+					</div>
+					<p>Concrete infrastructure stays concrete and test-replaceable.</p>
+				</article>
+			</div>
+			<div class="callout">
+				<strong>Boundary rule:</strong> domain modules never import another domain.
+				`workflows/` owns cooking, shopping reconciliation, and AH push ordering. The import
+				guard applies to core kitchen routes and AI domain executors—not unrelated auth or
+				settings infrastructure.
+			</div>
+		</section>
+
+		<section aria-labelledby="tickets-title">
+			<div class="section-head">
+				<h2 id="tickets-title">Eleven reversible tickets</h2>
+				<p>
+					Each ticket has one observable boundary or user surface. An incomplete vertical
+					slice is reverted; it does not leave a forwarding alias or dual write path.
+				</p>
+			</div>
+			<div class="ticket-list">
+				<article class="ticket">
+					<div class="ticket-code">DBR-1</div>
+					<h3>Core-journey characterization</h3>
+					<p>Deterministic isolated fixtures and success/recovery journeys for all five core surfaces.</p>
+					<div class="ticket-meta"><span class="pill">R1</span><span class="pill">L</span><span class="pill">no provider calls</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-2</div>
+					<h3>DB types + dependency contract</h3>
+					<p>One `Db`/`DbOrTx` owner, domain/workflow skeletons, import inventory in reporting mode.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">M</span><span class="pill">wide sweep</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-3</div>
+					<h3>Inventory vertical boundary</h3>
+					<p>HTTP and AI converge on commands/queries for writes, history, preconditions, review, and undo.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">L</span><span class="pill">fault injection</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-4</div>
+					<h3>Recipe + meal boundary</h3>
+					<p>Recipe CRUD, composition, images, ingestion persistence, freeze/consume, and reconciliation.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">L</span><span class="pill">Dutch seam</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-5</div>
+					<h3>Meal-plan + cooking workflows</h3>
+					<p>Week bucketing, servings, cooking/un-cooking, frozen stock, cook log, and shopping effects.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">L</span><span class="pill">one tx owner</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-6</div>
+					<h3>Shopping + AH workflow</h3>
+					<p>Materialization, choices, preview freshness, external uncertainty, history, and bought state.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">L</span><span class="pill">mocked AH</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-7</div>
+					<h3>Stock controller split</h3>
+					<p>Per-instance state/actions for filters, quantity coalescing, edits, links, undo, and history.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">L</span><span class="pill">two-instance test</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-8</div>
+					<h3>Meal Plan controller split</h3>
+					<p>Optimistic ledger state, week navigation, suggestions, serving/source changes, and sheets.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">L</span><span class="pill">focus parity</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-9</div>
+					<h3>Shopping state-machine split</h3>
+					<p>Bought/undo focus, filters, source/rule sheet handoff, recurring and legacy states.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">L</span><span class="pill">keyboard flow</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-10</div>
+					<h3>Cook Mode controller split</h3>
+					<p>Timers, lifecycle, audio, wake lock, persistence, swaps, servings, and mark-cooked.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">L</span><span class="pill">fake time</span></div>
+				</article>
+				<article class="ticket">
+					<div class="ticket-code">DBR-11</div>
+					<h3>Enforce, simplify, release</h3>
+					<p>Hard import guards, no aliases, architecture docs, both-account E2E, complete release gate.</p>
+					<div class="ticket-meta"><span class="pill r2">R2</span><span class="pill">M</span><span class="pill">no migration diff</span></div>
+				</article>
+			</div>
+		</section>
+
+		<section aria-labelledby="risk-title">
+			<div class="section-head">
+				<h2 id="risk-title">What can go wrong</h2>
+				<p>
+					The internal critique is GO because the highest-impact failure modes are turned
+					into sequencing rules and tests, not reminders.
+				</p>
+			</div>
+			<div class="risk-grid">
+				<article class="risk">
+					<h3><span>Server</span> Folder shuffle masquerades as architecture</h3>
+					<p>Migrate every caller and delete the old path in the same ticket. The import guard makes bypasses observable.</p>
+				</article>
+				<article class="risk">
+					<h3><span>Data</span> A transaction splits during extraction</h3>
+					<p>One workflow owns multi-domain transactions; domain commands accept `DbOrTx`; fault injection proves rollback.</p>
+				</article>
+				<article class="risk">
+					<h3><span>AH</span> Uncertain external writes become generic errors</h3>
+					<p>Keep explicit result states, history ordering, known-success bought state, and a hard ban on automatic retry.</p>
+				</article>
+				<article class="risk">
+					<h3><span>Invariant</span> English display names reach AH</h3>
+					<p>A Dutch-specific purchase DTO plus divergent Dutch/English fixtures blocks the wrong field at the boundary.</p>
+				</article>
+				<article class="risk">
+					<h3><span>AI</span> Confirmation or preconditions move below the seam</h3>
+					<p>The commit-risk gate stays above domain execution; HTTP/AI effect contracts prove the shared command.</p>
+				</article>
+				<article class="risk">
+					<h3><span>Svelte</span> Rune state leaks between instances</h3>
+					<p>Use per-component factories and reactive object properties—not module singletons or exported reassigned `$state`.</p>
+				</article>
+				<article class="risk">
+					<h3><span>UX</span> Focus, undo, or resume breaks after markup moves</h3>
+					<p>Characterize first; extract pure logic, then controllers, then markup; verify populated and error states at both viewports.</p>
+				</article>
+				<article class="risk">
+					<h3><span>Scope</span> Refactor absorbs redesign and features</h3>
+					<p>Visible changes stay out. Record them separately after parity, so rollback and root-cause evidence remain clean.</p>
+				</article>
+			</div>
+			<div class="audit-strip" aria-label="Audit record">
+				<div class="audit"><strong>Hardening</strong><p>P1 execution gap: no core browser journeys. Fixed by DBR-1 before structural work.</p></div>
+				<div class="audit"><strong>UI</strong><p>Empty primary routes pass 375/1280 overflow, H1, and console checks. Populated states remain pending.</p></div>
+				<div class="audit"><strong>UX</strong><p>Optimistic, undo, sheet, focus, and resume flows need executable characterization.</p></div>
+				<div class="audit"><strong>Stack</strong><p>No new dependency or service. Svelte 5 `.svelte.ts` constraints are reflected in the controller contract.</p></div>
+			</div>
+		</section>
+
+		<section id="decisions" class="decisions" aria-labelledby="decisions-title">
+			<div class="section-head">
+				<h2 id="decisions-title">Review the scope</h2>
+				<p>
+					The defaults are executable without another planning round. Change them only if
+					the desired commitment or product-change boundary differs.
+				</p>
+			</div>
+
+			<div class="decision-grid">
+				<fieldset>
+					<legend>How far should `$run` go?</legend>
+					<p class="context">
+						Source: “Open Questions” and “Option comparison.” The server checkpoint can
+						stand alone, but stopping there leaves the four UI orchestration bottlenecks.
+					</p>
+					<label class="option">
+						<input type="radio" name="scope" value="full" checked />
+						<span>
+							<span class="recommended">Recommended</span>
+							<strong>Execute all four phases</strong>
+							<span>Removes both server and UI ownership debt. Longest commitment, but every phase is separately revertible.</span>
+						</span>
+					</label>
+					<label class="option">
+						<input type="radio" name="scope" value="server" />
+						<span>
+							<strong>Stop after Phase 2</strong>
+							<span>Removes the data/transaction risk first. Leaves four large UI state machines for a later plan.</span>
+						</span>
+					</label>
+					<label class="option">
+						<input type="radio" name="scope" value="protect" />
+						<span>
+							<strong>Characterization only</strong>
+							<span>Buys safety evidence with the smallest initial commitment, but does not reduce architecture debt.</span>
+						</span>
+					</label>
+					<label class="note-label" for="scope-note">Clarification or override note</label>
+					<textarea id="scope-note" placeholder="Optional. Preserved verbatim in the handoff prompt."></textarea>
+				</fieldset>
+
+				<fieldset>
+					<legend>May visible behavior change?</legend>
+					<p class="context">
+						Source: “Behavior and safety invariants.” Mixing redesign with structural
+						movement weakens parity evidence and rollback.
+					</p>
+					<label class="option">
+						<input type="radio" name="parity" value="strict" checked />
+						<span>
+							<span class="recommended">Recommended</span>
+							<strong>Strict parity</strong>
+							<span>Record visible improvements separately. Best regression signal and cleanest rollback.</span>
+						</span>
+					</label>
+					<label class="option">
+						<input type="radio" name="parity" value="named" />
+						<span>
+							<strong>Allow only named changes</strong>
+							<span>Permits an explicit, bounded exception. The exact change and acceptance proof must be written below before `$run`.</span>
+						</span>
+					</label>
+					<label class="option">
+						<input type="radio" name="parity" value="open" />
+						<span>
+							<strong>Allow opportunistic cleanup</strong>
+							<span>Broadest freedom, but makes regressions harder to separate from intentional product changes. Not recommended.</span>
+						</span>
+					</label>
+					<label class="note-label" for="parity-note">Named change or clarification</label>
+					<textarea id="parity-note" placeholder="Required if you allow a named visible change. Preserved verbatim."></textarea>
+				</fieldset>
+			</div>
+
+			<div class="prompt-zone">
+				<h3>Generated handoff</h3>
+				<p>
+					This prompt is forward-only. It points the next agent to the authoritative
+					Markdown plan and includes the decisions, rationale, uncertainty, consequences,
+					and your notes without requiring this HTML.
+				</p>
+				<textarea id="prompt" readonly aria-label="Generated handoff prompt"></textarea>
+				<div class="actions">
+					<button class="button" id="copy" type="button">Copy handoff</button>
+					<button class="button secondary" id="reset" type="button">Reset defaults</button>
+					<span class="storage-status" id="storage-status" role="status"></span>
+				</div>
+			</div>
+		</section>
+
+		<p class="source">
+			Authoritative source:
+			<code>docs/feature-lists/FEATURE_LIST_DOMAIN_BOUNDARY_REFACTOR.md</code>.
+			This HTML is a review workspace, not execution state.
+		</p>
+	</main>
+
+	<script>
+		(() => {
+			"use strict";
+			const artifactPath = "docs/artifacts/2026-07-27-plan-domain-boundary-refactor.html";
+			const sourcePath = "docs/feature-lists/FEATURE_LIST_DOMAIN_BOUNDARY_REFACTOR.md";
+			const storageKey = `${artifactPath}::schema-v1`;
+			const prompt = document.getElementById("prompt");
+			const storageStatus = document.getElementById("storage-status");
+			const scopeNote = document.getElementById("scope-note");
+			const parityNote = document.getElementById("parity-note");
+
+			const scopeOptions = {
+				full: {
+					label: "Execute all four phases",
+					recommendation: "recommended default",
+					rationale: "This removes both the server data/transaction boundary debt and the four UI orchestration bottlenecks while preserving a working checkpoint after Phase 2.",
+					consequence: "Eleven tickets execute sequentially; each phase is independently test-gated and revertible."
+				},
+				server: {
+					label: "Stop after Phase 2",
+					recommendation: "override",
+					rationale: "This prioritizes the highest data-integrity risk and shortens the first execution commitment.",
+					consequence: "Core HTTP/AI/domain boundaries ship, but four 1,000-line UI state machines remain and require a later plan."
+				},
+				protect: {
+					label: "Characterization only",
+					recommendation: "override",
+					rationale: "This buys executable regression evidence with the least immediate structural change.",
+					consequence: "DBR-1 ships, but the direct DB/schema and UI ownership debt remains."
+				}
+			};
+
+			const parityOptions = {
+				strict: {
+					label: "Strict parity",
+					recommendation: "recommended default",
+					rationale: "Keeping visible product changes out preserves the strongest regression signal and cleanest code rollback.",
+					consequence: "Any UI/copy/feature improvement discovered during extraction is recorded for a separate plan."
+				},
+				named: {
+					label: "Allow only named visible changes",
+					recommendation: "override",
+					rationale: "A bounded exception may be worth combining only when its expected outcome and acceptance proof are explicit before execution.",
+					consequence: "The note below becomes binding scope; unnamed opportunistic cleanup remains excluded."
+				},
+				open: {
+					label: "Allow opportunistic cleanup",
+					recommendation: "not recommended",
+					rationale: "This maximizes local freedom but weakens parity evidence by mixing structural and product changes.",
+					consequence: "Regression diagnosis and per-ticket rollback become materially less reliable."
+				}
+			};
+
+			function selected(name) {
+				return document.querySelector(`input[name="${name}"]:checked`).value;
+			}
+
+			function clean(value) {
+				return value.trim() || "(no note)";
+			}
+
+			function state() {
+				return {
+					scope: selected("scope"),
+					parity: selected("parity"),
+					scopeNote: scopeNote.value,
+					parityNote: parityNote.value
+				};
+			}
+
+			function save() {
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state()));
+					storageStatus.textContent = "Selections saved on this device.";
+				} catch {
+					storageStatus.textContent = "Selections work for this session but could not be saved.";
+				}
+			}
+
+			function restore() {
+				try {
+					const raw = localStorage.getItem(storageKey);
+					if (!raw) {
+						storageStatus.textContent = "Defaults selected; changes save on this device.";
+						return;
+					}
+					const saved = JSON.parse(raw);
+					if (scopeOptions[saved.scope]) {
+						document.querySelector(`input[name="scope"][value="${saved.scope}"]`).checked = true;
+					}
+					if (parityOptions[saved.parity]) {
+						document.querySelector(`input[name="parity"][value="${saved.parity}"]`).checked = true;
+					}
+					scopeNote.value = typeof saved.scopeNote === "string" ? saved.scopeNote : "";
+					parityNote.value = typeof saved.parityNote === "string" ? saved.parityNote : "";
+					storageStatus.textContent = "Saved selections restored.";
+				} catch {
+					storageStatus.textContent = "Saved selections were unavailable; defaults are active.";
+				}
+			}
+
+			function renderPrompt() {
+				const current = state();
+				const scope = scopeOptions[current.scope];
+				const parity = parityOptions[current.parity];
+				prompt.value = [
+					`Load ${sourcePath} in full, then continue with $run.`,
+					"",
+					"Goal and current state:",
+					"- Execute the Plan-ready Domain Boundary Refactor for the beta SvelteKit/SQLite app.",
+					"- Baseline evidence in the plan is green: 445 unit tests, four auth browser checks, zero Svelte diagnostics, production build passes, and zero production dependency advisories.",
+					"- The selected architecture is seam-first: characterize behavior; migrate inventory, recipes, meal plan, and shopping/AH vertically into domains plus cross-domain workflows; then split four UI orchestrators; finally enforce import rules and remove transitional structure.",
+					"- Overall risk is R2 code-only wide-sweep work. Schema, auth, destructive data work, provider changes, new dependencies, real paid-provider calls, and real AH writes are excluded.",
+					"- Preserve the append-only migration journal, Dutch-only AH lookup seam, the single runtime LLM SDK import in ai/client.ts, model resolution, spend/confirmation/precondition behavior, and per-instance Svelte state.",
+					"",
+					"Decision 1 — execution scope (source: Open Questions / Option comparison):",
+					`- Selected: ${scope.label} (${scope.recommendation}).`,
+					`- Recommendation rationale: ${scope.rationale}`,
+					`- Practical consequence: ${scope.consequence}`,
+					"- Assumptions/evidence: Phase 2 is a valid server checkpoint; all four UI files exceed 1,000 lines and mix state, fetch, rollback, focus, and rendering; DBR-1 characterization is reusable by either scope.",
+					"- Uncertainty: effort may change after DBR-1 exposes hidden journey states, but the checkpoint order and no-dual-path rule remain binding.",
+					`- User note (verbatim): ${clean(current.scopeNote)}`,
+					"",
+					"Decision 2 — visible product behavior (source: Behavior and safety invariants / Open Questions):",
+					`- Selected: ${parity.label} (${parity.recommendation}).`,
+					`- Recommendation rationale: ${parity.rationale}`,
+					`- Practical consequence: ${parity.consequence}`,
+					"- Assumptions/evidence: current empty primary routes render without overflow or console errors at 375 and 1280; populated, error, undo, focus, and resume states must be characterized before movement.",
+					"- Uncertainty: extraction may reveal genuine bugs. Under strict parity, record them separately unless they block faithful extraction or safe verification.",
+					`- User note (verbatim): ${clean(current.parityNote)}`,
+					"",
+					"Execution constraints and follow-up:",
+					"- Start with DBR-1. Do not begin production file moves until core journey characterization is green for the isolated primary and secondary accounts.",
+					"- Execute one ticket/slice at a time. Migrate every caller and delete the old implementation in the same slice; revert an incomplete slice instead of leaving forwarding aliases.",
+					"- Domain modules do not import other domains. workflows/ owns cross-domain transactions and AH ordering.",
+					"- Use mocked AH adapters and test-only provider configuration. Do not make a real basket or paid LLM call.",
+					"- If schema or auth work becomes necessary, stop that ticket and split the new R3 work; do not mix it into this plan.",
+					"- After every ticket, run its focused proof and the plan's required full gate before continuing. Finish with primary and secondary E2E, check, build, npm test, production audit, no migration diff, and git diff --check.",
+					"- Retain requested follow-up: visible improvements excluded by the chosen parity rule should be recorded for a separate plan after this refactor ships."
+				].join("\n");
+			}
+
+			function update() {
+				renderPrompt();
+				save();
+			}
+
+			document.querySelectorAll('input[type="radio"], textarea:not([readonly])').forEach((element) => {
+				element.addEventListener("input", update);
+				element.addEventListener("change", update);
+			});
+
+			document.getElementById("copy").addEventListener("click", async () => {
+				renderPrompt();
+				try {
+					await navigator.clipboard.writeText(prompt.value);
+					storageStatus.textContent = "Handoff copied.";
+				} catch {
+					prompt.focus();
+					prompt.select();
+					storageStatus.textContent = "Clipboard unavailable. The handoff is selected; copy it manually.";
+				}
+			});
+
+			document.getElementById("reset").addEventListener("click", () => {
+				document.querySelector('input[name="scope"][value="full"]').checked = true;
+				document.querySelector('input[name="parity"][value="strict"]').checked = true;
+				scopeNote.value = "";
+				parityNote.value = "";
+				try { localStorage.removeItem(storageKey); } catch {}
+				renderPrompt();
+				save();
+				storageStatus.textContent = "Defaults restored.";
+			});
+
+			restore();
+			renderPrompt();
+		})();
+	</script>
+</body>
+</html>
