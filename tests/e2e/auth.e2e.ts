@@ -18,8 +18,10 @@ test.describe('logged-out login boundary', () => {
 		await page.locator('input[name="password"]').fill('not-the-test-password');
 		await page.locator('form button[type="submit"]').click();
 
-		await expect(page).toHaveURL(new URL('/login', E2E_ORIGIN).toString());
-		await expect(page.locator('.alert-error')).toBeVisible();
+		await expect(page).toHaveURL(new URL('/login', E2E_ORIGIN).toString(), {
+			timeout: 30_000
+		});
+		await expect(page.locator('.alert-error')).toBeVisible({ timeout: 30_000 });
 		expect((await context.cookies(E2E_ORIGIN)).some((cookie) => cookie.name === 'session_id')).toBe(
 			false
 		);

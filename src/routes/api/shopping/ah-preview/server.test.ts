@@ -14,8 +14,11 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/server/db/index', () => ({ get db() { return state.db; } }));
-vi.mock('$lib/server/shopping_view', () => ({ getShoppingWeekView: () => state.view }));
-vi.mock('$lib/server/shopping_entries', () => ({
+vi.mock('$lib/server/domains/shopping', async (importOriginal) => ({
+	...(await importOriginal<typeof import('$lib/server/domains/shopping')>()),
+	getShoppingWeekView: () => state.view
+}));
+vi.mock('$lib/server/workflows/reconcile-shopping', () => ({
 	initializeShoppingSourceData: vi.fn(),
 	materializeShoppingWeek: vi.fn()
 }));
@@ -24,7 +27,12 @@ vi.mock('$lib/server/ah/ai_pick', () => ({ aiArchetypePicks: state.aiArchetypePi
 vi.mock('$lib/server/ah/client', () => ({
 	searchProducts: state.searchProducts,
 	getProductsByIds: state.getProductsByIds,
+	getActiveOrder: vi.fn(),
+	addProductItems: vi.fn(),
+	addFreetextItems: vi.fn(),
+	addProductsToOrder: vi.fn(),
 	getAHStatus: () => ({ connected: true, memberName: 'Test household' }),
+	AHNotConnectedError: class extends Error {},
 	AH_NOT_CONNECTED: 'not_connected'
 }));
 

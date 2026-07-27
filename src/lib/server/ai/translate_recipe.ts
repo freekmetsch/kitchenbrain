@@ -1,4 +1,3 @@
-import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import {
 	createMessage,
@@ -10,7 +9,11 @@ import {
 } from '$lib/server/ai/client';
 import { getBackgroundModel } from '$lib/server/ai/config';
 import { db } from '$lib/server/db/index';
-import { recipes, type Ingredient } from '$lib/server/db/schema';
+import type { Ingredient } from '$lib/server/db/schema';
+import {
+	getRecipeBySlug,
+	updateRecipeTranslationCache
+} from '$lib/server/domains/recipes';
 
 const TranslationSchema = z.object({
 	title_en: z.string().min(1),
@@ -39,7 +42,7 @@ const TranslationSchema = z.object({
 });
 
 function fallbackRecipe(slug: string) {
-	return db.select().from(recipes).where(eq(recipes.slug, slug)).get() ?? null;
+	return getRecipeBySlug(db, slug) ?? null;
 }
 
 export function numericTokens(value: string): string[] {
@@ -122,9 +125,10 @@ export async function translateRecipe(slug: string, opts: { force?: boolean } = 
 			}
 		}
 
-		const updated = db
-			.update(recipes)
-			.set({
+		const updated = updateRecipeTranslationCache(db, {
+			recipeId: recipe.id,
+			expectedRevision: recipe.contentRevision,
+			changes: {
 				titleEn: translated.title_en,
 				categoryEn: translated.category_en,
 				cuisineEn: translated.cuisine_en,
@@ -133,18 +137,25 @@ export async function translateRecipe(slug: string, opts: { force?: boolean } = 
 				directionsEn: translated.directions_en,
 				translationStatus: 'ready',
 				translatedAt: new Date(),
-				updatedAt: new Date()
-			})
-			.where(and(eq(recipes.id, recipe.id), eq(recipes.contentRevision, recipe.contentRevision)))
-			.returning()
-			.get();
+			}
+		});
 		return updated ?? fallbackRecipe(slug);
 	} catch (err) {
 		console.error('[translate_recipe] failed', slug, err);
-		db.update(recipes)
-			.set({ translationStatus: 'error', translatedAt: new Date(), updatedAt: new Date() })
-			.where(and(eq(recipes.id, recipe.id), eq(recipes.contentRevision, recipe.contentRevision)))
-			.run();
+		updateRecipeTranslationCache(db, {
+			recipeId: recipe.id,
+			expectedRevision: recipe.contentRevision,
+			changes: {
+				titleEn: recipe.titleEn,
+				categoryEn: recipe.categoryEn,
+				cuisineEn: recipe.cuisineEn,
+				notesEn: recipe.notesEn,
+				ingredientsEn: recipe.ingredientsEn,
+				directionsEn: recipe.directionsEn,
+				translationStatus: 'error',
+				translatedAt: new Date()
+			}
+		});
 		return fallbackRecipe(slug);
 	}
 }

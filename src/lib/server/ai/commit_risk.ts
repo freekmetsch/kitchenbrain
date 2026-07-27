@@ -10,19 +10,21 @@
 // Everything else stays `free`. When `confirm`, we also capture the exact
 // current state of the target so the approval endpoint can refuse a stale
 // approval (the item changed underneath) rather than blindly overwrite it.
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { isKind, type Kind } from '$lib/food_class';
-import { findExistingItem } from '$lib/server/inventory_merge';
-import { resolveInventoryTarget, toSnapshot, type WritePrecondition } from '$lib/server/inventory_writes';
+import { findExistingItem } from '$lib/server/domains/inventory/merge';
+import {
+	resolveInventoryTarget,
+	toSnapshot,
+	type WritePrecondition
+} from '$lib/server/domains/inventory/commands';
 import {
 	chatQuantityLabel,
 	commitRiskDeleteSummary,
 	commitRiskMergeSummary,
 	type ChatLocale
 } from '$lib/chat/tool_copy';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 /** Threaded through one chat request's tool loop; feeds the risk decisions. */
 export type TurnExecutionContext = {

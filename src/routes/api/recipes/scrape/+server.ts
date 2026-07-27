@@ -1,12 +1,11 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { db } from '$lib/server/db/index';
 import {
 	scrapeRecipeFromUrl,
-	insertScrapedRecipe,
 	RecipeIngestError
 } from '$lib/server/ai/recipe_ingest';
+import { saveImportedRecipeForApp } from '$lib/server/workflows/import-recipe';
 import { readJsonBody } from '$lib/server/api_body';
 
 // HTTP status per ingest failure mode (blocked URL / fetch upstream / AI extraction / no title).
@@ -32,6 +31,6 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		throw err;
 	}
 
-	const saved = insertScrapedRecipe(db, recipeData);
+	const saved = saveImportedRecipeForApp(recipeData);
 	return json({ slug: saved.slug, title: saved.title });
 };

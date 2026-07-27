@@ -5,7 +5,7 @@ import { db } from '$lib/server/db/index';
 import { claimPendingAction } from '$lib/server/ai/pending_actions';
 import { executeToolCall, isOk } from '$lib/server/ai/executors';
 import { buildToolDisplay } from '$lib/server/ai/tool_display';
-import { PreconditionConflictError } from '$lib/server/inventory_writes';
+import { PreconditionConflictError } from '$lib/server/domains/inventory/commands';
 import { readJsonBody } from '$lib/server/api_body';
 import { getLocale } from '$lib/paraglide/runtime';
 

@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
-import { applyRecipeEnhancement, clearRecipeEnhancementsForTest, stageRecipeEnhancement } from './recipe_enhancement';
+import { clearRecipeEnhancementsForTest, stageRecipeEnhancement } from './recipe_enhancement';
+import {
+	applyRecipeEnhancement,
+	createRecipeEnhancementService
+} from '$lib/server/workflows/recipe-enhancement';
 
 function setup() {
 	const db = createTestDb();
@@ -15,7 +19,7 @@ describe('recipe enhancement proposals', () => {
 
 	it('stages without writing and mints ai_accepted only on apply', () => {
 		const { db, recipe } = setup();
-		const proposal = stageRecipeEnhancement(db, { recipeSlug: recipe.slug, userId: 1 }, {
+		const proposal = stageRecipeEnhancement(recipe, { userId: 1 }, {
 			additions: [{ name: 'peterselie', amount: '1', unit: 'bos', reason: 'fris' }],
 			substitutes: [{ ingredientId: 'ui', name: 'sjalot', reason: 'milder' }]
 		});
@@ -28,7 +32,7 @@ describe('recipe enhancement proposals', () => {
 
 	it('rejects apply after another canonical edit', () => {
 		const { db, recipe } = setup();
-		const proposal = stageRecipeEnhancement(db, { recipeSlug: recipe.slug, userId: 1 }, { additions: [{ name: 'prei', amount: '1', reason: 'groente' }], substitutes: [] });
+		const proposal = stageRecipeEnhancement(recipe, { userId: 1 }, { additions: [{ name: 'prei', amount: '1', reason: 'groente' }], substitutes: [] });
 		db.update(schema.recipes).set({ contentRevision: recipe.contentRevision + 1 }).run();
 		expect(() => applyRecipeEnhancement(db, { token: proposal.token, userId: 1, additions: [{ id: proposal.additions[0].id, need: 'optional' }], substituteIds: [], actor: 'test' })).toThrow('Recipe changed');
 	});
@@ -36,20 +40,38 @@ describe('recipe enhancement proposals', () => {
 	it('rejects model output when the recipe changed during generation', () => {
 		const { db, recipe } = setup();
 		db.update(schema.recipes).set({ contentRevision: recipe.contentRevision + 1 }).run();
-		expect(() => stageRecipeEnhancement(db, {
-			recipeSlug: recipe.slug, userId: 1,
+		expect(() => stageRecipeEnhancement(
+			db.select().from(schema.recipes).get()!,
+			{
+			userId: 1,
 			expectedRecipeId: recipe.id, expectedRecipeRevision: recipe.contentRevision
-		}, { additions: [], substitutes: [] })).toThrow('Recipe changed');
+			},
+			{ additions: [], substitutes: [] }
+		)).toThrow('Recipe changed');
+	});
+
+	it('rechecks the canonical recipe after asynchronous generation', async () => {
+		const { db, recipe } = setup();
+		const service = createRecipeEnhancementService(db, async () => {
+			db.update(schema.recipes)
+				.set({ contentRevision: recipe.contentRevision + 1 })
+				.run();
+			return { additions: [], substitutes: [] };
+		});
+
+		await expect(
+			service.generate({ recipeSlug: recipe.slug, userId: 1 })
+		).rejects.toThrow('Recipe changed');
 	});
 
 	it('applies only selected suggestions and leaves an empty apply unchanged', () => {
 		const { db, recipe } = setup();
-		const empty = stageRecipeEnhancement(db, { recipeSlug: recipe.slug, userId: 1 }, {
+		const empty = stageRecipeEnhancement(recipe, { userId: 1 }, {
 			additions: [{ name: 'prei', amount: '1', reason: 'groente' }], substitutes: []
 		});
 		expect(applyRecipeEnhancement(db, { token: empty.token, userId: 1, additions: [], substituteIds: [], actor: 'test' })).toMatchObject({ appliedAdditions: 0, recipeRevision: recipe.contentRevision });
 
-		const selected = stageRecipeEnhancement(db, { recipeSlug: recipe.slug, userId: 1 }, {
+		const selected = stageRecipeEnhancement(recipe, { userId: 1 }, {
 			additions: [
 				{ name: 'prei', amount: '1', reason: 'groente' },
 				{ name: 'selderij', amount: '2', reason: 'groente' }
@@ -62,7 +84,7 @@ describe('recipe enhancement proposals', () => {
 
 	it('rejects expired and cross-user proposals and removes duplicate suggestions', () => {
 		const { db, recipe } = setup();
-		const proposal = stageRecipeEnhancement(db, { recipeSlug: recipe.slug, userId: 1 }, {
+		const proposal = stageRecipeEnhancement(recipe, { userId: 1 }, {
 			additions: [{ name: 'ui', amount: '2', reason: 'duplicate' }],
 			substitutes: [
 				{ ingredientId: 'ui', name: 'sjalot', reason: 'milder' },
@@ -73,13 +95,13 @@ describe('recipe enhancement proposals', () => {
 		expect(proposal.substitutes).toHaveLength(1);
 		expect(() => applyRecipeEnhancement(db, { token: proposal.token, userId: 2, additions: [], substituteIds: [], actor: 'test' })).toThrow(/another user/);
 
-		const expired = stageRecipeEnhancement(db, { recipeSlug: recipe.slug, userId: 1 }, { additions: [], substitutes: [] }, 0);
+		const expired = stageRecipeEnhancement(recipe, { userId: 1 }, { additions: [], substitutes: [] }, 0);
 		expect(() => applyRecipeEnhancement(db, { token: expired.token, userId: 1, additions: [], substituteIds: [], actor: 'test' })).toThrow(/expired/);
 	});
 
 	it('stores a usually-stocked accepted addition as a household staple', () => {
 		const { db, recipe } = setup();
-		const proposal = stageRecipeEnhancement(db, { recipeSlug: recipe.slug, userId: 1 }, {
+		const proposal = stageRecipeEnhancement(recipe, { userId: 1 }, {
 			additions: [{ name: 'bouillonblokje', amount: '1', reason: 'smaak' }], substitutes: []
 		});
 		applyRecipeEnhancement(db, { token: proposal.token, userId: 1, additions: [{ id: proposal.additions[0].id, need: 'stocked' }], substituteIds: [], actor: 'test' });

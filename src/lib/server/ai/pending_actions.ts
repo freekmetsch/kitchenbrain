@@ -10,7 +10,7 @@
 // `pending_actions` table is the documented upgrade path if this ever
 // multi-instances (a claim would then need a DB-level atomic delete).
 import { randomBytes } from 'crypto';
-import type { WritePrecondition } from '$lib/server/inventory_writes';
+import type { WritePrecondition } from '$lib/server/domains/inventory/commands';
 
 export type PendingAction = {
 	userId: number;

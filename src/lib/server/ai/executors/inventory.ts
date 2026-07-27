@@ -1,31 +1,11 @@
 import { z } from 'zod';
-import { eq, and, isNull, isNotNull, like, lte } from 'drizzle-orm';
-import * as schema from '$lib/server/db/schema';
 import { normalizeFoodCategory } from '$lib/food_categories';
-import {
-	addInventory,
-	removeInventory,
-	updateInventory,
-	setReviewFlag,
-	undoOp,
-	undoLatestRemoveForItem
-} from '$lib/server/inventory_writes';
-import { listInventoryHistory } from '$lib/server/inventory_history_query';
-import { dateInputValue, daysSinceDate, parseDateOnly } from '$lib/inventory_dates';
-import { todayIso, addDays } from '$lib/week';
+import { createInventoryService } from '$lib/server/workflows/inventory';
+import { inventoryForAi, listInventory } from '$lib/server/domains/inventory/queries';
+import { recipeIdForSlug } from '$lib/server/domains/inventory/freezer';
+import { dateInputValue, parseDateOnly } from '$lib/inventory_dates';
 import { isoDateSchema } from '$lib/date_schema';
 import type { DB, ExecutorFn } from './shared';
-
-type InventoryItem = typeof schema.inventoryItems.$inferSelect;
-
-function inventoryForAi(item: InventoryItem) {
-	const { tags: _tags, ...rest } = item;
-	return {
-		...rest,
-		added_date: dateInputValue(item.createdAt),
-		days_in_inventory: daysSinceDate(item.createdAt)
-	};
-}
 
 // One source of truth for the updatable-item fields, shared by update_inventory_item
 // and bulk_update_inventory (bulk omits the recipe-linking fields). AH push is
@@ -52,8 +32,7 @@ type SingleUpdateInput = z.infer<typeof singleUpdateSchema>;
 // the exact same write path (and per-item undo op) as a single edit. Returns a
 // self-contained result row so bulk can report partial success.
 function applyInventoryUpdate(db: DB, userId: number, input: SingleUpdateInput) {
-	const result = updateInventory(
-		db,
+	const result = createInventoryService(db).update(
 		input.id,
 		{
 			qtyText: input.qty_text,
@@ -105,42 +84,13 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 				sort: z.enum(['name', 'oldest_added', 'newest_added']).optional()
 			})
 			.parse(raw);
-		const categoryFilter = normalizeFoodCategory(input.category);
-
-		let items = db
-			.select()
-			.from(schema.inventoryItems)
-			.where(
-				and(
-					isNull(schema.inventoryItems.deletedAt),
-					input.section ? eq(schema.inventoryItems.section, input.section) : undefined,
-					categoryFilter ? like(schema.inventoryItems.category, `%${categoryFilter}%`) : undefined,
-					input.expiring_within_days !== undefined
-						? and(
-								isNotNull(schema.inventoryItems.expiryDate),
-								lte(
-									schema.inventoryItems.expiryDate,
-									addDays(todayIso(), input.expiring_within_days!)
-								)
-							)
-						: undefined
-				)
-			)
-			.all();
-
-		if (input.added_before_days !== undefined) {
-			items = items.filter((item) => {
-				const days = daysSinceDate(item.createdAt);
-				return days !== null && days >= input.added_before_days!;
-			});
-		}
-		if (input.sort === 'oldest_added') {
-			items = items.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-		} else if (input.sort === 'newest_added') {
-			items = items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-		} else {
-			items = items.sort((a, b) => a.name.localeCompare(b.name, 'nl'));
-		}
+		const items = listInventory(db, {
+			section: input.section,
+			category: input.category,
+			expiringWithinDays: input.expiring_within_days,
+			addedBeforeDays: input.added_before_days,
+			sort: input.sort
+		});
 		return { count: items.length, items: items.map(inventoryForAi) };
 	},
 
@@ -162,8 +112,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 			})
 			.parse(raw);
 
-		const result = addInventory(
-			db,
+		const result = createInventoryService(db).add(
 			{
 				name: input.name,
 				section: input.section,
@@ -210,8 +159,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 			})
 			.parse(raw);
 
-		const result = removeInventory(
-			db,
+		const result = createInventoryService(db).remove(
 			{ id: input.id, name: input.name, section: input.section },
 			{ actor: 'ai', userId },
 			precondition
@@ -261,13 +209,8 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 
 		let recipeId: number | null = input.recipe_id ?? null;
 		if (recipeId == null && input.recipe_slug) {
-			const recipe = db
-				.select({ id: schema.recipes.id })
-				.from(schema.recipes)
-				.where(eq(schema.recipes.slug, input.recipe_slug))
-				.get();
-			if (!recipe) return { ok: false, error: `Recipe not found: ${input.recipe_slug}` };
-			recipeId = recipe.id;
+			recipeId = recipeIdForSlug(db, input.recipe_slug);
+			if (recipeId == null) return { ok: false, error: `Recipe not found: ${input.recipe_slug}` };
 		}
 
 		const status = input.status ?? (recipeId != null ? 'linked' : undefined);
@@ -278,8 +221,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 			};
 		}
 
-		const result = updateInventory(
-			db,
+		const result = createInventoryService(db).update(
 			input.item_id,
 			{ kind: 'leftover', madeFromRecipeId: recipeId, recipeStatus: status },
 			{ actor: 'ai', userId }
@@ -290,8 +232,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 
 	async set_staple(raw, db, userId) {
 		const input = z.object({ item_id: z.number(), is_staple: z.boolean() }).parse(raw);
-		const result = updateInventory(
-			db,
+		const result = createInventoryService(db).update(
 			input.item_id,
 			{ isStaple: input.is_staple },
 			{ actor: 'ai', userId }
@@ -308,8 +249,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 				reason: z.string().optional()
 			})
 			.parse(raw);
-		const result = setReviewFlag(
-			db,
+		const result = createInventoryService(db).setReviewFlag(
 			input.item_id,
 			input.flagged ? (input.reason ?? 'flagged_by_ai') : null,
 			{ actor: 'ai', userId }
@@ -326,10 +266,11 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 			return { ok: false, error: 'Provide op_id (from get_inventory_history) or item_id' };
 		}
 		const ctx = { actor: 'ai' as const, userId };
+		const inventory = createInventoryService(db);
 		const result =
 			input.op_id !== undefined
-				? undoOp(db, input.op_id, ctx)
-				: undoLatestRemoveForItem(db, input.item_id!, ctx);
+				? inventory.undo(input.op_id, ctx)
+				: inventory.undoLatestRemove(input.item_id!, ctx);
 		// A conflict (item drifted since the op) is not a hard failure: the boundary
 		// flags the item for review instead of overwriting. The failure variant is
 		// already { ok:false, error, conflict? } — pass it straight through.
@@ -343,7 +284,10 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 			.parse(raw);
 		// Chat wants a leaner page than the UI history list (whose default is 40);
 		// 20 recent ops covers "what changed" / "undo that" without bloating context.
-		const events = listInventoryHistory(db, { itemId: input.item_id, limit: input.limit ?? 20 });
+		const events = createInventoryService(db).history({
+			itemId: input.item_id,
+			limit: input.limit ?? 20
+		});
 		return { count: events.length, events };
 	}
 };

@@ -3,7 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { normalizeNameKey } from '$lib/match';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from './test_db';
-import { findOrMergeInventory } from './inventory_merge';
+import { findOrMergeInventory } from './domains/inventory/merge';
 
 function allItems(db: ReturnType<typeof createTestDb>) {
 	return db.select().from(schema.inventoryItems).all();

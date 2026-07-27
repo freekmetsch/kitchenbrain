@@ -4,10 +4,8 @@
 // setting share this one seam instead of each load function hand-rolling its
 // own "select all, find by key" query.
 import { eq, and } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
-
-type DB = BetterSQLite3Database<typeof schema>;
+import type { Db as DB } from '$lib/server/db/types';
 
 export function getUserPref(db: DB, userId: number, key: string): string | null {
 	return (

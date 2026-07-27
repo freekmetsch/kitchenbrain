@@ -2,7 +2,7 @@
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import type { IngredientRoleCoverage } from '$lib/server/recipe_links';
+	import type { IngredientRoleCoverage } from '$lib/server/domains/recipes';
 
 	let {
 		slug,

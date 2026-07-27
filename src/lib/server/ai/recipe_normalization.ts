@@ -1,13 +1,11 @@
 import { and, asc, eq, isNull, lt } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { mergeLiveIngredients, type Ingredient } from '$lib/recipe_ingredient';
 import { checkDailyCap } from '$lib/server/ai/client';
 import { enrichRecipeStructure, type ScrapedRecipe } from '$lib/server/ai/recipe_ingest';
-import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
-import { reconcileShoppingAfterWrite } from '$lib/server/shopping_entries';
-
-type DB = BetterSQLite3Database<typeof schema>;
+import { stageRecipeStructureDraft, updateCanonicalRecipe } from '$lib/server/domains/recipes';
+import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
 
 export type NormalizationBatchResult = {
 	processed: number;
@@ -85,7 +83,7 @@ export async function normalizeLegacyRecipes(
 		);
 		const changed = db.transaction((tx) => {
 			if (proposed.structureVersion === 2) {
-				return updateCanonicalRecipe(tx, {
+				const updated = updateCanonicalRecipe(tx, {
 					recipeId: candidate.id,
 					expectedRevision: candidate.contentRevision,
 					changes: {
@@ -101,23 +99,25 @@ export async function normalizeLegacyRecipes(
 						translationStatus: candidate.language === 'en' ? 'ready' : 'pending',
 						translatedAt: null
 					}
-				}) ? 1 : 0;
+				});
+				if (updated) reconcileShoppingAfterWrite(tx);
+				return updated ? 1 : 0;
 			}
-			return tx.update(schema.recipes).set({
+			return stageRecipeStructureDraft(tx, {
+				recipeId: candidate.id,
+				expectedRevision: candidate.contentRevision,
 				structureDraft: compatibleIngredients,
 				structureDraftSourceUpdatedAt: sourceUpdatedAt,
-				needsReview: true,
-				reviewReason: proposed.enrichmentReviewReason ?? 'Check the proposed ingredient structure.'
-			}).where(and(
-				eq(schema.recipes.id, candidate.id),
-				eq(schema.recipes.contentRevision, candidate.contentRevision)
-			)).run().changes;
+				reviewReason:
+					proposed.enrichmentReviewReason ?? 'Check the proposed ingredient structure.'
+			})
+				? 1
+				: 0;
 		});
 		if (changed === 0) {
 			stale += 1;
 			continue;
 		}
-		if (proposed.structureVersion === 2) reconcileShoppingAfterWrite(db);
 		if (proposed.structureVersion === 2) improved += 1;
 		else needsReview += 1;
 	}

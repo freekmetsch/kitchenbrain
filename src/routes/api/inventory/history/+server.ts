@@ -1,7 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { db } from '$lib/server/db/index';
-import { listInventoryHistory } from '$lib/server/inventory_history_query';
+import { inventoryService } from '$lib/server/workflows/inventory';
 
 // P2.3 read surface: per-item timeline (?item_id=N) or the global recent-activity
 // feed. The enrichment (actor label, human summary, undoability) lives in the
@@ -17,7 +16,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const rawLimit = url.searchParams.get('limit');
 	const parsedLimit = rawLimit ? Number(rawLimit) : NaN;
 
-	const events = listInventoryHistory(db, {
+	const events = inventoryService.history({
 		itemId,
 		limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined
 	});

@@ -377,6 +377,7 @@
 	"inventory_action_undo": "Ongedaan maken",
 	"inventory_toast_undo_failed": "Kon niet ongedaan maken",
 	"inventory_toast_undo_conflict": "Item is intussen gewijzigd — in plaats daarvan gemarkeerd voor controle",
+	"inventory_toast_activity_failed": "Kon activiteit niet laden",
 	"inventory_toast_added": "{name} toegevoegd",
 	"inventory_empty_title": "Voorraad is leeg",
 	"inventory_empty_add_first_button": "Voeg het eerste item toe",

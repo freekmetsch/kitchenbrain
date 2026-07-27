@@ -13,7 +13,7 @@ vi.mock('$lib/server/recipes/prefs', () => ({ getAutoTranslateOnImport: () => fa
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
-import { updateCanonicalRecipe } from '$lib/server/recipe_mutations';
+import { updateCanonicalRecipe } from '$lib/server/domains/recipes';
 import { normalizeLegacyRecipes } from './recipe_normalization';
 
 function seed(db: ReturnType<typeof createTestDb>, slug = 'preisoep') {

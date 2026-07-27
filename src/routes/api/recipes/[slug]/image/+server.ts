@@ -1,32 +1,19 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
-import { rename, unlink } from 'fs/promises';
-import { basename, join } from 'path';
-import { randomUUID } from 'node:crypto';
-import { db } from '$lib/server/db/index';
-import { recipes } from '$lib/server/db/schema';
+import { isSafeImagePathSegment, MAX_IMAGE_BYTES } from '$lib/server/domains/recipes';
 import {
-	MAX_IMAGE_BYTES,
-	getRecipeImagesDir,
-	normalizeRecipeImage
-} from '$lib/server/recipe_images';
-
-// Defense in depth (F19): the slug becomes a filename component below, so
-// reject anything path-like — mirrors the hardened read path in
-// src/routes/recipe-images/[file]/+server.ts.
-function assertSafeSlug(slug: string): void {
-	const safe = basename(slug);
-	if (safe !== slug || safe.startsWith('.') || safe.includes('\\')) {
-		throw error(400, 'Invalid slug');
-	}
-}
+	deleteRecipeImageForApp,
+	getRecipeImageTargetForApp,
+	InvalidRecipeImageError,
+	RecipeImageStoreError,
+	storeRecipeImageForApp
+} from '$lib/server/workflows/recipe-image';
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
-	assertSafeSlug(params.slug);
+	if (!isSafeImagePathSegment(params.slug)) throw error(400, 'Invalid slug');
 
-	const recipe = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
+	const recipe = getRecipeImageTargetForApp(params.slug);
 	if (!recipe) throw error(404, 'Recipe not found');
 
 	let form: FormData;
@@ -40,43 +27,17 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 	if (file.size === 0) throw error(400, 'Empty file');
 	if (file.size > MAX_IMAGE_BYTES) throw error(413, 'Image larger than 5MB');
 
-	const dir = getRecipeImagesDir();
-	const version = Date.now();
-	const filename = `${params.slug}-${version}.webp`;
-	const target = join(dir, filename);
-	const temporary = join(dir, `.${params.slug}-${randomUUID()}.tmp`);
-
-	const buf = Buffer.from(await file.arrayBuffer());
+	let imageUrl: string;
 	try {
-		await normalizeRecipeImage(buf, temporary);
-	} catch {
-		await unlink(temporary).catch(() => undefined);
-		throw error(415, 'The uploaded file is not a valid supported image');
-	}
-	try {
-		await rename(temporary, target);
-	} catch {
-		await unlink(temporary).catch(() => undefined);
-		throw error(500, 'Could not store the image');
-	}
-
-	const imageUrl = `/recipe-images/${filename}`;
-	try {
-		db.update(recipes)
-			.set({ imageUrl, updatedAt: new Date() })
-			.where(eq(recipes.slug, params.slug))
-			.run();
+		imageUrl = await storeRecipeImageForApp(recipe, Buffer.from(await file.arrayBuffer()));
 	} catch (cause) {
-		await unlink(target).catch(() => undefined);
+		if (cause instanceof InvalidRecipeImageError) {
+			throw error(415, cause.message);
+		}
+		if (cause instanceof RecipeImageStoreError) {
+			throw error(500, cause.message);
+		}
 		throw cause;
-	}
-
-	if (recipe.imageUrl?.startsWith('/recipe-images/')) {
-		const oldFilename = basename(recipe.imageUrl.split('?')[0]);
-		if (oldFilename !== filename) await unlink(join(dir, oldFilename)).catch(() => undefined);
-	}
-	for (const legacyExt of ['jpg', 'png', 'webp', 'heic', 'heif']) {
-		await unlink(join(dir, `${params.slug}.${legacyExt}`)).catch(() => undefined);
 	}
 
 	return json({ imageUrl });
@@ -84,23 +45,12 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
-	assertSafeSlug(params.slug);
+	if (!isSafeImagePathSegment(params.slug)) throw error(400, 'Invalid slug');
 
-	const recipe = db.select().from(recipes).where(eq(recipes.slug, params.slug)).get();
+	const recipe = getRecipeImageTargetForApp(params.slug);
 	if (!recipe) throw error(404, 'Recipe not found');
 
-	const dir = getRecipeImagesDir();
-	db.update(recipes)
-		.set({ imageUrl: null, updatedAt: new Date() })
-		.where(eq(recipes.slug, params.slug))
-		.run();
-
-	if (recipe.imageUrl?.startsWith('/recipe-images/')) {
-		await unlink(join(dir, basename(recipe.imageUrl.split('?')[0]))).catch(() => undefined);
-	}
-	for (const ext of ['jpg', 'png', 'webp', 'heic', 'heif']) {
-		await unlink(join(dir, `${params.slug}.${ext}`)).catch(() => undefined);
-	}
+	await deleteRecipeImageForApp(recipe);
 
 	return json({ ok: true });
 };

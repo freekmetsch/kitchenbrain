@@ -1,9 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { db } from '$lib/server/db/index';
-import { removeInventory, updateInventory } from '$lib/server/inventory_writes';
-import { readInventoryItem } from '$lib/server/inventory_merge';
+import { inventoryService } from '$lib/server/workflows/inventory';
 import { parseDateOnly } from '$lib/inventory_dates';
 import { readJsonBody, readPositiveIntParam } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
@@ -29,7 +27,7 @@ const PatchSchema = z.object({
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
-	const item = readInventoryItem(db, readPositiveIntParam(params.id));
+	const item = inventoryService.get(readPositiveIntParam(params.id));
 	if (!item) throw error(404, 'Not found');
 	return json({ item });
 };
@@ -41,8 +39,7 @@ export const PATCH: RequestHandler = async ({ request, params, locals }) => {
 
 	const input = await readJsonBody(request, PatchSchema);
 
-	const result = updateInventory(
-		db,
+	const result = inventoryService.update(
 		id,
 		{
 			name: input.name,
@@ -74,8 +71,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 
 	const id = readPositiveIntParam(params.id);
 
-	const result = removeInventory(
-		db,
+	const result = inventoryService.remove(
 		{ id },
 		{ actor: locals.user.username, userId: locals.user.id }
 	);

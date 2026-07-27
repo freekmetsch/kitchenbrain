@@ -2,12 +2,10 @@
 	Inventory — a meals-first Stock Radar. The full-width olive outcome band and
 	responsive Use next / Still plenty ledger are shared across breakpoints;
 	quantity writes, recipe relationships, editing, review, history, undo, and
-	ghost-row recovery remain owned by this orchestrator.
+	ghost-row recovery are coordinated by one page-local controller.
 -->
 <script lang="ts">
-	import { base } from '$app/paths';
-	import { invalidateAll } from '$app/navigation';
-	import { onMount, tick, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import ActivitySheet from '$lib/components/inventory/ActivitySheet.svelte';
 	import AddItemForm from '$lib/components/inventory/AddItemForm.svelte';
@@ -19,783 +17,18 @@
 	import ItemRow from '$lib/components/inventory/ItemRow.svelte';
 	import LinkRecipeSheet from '$lib/components/inventory/LinkRecipeSheet.svelte';
 	import RecipeRelationshipStatus from '$lib/components/inventory/RecipeRelationshipStatus.svelte';
-	import {
-		composeQty,
-		groupMealStock,
-		matchesInventoryQuickView,
-		matchesInventoryScope,
-		matchesInventoryQuery,
-		recipeCoverage,
-		recipeRelationshipKind
-	} from '$lib/components/inventory/shared';
-	import type {
-		EditDraft,
-		HistoryEvent,
-		InventoryQuickView,
-		InventoryScope,
-		Item,
-		Kind,
-		Section,
-		StockAttention
-	} from '$lib/components/inventory/shared';
+	import { InventoryController } from '$lib/components/inventory/controller.svelte';
+	import type { InventoryScope, Item } from '$lib/components/inventory/shared';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
-	import { rollsUpTo } from '$lib/food_class';
-	import { patchKeepStocked } from '$lib/keep_stocked';
-	import { captureRemoval, restoreRemoval, type RemovedListItem } from '$lib/inventory_undo';
-	import { toast } from '$lib/stores/toast.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	const controller = new InventoryController(() => data);
 	const SCOPES: InventoryScope[] = ['meals', 'ingredients', 'all'];
 
-	// Display-only rename: the DB kind slug stays `leftover`, but these are
-	// intentionally batch-cooked freezer meals, not scraps.
-	function shelfLabel(kind: string): string {
-		if (kind === 'leftover') return m.inventory_shelf_meals();
-		if (kind === 'ingredient') return m.inventory_shelf_ingredients();
-		if (kind === 'processed') return m.inventory_shelf_ready_made();
-		return m.inventory_shelf_unsorted();
-	}
-	// ── state ──────────────────────────────────────────────────────────────────
-	let items = $state<Item[]>(untrack(() => data.items.map((i) => ({ ...i }))));
-
-	let scope = $state<InventoryScope>('meals');
-	let sectionFilter = $state<Section | 'all'>('all');
-	let classFilter = $state<string | null>(null);
-	let reviewOnly = $state(false);
-	let searchQuery = $state('');
-	let quickView = $state<InventoryQuickView | null>(null);
-	let filtersOpen = $state(false);
-	let searchInput = $state<HTMLInputElement>();
-
-	let showAddForm = $state(false);
-	let editingId = $state<number | null>(null);
-	let editSheetOpen = $state(false);
-	let qtyEditId = $state<number | null>(null);
-	let qtyEditVal = $state('');
-
-	let activityOpen = $state(false);
-	let activityLoading = $state(false);
-	let activityEvents = $state<HistoryEvent[]>([]);
-	let historyByItem = $state<Record<number, HistoryEvent[]>>({});
-
-	// edit draft — the keep-stocked fields (UX-STOCK-14) patch the linked
-	// RECIPE, not the item
-	let editDraft = $state<EditDraft>({
-		name: '',
-		qty: null,
-		unit: '',
-		kind: '',
-		section: 'freezer',
-		foodClass: '',
-		expiry: '',
-		staple: false,
-		keepStocked: false,
-		target: null
-	});
-	let editSaving = $state(false);
-
-	// staples strip (P4.4)
-	let stapleOutBusy = $state<number | null>(null);
-	// ids added to this week's shopping list this session (P6.5 — confirmed state)
-	let stapleAdded = $state<number[]>([]);
-
-	// ── derived ────────────────────────────────────────────────────────────────
-	const needsReviewCount = $derived(items.filter((i) => i.needsReview).length);
-	const readyMealCount = $derived(
-		items.filter((item) => matchesInventoryQuickView(item, linkFor(item), 'ready')).length
-	);
-	const belowTargetItems = $derived(
-		items.filter((item) => matchesInventoryQuickView(item, linkFor(item), 'below_target'))
-	);
-	const belowTargetGhosts = $derived(data.stapleGhosts.filter((ghost) => ghost.target !== null));
-	const belowTargetCount = $derived(belowTargetItems.length + belowTargetGhosts.length);
-	const hasActiveFilters = $derived(
-		sectionFilter !== 'all' || classFilter !== null || reviewOnly
-	);
-	const filtered = $derived(
-		items.filter(
-			(i) =>
-				(sectionFilter === 'all' || i.section === sectionFilter) &&
-				(classFilter === null || rollsUpTo(i.foodClass, classFilter)) &&
-				(!reviewOnly || i.needsReview) &&
-				matchesInventoryScope(i, scope) &&
-				matchesInventoryQuickView(i, linkFor(i), quickView) &&
-				matchesInventoryQuery(searchQuery, [
-					i.name,
-					i.unit,
-					i.section,
-					i.kind,
-					i.foodClass,
-					linkFor(i)?.title,
-					shelfLabel(String(bucket(i)))
-				])
-		)
-	);
-	const mealGroups = $derived(groupMealStock(filtered, linkFor, data.todayIso));
-	const visibleMealItems = $derived(filtered.filter((item) => item.kind === 'leftover'));
-	const visibleRecipeCoverage = $derived(recipeCoverage(visibleMealItems));
-	const stockRows = $derived(
-		[...filtered].sort(
-			(a, b) => Number(b.needsReview) - Number(a.needsReview) || a.name.localeCompare(b.name)
-		)
-	);
-	const alternateScopeMatch = $derived(
-		items.some(
-			(item) =>
-				(sectionFilter === 'all' || item.section === sectionFilter) &&
-				(classFilter === null || rollsUpTo(item.foodClass, classFilter)) &&
-				(!reviewOnly || item.needsReview) &&
-				!matchesInventoryScope(item, scope) &&
-				matchesInventoryQuery(searchQuery, [
-					item.name,
-					item.unit,
-					item.section,
-					item.kind,
-					item.foodClass,
-					linkFor(item)?.title,
-					shelfLabel(String(bucket(item)))
-				])
-		)
-	);
-	const editingItem = $derived(
-		editingId === null ? null : (items.find((item) => item.id === editingId) ?? null)
-	);
-
-	function bucket(i: Item): Kind | null {
-		return i.kind === 'leftover' || i.kind === 'ingredient' || i.kind === 'processed' ? i.kind : null;
-	}
-
-	// Ghost rows live in Cook again and are freezer recipes, so they show
-	// only when no filter excludes them (UX-STOCK-14).
-	const ghostsVisible = $derived(
-		scope === 'meals' &&
-		(sectionFilter === 'all' || sectionFilter === 'freezer') &&
-		classFilter === null &&
-		!reviewOnly &&
-		quickView !== 'ready'
-			? (quickView === 'below_target' ? belowTargetGhosts : data.stapleGhosts).filter((ghost) =>
-					matchesInventoryQuery(searchQuery, [
-						ghost.title,
-						m.inventory_shelf_meals(),
-						m.inventory_section_freezer()
-					])
-				)
-			: []
-	);
-	const visibleMealResultCount = $derived(
-		mealGroups.useNext.length +
-			mealGroups.stillPlenty.length +
-			mealGroups.cookAgain.length +
-			ghostsVisible.length
-	);
-	const hasUngroupedMealStock = $derived(
-		scope === 'meals' &&
-			filtered.some(
-				(item) =>
-					item.kind === 'leftover' &&
-					(item.qtyNum ?? 0) <= 0 &&
-					linkFor(item)?.isFreezerStaple !== true
-			)
-	);
-
-	// Home's expiry alert deep-links to the exact row. Open its editor and bring
-	// it into view instead of dropping the user at the top of a generic page.
-	onMount(() => {
-		function handleShortcut(event: KeyboardEvent) {
-			const target = event.target;
-			const isTyping =
-				target instanceof HTMLInputElement ||
-				target instanceof HTMLTextAreaElement ||
-				target instanceof HTMLSelectElement ||
-				(target instanceof HTMLElement && target.isContentEditable);
-			if (event.key === '/' && !isTyping) {
-				event.preventDefault();
-				searchInput?.focus();
-			}
-		}
-		window.addEventListener('keydown', handleShortcut);
-
-		void (async () => {
-			const raw = new URL(window.location.href).searchParams.get('item');
-			const id = raw ? Number(raw) : NaN;
-			const item = Number.isInteger(id) ? items.find((candidate) => candidate.id === id) : undefined;
-			if (!item) return;
-			revealItem(item);
-			openEdit(item);
-			await tick();
-			document.getElementById(`inventory-item-${id}`)?.scrollIntoView({
-				behavior: 'smooth',
-				block: 'center'
-			});
-		})();
-
-		return () => window.removeEventListener('keydown', handleShortcut);
-	});
-
-	// ── server sync ──────────────────────────────────────────────────────────────
-	const SYNC_FIELDS = [
-		'name', 'qtyText', 'qtyNum', 'unit', 'section', 'kind', 'foodClass',
-		'madeFromRecipeId', 'recipeStatus', 'needsReview', 'reviewReason', 'isStaple', 'expiryDate'
-	] as const;
-
-	function applyServer(local: Item, server: Record<string, unknown>) {
-		for (const f of SYNC_FIELDS) if (f in server) (local as Record<string, unknown>)[f] = server[f];
-	}
-
-	function reconcileItem(server: Item & { deletedAt?: unknown }) {
-		if (server.deletedAt) {
-			items = items.filter((i) => i.id !== server.id);
-			return;
-		}
-		const local = items.find((i) => i.id === server.id);
-		if (local) applyServer(local, server as unknown as Record<string, unknown>);
-		else items = [...items, { ...server }];
-	}
-
-	async function requestPatch(item: Item, payload: Record<string, unknown>): Promise<Item | null> {
-		try {
-			const res = await fetch(`${base}/api/inventory/${item.id}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-			if (!res.ok) return null;
-			const { item: updated } = await res.json();
-			return updated as Item;
-		} catch {
-			return null;
-		}
-	}
-
-	async function patch(item: Item, payload: Record<string, unknown>): Promise<boolean> {
-		const updated = await requestPatch(item, payload);
-		if (!updated) return false;
-		try {
-			const local = items.find((i) => i.id === item.id);
-			if (local) applyServer(local, updated);
-			return true;
-		} catch {
-			// Network/parse failure → treat as not-ok so callers run their rollback.
-			return false;
-		}
-	}
-
-	// `error` used to be inferred from `msg.startsWith('Could not')` — that broke
-	// the moment messages became translated (a Dutch string never starts with
-	// "Could not"), so the variant is now passed explicitly.
-	function flashToast(
-		msg: string,
-		opts?: { error?: boolean; action?: { label: string; run: () => void } }
-	) {
-		toast.show(msg, { variant: opts?.error ? 'error' : 'success', action: opts?.action });
-	}
-
-	function linkFor(item: Item) {
-		return item.madeFromRecipeId ? (data.recipeLinks[item.madeFromRecipeId] ?? null) : null;
-	}
-
-	// When an item drops to 0: a keep-stocked meal persists as the cook-again cue
-	// (UX-STOCK-14 — no Remove offer, the row IS the restock signal); a pantry
-	// staple goes on the shopping list; anything else offers one-tap Remove.
-	function onReachedZero(item: Item) {
-		if (item.kind === 'leftover' && linkFor(item)?.isFreezerStaple) {
-			flashToast(m.inventory_toast_out_cook_again({ name: item.name }));
-			return;
-		}
-		const action = item.isStaple
-			? { label: m.inventory_action_add_to_list(), run: () => stapleOut(item) }
-			: { label: m.inventory_action_remove(), run: () => deleteItem(item) };
-		flashToast(m.inventory_toast_out({ name: item.name }), { action });
-	}
-
-	// ── quantity ──────────────────────────────────────────────────────────────────
-	type QtySync = { confirmed: number; running: Promise<void> | null };
-	const qtySyncByItem = new Map<number, QtySync>();
-
-	function stepQty(item: Item, delta: number) {
-		const prev = item.qtyNum ?? 0;
-		const next = Math.max(0, Math.round((prev + delta) * 100) / 100);
-		if (next === prev) return;
-		item.qtyNum = next;
-
-		let sync = qtySyncByItem.get(item.id);
-		if (!sync) {
-			sync = { confirmed: prev, running: null };
-			qtySyncByItem.set(item.id, sync);
-		}
-		if (sync.running) return;
-
-		sync.running = (async () => {
-			while (true) {
-				const desired = item.qtyNum ?? 0;
-				const previouslyConfirmed = sync!.confirmed;
-				const updated = await requestPatch(item, {
-					qty_num: desired,
-					qty_text: composeQty(desired, item.unit)
-				});
-				if (!updated) {
-					item.qtyNum = sync!.confirmed;
-					flashToast(m.inventory_toast_qty_update_failed(), { error: true });
-					return;
-				}
-
-				sync!.confirmed = updated.qtyNum ?? desired;
-				// A newer tap happened while this request was in flight. Preserve the
-				// optimistic value and persist that next instead of applying stale data.
-				if ((item.qtyNum ?? 0) !== desired) continue;
-
-				applyServer(item, updated as unknown as Record<string, unknown>);
-				if (desired === 0 && previouslyConfirmed > 0) onReachedZero(item);
-				return;
-			}
-		})().finally(() => {
-			qtySyncByItem.delete(item.id);
-		});
-	}
-
-	function openQtyEdit(item: Item) {
-		qtyEditId = item.id;
-		qtyEditVal = item.qtyNum !== null ? String(item.qtyNum) : '';
-	}
-
-	async function commitQtyEdit(item: Item) {
-		const id = item.id;
-		qtyEditId = null;
-		const n = parseFloat(qtyEditVal);
-		if (!Number.isFinite(n) || n < 0) {
-			if (qtyEditVal.trim() !== '') flashToast(m.inventory_toast_invalid_qty());
-			return;
-		}
-		if (n === item.qtyNum) return;
-		const prev = item.qtyNum;
-		item.qtyNum = n;
-		const ok = await patch(item, { qty_num: n, qty_text: composeQty(n, item.unit) });
-		if (!ok) {
-			const local = items.find((i) => i.id === id);
-			if (local) local.qtyNum = prev;
-			flashToast(m.inventory_toast_qty_update_failed(), { error: true });
-		} else if (n === 0 && (prev ?? 0) > 0) {
-			onReachedZero(item);
-		}
-	}
-
-	// ── review ────────────────────────────────────────────────────────────────────
-	async function resolveReview(item: Item) {
-		const prevFlag = item.needsReview;
-		const prevReason = item.reviewReason;
-		const prevReviewOnly = reviewOnly;
-		item.needsReview = false;
-		item.reviewReason = null;
-		if (reviewOnly && items.every((i) => !i.needsReview)) reviewOnly = false;
-		const ok = await patch(item, { needs_review: false });
-		if (!ok) {
-			item.needsReview = prevFlag;
-			item.reviewReason = prevReason;
-			reviewOnly = prevReviewOnly;
-			flashToast(m.inventory_toast_resolve_failed(), { error: true });
-		}
-	}
-
-	// ── recipe status resolver (P4.2 G10) ─────────────────────────────────────────
-	async function setRecipeStatus(
-		item: Item,
-		status: 'plan_to_add' | 'no_recipe'
-	): Promise<boolean> {
-		const ok = await patch(item, {
-			made_from_recipe_id: null,
-			recipe_status: status
-		});
-		if (!ok) {
-			flashToast(m.inventory_toast_update_failed(), { error: true });
-			return false;
-		}
-		await invalidateAll();
-		return true;
-	}
-
-	// P6.1: link an unlinked leftover to a suggested recipe IN PLACE. The old UI
-	// rendered suggestions as navigation links that never linked anything — tapping
-	// just opened the recipe and the leftover stayed unlinked. `invalidateAll`
-	// re-runs the loader so `data.recipeLinks` gains the new entry (title + target)
-	// and the row flips from suggestions to the ↗ linked-recipe chip.
-	async function linkRecipe(item: Item, suggestion: { id: number; slug: string; title: string }) {
-		const ok = await patch(item, { made_from_recipe_id: suggestion.id, recipe_status: 'linked' });
-		if (!ok) {
-			flashToast(m.inventory_toast_link_failed(), { error: true });
-			return;
-		}
-		flashToast(m.inventory_toast_linked({ title: suggestion.title }));
-		await invalidateAll();
-	}
-
-	// P6.4 #3: reverse a plan-to-add / no-recipe dismissal so the link options come
-	// back. Clearing the status re-opens name-match suggestions (recomputed server-
-	// side), so re-run the loader.
-	async function clearRecipeStatus(item: Item): Promise<boolean> {
-		const ok = await patch(item, { recipe_status: null });
-		if (!ok) {
-			flashToast(m.inventory_toast_update_failed(), { error: true });
-			return false;
-		}
-		await invalidateAll();
-		return true;
-	}
-
-	async function clearRecipeLink(item: Item): Promise<boolean> {
-		const ok = await patch(item, {
-			made_from_recipe_id: null,
-			recipe_status: null
-		});
-		if (!ok) {
-			flashToast(m.inventory_toast_update_failed(), { error: true });
-			return false;
-		}
-		await invalidateAll();
-		return true;
-	}
-
-	// ── manual link picker (UX-STOCK-2) ────────────────────────────────────────
-	let linkPickerOpen = $state(false);
-	let linkPickerItem = $state<Item | null>(null);
-	let linkSearch = $state('');
-	const linkPickerLink = $derived(linkPickerItem ? linkFor(linkPickerItem) : null);
-	const linkPickerRelationship = $derived(
-		linkPickerItem
-			? recipeRelationshipKind(linkPickerItem, linkPickerLink)
-			: ('unresolved' as const)
-	);
-	function openLinkPicker(item: Item) {
-		linkPickerItem = item;
-		linkSearch = '';
-		linkPickerOpen = true;
-	}
-	async function pickLinkRecipe(option: { id: number; slug: string; title: string }) {
-		const item = linkPickerItem;
-		linkPickerOpen = false;
-		if (item) await linkRecipe(item, option);
-	}
-	async function setPickerRecipeStatus(
-		status: 'plan_to_add' | 'no_recipe'
-	): Promise<boolean> {
-		return linkPickerItem ? setRecipeStatus(linkPickerItem, status) : false;
-	}
-	async function clearPickerRecipeChoice(): Promise<boolean> {
-		if (!linkPickerItem) return false;
-		return linkPickerItem.madeFromRecipeId !== null
-			? clearRecipeLink(linkPickerItem)
-			: clearRecipeStatus(linkPickerItem);
-	}
-
-	// ── review fix: set-portions editor (UX-STOCK-1) ───────────────────────────
-	let portionEditId = $state<number | null>(null);
-	let portionEditVal = $state('');
-	function openPortionEdit(item: Item) {
-		portionEditId = item.id;
-		portionEditVal = item.qtyNum !== null ? String(Math.max(1, Math.round(item.qtyNum))) : '1';
-	}
-	async function commitPortionEdit(item: Item) {
-		const n = parseInt(portionEditVal, 10);
-		portionEditId = null;
-		if (!Number.isFinite(n) || n < 0) {
-			if (portionEditVal.trim() !== '') flashToast(m.inventory_toast_invalid_number());
-			return;
-		}
-		// Writing unit=portion + an integer count clears the rule flag server-side.
-		const ok = await patch(item, { unit: 'portion', qty_num: n, qty_text: composeQty(n, 'portion') });
-		if (!ok) flashToast(m.inventory_toast_set_portions_failed(), { error: true });
-	}
-
-	// ── pantry staples → shopping push (P4.4) ─────────────────────────────────────
-	async function stapleOut(item: Item) {
-		stapleOutBusy = item.id;
-		try {
-			const res = await fetch(`${base}/api/shopping`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'add_source_manual',
-					weekStart: data.currentWeekStart,
-					name: item.name,
-					amount: null,
-					unit: null
-				})
-			});
-			if (res.ok) {
-				if (!stapleAdded.includes(item.id)) stapleAdded = [...stapleAdded, item.id];
-				flashToast(m.inventory_toast_added_to_shopping({ name: item.name }));
-			} else flashToast(m.inventory_toast_add_shopping_failed(), { error: true });
-		} catch {
-			flashToast(m.inventory_toast_add_shopping_failed(), { error: true });
-		} finally {
-			stapleOutBusy = null;
-		}
-	}
-
-	// ── edit ────────────────────────────────────────────────────────────────────
-	function openEdit(item: Item) {
-		if (editingId === item.id && editSheetOpen) {
-			editSheetOpen = false;
-			editingId = null;
-			return;
-		}
-		editingId = item.id;
-		editSheetOpen = true;
-		qtyEditId = null;
-		const link = linkFor(item);
-		editDraft = {
-			name: item.name,
-			qty: item.qtyNum,
-			unit: item.unit ?? '',
-			kind: (item.kind ?? '') as Kind | '',
-			section: item.section,
-			foodClass: item.foodClass ?? '',
-			expiry: item.expiryDate ?? '',
-			staple: item.isStaple,
-			keepStocked: link?.isFreezerStaple ?? false,
-			target: link?.targetPortions ?? null
-		};
-		loadItemHistory(item.id);
-	}
-
-	// The row editor's "Keep stocked" toggle is the same control as the recipe
-	// page — it patches the recipe, and toggling off records the opt-out server-
-	// side so the next freeze doesn't silently re-enable it (UX-STOCK-14).
-	async function saveKeepStocked(item: Item): Promise<boolean> {
-		const link = linkFor(item);
-		if (!link || item.kind !== 'leftover') return true;
-		const target = editDraft.target !== null ? Math.max(1, Math.round(editDraft.target)) : null;
-		const changed =
-			editDraft.keepStocked !== link.isFreezerStaple ||
-			(editDraft.keepStocked && target !== null && target !== link.targetPortions);
-		if (!changed) return true;
-		if (!(await patchKeepStocked(link.slug, editDraft.keepStocked, target))) return false;
-		await invalidateAll();
-		return true;
-	}
-
-	async function saveEdit(item: Item) {
-		const payload: Record<string, unknown> = {};
-		if (editDraft.name.trim() && editDraft.name.trim() !== item.name) payload.name = editDraft.name.trim();
-		if (editDraft.qty !== item.qtyNum) {
-			payload.qty_num = editDraft.qty;
-			payload.qty_text = editDraft.qty !== null ? composeQty(editDraft.qty, editDraft.unit || item.unit) : null;
-		}
-		if ((editDraft.unit || null) !== (item.unit ?? null)) payload.unit = editDraft.unit || null;
-		if ((editDraft.kind || null) !== (item.kind ?? null)) payload.kind = editDraft.kind || null;
-		if (editDraft.section !== item.section) payload.section = editDraft.section;
-		if ((editDraft.foodClass || null) !== (item.foodClass ?? null)) payload.food_class = editDraft.foodClass || null;
-		if ((editDraft.expiry || null) !== (item.expiryDate ?? null)) payload.expiry_date = editDraft.expiry || null;
-		if (editDraft.staple !== item.isStaple) payload.is_staple = editDraft.staple;
-
-		editSaving = true;
-		const hadChanges = Object.keys(payload).length > 0;
-		const okItem = hadChanges ? await patch(item, payload) : true;
-		const okStaple = okItem ? await saveKeepStocked(item) : true;
-		editSaving = false;
-		if (okItem && okStaple) {
-			editSheetOpen = false;
-			editingId = null;
-			if (hadChanges) flashToast(m.inventory_toast_saved_changes());
-		} else flashToast(m.inventory_toast_save_changes_failed(), { error: true });
-	}
-
-	// ── delete + undo ──────────────────────────────────────────────────────────────
-	async function deleteItem(item: Item) {
-		if (editingId === item.id) {
-			editSheetOpen = false;
-			editingId = null;
-		}
-		const removal = captureRemoval(items, item.id);
-		if (!removal.removed) return;
-		items = removal.items;
-		let ok = false;
-		try {
-			ok = (await fetch(`${base}/api/inventory/${item.id}`, { method: 'DELETE' })).ok;
-		} catch {
-			ok = false;
-		}
-		if (!ok) {
-			items = restoreRemoval(items, removal.removed);
-			flashToast(m.inventory_toast_remove_failed(), { error: true });
-			return;
-		}
-		flashToast(m.inventory_toast_removed({ name: item.name }), {
-			action: { label: m.inventory_action_undo(), run: () => undoDelete(removal.removed!) }
-		});
-	}
-
-	async function readServerItem(itemId: number): Promise<(Item & { deletedAt?: unknown }) | null | undefined> {
-		try {
-			const res = await fetch(`${base}/api/inventory/${itemId}`);
-			if (!res.ok) return res.status === 404 ? null : undefined;
-			return (await res.json()).item as Item & { deletedAt?: unknown };
-		} catch {
-			return undefined;
-		}
-	}
-
-	function removeOptimisticRestore(itemId: number) {
-		items = items.filter((item) => item.id !== itemId);
-	}
-
-	async function reconcileUndoFailure(removed: RemovedListItem<Item>): Promise<boolean> {
-		const serverItem = await readServerItem(removed.item.id);
-		if (serverItem === undefined) return false;
-		if (serverItem === null || serverItem.deletedAt) removeOptimisticRestore(removed.item.id);
-		else reconcileItem(serverItem);
-		return true;
-	}
-
-	async function undoDelete(removed: RemovedListItem<Item>) {
-		toast.dismiss();
-		items = restoreRemoval(items, removed);
-		try {
-			const res = await fetch(`${base}/api/inventory/undo`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ item_id: removed.item.id })
-			});
-			if (!res.ok) {
-				await reconcileUndoFailure(removed);
-				flashToast(
-					res.status === 409 ? m.inventory_toast_undo_conflict() : m.inventory_toast_undo_failed(),
-					{ error: res.status !== 409 }
-				);
-				return;
-			}
-			const { item } = await res.json();
-			reconcileItem(item);
-		} catch {
-			const reconciled = await reconcileUndoFailure(removed);
-			if (!reconciled) await invalidateAll();
-			flashToast(m.inventory_toast_undo_failed(), { error: true });
-		}
-	}
-
-	// ── history ────────────────────────────────────────────────────────────────────
-	async function loadItemHistory(itemId: number) {
-		try {
-			const res = await fetch(`${base}/api/inventory/history?item_id=${itemId}&limit=8`);
-			if (!res.ok) return;
-			const { events } = await res.json();
-			historyByItem = { ...historyByItem, [itemId]: events };
-		} catch {
-			/* non-fatal — history is a read affordance */
-		}
-	}
-
-	async function openActivity() {
-		activityOpen = true;
-		activityLoading = true;
-		try {
-			const res = await fetch(`${base}/api/inventory/history?limit=50`);
-			if (res.ok) activityEvents = (await res.json()).events;
-		} finally {
-			activityLoading = false;
-		}
-	}
-
-	async function undoEvent(ev: HistoryEvent) {
-		const res = await fetch(`${base}/api/inventory/undo`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ op_id: ev.id })
-		});
-		if (res.status === 409) {
-			if (ev.itemId) {
-				const local = items.find((i) => i.id === ev.itemId);
-				if (local) {
-					local.needsReview = true;
-					local.reviewReason = 'undo_conflict';
-				}
-			}
-			flashToast(m.inventory_toast_undo_conflict());
-		} else if (!res.ok) {
-			flashToast(m.inventory_toast_undo_failed(), { error: true });
-		} else {
-			const { item } = await res.json();
-			reconcileItem(item);
-		}
-		if (activityOpen) await openActivity();
-		if (ev.itemId && historyByItem[ev.itemId]) await loadItemHistory(ev.itemId);
-	}
-
-	// ── add ────────────────────────────────────────────────────────────────────────
-	function onItemAdded(item: Item & { deletedAt?: unknown }, section: Section, name: string) {
-		reconcileItem(item);
-		showAddForm = false;
-		// Show the new item: jump to its section and drop any filter that would
-		// hide it (otherwise the add reads as "nothing happened" — P6.5 #4).
-		sectionFilter = section;
-		classFilter = null;
-		reviewOnly = false;
-		searchQuery = '';
-		quickView = null;
-		scope = item.kind === 'leftover' ? 'meals' : item.kind === 'ingredient' ? 'ingredients' : 'all';
-		flashToast(m.inventory_toast_added({ name }));
-	}
-
-	function clearFilters() {
-		sectionFilter = 'all';
-		classFilter = null;
-		reviewOnly = false;
-		searchQuery = '';
-		quickView = null;
-	}
-
-	function revealItem(item: Item) {
-		clearFilters();
-		scope = item.kind === 'leftover' ? 'meals' : 'all';
-	}
-
-	function attentionText(attention: StockAttention): string {
-		if (attention.kind === 'expiry') {
-			if (attention.daysUntil < 0) {
-				return m.inventory_attention_expired({ days: Math.abs(attention.daysUntil) });
-			}
-			if (attention.daysUntil === 0) return m.inventory_attention_today();
-			if (attention.daysUntil === 1) return m.inventory_attention_tomorrow();
-			return m.inventory_attention_expiry({ days: attention.daysUntil });
-		}
-		if (attention.kind === 'below_target') {
-			return m.inventory_attention_below_target({ count: attention.portionsBelow });
-		}
-		if (attention.kind === 'low_stock') {
-			return m.inventory_attention_low_stock({ count: attention.portions });
-		}
-		return m.inventory_attention_aging({ days: attention.daysOld });
-	}
-
-	function scopeLabel(value: InventoryScope): string {
-		if (value === 'meals') return m.inventory_scope_meals();
-		if (value === 'ingredients') return m.inventory_scope_ingredients();
-		return m.inventory_scope_all();
-	}
-
-	function setScope(value: InventoryScope) {
-		if (value !== 'meals') quickView = null;
-		scope = value;
-	}
-
-	function toggleQuickView(value: InventoryQuickView) {
-		quickView = quickView === value ? null : value;
-		scope = 'meals';
-	}
-
-	function quickViewStatus(): string {
-		if (quickView === 'ready') {
-			return m.inventory_quick_view_ready_status({ count: visibleMealResultCount });
-		}
-		return m.inventory_quick_view_below_target_status({ count: visibleMealResultCount });
-	}
-
-	function clearSearch() {
-		searchQuery = '';
-		searchInput?.focus();
-	}
+	onMount(() => controller.mount());
 </script>
 
 <svelte:head><title>{m.inventory_title()}</title></svelte:head>
@@ -807,27 +40,27 @@
 	>
 		<ItemRow
 			{item}
-			link={linkFor(item)}
-			matches={data.recipeMatches[item.id] ?? []}
+			link={controller.linkFor(item)}
+			matches={controller.data.recipeMatches[item.id] ?? []}
 			{signalLabel}
-			qtyEditing={qtyEditId === item.id}
-			bind:qtyEditVal
-			portionEditing={portionEditId === item.id}
-			bind:portionEditVal
-			onOpenEdit={() => openEdit(item)}
-			onDelete={() => deleteItem(item)}
-			onStepQty={(delta) => stepQty(item, delta)}
-			onOpenQtyEdit={() => openQtyEdit(item)}
-			onCommitQtyEdit={() => commitQtyEdit(item)}
-			onCancelQtyEdit={() => (qtyEditId = null)}
-			onResolveReview={() => resolveReview(item)}
-			stapleAdded={stapleAdded.includes(item.id)}
-			stapleBusy={stapleOutBusy === item.id}
-			onAddStaple={() => stapleOut(item)}
-			onOpenLinkPicker={() => openLinkPicker(item)}
-			onOpenPortionEdit={() => openPortionEdit(item)}
-			onCommitPortionEdit={() => commitPortionEdit(item)}
-			onCancelPortionEdit={() => (portionEditId = null)}
+			qtyEditing={controller.qtyEditId === item.id}
+			bind:qtyEditVal={controller.qtyEditVal}
+			portionEditing={controller.portionEditId === item.id}
+			bind:portionEditVal={controller.portionEditVal}
+			onOpenEdit={() => controller.openEdit(item)}
+			onDelete={() => controller.deleteItem(item)}
+			onStepQty={(delta) => controller.stepQty(item, delta)}
+			onOpenQtyEdit={() => controller.openQtyEdit(item)}
+			onCommitQtyEdit={() => controller.commitQtyEdit(item)}
+			onCancelQtyEdit={() => (controller.qtyEditId = null)}
+			onResolveReview={() => controller.resolveReview(item)}
+			stapleAdded={controller.stapleAdded.includes(item.id)}
+			stapleBusy={controller.stapleOutBusy === item.id}
+			onAddStaple={() => controller.stapleOut(item)}
+			onOpenLinkPicker={() => controller.openLinkPicker(item)}
+			onOpenPortionEdit={() => controller.openPortionEdit(item)}
+			onCommitPortionEdit={() => controller.commitPortionEdit(item)}
+			onCancelPortionEdit={() => (controller.portionEditId = null)}
 		/>
 	</li>
 {/snippet}
@@ -840,15 +73,15 @@
 				type="button"
 				class="ui-kitchen-header-action ui-kitchen-header-action-icon"
 				aria-label={m.inventory_activity_aria()}
-				onclick={openActivity}
+				onclick={() => controller.openActivity()}
 			>
 				<Icon name="clock" class="h-4 w-4" />
 			</button>
 			<button
 				type="button"
 				class="ui-kitchen-header-action ui-kitchen-header-action-primary"
-				aria-expanded={showAddForm}
-				onclick={() => (showAddForm = true)}
+				aria-expanded={controller.showAddForm}
+				onclick={() => (controller.showAddForm = true)}
 			>
 				<Icon name="plus" class="h-3.5 w-3.5" />
 				{m.inventory_add_button()}
@@ -856,18 +89,18 @@
 		{/snippet}
 
 		<div class="stock-stats" aria-label={m.inventory_heading()}>
-				{#if readyMealCount > 0}
+				{#if controller.readyMealCount > 0}
 					<button
 						type="button"
 						class="stock-stat stock-stat-action"
-						class:active={quickView === 'ready'}
-						aria-pressed={quickView === 'ready'}
-						aria-label={m.inventory_radar_ready_aria({ count: readyMealCount })}
-						onclick={() => toggleQuickView('ready')}
+						class:active={controller.quickView === 'ready'}
+						aria-pressed={controller.quickView === 'ready'}
+						aria-label={m.inventory_radar_ready_aria({ count: controller.readyMealCount })}
+						onclick={() => controller.toggleQuickView('ready')}
 					>
-						<strong>{readyMealCount}</strong>
+						<strong>{controller.readyMealCount}</strong>
 						<span>{m.inventory_radar_meals_label()}</span>
-						<Icon name={quickView === 'ready' ? 'x' : 'chevronRight'} class="h-4 w-4" />
+						<Icon name={controller.quickView === 'ready' ? 'x' : 'chevronRight'} class="h-4 w-4" />
 					</button>
 				{:else}
 					<div class="stock-stat stock-stat-zero">
@@ -875,19 +108,19 @@
 						<span>{m.inventory_radar_ready_zero()}</span>
 					</div>
 				{/if}
-				{#if belowTargetCount > 0}
+				{#if controller.belowTargetCount > 0}
 					<button
 						type="button"
 						class="stock-stat stock-stat-action attention"
-						class:active={quickView === 'below_target'}
-						aria-pressed={quickView === 'below_target'}
-						aria-label={m.inventory_radar_below_target_aria({ count: belowTargetCount })}
-						onclick={() => toggleQuickView('below_target')}
+						class:active={controller.quickView === 'below_target'}
+						aria-pressed={controller.quickView === 'below_target'}
+						aria-label={m.inventory_radar_below_target_aria({ count: controller.belowTargetCount })}
+						onclick={() => controller.toggleQuickView('below_target')}
 					>
-						<strong>{belowTargetCount}</strong>
+						<strong>{controller.belowTargetCount}</strong>
 						<span>{m.inventory_radar_below_target_label()}</span>
 						<Icon
-							name={quickView === 'below_target' ? 'x' : 'chevronRight'}
+							name={controller.quickView === 'below_target' ? 'x' : 'chevronRight'}
 							class="h-4 w-4"
 						/>
 					</button>
@@ -916,22 +149,22 @@
 					<circle cx="7.25" cy="7.25" r="5" />
 				</svg>
 				<input
-					bind:this={searchInput}
+					bind:this={controller.searchInput}
 					type="search"
 					placeholder={m.inventory_search_placeholder()}
-					bind:value={searchQuery}
+					bind:value={controller.searchQuery}
 					onkeydown={(event) => {
-						if (event.key === 'Escape' && searchQuery) {
+						if (event.key === 'Escape' && controller.searchQuery) {
 							event.preventDefault();
-							clearSearch();
+							controller.clearSearch();
 						}
 					}}
 				/>
-				{#if searchQuery}
+				{#if controller.searchQuery}
 					<button
 						type="button"
 						aria-label={m.inventory_search_clear()}
-						onclick={clearSearch}
+						onclick={() => controller.clearSearch()}
 					>
 						<Icon name="x" class="h-3.5 w-3.5" />
 					</button>
@@ -943,9 +176,9 @@
 			<div class="stock-scope-row">
 				<div class="stock-scope-tabs">
 					<SegmentedTabs
-						tabs={SCOPES.map((value) => ({ value, label: scopeLabel(value) }))}
-						bind:value={scope}
-						onchange={setScope}
+						tabs={SCOPES.map((value) => ({ value, label: controller.scopeLabel(value) }))}
+						bind:value={controller.scope}
+						onchange={(value) => controller.setScope(value)}
 						cols={3}
 						ariaLabel={m.inventory_heading()}
 						idPrefix="inventory-scope"
@@ -954,62 +187,62 @@
 				<button
 					type="button"
 					class="stock-filter-action"
-					class:active={hasActiveFilters}
-					aria-pressed={hasActiveFilters}
-					onclick={() => (filtersOpen = true)}
+					class:active={controller.hasActiveFilters}
+					aria-pressed={controller.hasActiveFilters}
+					onclick={() => (controller.filtersOpen = true)}
 				>
 					{m.inventory_scope_filters()}
 				</button>
 			</div>
 		</div>
 
-		{#if quickView}
+		{#if controller.quickView}
 			<div class="stock-quick-view" aria-live="polite">
-				<span>{quickViewStatus()}</span>
-				<button type="button" onclick={() => (quickView = null)}>
+				<span>{controller.quickViewStatus()}</span>
+				<button type="button" onclick={() => (controller.quickView = null)}>
 					{m.inventory_quick_view_clear()}
 					<Icon name="x" class="h-3.5 w-3.5" />
 				</button>
 			</div>
 		{/if}
 
-		{#if scope === 'meals' && visibleMealItems.length > 0}
+		{#if controller.scope === 'meals' && controller.visibleMealItems.length > 0}
 			<div class="stock-coverage" aria-label={m.inventory_recipe_coverage_label()}>
 				<strong>{m.inventory_recipe_coverage_label()}</strong>
 				<RecipeRelationshipStatus
 					relationship="linked"
-					label={m.inventory_recipe_coverage_linked({ count: visibleRecipeCoverage.linked })}
+					label={m.inventory_recipe_coverage_linked({ count: controller.visibleRecipeCoverage.linked })}
 				/>
 				<RecipeRelationshipStatus
 					relationship="planned"
-					label={m.inventory_recipe_coverage_planned({ count: visibleRecipeCoverage.planned })}
+					label={m.inventory_recipe_coverage_planned({ count: controller.visibleRecipeCoverage.planned })}
 				/>
 				<RecipeRelationshipStatus
 					relationship="not_needed"
-					label={m.inventory_recipe_coverage_not_needed({ count: visibleRecipeCoverage.not_needed })}
+					label={m.inventory_recipe_coverage_not_needed({ count: controller.visibleRecipeCoverage.not_needed })}
 				/>
-				{#if visibleRecipeCoverage.unresolved > 0}
+				{#if controller.visibleRecipeCoverage.unresolved > 0}
 					<RecipeRelationshipStatus
 						relationship="unresolved"
 						label={m.inventory_recipe_coverage_unresolved({
-							count: visibleRecipeCoverage.unresolved
+							count: controller.visibleRecipeCoverage.unresolved
 						})}
 					/>
 				{/if}
 			</div>
 		{/if}
 
-		{#if scope === 'meals' && visibleMealResultCount > 0}
+		{#if controller.scope === 'meals' && controller.visibleMealResultCount > 0}
 			<div class="stock-columns">
 				<section class="stock-group stock-attention">
 					<div class="stock-group-head">
 						<h2>{m.inventory_group_use_next()}</h2>
 						<span>{m.inventory_group_use_next_hint()}</span>
 					</div>
-					{#if mealGroups.useNext.length > 0}
+					{#if controller.mealGroups.useNext.length > 0}
 						<ul class="stock-list stock-priority divide-y">
-							{#each mealGroups.useNext as entry (entry.item.id)}
-								{@render stockRow(entry.item, attentionText(entry.attention))}
+							{#each controller.mealGroups.useNext as entry (entry.item.id)}
+								{@render stockRow(entry.item, controller.attentionText(entry.attention))}
 							{/each}
 						</ul>
 					{:else}
@@ -1018,56 +251,59 @@
 				</section>
 
 				<div class="stock-secondary-groups">
-					{#if mealGroups.stillPlenty.length > 0}
+					{#if controller.mealGroups.stillPlenty.length > 0}
 						<section class="stock-group">
 							<div class="stock-group-head">
 								<h2>{m.inventory_group_still_plenty()}</h2>
-								<span>{m.inventory_group_visible_count({ count: mealGroups.stillPlenty.length })}</span>
+								<span>{m.inventory_group_visible_count({ count: controller.mealGroups.stillPlenty.length })}</span>
 							</div>
 							<ul class="stock-list divide-y">
-								{#each mealGroups.stillPlenty as item (item.id)}
+								{#each controller.mealGroups.stillPlenty as item (item.id)}
 									{@render stockRow(item, null)}
 								{/each}
 							</ul>
 						</section>
 					{/if}
 
-					{#if mealGroups.cookAgain.length > 0 || ghostsVisible.length > 0}
+					{#if controller.mealGroups.cookAgain.length > 0 || controller.ghostsVisible.length > 0}
 						<section class="stock-group">
 							<div class="stock-group-head">
 								<h2>{m.inventory_group_cook_again()}</h2>
 								<span>{m.inventory_group_visible_count({
-									count: mealGroups.cookAgain.length + ghostsVisible.length
+									count: controller.mealGroups.cookAgain.length + controller.ghostsVisible.length
 								})}</span>
 							</div>
 							<ul class="stock-list stock-cook-again divide-y">
-								{#each mealGroups.cookAgain as item (item.id)}
+								{#each controller.mealGroups.cookAgain as item (item.id)}
 									{@render stockRow(item, m.inventory_group_cook_again())}
 								{/each}
-								<GhostRows ghosts={ghostsVisible} {flashToast} />
+								<GhostRows
+									ghosts={controller.ghostsVisible}
+									flashToast={(message) => controller.flashToast(message)}
+								/>
 							</ul>
 						</section>
 					{/if}
 				</div>
 			</div>
-		{:else if scope !== 'meals' && filtered.length > 0}
+		{:else if controller.scope !== 'meals' && controller.filtered.length > 0}
 			<section class="stock-group stock-all">
 				<div class="stock-group-head">
-					<h2>{scopeLabel(scope)}</h2>
-					<span>{m.inventory_group_visible_count({ count: stockRows.length })}</span>
+					<h2>{controller.scopeLabel(controller.scope)}</h2>
+					<span>{m.inventory_group_visible_count({ count: controller.stockRows.length })}</span>
 				</div>
 				<ul class="stock-list divide-y">
-					{#each stockRows as item (item.id)}
+					{#each controller.stockRows as item (item.id)}
 						{@render stockRow(item, null)}
 					{/each}
 				</ul>
 			</section>
 		{:else}
 			<div class="stock-empty">
-				{#if items.length === 0}
+				{#if controller.items.length === 0}
 					<EmptyState iconName="jar" title={m.inventory_empty_title()}>
 						{#snippet action()}
-							<button type="button" class="btn btn-primary min-h-11" onclick={() => (showAddForm = true)}>
+							<button type="button" class="btn btn-primary min-h-11" onclick={() => (controller.showAddForm = true)}>
 								{m.inventory_empty_add_first_button()}
 							</button>
 						{/snippet}
@@ -1076,17 +312,17 @@
 					<EmptyState title={m.inventory_empty_filtered_title()}>
 						{#snippet action()}
 							<div class="flex flex-wrap justify-center gap-2">
-								{#if searchQuery}
-									<button type="button" class="btn btn-ghost min-h-11" onclick={clearSearch}>
+								{#if controller.searchQuery}
+									<button type="button" class="btn btn-ghost min-h-11" onclick={() => controller.clearSearch()}>
 										{m.inventory_empty_clear_search()}
 									</button>
 								{/if}
-								{#if alternateScopeMatch || hasUngroupedMealStock}
-									<button type="button" class="btn btn-primary min-h-11" onclick={() => setScope('all')}>
+								{#if controller.alternateScopeMatch || controller.hasUngroupedMealStock}
+									<button type="button" class="btn btn-primary min-h-11" onclick={() => controller.setScope('all')}>
 										{m.inventory_empty_show_all()}
 									</button>
 								{:else}
-									<button type="button" class="btn btn-primary min-h-11" onclick={clearFilters}>
+									<button type="button" class="btn btn-primary min-h-11" onclick={() => controller.clearFilters()}>
 										{m.inventory_clear_filters_button()}
 									</button>
 								{/if}
@@ -1100,61 +336,61 @@
 </div>
 
 <FiltersSheet
-	bind:open={filtersOpen}
-	bind:sectionFilter
-	bind:classFilter
-	bind:reviewOnly
-	{needsReviewCount}
+	bind:open={controller.filtersOpen}
+	bind:sectionFilter={controller.sectionFilter}
+	bind:classFilter={controller.classFilter}
+	bind:reviewOnly={controller.reviewOnly}
+	needsReviewCount={controller.needsReviewCount}
 />
 
-<BottomSheet bind:open={showAddForm} title={m.inventory_add_button()} desktopCentered>
+<BottomSheet bind:open={controller.showAddForm} title={m.inventory_add_button()} desktopCentered>
 	<AddItemForm
-		open={showAddForm}
-		onCancel={() => (showAddForm = false)}
-		onAdded={onItemAdded}
-		{flashToast}
+		open={controller.showAddForm}
+		onCancel={() => (controller.showAddForm = false)}
+		onAdded={(item, section, name) => controller.onItemAdded(item, section, name)}
+		flashToast={(message) => controller.flashToast(message)}
 	/>
 </BottomSheet>
 
 <BottomSheet
-	bind:open={editSheetOpen}
-	title={editingItem?.name ?? m.inventory_heading()}
+	bind:open={controller.editSheetOpen}
+	title={controller.editingItem?.name ?? m.inventory_heading()}
 	desktopCentered
-	onclose={() => (editingId = null)}
+	onclose={() => (controller.editingId = null)}
 >
 	<ItemEditor
-		editing={editSheetOpen && editingItem !== null}
-		link={editingItem ? linkFor(editingItem) : null}
-		matches={editingItem ? (data.recipeMatches[editingItem.id] ?? []) : []}
-		history={editingItem ? historyByItem[editingItem.id] : undefined}
-		bind:draft={editDraft}
-		saving={editSaving}
+		editing={controller.editSheetOpen && controller.editingItem !== null}
+		link={controller.editingItem ? controller.linkFor(controller.editingItem) : null}
+		matches={controller.editingItem ? (controller.data.recipeMatches[controller.editingItem.id] ?? []) : []}
+		history={controller.editingItem ? controller.historyByItem[controller.editingItem.id] : undefined}
+		bind:draft={controller.editDraft}
+		saving={controller.editSaving}
 		onDelete={() => {
-			if (editingItem) void deleteItem(editingItem);
+			if (controller.editingItem) void controller.deleteItem(controller.editingItem);
 		}}
-		onCancel={() => (editSheetOpen = false)}
+		onCancel={() => (controller.editSheetOpen = false)}
 		onSave={() => {
-			if (editingItem) void saveEdit(editingItem);
+			if (controller.editingItem) void controller.saveEdit(controller.editingItem);
 		}}
-		onUndoEvent={undoEvent}
+		onUndoEvent={(event) => controller.undoEvent(event)}
 	/>
 </BottomSheet>
 
 <!-- ── link picker (UX-STOCK-2) ─────────────────────────────────────────────────── -->
 <LinkRecipeSheet
-	bind:open={linkPickerOpen}
-	item={linkPickerItem}
-	link={linkPickerLink}
-	relationship={linkPickerRelationship}
-	bind:search={linkSearch}
-	options={data.recipeOptions}
-	onPick={pickLinkRecipe}
-	onSetStatus={setPickerRecipeStatus}
-	onClear={clearPickerRecipeChoice}
+	bind:open={controller.linkPickerOpen}
+	item={controller.linkPickerItem}
+	link={controller.linkPickerLink}
+	relationship={controller.linkPickerRelationship}
+	bind:search={controller.linkSearch}
+	options={controller.data.recipeOptions}
+	onPick={(option) => controller.pickLinkRecipe(option)}
+	onSetStatus={(status) => controller.setPickerRecipeStatus(status)}
+	onClear={() => controller.clearPickerRecipeChoice()}
 />
 
 <!-- ── activity drawer (P2.3) ──────────────────────────────────────────────────────── -->
-<ActivitySheet bind:open={activityOpen} loading={activityLoading} events={activityEvents} onUndo={undoEvent} />
+<ActivitySheet bind:open={controller.activityOpen} loading={controller.activityLoading} events={controller.activityEvents} onUndo={(event) => controller.undoEvent(event)} />
 
 <style>
 	.stock-radar {

@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
 import { isoWeekNumber } from '$lib/week';
+import { createMealPlanService } from '$lib/server/workflows/meal-plan';
 import { executeToolCall, isOk } from './index';
 import type { TurnExecutionContext } from '../commit_risk';
 
@@ -37,6 +38,66 @@ function allMeals(db: TestDb) {
 }
 
 describe('plan_meal', () => {
+	it('persists the same linked-meal effect as the public workflow', async () => {
+		const directDb = createTestDb();
+		const aiDb = createTestDb();
+		seedRecipe(directDb, 'lasagne');
+		seedRecipe(aiDb, 'lasagne');
+		const direct = createMealPlanService(directDb).create({
+			weekStartDate: WEEK,
+			dinner: 'Lasagne',
+			recipeSlug: 'lasagne',
+			servings: 6,
+			source: 'freezer',
+			note: 'met vrienden',
+			sourcePolicy: 'coerce-fresh'
+		});
+		if (!direct.ok) throw new Error(direct.error);
+		const ai = (await executeToolCall(
+			'plan_meal',
+			{
+				week_start_date: WEEK,
+				dinner: 'Lasagne',
+				recipe_slug: 'lasagne',
+				servings: 6,
+				source: 'freezer',
+				note: 'met vrienden'
+			},
+			aiDb,
+			1,
+			turnCtx()
+		)) as PlanResult;
+		const effect = (meal: NonNullable<ReturnType<typeof mealById>>) => ({
+			weekNumber: meal.weekNumber,
+			weekStartDate: meal.weekStartDate,
+			dinner: meal.dinner,
+			recipeSlug: meal.recipeSlug,
+			servings: meal.servings,
+			status: meal.status,
+			source: meal.source,
+			note: meal.note,
+			sortOrder: meal.sortOrder
+		});
+		expect(effect(mealById(aiDb, ai.id)!)).toEqual(effect(direct.meal));
+	});
+
+	it('preserves the AI error for an unlinked freezer meal', async () => {
+		const db = createTestDb();
+		const result = (await executeToolCall(
+			'plan_meal',
+			{ week_start_date: WEEK, dinner: 'Restjes', source: 'freezer' },
+			db,
+			1,
+			turnCtx()
+		)) as { ok: boolean; error: string };
+		expect(result).toEqual({
+			ok: false,
+			error:
+				'source=freezer requires recipe_slug (frozen portions are linked through the recipe)'
+		});
+		expect(allMeals(db)).toHaveLength(0);
+	});
+
 	it('plans dinners into a week with incrementing sort order', async () => {
 		const db = createTestDb();
 

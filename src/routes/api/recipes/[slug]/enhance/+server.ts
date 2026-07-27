@@ -1,9 +1,11 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
-import { db } from '$lib/server/db/index';
 import { readJsonBody } from '$lib/server/api_body';
-import { applyRecipeEnhancement, generateRecipeEnhancement } from '$lib/server/ai/recipe_enhancement';
+import {
+	applyRecipeEnhancementForApp,
+	generateRecipeEnhancementForApp
+} from '$lib/server/workflows/recipe-enhancement';
 
 const BodySchema = z.discriminatedUnion('action', [
 	z.object({ action: z.literal('generate') }),
@@ -19,8 +21,21 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 	const body = await readJsonBody(request, BodySchema);
 	try {
-		if (body.action === 'generate') return json(await generateRecipeEnhancement(db, { recipeSlug: params.slug, userId: locals.user.id }));
-		return json(applyRecipeEnhancement(db, { ...body, userId: locals.user.id, actor: locals.user.username }));
+		if (body.action === 'generate') {
+			return json(
+				await generateRecipeEnhancementForApp({
+					recipeSlug: params.slug,
+					userId: locals.user.id
+				})
+			);
+		}
+		return json(
+			applyRecipeEnhancementForApp({
+				...body,
+				userId: locals.user.id,
+				actor: locals.user.username
+			})
+		);
 	} catch (cause) {
 		const message = cause instanceof Error ? cause.message : 'Recipe enhancement failed';
 		error(message.includes('changed') || message.includes('expired') ? 409 : message === 'Recipe not found' ? 404 : 400, message);

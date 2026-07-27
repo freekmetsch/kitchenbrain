@@ -1,0 +1,256 @@
+import { db as appDb } from '$lib/server/db/index';
+import type { Db, DbOrTx } from '$lib/server/db/types';
+import {
+	listMealsForWeekInSourceOrder,
+	listMealsForWeekUnordered
+} from '$lib/server/domains/meal-plan/queries';
+import {
+	addManualShoppingEntry,
+	addRecurringShoppingItem,
+	deleteAhFavorite,
+	disableRecurringShoppingItem,
+	editRecurringShoppingItem,
+	initializeShoppingSourceData as initializeShoppingEntries,
+	materializeShoppingWeek as materializeShoppingEntries,
+	dryRunLegacyOverrideImport as dryRunLegacyEntries,
+	importLegacyShoppingOverrides as importLegacyEntries,
+	materializePlanningHorizon as materializePlanningEntries,
+	removeManualShoppingEntry,
+	reconcileShoppingAfterWrite as reconcileEntries,
+	resolveLegacyShoppingEntry,
+	setBoughtForEntries,
+	skipShoppingEntry,
+	updateShoppingEntry,
+	upsertAhFavorite,
+	getShoppingWeekEntry,
+	getShoppingWeekView,
+	listRecentShoppingPushes
+} from '$lib/server/domains/shopping';
+import { getMealPlanPrefs, getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import {
+	addDays,
+	deliveryDateForPlanningWeek,
+	isIsoDate,
+	todayIso,
+	weekStartFor
+} from '$lib/week';
+import { deriveWeekNeeds } from './shopping-needs';
+import { normalize as normalizeAhDutchTerm } from '$lib/server/ah/matching';
+import { getAHStatus } from '$lib/server/ah/client';
+
+export { deriveWeekNeeds } from './shopping-needs';
+export type {
+	FreezerMealRef,
+	NeededIngredient,
+	PlannedMealForNeeds,
+	ShoppingSourceContribution,
+	ShoppingSourceRef,
+	WeekNeeds
+} from './shopping-needs';
+
+function shoppingSourcesForWeek(db: DbOrTx, weekStart: string) {
+	const meals = listMealsForWeekInSourceOrder(db, weekStart);
+	return deriveWeekNeeds(db, meals).needed.flatMap((item) => item.sources);
+}
+
+export function materializeShoppingWeek(
+	db: DbOrTx,
+	weekStart: string,
+	options: { weekStartDay: number; today?: string; allowPastForMigration?: boolean }
+) {
+	return materializeShoppingEntries(db, weekStart, options, shoppingSourcesForWeek);
+}
+
+export function dryRunLegacyOverrideImport(db: DbOrTx) {
+	return dryRunLegacyEntries(db, shoppingSourcesForWeek);
+}
+
+export function importLegacyShoppingOverrides(db: DbOrTx) {
+	return importLegacyEntries(db, shoppingSourcesForWeek);
+}
+
+export function materializePlanningHorizon(
+	db: DbOrTx,
+	options: { currentWeek: string; weekStartDay: number; planAheadWeeks: number }
+) {
+	return materializePlanningEntries(db, options, shoppingSourcesForWeek);
+}
+
+export function initializeShoppingSourceData(db: DbOrTx) {
+	return initializeShoppingEntries(db, shoppingSourcesForWeek);
+}
+
+export function reconcileShoppingAfterWrite(
+	db: DbOrTx,
+	affectedWeeks: string[] = [],
+	_options: { today?: string } = {}
+): void {
+	reconcileEntries(db, affectedWeeks, shoppingSourcesForWeek);
+}
+
+export function createShoppingService(db: Db) {
+	const inTransaction = <T>(operation: (tx: DbOrTx) => T): T =>
+		db.transaction((tx) => operation(tx));
+	return {
+		addRecurring(
+			input: Parameters<typeof addRecurringShoppingItem>[1]
+		) {
+			return inTransaction((tx) => {
+				initializeShoppingSourceData(tx);
+				const item = addRecurringShoppingItem(tx, input);
+				reconcileShoppingAfterWrite(tx, [input.startWeek]);
+				return item;
+			});
+		},
+		editRecurring(input: Parameters<typeof editRecurringShoppingItem>[1]) {
+			return inTransaction((tx) => {
+				initializeShoppingSourceData(tx);
+				const item = editRecurringShoppingItem(tx, input);
+				reconcileShoppingAfterWrite(tx, [input.effectiveWeek]);
+				return item;
+			});
+		},
+		disableRecurring(input: Parameters<typeof disableRecurringShoppingItem>[1]) {
+			return inTransaction((tx) => {
+				initializeShoppingSourceData(tx);
+				disableRecurringShoppingItem(tx, input);
+				reconcileShoppingAfterWrite(tx, [input.effectiveWeek]);
+			});
+		},
+		skip(input: Parameters<typeof skipShoppingEntry>[1]) {
+			return inTransaction((tx) => {
+				initializeShoppingSourceData(tx);
+				return skipShoppingEntry(tx, input);
+			});
+		},
+		addManual(input: Parameters<typeof addManualShoppingEntry>[1]) {
+			return inTransaction((tx) => {
+				initializeShoppingSourceData(tx);
+				return addManualShoppingEntry(tx, input);
+			});
+		},
+		removeManual(input: Parameters<typeof removeManualShoppingEntry>[1]) {
+			return inTransaction((tx) => {
+				initializeShoppingSourceData(tx);
+				removeManualShoppingEntry(tx, input);
+			});
+		},
+		updateSource(input: Parameters<typeof updateShoppingEntry>[1]) {
+			return inTransaction((tx) => {
+				initializeShoppingSourceData(tx);
+				const before = getShoppingWeekEntry(tx, input.entryId);
+				if (before?.sourceKind === 'recipe' || before?.sourceKind === 'weekly') {
+					materializeShoppingWeek(tx, before.weekStartDate, {
+						weekStartDay: input.weekStartDay
+					});
+				}
+				return updateShoppingEntry(tx, input);
+			});
+		},
+		setBought(input: Parameters<typeof setBoughtForEntries>[1]) {
+			return inTransaction((tx) => {
+				initializeShoppingSourceData(tx);
+				setBoughtForEntries(tx, input);
+			});
+		},
+		resolveLegacy(input: Parameters<typeof resolveLegacyShoppingEntry>[1]) {
+			return inTransaction((tx) => {
+				initializeShoppingSourceData(tx);
+				return resolveLegacyShoppingEntry(tx, input);
+			});
+		}
+	};
+}
+
+export function loadShoppingPageData(db: Db, weekParam: string | null) {
+	const prefs = getMealPlanPrefs(db);
+	const weekStart = weekStartFor(isIsoDate(weekParam) ? weekParam : todayIso(), prefs.weekStartDay);
+	return db.transaction((tx) => {
+		initializeShoppingSourceData(tx);
+		materializeShoppingWeek(tx, weekStart, { weekStartDay: prefs.weekStartDay });
+		const meals = listMealsForWeekUnordered(tx, weekStart);
+		const needs = deriveWeekNeeds(tx, meals);
+		const shopping = getShoppingWeekView(tx, weekStart);
+		const pushHistory = listRecentShoppingPushes(tx, weekStart, 5);
+		return {
+			weekStart,
+			prevWeek: addDays(weekStart, -7),
+			nextWeek: addDays(weekStart, 7),
+			isCurrentWeek: weekStart === weekStartFor(todayIso(), prefs.weekStartDay),
+			deliveryDate:
+				prefs.groceryDay == null
+					? null
+					: deliveryDateForPlanningWeek(weekStart, prefs.groceryDay, prefs.weekStartDay),
+			emptyState: meals.length === 0 ? ('no_meals' as const) : ('nothing_needed' as const),
+			ah: getAHStatus(),
+			shopping,
+			needs,
+			pushHistory
+		};
+	});
+}
+
+function generateShoppingListInTransaction(db: DbOrTx, requestedWeek?: string) {
+	const weekStartDay = getWeekStartDay(db);
+	const weekStart = weekStartFor(requestedWeek ?? todayIso(), weekStartDay);
+	const meals = listMealsForWeekUnordered(db, weekStart);
+	const needs = deriveWeekNeeds(db, meals);
+	initializeShoppingSourceData(db);
+	materializeShoppingWeek(db, weekStart, { weekStartDay });
+	const shopping = getShoppingWeekView(db, weekStart);
+	const freshSideSourceKeys = new Set<string>(
+		needs.needed.flatMap((need) =>
+			need.freshSideOnly ? need.sources.map((source) => source.ref.key) : []
+		)
+	);
+	const missing = shopping.toBuy
+		.filter((row) => !row.covered)
+		.map((row) => ({
+			source_name: row.sources[0]?.name ?? row.name,
+			name: row.name,
+			amount: row.amount,
+			unit: row.unit,
+			for_meals: [...new Set(row.sources.flatMap((source) => source.mealNames))],
+			fresh_side_for_freezer_meal:
+				row.sources.length > 0 &&
+				row.sources.every((source) => freshSideSourceKeys.has(source.sourceKey)),
+			incompatible_quantities: row.incompatibleQuantities
+		}));
+	const freezerNote = needs.freezerMealsMissingFreshInfo.length
+		? ` ${needs.freezerMealsMissingFreshInfo.length} freezer meal(s) lack cook_in/serve_fresh ingredient roles, so their fresh sides are unknown — offer to set roles on those recipes.`
+		: '';
+	return {
+		week: weekStart,
+		shopping_list: missing,
+		meals_without_recipe: needs.mealsWithoutRecipe,
+		freezer_meals: needs.freezerMeals,
+		freezer_meals_missing_fresh_info: needs.freezerMealsMissingFreshInfo,
+		note: `${meals.length} meals planned. ${missing.length} ingredients needed.${freezerNote}`
+	};
+}
+
+export function generateShoppingList(db: Db, requestedWeek?: string) {
+	return db.transaction((tx) => generateShoppingListInTransaction(tx, requestedWeek));
+}
+
+export const shoppingService = createShoppingService(appDb);
+export function shoppingWeekStartDay(): number {
+	return getWeekStartDay(appDb);
+}
+export function saveAhFavorite(input: {
+	dutchTerm: string;
+	productId: string;
+	productName: string;
+}): void {
+	upsertAhFavorite(appDb, {
+		nameKey: normalizeAhDutchTerm(input.dutchTerm),
+		productId: input.productId,
+		productName: input.productName
+	});
+}
+export function removeAhFavorite(dutchTerm: string): void {
+	deleteAhFavorite(appDb, normalizeAhDutchTerm(dutchTerm));
+}
+export function loadShoppingPage(weekParam: string | null) {
+	return loadShoppingPageData(appDb, weekParam);
+}

@@ -12,143 +12,27 @@
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
-	import { optimistic } from '$lib/optimistic';
 	import { toast } from '$lib/stores/toast.svelte';
-	import { addDays, deliveryDateForPlanningWeek, todayIso, APP_TIME_ZONE } from '$lib/week';
-	import { weekdayName } from '$lib/weekday';
+	import { APP_TIME_ZONE } from '$lib/week';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 	import { formatDate } from '$lib/i18n';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 	import { batchServingTarget, batchServingToggleTarget } from '$lib/meal_batch';
-	import {
-		adjacentMealPlanWeeks,
-		mealPlanWeekHref,
-		selectedMealPlanWeek
-	} from '$lib/meal_plan_navigation';
+	import { mealPlanWeekHref } from '$lib/meal_plan_navigation';
 	import MealSourceChoice from '$lib/components/meal-plan/MealSourceChoice.svelte';
-	import {
-		defaultServingsForMealSource,
-		type MealSource
-	} from '$lib/meal_source_choice';
-
-	type Meal = PageData['weeks'][number]['meals'][number];
-	type Week = PageData['weeks'][number];
-	type Recipe = PageData['recipeList'][number];
+	import { MealPlanController } from '$lib/components/meal-plan/controller.svelte';
 
 	let { data }: { data: PageData } = $props();
-
-	let weeks = $state<Week[]>(untrack(() => data.weeks.map((w) => ({ ...w, meals: w.meals.map((m) => ({ ...m })) }))));
-	const currentWeekStart = untrack(() => data.currentWeekStart);
-
-	// "Show past weeks" / "Hide past weeks" (?past=1) is a same-route navigation
-	// -- load reruns and data.weeks gets a fresh identity, but local `weeks`
-	// (which carries optimistic add/toggle/remove edits) does not resync on its
-	// own. Resync whenever a new load result arrives; server truth wins. Ids for
-	// already-persisted meals are stable across resyncs, so in-flight optimistic
-	// toggles/removes still land correctly via updateMeal/removeMealFromState;
-	// an in-flight add whose temp id gets wiped falls back to addMealToState
-	// once the real save resolves.
+	const controller = new MealPlanController(
+		untrack(() => data),
+		{ basePath: base }
+	);
 	$effect(() => {
-		const next = data.weeks;
-		weeks = next.map((w) => ({ ...w, meals: w.meals.map((m) => ({ ...m })) }));
+		controller.syncData(data);
 	});
 
-	let selectedWeek = $derived(
-		selectedMealPlanWeek(weeks, data.focusWeek, data.currentWeekStart)
-	);
-	let adjacentWeeks = $derived(
-		adjacentMealPlanWeeks(weeks, selectedWeek?.weekStartDate ?? null)
-	);
-
-	let drawerOpen = $state(false);
-	let drawerWeek = $state('');
-	let drawerSearch = $state('');
-	let drawerCategory = $state('');
-	let drawerSubmitting = $state(false);
-
-	const prefs = untrack(() => data.mealPlanPrefs);
-	const dayPlanning = prefs.dayPlanning;
-
-	let suggestActive = $state<string | null>(null);
-	let suggestText = $state('');
-	let suggestLoading = $state(false);
-	let suggestError = $state('');
-	let applyingSuggestion = $state<Record<string, boolean>>({});
-	// Suggestions already planned this session — the Add button flips to a ✓ so
-	// a second tap can't double-plan the same line (B2).
-	let addedSuggestions = $state<Record<string, boolean>>({});
-	let pendingAdds = $state<Record<string, boolean>>({});
-	let pendingToggles = $state<Record<number, boolean>>({});
-	let pendingDeletes = $state<Record<number, boolean>>({});
-	let tempMealId = -1;
-
-	let freezeOpen = $state(false);
-	let freezeSlug = $state('');
-	let freezeTitle = $state('');
-	let freezeDefault = $state(2);
-
-	let consumeOpen = $state(false);
-	let consumeSlug = $state('');
-	let consumeTitle = $state('');
-	let consumeDefault = $state(2);
-	let consumeMax = $state(99);
-	let pendingSourceToggles = $state<Record<number, boolean>>({});
-	let pendingServings = $state<Record<number, boolean>>({});
-	let servingsStatus = $state('');
-
 	const DRAWER_CATEGORIES = ['meat', 'vegetarian', 'vegan', 'fish', 'pasta', 'soup', 'dessert'];
-
-	let filteredRecipes = $derived(
-		data.recipeList
-			.filter((recipe) => recipeMatchesDrawer(recipe))
-			.sort(
-				(a, b) =>
-					b.onHandPortions - a.onHandPortions ||
-					recipeDisplayTitle(a).localeCompare(recipeDisplayTitle(b))
-			)
-			.slice(0, 40)
-	);
-
-	let suggestLines = $derived(
-		suggestText
-			.split('\n')
-			.map((line) => line.trim())
-			.filter((line) => /^(\d+[\.)]|[-*])\s+.+/.test(line))
-			.map((line) => line.replace(/^(\d+[\.)]|[-*])\s+/, '').trim())
-			.filter(Boolean)
-	);
-
-	function recipeDisplayTitle(recipe: Recipe): string {
-		return recipe.titleEn ?? recipe.title;
-	}
-
-	function recipeForMeal(meal: Meal): Recipe | undefined {
-		return meal.recipeSlug ? data.recipeList.find((r) => r.slug === meal.recipeSlug) : undefined;
-	}
-
-	/** Frozen portions on hand for the meal's linked recipe (0 when unlinked). */
-	function frozenPortionsFor(meal: Meal): number {
-		return recipeForMeal(meal)?.onHandPortions ?? 0;
-	}
-
-	function recipeDisplayCategory(recipe: Recipe): string | null {
-		return recipe.categoryEn ?? recipe.category;
-	}
-
-	function recipeMatchesDrawer(recipe: Recipe): boolean {
-		const q = drawerSearch.trim().toLowerCase();
-		const matchSearch =
-			!q ||
-			recipe.title.toLowerCase().includes(q) ||
-			(recipe.titleEn?.toLowerCase().includes(q) ?? false);
-		const c = drawerCategory.toLowerCase();
-		const matchCat =
-			!drawerCategory ||
-			(recipe.category?.toLowerCase().includes(c) ?? false) ||
-			(recipe.categoryEn?.toLowerCase().includes(c) ?? false);
-		return matchSearch && matchCat;
-	}
 
 	function formatWeekRange(weekStartDate: string): string {
 		const start = new Date(weekStartDate + 'T00:00:00');
@@ -176,485 +60,6 @@
 		});
 	}
 
-	// Day-to-day planning: the seven dates of a week, offered by the per-meal
-	// day picker. Day-planned meals sort to their day; pool meals sink below.
-	function weekDayOptions(weekStartDate: string): { date: string; label: string }[] {
-		return Array.from({ length: 7 }, (_, i) => {
-			const date = addDays(weekStartDate, i);
-			return { date, label: weekdayName((prefs.weekStartDay + i) % 7, 'short') };
-		});
-	}
-
-	function displayMeals(week: Week): Meal[] {
-		if (!dayPlanning) return week.meals;
-		return [...week.meals].sort(
-			(a, b) =>
-				(a.plannedDate ?? '9999-99-99').localeCompare(b.plannedDate ?? '9999-99-99') ||
-				a.sortOrder - b.sortOrder ||
-				a.id - b.id
-		);
-	}
-
-	function addKey(weekStartDate: string, dinner: string, recipeSlug: string | null = null): string {
-		return `${weekStartDate}:${recipeSlug ?? dinner.trim().toLowerCase()}`;
-	}
-
-	function setPendingAdd(key: string, pending: boolean) {
-		const next = { ...pendingAdds };
-		if (pending) next[key] = true;
-		else delete next[key];
-		pendingAdds = next;
-	}
-
-	function setApplyingSuggestion(key: string, pending: boolean) {
-		const next = { ...applyingSuggestion };
-		if (pending) next[key] = true;
-		else delete next[key];
-		applyingSuggestion = next;
-	}
-
-	function weekFor(weekStartDate: string): Week | undefined {
-		return weeks.find((week) => week.weekStartDate === weekStartDate);
-	}
-
-	function cloneWeeks(value: Week[]): Week[] {
-		return value.map((week) => ({ ...week, meals: week.meals.map((meal) => ({ ...meal })) }));
-	}
-
-	function updateMeal(updated: Meal) {
-		for (const week of weeks) {
-			const idx = week.meals.findIndex((meal) => meal.id === updated.id);
-			if (idx !== -1) {
-				week.meals[idx] = { ...updated };
-				weeks = [...weeks];
-				return;
-			}
-		}
-	}
-
-	function replaceMeal(tempId: number, saved: Meal) {
-		for (const week of weeks) {
-			const idx = week.meals.findIndex((meal) => meal.id === tempId);
-			if (idx !== -1) {
-				week.meals[idx] = { ...saved };
-				weeks = [...weeks];
-				return;
-			}
-		}
-		addMealToState(saved);
-	}
-
-	function removeMealFromState(id: number) {
-		for (const week of weeks) {
-			const idx = week.meals.findIndex((meal) => meal.id === id);
-			if (idx !== -1) {
-				week.meals.splice(idx, 1);
-				weeks = [...weeks];
-				return;
-			}
-		}
-	}
-
-	function addMealToState(meal: Meal) {
-		const week = weekFor(meal.weekStartDate);
-		if (week) {
-			week.meals.push(meal);
-			week.meals.sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
-			weeks = [...weeks];
-			return;
-		}
-		weeks = [
-			...weeks,
-			{
-				weekStartDate: meal.weekStartDate,
-				weekNumber: meal.weekNumber,
-				deliveryDate:
-					prefs.groceryDay == null
-						? null
-						: deliveryDateForPlanningWeek(meal.weekStartDate, prefs.groceryDay, prefs.weekStartDay),
-				meals: [meal]
-			}
-		].sort((a, b) => a.weekStartDate.localeCompare(b.weekStartDate));
-	}
-
-	function openAddDrawer(weekStartDate: string) {
-		drawerWeek = weekStartDate;
-		drawerSearch = '';
-		drawerCategory = '';
-		drawerOpen = true;
-	}
-
-	// No success toast: the new row appearing in the week list IS the confirmation
-	// (same contract as /shopping); errors still toast via optimistic().
-	async function addMealOptimistic(
-		input: { weekStartDate: string; dinner: string; recipeSlug?: string | null; source?: 'fresh' | 'freezer'; servings?: number | null },
-		closeDrawer = true
-	): Promise<boolean> {
-		const dinner = input.dinner.trim();
-		if (!dinner) return false;
-		const week = weekFor(input.weekStartDate);
-		if (!week) return false;
-		const key = addKey(input.weekStartDate, dinner, input.recipeSlug ?? null);
-		if (pendingAdds[key]) return false;
-
-		setPendingAdd(key, true);
-		drawerSubmitting = true;
-		const tempId = tempMealId--;
-		const optimisticMeal: Meal = {
-			id: tempId,
-			weekStartDate: input.weekStartDate,
-			weekNumber: week.weekNumber,
-			dinner,
-			recipeSlug: input.recipeSlug ?? null,
-			servings: input.servings ?? null,
-			status: 'planned',
-			source: input.source ?? 'fresh',
-			cookedDate: null,
-			plannedDate: null,
-			note: null,
-			sortOrder: week.meals.length,
-			createdAt: new Date()
-		};
-		addMealToState(optimisticMeal);
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						weekStartDate: input.weekStartDate,
-						dinner,
-						recipeSlug: input.recipeSlug ?? null,
-						servings: input.servings ?? null,
-						source: input.source ?? 'fresh'
-					})
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => removeMealFromState(tempId),
-			m.mealplan_toast_could_not_add()
-		);
-
-		setPendingAdd(key, false);
-		drawerSubmitting = false;
-		if (!ok || !saved) return false;
-		replaceMeal(tempId, saved);
-		if (closeDrawer) drawerOpen = false;
-		return true;
-	}
-
-	async function toggleCooked(meal: Meal) {
-		if (pendingToggles[meal.id]) return;
-		const newStatus = meal.status === 'cooked' ? 'planned' : 'cooked';
-		const previous = { ...meal };
-		const optimisticMeal: Meal = {
-			...meal,
-			status: newStatus,
-			cookedDate: newStatus === 'cooked' ? (meal.cookedDate ?? todayIso()) : null
-		};
-		pendingToggles = { ...pendingToggles, [meal.id]: true };
-		updateMeal(optimisticMeal);
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan/${meal.id}`, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ status: newStatus })
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => updateMeal(previous),
-			m.mealplan_toast_could_not_update()
-		);
-		const nextToggles = { ...pendingToggles };
-		delete nextToggles[meal.id];
-		pendingToggles = nextToggles;
-
-		if (!ok || !saved) return;
-		updateMeal(saved);
-		if (newStatus === 'cooked' && meal.recipeSlug) {
-			const recipe = recipeForMeal(meal);
-			if (meal.source === 'freezer') {
-				// Served from the freezer: take the portions OUT of stock instead of
-				// prompting to freeze more of what was just defrosted.
-				const onHand = recipe?.onHandPortions ?? 0;
-				if (onHand > 0) {
-					consumeSlug = meal.recipeSlug;
-					consumeTitle = meal.dinner;
-					consumeMax = onHand;
-					consumeDefault = Math.min(onHand, recipe?.servings ?? 2);
-					consumeOpen = true;
-				} else {
-					toast.error(m.mealplan_toast_no_frozen_portions({ dinner: meal.dinner }));
-				}
-			} else {
-				freezeSlug = meal.recipeSlug;
-				freezeTitle = meal.dinner;
-				freezeDefault = recipe?.targetPortions ?? recipe?.servings ?? 2;
-				freezeOpen = true;
-			}
-		}
-	}
-
-	async function setMealSource(meal: Meal, newSource: MealSource) {
-		if (pendingSourceToggles[meal.id] || meal.id < 0) return;
-		const recipe = recipeForMeal(meal);
-		if (!recipe || (newSource === 'freezer' && recipe.onHandPortions <= 0)) return;
-		const servings = defaultServingsForMealSource(
-			newSource,
-			recipe.servings,
-			recipe.onHandPortions
-		);
-		const previous = { ...meal };
-		pendingSourceToggles = { ...pendingSourceToggles, [meal.id]: true };
-		updateMeal({ ...meal, source: newSource, servings });
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan/${meal.id}`, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ source: newSource, servings })
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => updateMeal(previous),
-			m.mealplan_toast_could_not_update()
-		);
-		const next = { ...pendingSourceToggles };
-		delete next[meal.id];
-		pendingSourceToggles = next;
-		if (ok && saved) updateMeal(saved);
-	}
-
-	async function setPlannedDate(meal: Meal, plannedDate: string | null) {
-		if (pendingToggles[meal.id]) return;
-		const previous = { ...meal };
-		pendingToggles = { ...pendingToggles, [meal.id]: true };
-		updateMeal({ ...meal, plannedDate });
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan/${meal.id}`, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ plannedDate })
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => updateMeal(previous),
-			m.mealplan_toast_could_not_update()
-		);
-		const nextToggles = { ...pendingToggles };
-		delete nextToggles[meal.id];
-		pendingToggles = nextToggles;
-		if (ok && saved) updateMeal(saved);
-	}
-
-	async function restoreMeal(meal: Meal) {
-		const key = addKey(meal.weekStartDate, meal.dinner, meal.recipeSlug);
-		if (pendingAdds[key]) return;
-		const tempId = tempMealId--;
-		const restoredMeal: Meal = {
-			...meal,
-			id: tempId,
-			status: 'planned',
-			cookedDate: null
-		};
-
-		setPendingAdd(key, true);
-		addMealToState(restoredMeal);
-
-		let saved: Meal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const res = await fetch(`${base}/api/meal-plan`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						weekStartDate: meal.weekStartDate,
-						dinner: meal.dinner,
-						recipeSlug: meal.recipeSlug,
-						plannedDate: meal.plannedDate,
-						source: meal.source
-					})
-				});
-				if (res.ok) saved = await res.json();
-				return res;
-			},
-			() => removeMealFromState(tempId),
-			m.mealplan_toast_could_not_restore()
-		);
-
-		setPendingAdd(key, false);
-		if (!ok) return;
-		if (!saved) {
-			removeMealFromState(tempId);
-			toast.error(m.mealplan_toast_could_not_restore());
-			return;
-		}
-		replaceMeal(tempId, saved);
-	}
-
-	async function removeMeal(meal: Meal) {
-		if (pendingDeletes[meal.id]) return;
-		const before = cloneWeeks(weeks);
-		pendingDeletes = { ...pendingDeletes, [meal.id]: true };
-		removeMealFromState(meal.id);
-		const ok = await optimistic(
-			() => fetch(`${base}/api/meal-plan/${meal.id}`, { method: 'DELETE' }),
-			() => {
-				weeks = before;
-			},
-			m.mealplan_toast_could_not_remove()
-		);
-		const nextDeletes = { ...pendingDeletes };
-		delete nextDeletes[meal.id];
-		pendingDeletes = nextDeletes;
-		if (ok) toast.undo(m.mealplan_toast_removed({ dinner: meal.dinner }), () => void restoreMeal(meal));
-	}
-
-	async function addMealFromRecipe(recipe: Recipe, source: MealSource = 'fresh') {
-		await addMealOptimistic({
-			weekStartDate: drawerWeek,
-			dinner: recipeDisplayTitle(recipe),
-			recipeSlug: recipe.slug,
-			servings: defaultServingsForMealSource(
-				source,
-				recipe.servings,
-				recipe.onHandPortions
-			),
-			source
-		});
-	}
-
-	async function setServings(meal: Meal, next: number): Promise<boolean> {
-		if (meal.id < 0 || pendingServings[meal.id]) return false;
-		if (!Number.isInteger(next) || next < 1 || next > 99 || next === meal.servings) return false;
-		const previous = { ...meal };
-		pendingServings = { ...pendingServings, [meal.id]: true };
-		updateMeal({ ...meal, servings: next });
-		let saved: Meal | null = null;
-		const ok = await optimistic(async () => {
-			const response = await fetch(`${base}/api/meal-plan/${meal.id}`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ servings: next })
-			});
-			if (response.ok) saved = await response.json();
-			return response;
-		}, () => updateMeal(previous), m.mealplan_toast_could_not_update_servings());
-		const pending = { ...pendingServings };
-		delete pending[meal.id];
-		pendingServings = pending;
-		if (ok && saved) {
-			updateMeal(saved as Meal);
-			servingsStatus = m.mealplan_servings_updated({ dinner: meal.dinner, count: next });
-		}
-		return ok;
-	}
-
-	async function changeServings(meal: Meal, delta: number) {
-		await setServings(meal, Math.max(1, Math.min(99, (meal.servings ?? 1) + delta)));
-	}
-
-	// One input serves both jobs: it filters the recipe lists live, and the
-	// dashed row below plans the typed text as a custom dinner (UX: two labeled
-	// inputs collapsed into one — Hick).
-	async function addCustomFromSearch() {
-		const dinner = drawerSearch.trim();
-		if (!dinner) return;
-		await addMealOptimistic({ weekStartDate: drawerWeek, dinner });
-	}
-
-	async function startSuggest(weekStartDate: string) {
-		suggestActive = weekStartDate;
-		suggestText = '';
-		suggestError = '';
-		suggestLoading = true;
-
-		const recipeLibrary = data.recipeList
-			.slice(0, 60)
-			.map((recipe) => recipeDisplayTitle(recipe))
-			.join(', ');
-		const freezerContext = data.freezerPromptSummary
-			? `Freezer stock available: ${data.freezerPromptSummary}. Meals served from the freezer only need their fresh sides bought that week (bread, rice, fresh garnishes), so they are cheap low-effort picks.`
-			: 'No linked freezer meals are currently available.';
-		// Rotation cycle (Settings → Meal planning): recently cooked meals are
-		// off the table for this round.
-		const rotationContext =
-			prefs.repeatCycleDays > 0 && data.recentlyCookedSummary
-				? ` Do NOT suggest these meals — they were cooked within the last ${prefs.repeatCycleDays} days: ${data.recentlyCookedSummary}.`
-				: '';
-
-		try {
-			const res = await fetch(`${base}/api/chat`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					message: `Suggest ${prefs.suggestCount} meals for the week of ${weekStartDate}. Use this household context when useful: ${freezerContext} Recipe library: ${recipeLibrary}. Prefer meals that use available freezer portions or known recipes.${rotationContext} Reply in English with only a numbered list of meal names, no explanation.`
-				})
-			});
-			if (!res.ok || !res.body) throw new Error('no stream');
-			const reader = res.body.getReader();
-			const decoder = new TextDecoder();
-			let buf = '';
-			let doneReading = false;
-			while (!doneReading) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buf += decoder.decode(value, { stream: true });
-				const lines = buf.split('\n');
-				buf = lines.pop() ?? '';
-				for (const line of lines) {
-					if (!line.startsWith('data: ')) continue;
-					const payload = line.slice(6);
-					if (payload === '[DONE]') {
-						doneReading = true;
-						break;
-					}
-					try {
-						const event = JSON.parse(payload);
-						if (event.type === 'text') suggestText += event.text;
-					} catch {
-						// Ignore malformed stream chunks; the next chunk may complete cleanly.
-					}
-				}
-			}
-		} catch {
-			suggestError = m.mealplan_toast_suggestions_failed();
-			toast.error(m.mealplan_toast_suggestions_failed());
-		} finally {
-			suggestLoading = false;
-		}
-	}
-
-	function closeSuggest() {
-		suggestActive = null;
-		suggestText = '';
-		suggestError = '';
-	}
-
-	async function applySuggestion(dinner: string) {
-		if (!suggestActive) return;
-		const key = addKey(suggestActive, dinner);
-		if (applyingSuggestion[key] || addedSuggestions[key]) return;
-		setApplyingSuggestion(key, true);
-		const ok = await addMealOptimistic({ weekStartDate: suggestActive, dinner }, false);
-		if (ok) addedSuggestions = { ...addedSuggestions, [key]: true };
-		setApplyingSuggestion(key, false);
-	}
-
 </script>
 
 <svelte:head>
@@ -662,10 +67,10 @@
 </svelte:head>
 
 <div class="meal-plan-page">
-	<p class="sr-only" aria-live="polite">{servingsStatus}</p>
+	<p class="sr-only" aria-live="polite">{controller.servingsStatus}</p>
 	<KitchenPageHeader eyebrow={m.mealplan_header_context()} title={m.mealplan_heading()}>
 		{#snippet actions()}
-			{#if selectedWeek}
+			{#if controller.selectedWeek}
 			<details class="dropdown dropdown-end">
 				<summary
 					class="plan-more ui-kitchen-header-action ui-kitchen-header-action-icon"
@@ -681,7 +86,7 @@
 							<a
 								href={mealPlanWeekHref(
 									base,
-									selectedWeek.weekStartDate,
+									controller.selectedWeek.weekStartDate,
 									!data.showPastWeeks
 								)}
 							>
@@ -703,19 +108,19 @@
 			{/if}
 		{/snippet}
 
-		{#if selectedWeek}
-			{@const week = selectedWeek}
+		{#if controller.selectedWeek}
+			{@const week = controller.selectedWeek}
 			<div class="plan-header-payload">
 				<KitchenWeekNavigator
-					previousHref={adjacentWeeks.previous
+					previousHref={controller.adjacentWeeks.previous
 						? mealPlanWeekHref(
 								base,
-								adjacentWeeks.previous.weekStartDate,
+								controller.adjacentWeeks.previous.weekStartDate,
 								data.showPastWeeks
 							)
 						: null}
-					nextHref={adjacentWeeks.next
-						? mealPlanWeekHref(base, adjacentWeeks.next.weekStartDate, data.showPastWeeks)
+					nextHref={controller.adjacentWeeks.next
+						? mealPlanWeekHref(base, controller.adjacentWeeks.next.weekStartDate, data.showPastWeeks)
 						: null}
 					previousLabel={m.mealplan_previous_week_aria()}
 					nextLabel={m.mealplan_next_week_aria()}
@@ -726,7 +131,7 @@
 							<strong class="plan-week-title">
 								{m.mealplan_week_heading({ number: week.weekNumber })}
 							</strong>
-							{#if week.weekStartDate === currentWeekStart}
+							{#if week.weekStartDate === controller.currentWeekStart}
 								<span class="plan-now">
 									{m.mealplan_now_chip()}
 								</span>
@@ -753,17 +158,17 @@
 			<button
 				type="button"
 				class="plan-action plan-suggest"
-				onclick={() => startSuggest(week.weekStartDate)}
-				disabled={suggestLoading && suggestActive === week.weekStartDate}
+				onclick={() => controller.startSuggest(week.weekStartDate)}
+				disabled={controller.suggestLoading && controller.suggestActive === week.weekStartDate}
 			>
-				{suggestLoading && suggestActive === week.weekStartDate
+				{controller.suggestLoading && controller.suggestActive === week.weekStartDate
 					? m.mealplan_thinking_label()
 					: m.mealplan_suggest_button()}
 			</button>
 			<button
 				type="button"
 				class="plan-action plan-add"
-				onclick={() => openAddDrawer(week.weekStartDate)}
+				onclick={() => controller.openAddDrawer(week.weekStartDate)}
 			>
 				<Icon name="plus" class="h-4 w-4" />
 				{m.mealplan_add_meal()}
@@ -774,17 +179,17 @@
 	</KitchenPageHeader>
 
 	<main class="plan-ledger ui-kitchen-content">
-		{#if selectedWeek}
-			{@const week = selectedWeek}
+		{#if controller.selectedWeek}
+			{@const week = controller.selectedWeek}
 		<div>
 			<section
 				id="week-{week.weekStartDate}"
-				class="ui-list-card {week.weekStartDate === currentWeekStart ? 'border-primary/60' : ''}"
+				class="ui-list-card {week.weekStartDate === controller.currentWeekStart ? 'border-primary/60' : ''}"
 			>
 				{#if week.meals.length > 0}
 					<ul class="divide-y divide-base-200">
-						{#each displayMeals(week) as meal (meal.id)}
-							{@const linkedRecipe = recipeForMeal(meal)}
+						{#each controller.displayMeals(week) as meal (meal.id)}
+							{@const linkedRecipe = controller.recipeForMeal(meal)}
 							<li
 								class="meal-row transition-colors hover:bg-base-200/60"
 								transition:slide={{ duration: MOTION_MICRO_MS }}
@@ -795,9 +200,9 @@
 										type="checkbox"
 										class="checkbox checkbox-md"
 										checked={meal.status === 'cooked'}
-										disabled={!!pendingToggles[meal.id]}
+										disabled={!!controller.pendingToggles[meal.id]}
 										aria-label={m.mealplan_mark_cooked_aria({ dinner: meal.dinner })}
-										onchange={() => toggleCooked(meal)}
+										onchange={() => controller.toggleCooked(meal)}
 									/>
 								</label>
 								{#if meal.recipeSlug}
@@ -815,33 +220,33 @@
 								<button
 									type="button"
 									class="meal-remove btn btn-ghost"
-									onclick={() => removeMeal(meal)}
-									disabled={!!pendingDeletes[meal.id]}
+									onclick={() => controller.removeMeal(meal)}
+									disabled={!!controller.pendingDeletes[meal.id]}
 									aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
 								>
 									<Icon name="trash" />
 								</button>
 								<div class="meal-details">
-									{#if dayPlanning && meal.status !== 'cooked'}
+									{#if controller.dayPlanning && meal.status !== 'cooked'}
 										<select
 											class="select select-bordered select-xs w-24 {meal.plannedDate ? '' : 'text-base-content/40'}"
 											value={meal.plannedDate ?? ''}
-											disabled={!!pendingToggles[meal.id] || meal.id < 0}
+											disabled={!!controller.pendingToggles[meal.id] || meal.id < 0}
 											aria-label={m.mealplan_day_picker_aria({ dinner: meal.dinner })}
-											onchange={(e) => setPlannedDate(meal, e.currentTarget.value || null)}
+											onchange={(e) => controller.setPlannedDate(meal, e.currentTarget.value || null)}
 										>
 											<option value="">{m.mealplan_day_unplanned()}</option>
-											{#each weekDayOptions(week.weekStartDate) as day (day.date)}
+											{#each controller.weekDayOptions(week.weekStartDate) as day (day.date)}
 												<option value={day.date}>{day.label}</option>
 											{/each}
 										</select>
 									{/if}
 									{#if meal.status !== 'cooked' && meal.recipeSlug && meal.servings}
 										<div class="meal-portion-row">
-											<div class="meal-serving-stepper inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()} aria-busy={!!pendingServings[meal.id]}>
-												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-r-none" disabled={meal.servings <= 1} aria-disabled={!!pendingServings[meal.id] || meal.servings <= 1} aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })} onclick={() => !pendingServings[meal.id] && changeServings(meal, -1)}>−</button>
+											<div class="meal-serving-stepper inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()} aria-busy={!!controller.pendingServings[meal.id]}>
+												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-r-none" disabled={meal.servings <= 1} aria-disabled={!!controller.pendingServings[meal.id] || meal.servings <= 1} aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })} onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, -1)}>−</button>
 												<span class="min-w-0 flex-1 px-1 text-center text-xs tabular-nums">{m.mealplan_servings_count({ count: meal.servings })}</span>
-												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={meal.servings >= 99} aria-disabled={!!pendingServings[meal.id] || meal.servings >= 99} aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })} onclick={() => !pendingServings[meal.id] && changeServings(meal, 1)}>+</button>
+												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={meal.servings >= 99} aria-disabled={!!controller.pendingServings[meal.id] || meal.servings >= 99} aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })} onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, 1)}>+</button>
 											</div>
 											{#if linkedRecipe && meal.source !== 'freezer'}
 												<div class="meal-batch-options" aria-label={linkedRecipe.scalingMode === 'fixed_batch' ? m.mealplan_batch_fixed() : m.mealplan_batch_scalable()}>
@@ -857,7 +262,7 @@
 															type="button"
 															class="btn btn-xs h-11 min-h-0 w-11 px-0 {pressed ? 'btn-primary' : 'btn-ghost border border-base-300'}"
 															disabled={toggleTarget == null}
-															aria-disabled={toggleTarget == null || !!pendingServings[meal.id]}
+															aria-disabled={toggleTarget == null || !!controller.pendingServings[meal.id]}
 															aria-label={target == null
 																? m.mealplan_batch_unavailable_aria({ multiplier, dinner: meal.dinner })
 																: pressed && toggleTarget != null
@@ -873,8 +278,8 @@
 															aria-pressed={pressed}
 															onclick={() =>
 																toggleTarget != null &&
-																!pendingServings[meal.id] &&
-																setServings(meal, toggleTarget)}
+																!controller.pendingServings[meal.id] &&
+																controller.setServings(meal, toggleTarget)}
 														>
 															×{multiplier}
 														</button>
@@ -889,9 +294,9 @@
 											{cookedDateLabel(meal.cookedDate)}
 										</span>
 									{/if}
-									{#if meal.status !== 'cooked' && meal.recipeSlug && (meal.source === 'freezer' || frozenPortionsFor(meal) > 0)}
-										{@const onHand = frozenPortionsFor(meal)}
-										{@const linkedForSource = recipeForMeal(meal)}
+									{#if meal.status !== 'cooked' && meal.recipeSlug && (meal.source === 'freezer' || controller.frozenPortionsFor(meal) > 0)}
+										{@const onHand = controller.frozenPortionsFor(meal)}
+										{@const linkedForSource = controller.recipeForMeal(meal)}
 										{#if linkedForSource && meal.servings}
 											<div class="meal-source-row">
 												<MealSourceChoice
@@ -900,8 +305,8 @@
 													frozenPortions={onHand}
 													servings={meal.servings}
 													compact
-													disabled={!!pendingSourceToggles[meal.id] || meal.id < 0}
-													onselect={(source) => setMealSource(meal, source)}
+													disabled={!!controller.pendingSourceToggles[meal.id] || meal.id < 0}
+													onselect={(source) => controller.setMealSource(meal, source)}
 												/>
 											</div>
 										{/if}
@@ -916,38 +321,38 @@
 					</div>
 				{/if}
 
-				{#if suggestActive === week.weekStartDate}
+				{#if controller.suggestActive === week.weekStartDate}
 					<div class="border-t border-base-200 bg-base-200/35 px-3 py-3" transition:slide={{ duration: MOTION_CONTENT_MS }}>
 						<div class="mb-2 flex items-center justify-between gap-2">
 							<p class="ui-section-label">{m.mealplan_ai_suggestions_label()}</p>
-							<button type="button" class="btn btn-ghost btn-xs" onclick={closeSuggest}>
+							<button type="button" class="btn btn-ghost btn-xs" onclick={controller.closeSuggest}>
 								{m.mealplan_close_suggest_button()}
 							</button>
 						</div>
-						{#if suggestLoading}
+						{#if controller.suggestLoading}
 							<div class="flex items-center gap-2 py-2 text-sm text-base-content/60">
 								<Spinner variant="simmer" size="xs" />
 								{m.mealplan_thinking_label()}
 							</div>
-							{#if suggestText}
+							{#if controller.suggestText}
 								<div class="mt-2 whitespace-pre-wrap rounded-xl bg-base-100 px-3 py-2 text-sm text-base-content/75">
-									{suggestText}
+									{controller.suggestText}
 								</div>
 							{/if}
-						{:else if suggestError}
+						{:else if controller.suggestError}
 							<div class="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error" role="alert">
-								{suggestError}
+								{controller.suggestError}
 							</div>
-							<button type="button" class="btn btn-outline btn-xs mt-2" onclick={() => startSuggest(week.weekStartDate)}>
+							<button type="button" class="btn btn-outline btn-xs mt-2" onclick={() => controller.startSuggest(week.weekStartDate)}>
 								{m.mealplan_retry_button()}
 							</button>
-						{:else if suggestLines.length > 0}
+						{:else if controller.suggestLines.length > 0}
 							<div class="flex flex-col gap-1.5">
-								{#each suggestLines as suggestion}
-									{@const key = addKey(week.weekStartDate, suggestion)}
+								{#each controller.suggestLines as suggestion}
+									{@const key = controller.addKey(week.weekStartDate, suggestion)}
 									<div class="flex items-center justify-between gap-2 rounded-xl bg-base-100 px-3 py-2">
 										<span class="min-w-0 flex-1 truncate text-sm">{suggestion}</span>
-										{#if addedSuggestions[key]}
+										{#if controller.addedSuggestions[key]}
 											<span class="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-success">
 												<Icon name="check" class="h-3.5 w-3.5" />
 												{m.mealplan_planned_chip()}
@@ -956,8 +361,8 @@
 											<button
 												type="button"
 												class="btn btn-primary btn-xs"
-												onclick={() => applySuggestion(suggestion)}
-												disabled={!!applyingSuggestion[key] || !!pendingAdds[key]}
+												onclick={() => controller.applySuggestion(suggestion)}
+												disabled={!!controller.applyingSuggestion[key] || !!controller.pendingAdds[key]}
 											>
 												{m.mealplan_add_suggestion_button()}
 											</button>
@@ -965,9 +370,9 @@
 									</div>
 								{/each}
 							</div>
-						{:else if suggestText}
+						{:else if controller.suggestText}
 							<div class="whitespace-pre-wrap rounded-xl bg-base-100 px-3 py-2 text-sm text-base-content/75">
-								{suggestText}
+								{controller.suggestText}
 							</div>
 						{/if}
 					</div>
@@ -1213,7 +618,7 @@
 	}
 </style>
 
-<BottomSheet bind:open={drawerOpen} title={m.mealplan_add_meal_sheet_title()}>
+<BottomSheet bind:open={controller.drawerOpen} title={m.mealplan_add_meal_sheet_title()}>
 	<form
 		onsubmit={(event) => {
 			// Enter only dismisses the keyboard — planning the typed text as a
@@ -1227,7 +632,7 @@
 			placeholder={m.mealplan_search_recipes_placeholder()}
 			aria-label={m.mealplan_search_recipes_aria()}
 			autocomplete="off"
-			bind:value={drawerSearch}
+			bind:value={controller.drawerSearch}
 		/>
 	</form>
 
@@ -1235,38 +640,38 @@
 		{#each DRAWER_CATEGORIES as cat}
 			<button
 				type="button"
-				class={drawerCategory === cat ? 'ui-chip-active' : 'ui-chip'}
-				aria-pressed={drawerCategory === cat}
-				onclick={() => (drawerCategory = drawerCategory === cat ? '' : cat)}
+				class={controller.drawerCategory === cat ? 'ui-chip-active' : 'ui-chip'}
+				aria-pressed={controller.drawerCategory === cat}
+				onclick={() => (controller.drawerCategory = controller.drawerCategory === cat ? '' : cat)}
 			>
 				{cat}
 			</button>
 		{/each}
 	</div>
 
-	{#if drawerSearch.trim()}
+	{#if controller.drawerSearch.trim()}
 		<button
 			type="button"
 			class="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-base-300 px-3 py-2.5 text-left transition-colors hover:bg-base-200/60 disabled:opacity-50"
-			onclick={addCustomFromSearch}
-			disabled={drawerSubmitting}
+			onclick={controller.addCustomFromSearch}
+			disabled={controller.drawerSubmitting}
 			transition:slide={{ duration: MOTION_MICRO_MS }}
 		>
-			<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: drawerSearch.trim() })}</span>
+			<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: controller.drawerSearch.trim() })}</span>
 			<span class="ui-chip-muted shrink-0">{m.mealplan_custom_chip()}</span>
 		</button>
 	{/if}
 
 	<section class="mt-5">
 		<h3 class="ui-section-label mb-2">{m.mealplan_recipe_library_heading()}</h3>
-		{#if filteredRecipes.length === 0}
+		{#if controller.filteredRecipes.length === 0}
 			<EmptyState mini title={m.mealplan_no_recipes_found_title()} description={m.mealplan_no_recipes_found_desc()} />
 		{:else}
 			<ul class="ui-list-card divide-y divide-base-200">
-				{#each filteredRecipes as recipe}
-					{@const title = recipeDisplayTitle(recipe)}
-					{@const cat = recipeDisplayCategory(recipe)}
-					{@const key = addKey(drawerWeek, title, recipe.slug)}
+				{#each controller.filteredRecipes as recipe}
+					{@const title = controller.recipeDisplayTitle(recipe)}
+					{@const cat = controller.recipeDisplayCategory(recipe)}
+					{@const key = controller.addKey(controller.drawerWeek, title, recipe.slug)}
 					<li class="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
 						<span class="min-w-0">
 							<span class="block truncate text-sm font-medium">{title}</span>
@@ -1279,8 +684,8 @@
 							frozenPortions={recipe.onHandPortions}
 							servings={recipe.servings}
 							compact
-							disabled={drawerSubmitting || !!pendingAdds[key]}
-							onselect={(source) => addMealFromRecipe(recipe, source)}
+							disabled={controller.drawerSubmitting || !!controller.pendingAdds[key]}
+							onselect={(source) => controller.addMealFromRecipe(recipe, source)}
 						/>
 					</li>
 				{/each}
@@ -1290,19 +695,19 @@
 </BottomSheet>
 
 <FreezePortionsModal
-	bind:open={freezeOpen}
-	slug={freezeSlug}
-	title={freezeTitle}
-	defaultPortions={freezeDefault}
+	bind:open={controller.freezeOpen}
+	slug={controller.freezeSlug}
+	title={controller.freezeTitle}
+	defaultPortions={controller.freezeDefault}
 	onFrozen={() => void invalidateAll()}
 />
 
 <ConsumePortionsModal
-	bind:open={consumeOpen}
-	slug={consumeSlug}
-	title={consumeTitle}
-	defaultPortions={consumeDefault}
-	maxPortions={consumeMax}
+	bind:open={controller.consumeOpen}
+	slug={controller.consumeSlug}
+	title={controller.consumeTitle}
+	defaultPortions={controller.consumeDefault}
+	maxPortions={controller.consumeMax}
 	onConsumed={(consumed, remaining) => {
 		toast.success(
 			remaining > 0

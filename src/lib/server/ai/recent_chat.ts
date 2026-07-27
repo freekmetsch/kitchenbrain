@@ -1,9 +1,7 @@
 import { count, desc, eq } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { isChatTurnActive } from '$lib/server/ai/chat_activity';
-
-type DB = BetterSQLite3Database<typeof schema>;
 
 export function recentChatMessages(db: DB, userId: number, limit = 20) {
 	return db

@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { PreconditionConflictError, type WritePrecondition } from '$lib/server/inventory_writes';
+import {
+	PreconditionConflictError,
+	type WritePrecondition
+} from '$lib/server/domains/inventory/commands';
 import { classifyCommitRisk, type TurnExecutionContext } from '$lib/server/ai/commit_risk';
 import { createPendingAction } from '$lib/server/ai/pending_actions';
 import type { DB, ExecutorFn } from './shared';

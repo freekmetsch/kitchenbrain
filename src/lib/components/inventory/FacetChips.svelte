@@ -17,7 +17,7 @@
 		fish: '🐟', vegetarian: '🥦', vegan: '🌱', other: '🫙'
 	};
 	// Humanize machine review-reason slugs for a non-technical reader (P6.5 #5).
-	// Codes are written in inventory_writes.ts / _merge.ts / _guardian.ts; unmapped
+	// Codes are written by the inventory domain and guardian workflow; unmapped
 	// ones fall through to a de-slugged form, so coverage need not be exhaustive.
 	function reviewReasonLabel(key: string): string | undefined {
 		switch (key) {

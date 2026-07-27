@@ -7,10 +7,10 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
-import { db } from '$lib/server/db/index';
-import { inventoryItems, recipes } from '$lib/server/db/schema';
-import { removeInventory, updateInventory } from '$lib/server/inventory_writes';
+import {
+	consumeRecipeForApp,
+	RecipeInventoryMutationError
+} from '$lib/server/workflows/consume-recipe';
 import { readJsonBody } from '$lib/server/api_body';
 
 const ConsumeSchema = z.object({
@@ -22,42 +22,17 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	const body = await readJsonBody(request, ConsumeSchema);
 
-	const recipe = db.select({ id: recipes.id }).from(recipes).where(eq(recipes.slug, params.slug)).get();
-	if (!recipe) throw error(404, 'Recipe not found');
-
-	// Oldest first — eat through the freezer in the order it was stocked.
-	const leftovers = db
-		.select()
-		.from(inventoryItems)
-		.where(
-			and(
-				isNull(inventoryItems.deletedAt),
-				eq(inventoryItems.kind, 'leftover'),
-				eq(inventoryItems.section, 'freezer'),
-				eq(inventoryItems.madeFromRecipeId, recipe.id),
-				isNotNull(inventoryItems.qtyNum)
-			)
-		)
-		.orderBy(asc(inventoryItems.createdAt), asc(inventoryItems.id))
-		.all();
-
-	const ctx = { actor: locals.user.username, userId: locals.user.id };
-	let toConsume = body.portions;
-	let consumed = 0;
-	for (const item of leftovers) {
-		if (toConsume <= 0) break;
-		const available = item.qtyNum ?? 0;
-		if (available <= 0) continue;
-		const take = Math.min(available, toConsume);
-		const result =
-			take >= available
-				? removeInventory(db, { id: item.id }, ctx)
-				: updateInventory(db, item.id, { qtyNum: available - take }, ctx);
-		if (!result.ok) throw error(500, result.error);
-		toConsume -= take;
-		consumed += take;
+	try {
+		const result = consumeRecipeForApp(
+			{ slug: params.slug, portions: body.portions },
+			{ actor: locals.user.username, userId: locals.user.id }
+		);
+		if (!result) throw error(404, 'Recipe not found');
+		return json(result);
+	} catch (cause) {
+		if (cause instanceof RecipeInventoryMutationError) {
+			throw error(500, cause.message);
+		}
+		throw cause;
 	}
-
-	const remaining = leftovers.reduce((sum, item) => sum + (item.qtyNum ?? 0), 0) - consumed;
-	return json({ ok: true, consumed, remaining: Math.max(0, remaining) });
 };

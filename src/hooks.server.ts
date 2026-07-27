@@ -4,7 +4,7 @@ import { dev } from '$app/environment';
 import { validateSession } from '$lib/server/auth';
 import { base } from '$app/paths';
 import { db } from '$lib/server/db/index';
-import { runTaxonomyGuardianSweep } from '$lib/server/inventory_guardian';
+import { runTaxonomyGuardianSweep } from '$lib/server/workflows/inventory-guardian';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { getTextDirection } from '$lib/paraglide/runtime';
 

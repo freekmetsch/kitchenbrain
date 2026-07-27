@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
-import { addInventory } from '$lib/server/inventory_writes';
+import { addInventory, createInventoryService } from '$lib/server/workflows/inventory';
 import { executeToolCall, isOk } from './index';
 import type { TurnExecutionContext } from '../commit_risk';
 
@@ -51,6 +51,59 @@ describe('executeToolCall dispatch', () => {
 });
 
 describe('add_to_inventory', () => {
+	it('persists the same inventory and operation-log effect as the public workflow', async () => {
+		const directDb = createTestDb();
+		const aiDb = createTestDb();
+		const direct = createInventoryService(directDb).add(
+			{
+				name: 'Kipfilet',
+				section: 'freezer',
+				qtyNum: 2,
+				unit: 'stuks',
+				category: 'meat'
+			},
+			{ actor: 'ai', userId: 1 }
+		);
+		const ai = (await executeToolCall(
+			'add_to_inventory',
+			{ name: 'Kipfilet', section: 'freezer', qty_num: 2, unit: 'stuks', category: 'meat' },
+			aiDb,
+			1,
+			turnCtx()
+		)) as AddResult;
+
+		const effect = (db: TestDb, id: number) => {
+			const row = itemById(db, id);
+			const op = db
+				.select()
+				.from(schema.inventoryOpsLog)
+				.where(eq(schema.inventoryOpsLog.itemId, id))
+				.get()!;
+			return {
+				item: {
+					name: row.name,
+					section: row.section,
+					qtyNum: row.qtyNum,
+					unit: row.unit,
+					category: row.category,
+					kind: row.kind,
+					foodClass: row.foodClass,
+					needsReview: row.needsReview,
+					reviewReason: row.reviewReason,
+					deletedAt: row.deletedAt
+				},
+				log: {
+					opType: op.opType,
+					actor: op.actor,
+					hasBefore: op.beforeSnapshot !== null,
+					afterName: (op.afterSnapshot as { name: string }).name
+				}
+			};
+		};
+
+		expect(effect(aiDb, ai.id)).toEqual(effect(directDb, direct.item.id));
+	});
+
 	it('creates a new item and tracks it as created this turn', async () => {
 		const db = createTestDb();
 		const ctx = turnCtx();

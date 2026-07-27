@@ -1,8 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { db } from '$lib/server/db/index';
-import { undoLatestRemoveForItem, undoOp } from '$lib/server/inventory_writes';
+import { inventoryService } from '$lib/server/workflows/inventory';
 import { readJsonBody } from '$lib/server/api_body';
 
 const UndoSchema = z
@@ -21,8 +20,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const ctx = { actor: locals.user.username, userId: locals.user.id };
 	const result =
 		input.op_id !== undefined
-			? undoOp(db, input.op_id, ctx)
-			: undoLatestRemoveForItem(db, input.item_id!, ctx);
+			? inventoryService.undo(input.op_id, ctx)
+			: inventoryService.undoLatestRemove(input.item_id!, ctx);
 
 	if (!result.ok) {
 		if (result.conflict) return json({ ok: false, conflict: true, error: result.error }, { status: 409 });

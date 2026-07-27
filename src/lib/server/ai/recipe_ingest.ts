@@ -4,23 +4,17 @@
 // (JSON-LD) or AI extraction → insert with a review flag on gaps.
 // AH-INVARIANT (CLAUDE.md §Critical): ingredient names stay Dutch — never translate
 // them here; English display fields are produced lazily by translate_recipe.ts.
-import { eq } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/server/db/schema';
+import type { Db as DB } from '$lib/server/db/types';
 import { checkDailyCap, createMessage, loadPrompt, logSpend, parseModelJson } from '$lib/server/ai/client';
 import { getChatModel } from '$lib/server/ai/config';
-import { kickTranslateOnImport } from '$lib/server/ai/translate_recipe';
-import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
 import { normalizeFoodCategory } from '$lib/food_categories';
 import { z } from 'zod';
 import { NewIngredientArraySchema } from '$lib/recipe_ingredient';
 import { getBackgroundModel } from '$lib/server/ai/config';
-import { captureRecipeSource, ensureDirectionIds } from '$lib/recipe_source_snapshot';
-
-type DB = BetterSQLite3Database<typeof schema>;
+import { saveImportedRecipe } from '$lib/server/workflows/import-recipe';
 
 /** Structured recipe extracted from a page, before it is inserted. */
 export type ScrapedRecipe = {
@@ -168,29 +162,6 @@ async function assertPublicHttpUrl(rawUrl: string): Promise<void> {
 	if (!addresses.length || addresses.some((a) => isBlockedAddress(a.address))) {
 		throw new RecipeIngestError(BLOCKED_URL_MESSAGE, 'blocked_url');
 	}
-}
-
-export function slugify(title: string): string {
-	return title
-		.toLowerCase()
-		.replace(/[àáâãäå]/g, 'a')
-		.replace(/[èéêë]/g, 'e')
-		.replace(/[ìíîï]/g, 'i')
-		.replace(/[òóôõö]/g, 'o')
-		.replace(/[ùúûü]/g, 'u')
-		.replace(/[ñ]/g, 'n')
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '')
-		.slice(0, 60);
-}
-
-export function uniqueSlug(db: DB, base: string): string {
-	let slug = base;
-	let n = 1;
-	while (db.select({ id: schema.recipes.id }).from(schema.recipes).where(eq(schema.recipes.slug, slug)).get()) {
-		slug = `${base}-${n++}`;
-	}
-	return slug;
 }
 
 function extractJsonLdRecipe(html: string): object | null {
@@ -510,91 +481,10 @@ export async function scrapeRecipeFromUrl(
  * needsReview"; every recipe write funnels its reason through here (add_recipe,
  * edit_recipe, insertScrapedRecipe) so the pairing can't drift.
  */
-export function reviewFields(reason: string | null): {
-	needsReview: boolean;
-	reviewReason: string | null;
-} {
-	return { needsReview: reason !== null, reviewReason: reason };
-}
-
-/**
- * Why an ingested recipe should be flagged for review, or null when it's clean.
- * Two trigger classes: hard gaps that make the recipe unusable (no ingredients /
- * no directions), and a non-Dutch source — ingredient names are the Albert Heijn
- * lookup key and must stay Dutch (CLAUDE.md §Critical), so a scraped English/other
- * page needs a human pass. Missing servings is added to the reason for context but
- * never triggers a flag on its own (too common to be signal).
- */
-function scrapeReview(data: ScrapedRecipe): string | null {
-	const gaps: string[] = [];
-	if (data.ingredients.length === 0) gaps.push('no ingredients found');
-	if (data.directions.length === 0) gaps.push('no directions found');
-	// language is 'nl' | 'en' | 'mixed' from the AI path; JSON-LD assumes 'nl'.
-	if (data.language && data.language !== 'nl')
-		gaps.push('non-Dutch source — ingredient names may need Dutch for Albert Heijn');
-	if (gaps.length === 0) return null;
-	const detail = data.servings == null ? [...gaps, 'servings unknown'] : gaps;
-	return `Imported from URL — please check: ${detail.join(', ')}.`;
-}
-
 /** Insert an extracted recipe with a unique slug + review flag. Shared by route + tool. */
 export function insertScrapedRecipe(
 	db: DB,
 	data: ScrapedRecipe
 ): { slug: string; title: string; needsReview: boolean; reviewReason: string | null } {
-	const review = reviewFields(data.enrichmentReviewReason ?? scrapeReview(data));
-	const slug = uniqueSlug(db, slugify(data.title));
-	const now = new Date();
-	const directionIdsJson = ensureDirectionIds(data.directions);
-	const sourceSnapshotJson = captureRecipeSource(
-		{
-			title: data.title,
-			servings: data.servings,
-			sourceUrl: data.sourceUrl,
-			ingredients: data.ingredients,
-			directions: data.directions
-		},
-		{ capturedAt: now.getTime() }
-	);
-
-	const recipe = db
-		.insert(schema.recipes)
-		.values({
-			slug,
-			title: data.title,
-			category: data.category,
-			servings: data.servings,
-			structureVersion: data.structureVersion,
-			structureDraft: data.structureDraft,
-			structureDraftSourceUpdatedAt: data.structureDraft ? now : null,
-			totalTimeMin: data.totalTimeMin,
-			sourceUrl: data.sourceUrl,
-			imageUrl: data.imageUrl,
-			ingredients: data.ingredients,
-			directions: data.directions,
-			directionIdsJson,
-			sourceSnapshotJson,
-			notes: data.notes,
-			rating: null,
-			cuisine: data.cuisine,
-			language: data.language ?? 'nl',
-			...review,
-			createdAt: now,
-			updatedAt: now
-		})
-		.returning()
-		.get();
-
-	// Cooking view renders these saved directions directly. Translation remains
-	// optional; semantic planning is non-blocking because the deterministic
-	// cooking projection is already usable.
-	void Promise.all([
-		import('$lib/server/ai/cook_mode'),
-		import('$lib/server/db/index')
-	]).then(([{ kickCookModeGeneration }, { db: appDb }]) => {
-		if (db === appDb) kickCookModeGeneration(recipe.slug);
-	});
-	if (getAutoTranslateOnImport()) kickTranslateOnImport(recipe.slug);
-
-	return { slug: recipe.slug, title: recipe.title, ...review };
+	return saveImportedRecipe(db, data);
 }

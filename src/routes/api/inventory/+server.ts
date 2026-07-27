@@ -1,8 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { db } from '$lib/server/db/index';
-import { addInventory } from '$lib/server/inventory_writes';
+import { inventoryService } from '$lib/server/workflows/inventory';
 import { parseDateOnly } from '$lib/inventory_dates';
 import { readJsonBody } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
@@ -29,8 +28,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const input = await readJsonBody(request, AddSchema);
 
-	const result = addInventory(
-		db,
+	const result = inventoryService.add(
 		{
 			name: input.name,
 			section: input.section,

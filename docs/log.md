@@ -287,3 +287,27 @@ Touched: docs/feature-lists/archive/FEATURE_LIST_TESTING_HARNESS.md
 
 The repository has no `scripts/archive-scan.ps1`; the terminal feature list was moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
+
+## 2026-07-27 | html-artifact | plan: Domain boundary refactor
+
+Created the review workspace for the parity-preserving server/UI modularization plan, including
+the four-phase dependency map, eleven execution tickets, risk mitigations, and defaulted scope
+handoff.
+
+Touched: docs/artifacts/2026-07-27-plan-domain-boundary-refactor.html,
+docs/feature-lists/FEATURE_LIST_DOMAIN_BOUNDARY_REFACTOR.md
+
+## 2026-07-27 | shipped | Domain boundary refactor
+
+Shipped the four-phase parity-preserving refactor across inventory, recipes, meal planning,
+shopping/AH, and the primary UI controllers. HTTP and AI now converge on tested domain/workflow
+boundaries; Cook Mode lifecycle effects have one per-instance owner; hard guards preserve the
+Dutch-only AH and swappable-LLM seams. Verification passed 540 unit tests, 17 primary and 17
+secondary authenticated browser tests, zero Svelte diagnostics, a production build, a clean diff
+check, and zero production dependency advisories. No schema, auth, runtime-config, dependency, or
+live-provider change shipped.
+
+## 2026-07-27 | archive-scan | 1 feature list, 1 HTML archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_DOMAIN_BOUNDARY_REFACTOR.md,
+docs/artifacts/archive/2026-07-27-plan-domain-boundary-refactor.html

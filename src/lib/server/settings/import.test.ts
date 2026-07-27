@@ -8,10 +8,8 @@ import {
 	validateImportFile
 } from './import';
 import { getHouseholdPref, setHouseholdPref } from '$lib/server/db/household_prefs';
-import {
-	initializeShoppingSourceData,
-	K_SHOPPING_SOURCE_MIGRATION
-} from '$lib/server/shopping_entries';
+import { K_SHOPPING_SOURCE_MIGRATION } from '$lib/server/domains/shopping';
+import { initializeShoppingSourceData } from '$lib/server/workflows/reconcile-shopping';
 
 const NOW = new Date().toISOString();
 

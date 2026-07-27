@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from './test_db';
-import { runTaxonomyGuardianSweep } from './inventory_guardian';
-import { setReviewFlag } from './inventory_writes';
+import { runTaxonomyGuardianSweep } from './workflows/inventory-guardian';
+import { setReviewFlag } from './workflows/inventory';
 
 const now = new Date();
 
