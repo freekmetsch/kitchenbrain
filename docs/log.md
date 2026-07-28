@@ -525,8 +525,9 @@ validated inline fallback.
 
 Merged current `main`, kept timer delivery receipts at migration 0024, and regenerated the
 additive recipe preference table as 0025. A populated 0023→0024→0025 rehearsal preserved Dutch
-recipe ingredients and passed foreign-key checks. The final combined gate passed 117 test files /
-622 unit tests, all 20 primary browser stories, Svelte diagnostics, and the production build. The
+recipe ingredients and passed foreign-key checks. After timer hardening follow-up PR #24, the
+final combined gate passed 117 test files / 630 unit tests, all 20 primary browser stories, Svelte
+diagnostics, and the production build. The
 long Cook Mode navigation/resume story retains all assertions and now uses Playwright's explicit
 slow-test budget after passing repeated focused runs.
 
