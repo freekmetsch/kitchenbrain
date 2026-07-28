@@ -1,11 +1,10 @@
 import {
 	getShoppingFilterOptions,
-	groupShoppingItems,
+	groupShoppingBoardItems,
 	nextVisibleShoppingKey,
 	projectShoppingStates,
 	shoppingItemKey,
-	type ShoppingListFilter,
-	type ShoppingListSort
+	type ShoppingListFilter
 } from '$lib/shopping_list_view';
 import type { ShoppingListItem, ShoppingListSource } from './types';
 
@@ -65,16 +64,12 @@ export type ShoppingListControllerDependencies = {
 
 class ShoppingListController {
 	filter = $state<ShoppingListFilter>({ kind: 'all' });
-	sort = $state<ShoppingListSort>('list');
 	sourceSheetOpen = $state(false);
-	selectedSource = $state<ShoppingListSource | null>(null);
+	selectedSources = $state<ShoppingListSource[]>([]);
 	itemActionOpen = $state(false);
 	selectedItem = $state<ShoppingListItem | null>(null);
 	rulesOpen = $state(false);
 	rulesScope = $state<'excluded' | 'all'>('all');
-	listOptionsOpen = $state(false);
-	pendingListOptionsAction = $state<'weekly' | 'rules' | null>(null);
-	pendingSource = $state<ShoppingListSource | null>(null);
 	openWeeklyAfterAction = $state(false);
 	actionPending = $state(false);
 	basketOpen = $state(false);
@@ -107,11 +102,14 @@ class ShoppingListController {
 	}
 
 	get filterOptions() {
-		return getShoppingFilterOptions([...this.pending, ...this.done]);
+		return {
+			...getShoppingFilterOptions([...this.pending, ...this.done]),
+			hasWeekly: true
+		};
 	}
 
 	get projected() {
-		return projectShoppingStates(this.pending, this.done, this.filter, this.sort);
+		return projectShoppingStates(this.pending, this.done, this.filter);
 	}
 
 	get activePending() {
@@ -127,9 +125,11 @@ class ShoppingListController {
 	}
 
 	get activeGroups() {
-		return this.sort === 'store'
-			? groupShoppingItems(this.activePending).filter((group) => group.items.length)
-			: [{ section: null, items: this.activePending }];
+		return groupShoppingBoardItems(
+			this.activePending,
+			this.filter,
+			this.filterOptions.meals
+		);
 	}
 
 	get recipeSources() {
@@ -149,7 +149,9 @@ class ShoppingListController {
 	}
 
 	get viewMode(): ShoppingListViewMode {
-		if (this.pending.length === 0 && this.done.length === 0) return 'empty';
+		if (this.pending.length === 0 && this.done.length === 0) {
+			return this.filter.kind === 'all' ? 'empty' : 'filter-empty';
+		}
 		if (!this.filterHasResults) return 'filter-empty';
 		if (this.activePending.length) return 'active';
 		if (this.completed.length) return 'complete';
@@ -158,10 +160,6 @@ class ShoppingListController {
 
 	setFilter(filter: ShoppingListFilter) {
 		this.filter = filter;
-	}
-
-	setSort(sort: ShoppingListSort) {
-		this.sort = sort;
 	}
 
 	reconcileFilter(): boolean {
@@ -187,20 +185,14 @@ class ShoppingListController {
 		this.itemActionOpen = true;
 	}
 
-	editSourceAfterClose(source: ShoppingListSource, owner: 'actions' | 'rules') {
-		this.pendingSource = source;
-		if (owner === 'actions') this.itemActionOpen = false;
-		else this.rulesOpen = false;
+	openRuleSources(sources: ShoppingListSource[]) {
+		this.selectedSources = sources;
+		this.sourceSheetOpen = sources.length > 0;
 	}
 
 	async handleActionClose() {
 		if (this.itemActionOpen) return;
-		if (this.pendingSource) {
-			this.selectedSource = this.pendingSource;
-			this.pendingSource = null;
-			await this.#dependencies.settle();
-			this.sourceSheetOpen = true;
-		} else if (this.openWeeklyAfterAction) {
+		if (this.openWeeklyAfterAction) {
 			this.openWeeklyAfterAction = false;
 			await this.#dependencies.settle();
 			await this.#dependencies.openWeeklyManager();
@@ -208,45 +200,10 @@ class ShoppingListController {
 		if (!this.itemActionOpen) this.selectedItem = null;
 	}
 
-	async handleRulesClose() {
-		if (this.rulesOpen || !this.pendingSource) return;
-		this.selectedSource = this.pendingSource;
-		this.pendingSource = null;
-		await this.#dependencies.settle();
-		this.sourceSheetOpen = true;
-	}
-
 	openRules(scope: 'excluded' | 'all' = 'all') {
 		this.rulesScope =
 			scope === 'excluded' && this.excludedRecipeSources.length ? 'excluded' : 'all';
 		this.rulesOpen = true;
-	}
-
-	openListOptions() {
-		this.pendingListOptionsAction = null;
-		this.listOptionsOpen = true;
-	}
-
-	openWeeklyAfterListOptions() {
-		this.pendingListOptionsAction = 'weekly';
-		this.listOptionsOpen = false;
-	}
-
-	openRulesAfterListOptions() {
-		this.pendingListOptionsAction = 'rules';
-		this.listOptionsOpen = false;
-	}
-
-	async handleListOptionsClose() {
-		if (this.listOptionsOpen || !this.pendingListOptionsAction) return;
-		const action = this.pendingListOptionsAction;
-		this.pendingListOptionsAction = null;
-		await this.#dependencies.settle();
-		if (action === 'weekly') {
-			await this.#dependencies.openWeeklyManager();
-		} else {
-			this.openRules();
-		}
 	}
 
 	openWeeklyAfterActions() {

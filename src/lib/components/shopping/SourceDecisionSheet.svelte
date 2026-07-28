@@ -1,81 +1,144 @@
 <script lang="ts">
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import ShoppingRuleEditor from './ShoppingRuleEditor.svelte';
 	import type { ShoppingListSource } from './types';
 
 	type Need = 'required' | 'optional' | 'stocked';
 	type Props = {
 		open: boolean;
-		source: ShoppingListSource | null;
-		onSave: (source: ShoppingListSource, input: { need: Need; term: string; useInRecipe: boolean }) => Promise<boolean>;
+		sources: ShoppingListSource[];
+		onSave: (
+			source: ShoppingListSource,
+			input: { need: Need; term: string; useInRecipe: boolean }
+		) => Promise<boolean>;
 	};
 
-	let { open = $bindable(), source, onSave }: Props = $props();
-	let need = $state<Need>('required');
-	let term = $state('');
-	let useInRecipe = $state(false);
-	let pending = $state(false);
+	let { open = $bindable(), sources, onSave }: Props = $props();
+	let selectedSourceId = $state<number | null>(null);
+	let sourceSetKey = $state('');
 
 	$effect(() => {
-		if (!source) return;
-		need = source.staple ? 'stocked' : source.optional ? 'optional' : 'required';
-		term = source.term;
-		useInRecipe = false;
+		const nextKey = sources.map((source) => `${source.id}:${source.revision}`).join(',');
+		if (sourceSetKey === nextKey) return;
+		sourceSetKey = nextKey;
+		selectedSourceId = sources.length === 1 ? (sources[0]?.id ?? null) : null;
 	});
 
-	const choices = $derived([
-		{ value: 'required' as const, label: m.shopping_need_every_time(), description: m.shopping_need_every_time_desc() },
-		{ value: 'optional' as const, label: m.shopping_need_nice_to_have(), description: m.shopping_need_nice_to_have_desc() },
-		{ value: 'stocked' as const, label: m.shopping_need_usually_stocked(), description: m.shopping_need_usually_stocked_desc() }
-	]);
+	function needLabel(source: ShoppingListSource): string {
+		if (source.staple) return m.shopping_need_usually_stocked();
+		if (source.optional) return m.shopping_need_nice_to_have();
+		return m.shopping_need_every_time();
+	}
 
-	async function save() {
-		if (!source || pending) return;
-		pending = true;
-		const saved = await onSave(source, { need, term, useInRecipe });
-		pending = false;
-		if (saved) open = false;
+	function closeEditor() {
+		if (sources.length === 1) open = false;
+		else selectedSourceId = null;
 	}
 </script>
 
-<BottomSheet bind:open title={m.shopping_edit_rule()} desktopSide>
-	{#if source}
-		<div class="space-y-4">
-			<div class="rounded-xl bg-base-200/70 p-3">
-				<p class="font-semibold">{source.name}</p>
-				{#if source.recipeTitle}
-					<p class="text-sm text-base-content/60">
-						{[source.recipeTitle, source.component].filter(Boolean).join(' · ')}
-					</p>
+<BottomSheet
+	bind:open
+	title={sources.length > 1 ? m.shopping_choose_rule() : m.shopping_edit_rule()}
+	desktopSide
+	onclose={() => {
+		if (!open) selectedSourceId = sources.length === 1 ? (sources[0]?.id ?? null) : null;
+	}}
+>
+	<div class="source-editors">
+		{#each sources as source (source.id)}
+			<section class:expanded={selectedSourceId === source.id}>
+				<button
+					type="button"
+					class="source-editor-heading"
+					aria-expanded={selectedSourceId === source.id}
+					onclick={() => (selectedSourceId = selectedSourceId === source.id && sources.length > 1 ? null : source.id)}
+				>
+					<span>
+						<strong>{source.name}</strong>
+						<small>{[source.recipeTitle, source.component].filter(Boolean).join(' · ')}</small>
+						<small>{needLabel(source)} · {source.term}</small>
+					</span>
+					<Icon name="chevronRight" />
+				</button>
+				{#if selectedSourceId === source.id}
+					<div class="source-editor-body">
+						<ShoppingRuleEditor
+							{source}
+							{onSave}
+							onCancel={closeEditor}
+							onSaved={closeEditor}
+						/>
+					</div>
 				{/if}
-			</div>
-			<fieldset>
-				<legend class="mb-2 text-sm font-semibold">{m.shopping_need_label()}</legend>
-				<div class="space-y-2">
-					{#each choices as choice}
-						<label class="flex cursor-pointer gap-3 rounded-xl border border-base-300 p-3">
-							<input class="radio radio-primary mt-0.5" type="radio" name="shopping-need" value={choice.value} bind:group={need} />
-							<span><span class="block text-sm font-semibold">{choice.label}</span><span class="block text-xs text-base-content/60">{choice.description}</span></span>
-						</label>
-					{/each}
-				</div>
-			</fieldset>
-			<label class="block text-sm font-semibold">
-				{m.shopping_this_week_term()}
-				<select class="select mt-1 w-full" bind:value={term}>
-					{#each source.approvedTerms as approved}<option value={approved}>{approved}</option>{/each}
-				</select>
-			</label>
-			{#if term !== source.name}
-				<label class="flex cursor-pointer gap-3 rounded-xl bg-base-200/70 p-3">
-					<input class="checkbox checkbox-primary" type="checkbox" bind:checked={useInRecipe} />
-					<span><span class="block text-sm font-semibold">{m.shopping_use_in_recipe()}</span><span class="block text-xs text-base-content/60">{m.shopping_use_in_recipe_help()}</span></span>
-				</label>
-			{/if}
-			<div class="flex justify-end gap-2">
-				<button type="button" class="btn btn-ghost min-h-11" disabled={pending} onclick={() => (open = false)}>{m.shopping_cancel_button()}</button>
-				<button type="button" class="btn btn-primary min-h-11" disabled={pending} onclick={() => void save()}>{m.shopping_save_choice()}</button>
-			</div>
-		</div>
-	{/if}
+			</section>
+		{/each}
+	</div>
 </BottomSheet>
+
+<style>
+	.source-editors {
+		display: grid;
+		gap: 0.5rem;
+	}
+
+	.source-editors section {
+		overflow: hidden;
+		border: 1px solid var(--color-base-300);
+		border-radius: 0.8rem;
+		background: var(--color-base-100);
+	}
+
+	.source-editors section.expanded {
+		border-color: color-mix(in oklab, var(--market-olive, #304b3a) 45%, var(--color-base-300));
+	}
+
+	.source-editor-heading {
+		display: flex;
+		width: 100%;
+		min-height: 3.4rem;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.55rem 0.65rem 0.55rem 0.75rem;
+		text-align: left;
+	}
+
+	.source-editor-heading span {
+		min-width: 0;
+	}
+
+	.source-editor-heading strong,
+	.source-editor-heading small {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.source-editor-heading strong {
+		font-size: 0.76rem;
+	}
+
+	.source-editor-heading small {
+		margin-top: 0.08rem;
+		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+		font-size: 0.62rem;
+	}
+
+	.source-editor-heading :global(svg) {
+		width: 1rem;
+		height: 1rem;
+		flex: 0 0 auto;
+		transition: transform var(--motion-micro) var(--ease-standard);
+	}
+
+	.source-editors section.expanded .source-editor-heading :global(svg) {
+		transform: rotate(90deg);
+	}
+
+	.source-editor-body {
+		padding: 0 0.75rem 0.75rem;
+	}
+</style>

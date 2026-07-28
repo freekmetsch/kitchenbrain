@@ -120,19 +120,16 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 }
 
 describe('shopping list controller', () => {
-	it('keeps filters and sorting isolated per instance and resets an invalidated meal filter', () => {
+	it('keeps filters isolated per instance and resets an invalidated meal filter', () => {
 		const soupSource = source(1, 'recipe', { mealNames: ['Soup'] });
 		const soup = item('tomatoes', 1, [soupSource]);
 		const first = harness([soup]);
 		const second = harness([item('milk', 2, [source(2, 'weekly')])]);
 
 		first.controller.setFilter({ kind: 'meal', mealName: 'Soup' });
-		first.controller.setSort('alpha');
 
 		expect(first.controller.filter).toEqual({ kind: 'meal', mealName: 'Soup' });
-		expect(first.controller.sort).toBe('alpha');
 		expect(second.controller.filter).toEqual({ kind: 'all' });
-		expect(second.controller.sort).toBe('list');
 
 		first.setPending([]);
 		expect(first.controller.reconcileFilter()).toBe(true);
@@ -184,80 +181,33 @@ describe('shopping list controller', () => {
 		expect(test.controller.shoppingStatus).toBe('not-bought:tomatoes:1');
 	});
 
-	it('sequences source, rule, and recurring handoffs only after their owner closes', async () => {
+	it('opens row rules directly and waits for item actions before opening weekly management', async () => {
 		const recipeSource = source(1, 'recipe');
 		const entry = item('tomatoes', 1, [recipeSource]);
 		const test = harness([entry]);
 
-		test.controller.openActions(entry);
-		test.controller.editSourceAfterClose(recipeSource, 'actions');
-		expect(test.controller.itemActionOpen).toBe(false);
-		expect(test.controller.sourceSheetOpen).toBe(false);
-
-		await test.controller.handleActionClose();
-		expect(test.settle).toHaveBeenCalledTimes(1);
-		expect(test.controller.selectedSource).toBe(recipeSource);
+		test.controller.openRuleSources([recipeSource]);
+		expect(test.controller.selectedSources).toEqual([recipeSource]);
 		expect(test.controller.sourceSheetOpen).toBe(true);
-		expect(test.controller.selectedItem).toBeNull();
-
-		test.controller.sourceSheetOpen = false;
 		test.controller.openRules();
-		test.controller.editSourceAfterClose(recipeSource, 'rules');
-		await test.controller.handleRulesClose();
-		expect(test.settle).toHaveBeenCalledTimes(2);
-		expect(test.controller.sourceSheetOpen).toBe(true);
+		expect(test.controller.rulesOpen).toBe(true);
+		expect(test.settle).not.toHaveBeenCalled();
 
 		test.controller.sourceSheetOpen = false;
 		test.controller.openActions(entry);
 		test.controller.openWeeklyAfterActions();
 		await test.controller.handleActionClose();
-		expect(test.settle).toHaveBeenCalledTimes(3);
+		expect(test.settle).toHaveBeenCalledTimes(1);
 		expect(test.openWeeklyManager).toHaveBeenCalledTimes(1);
-	});
-
-	it('keeps list options isolated per instance and cancels without a handoff', async () => {
-		const first = harness([item('tomatoes', 1, [source(1, 'recipe')])]);
-		const second = harness([item('milk', 2, [source(2, 'weekly')])]);
-
-		first.controller.openListOptions();
-
-		expect(first.controller.listOptionsOpen).toBe(true);
-		expect(second.controller.listOptionsOpen).toBe(false);
-
-		first.controller.listOptionsOpen = false;
-		await first.controller.handleListOptionsClose();
-
-		expect(first.settle).not.toHaveBeenCalled();
-		expect(first.openWeeklyManager).not.toHaveBeenCalled();
-		expect(first.controller.rulesOpen).toBe(false);
-	});
-
-	it('opens weekly items or shopping rules only after list options closes', async () => {
-		const weekly = harness([item('milk', 1, [source(1, 'weekly')])]);
-
-		weekly.controller.openListOptions();
-		weekly.controller.openWeeklyAfterListOptions();
-		expect(weekly.controller.listOptionsOpen).toBe(false);
-		expect(weekly.openWeeklyManager).not.toHaveBeenCalled();
-
-		await weekly.controller.handleListOptionsClose();
-		expect(weekly.settle).toHaveBeenCalledTimes(1);
-		expect(weekly.openWeeklyManager).toHaveBeenCalledTimes(1);
-
-		const rules = harness([item('tomatoes', 2, [source(2, 'recipe')])]);
-		rules.controller.openListOptions();
-		rules.controller.openRulesAfterListOptions();
-		expect(rules.controller.listOptionsOpen).toBe(false);
-		expect(rules.controller.rulesOpen).toBe(false);
-
-		await rules.controller.handleListOptionsClose();
-		expect(rules.settle).toHaveBeenCalledTimes(1);
-		expect(rules.controller.rulesOpen).toBe(true);
 	});
 
 	it('coordinates empty, filtered-empty, active, covered-only, and complete modes', () => {
 		const test = harness();
 		expect(test.controller.viewMode).toBe('empty');
+		expect(test.controller.filterOptions.hasWeekly).toBe(true);
+		test.controller.setFilter({ kind: 'weekly' });
+		expect(test.controller.viewMode).toBe('filter-empty');
+		test.controller.setFilter({ kind: 'all' });
 
 		const mealSource = source(1, 'recipe', { mealNames: ['Soup'] });
 		const active = item('tomatoes', 1, [mealSource]);

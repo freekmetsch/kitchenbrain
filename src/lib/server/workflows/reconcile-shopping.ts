@@ -162,9 +162,42 @@ export function createShoppingService(db: Db) {
 	};
 }
 
+export function resolveShoppingWeek(input: {
+	requestedWeek: string | null;
+	today: string;
+	weekStartDay: number;
+	groceryDay: number | null;
+}): string {
+	if (isIsoDate(input.requestedWeek)) {
+		return weekStartFor(input.requestedWeek, input.weekStartDay);
+	}
+
+	const currentPlanningWeek = weekStartFor(input.today, input.weekStartDay);
+	if (input.groceryDay == null) return currentPlanningWeek;
+
+	const deliveryDate = deliveryDateForPlanningWeek(
+		currentPlanningWeek,
+		input.groceryDay,
+		input.weekStartDay
+	);
+	return deliveryDate < input.today ? addDays(currentPlanningWeek, 7) : currentPlanningWeek;
+}
+
 export function loadShoppingPageData(db: Db, weekParam: string | null) {
 	const prefs = getMealPlanPrefs(db);
-	const weekStart = weekStartFor(isIsoDate(weekParam) ? weekParam : todayIso(), prefs.weekStartDay);
+	const today = todayIso();
+	const defaultWeek = resolveShoppingWeek({
+		requestedWeek: null,
+		today,
+		weekStartDay: prefs.weekStartDay,
+		groceryDay: prefs.groceryDay
+	});
+	const weekStart = resolveShoppingWeek({
+		requestedWeek: weekParam,
+		today,
+		weekStartDay: prefs.weekStartDay,
+		groceryDay: prefs.groceryDay
+	});
 	return db.transaction((tx) => {
 		initializeShoppingSourceData(tx);
 		materializeShoppingWeek(tx, weekStart, { weekStartDay: prefs.weekStartDay });
@@ -176,7 +209,7 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 			weekStart,
 			prevWeek: addDays(weekStart, -7),
 			nextWeek: addDays(weekStart, 7),
-			isCurrentWeek: weekStart === weekStartFor(todayIso(), prefs.weekStartDay),
+			isDefaultWeek: weekStart === defaultWeek,
 			deliveryDate:
 				prefs.groceryDay == null
 					? null

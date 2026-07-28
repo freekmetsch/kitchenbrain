@@ -207,6 +207,24 @@ export function seedKitchenFixtures(databasePath: string): void {
 		INSERT INTO chat_messages (user_id, role, content, tool_calls, created_at)
 		VALUES (@userId, @role, @content, @toolCalls, @createdAt)
 	`);
+	const insertShoppingPush = sqlite.prepare(`
+		INSERT INTO shopping_push_history (
+			week_start_date, destination, account_name, products_pushed, freetext_pushed,
+			failed_count, skipped_count, attempt_status, completed_at, created_at
+		) VALUES (
+			@weekStart, 'list', 'E2E household', @productsPushed, 0,
+			0, 0, @attemptStatus, @completedAt, @createdAt
+		)
+	`);
+	const insertShoppingPushItem = sqlite.prepare(`
+		INSERT INTO shopping_push_items (
+			push_id, source_ref, source_name, amount, unit, mode, ah_product_id,
+			ah_product_name, quantity, destination, status, created_at
+		) VALUES (
+			@pushId, @sourceRef, @sourceName, '1', 'piece', 'product', @ahProductId,
+			@ahProductName, 1, 'list', @status, @createdAt
+		)
+	`);
 
 	const seed = sqlite.transaction(() => {
 		Object.values(KITCHEN_FIXTURES).forEach((fixture, index) => {
@@ -410,6 +428,56 @@ export function seedKitchenFixtures(databasePath: string): void {
 				]),
 				createdAt: now - 1
 			});
+		});
+
+		const fixture = KITCHEN_FIXTURES.primary;
+		const previousPushId = Number(
+			insertShoppingPush.run({
+				weekStart: fixture.weekStart,
+				productsPushed: 2,
+				attemptStatus: 'succeeded',
+				completedAt: now - 120,
+				createdAt: now - 120
+			}).lastInsertRowid
+		);
+		for (const [index, sourceName] of fixture.longShoppingNames.slice(0, 2).entries()) {
+			insertShoppingPushItem.run({
+				pushId: previousPushId,
+				sourceRef: `e2e:previous:${index}`,
+				sourceName,
+				ahProductId: `e2e-previous-product-${index}`,
+				ahProductName: `E2E AH product ${index + 1}`,
+				status: 'success',
+				createdAt: now - 120
+			});
+		}
+
+		const latestPushId = Number(
+			insertShoppingPush.run({
+				weekStart: fixture.weekStart,
+				productsPushed: 1,
+				attemptStatus: 'uncertain',
+				completedAt: now,
+				createdAt: now
+			}).lastInsertRowid
+		);
+		insertShoppingPushItem.run({
+			pushId: latestPushId,
+			sourceRef: 'e2e:latest:uncertain',
+			sourceName: fixture.shoppingName,
+			ahProductId: 'e2e-latest-uncertain',
+			ahProductName: 'E2E AH tomatoes',
+			status: 'uncertain',
+			createdAt: now
+		});
+		insertShoppingPushItem.run({
+			pushId: latestPushId,
+			sourceRef: 'e2e:latest:success',
+			sourceName: fixture.longShoppingNames[0],
+			ahProductId: 'e2e-latest-success',
+			ahProductName: 'E2E AH almonds',
+			status: 'success',
+			createdAt: now
 		});
 	});
 

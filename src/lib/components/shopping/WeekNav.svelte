@@ -1,8 +1,9 @@
-<!-- Shopping utility band: one page identity plus week, delivery, AH, and progress context. -->
+<!-- Shopping utility band: one page identity plus week, delivery, AH, and rule context. -->
 <script lang="ts">
 	import { base } from '$app/paths';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { addDays, APP_TIME_ZONE } from '$lib/week';
@@ -11,22 +12,24 @@
 		weekStart: string;
 		prevWeek: string;
 		nextWeek: string;
-		isCurrentWeek: boolean;
+		isDefaultWeek: boolean;
 		deliveryDate?: string | null;
-		remainingCount: number;
-		doneCount: number;
 		ahConnected: boolean;
+		recipeRuleCount?: number;
+		excludedRuleCount?: number;
+		onOpenRules?: () => void;
 	};
 
 	let {
 		weekStart,
 		prevWeek,
 		nextWeek,
-		isCurrentWeek,
+		isDefaultWeek,
 		deliveryDate = null,
-		remainingCount,
-		doneCount,
-		ahConnected
+		ahConnected,
+		recipeRuleCount = 0,
+		excludedRuleCount = 0,
+		onOpenRules
 	}: Props = $props();
 
 	function locale(): string {
@@ -72,7 +75,7 @@
 		>
 			<div class="market-week-copy">
 				<strong>
-					{#if isCurrentWeek}<span>{m.shopping_this_week_label()}</span><b aria-hidden="true"> · </b>{/if}
+					{#if isDefaultWeek}<span>{m.shopping_upcoming_shop_label()}</span><b aria-hidden="true"> · </b>{/if}
 					{weekRangeLabel(weekStart)}
 				</strong>
 				<div>
@@ -81,21 +84,28 @@
 						<b aria-hidden="true"> · </b>
 					{/if}
 					<a href="{base}/meal-plan?week={weekStart}">{m.shopping_view_meal_plan_link()}</a>
-					{#if !isCurrentWeek}
-						<b aria-hidden="true"> · </b>
-						<a href="{base}/shopping">{m.shopping_back_to_week_button()}</a>
-					{/if}
 				</div>
 			</div>
 		</KitchenWeekNavigator>
 
-		<div
-			class="market-run-counts"
-			aria-label={`${m.shopping_items_left({ count: remainingCount })}; ${m.shopping_in_basket_short({ count: doneCount })}`}
-		>
-			<strong>{m.shopping_items_left({ count: remainingCount })}</strong>
-			<span>{m.shopping_in_basket_short({ count: doneCount })}</span>
-		</div>
+		{#if recipeRuleCount > 0}
+			<button
+				type="button"
+				class="market-shopping-rules"
+				aria-haspopup="dialog"
+				onclick={onOpenRules}
+			>
+				<span>
+					<strong>{m.shopping_rules_header()}</strong>
+					<small>
+						{excludedRuleCount
+							? m.shopping_rules_off_list({ count: excludedRuleCount })
+							: m.shopping_rules_review_summary()}
+					</small>
+				</span>
+				<Icon name="chevronRight" />
+			</button>
+		{/if}
 	</div>
 </KitchenPageHeader>
 
@@ -173,36 +183,53 @@
 		opacity: 0.5;
 	}
 
-	.market-run-counts {
+	.market-shopping-rules {
 		display: flex;
+		width: 100%;
+		min-height: 2.75rem;
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.75rem;
-		margin-top: 0.3rem;
+		margin-top: 0.55rem;
+		border: 1px solid rgb(255 255 255 / 17%);
+		border-radius: 0.72rem;
+		padding: 0.45rem 0.65rem 0.45rem 0.75rem;
+		background: rgb(255 255 255 / 9%);
+		color: white;
+		text-align: left;
 	}
 
-	.market-run-counts strong {
-		font-family: var(--kitchen-display);
-		font-size: 1.05rem;
-		font-weight: 500;
-		line-height: 1;
+	.market-shopping-rules:hover,
+	.market-shopping-rules:focus-visible {
+		background: rgb(255 255 255 / 14%);
 	}
 
-	.market-run-counts span {
-		color: #d7e0d9;
-		font-size: 0.58rem;
+	.market-shopping-rules span {
+		min-width: 0;
 	}
 
-	@media (min-width: 48rem) {
-		.market-run-state {
-			display: grid;
-			grid-template-columns: minmax(28rem, 1fr) minmax(13rem, 0.45fr);
-			align-items: end;
-			gap: 1.5rem;
-		}
-
-		.market-run-counts {
-			margin-top: 0;
-		}
+	.market-shopping-rules strong,
+	.market-shopping-rules small {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
+
+	.market-shopping-rules strong {
+		font-size: 0.68rem;
+	}
+
+	.market-shopping-rules small {
+		margin-top: 0.05rem;
+		color: #d5e0d8;
+		font-size: 0.57rem;
+	}
+
+	.market-shopping-rules :global(svg) {
+		width: 1rem;
+		height: 1rem;
+		flex: 0 0 auto;
+	}
+
 </style>

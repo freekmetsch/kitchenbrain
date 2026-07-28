@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Shopping journey simplification — archived design shotgun round one</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202a23;
+      --muted: #667169;
+      --paper: #f4f0e8;
+      --card: #fffdf8;
+      --line: #d8d9cf;
+      --olive: #304b3a;
+      --olive-soft: #e5eee6;
+      --olive-pale: #f0f5ef;
+      --honey: #e4bd60;
+      --terra: #b55d3f;
+      --warn: #a05a25;
+      --blue: #315e72;
+      --shadow: 0 20px 60px rgb(37 51 41 / 12%);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      background: var(--paper);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    button, input, textarea { font: inherit; }
+    button, label { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+
+    :focus-visible {
+      outline: 3px solid #cf7e46;
+      outline-offset: 3px;
+    }
+
+    .shell {
+      width: min(1520px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 80px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 30px;
+      padding: clamp(28px, 6vw, 76px);
+      background:
+        radial-gradient(circle at 86% 14%, rgb(255 255 255 / 11%), transparent 22rem),
+        linear-gradient(135deg, #21382b, #405f49);
+      color: #f9f6ee;
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      position: absolute;
+      right: -5rem;
+      bottom: -8rem;
+      width: 22rem;
+      height: 22rem;
+      border: 1px solid rgb(255 255 255 / 12%);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .eyebrow, .section-kicker {
+      margin: 0 0 10px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow { color: #f2d58d; }
+    .section-kicker { color: var(--terra); }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 780px;
+      margin-bottom: 16px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(42px, 7vw, 82px);
+      font-weight: 500;
+      letter-spacing: -.045em;
+      line-height: .96;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      margin: 0;
+      color: #dce7de;
+      font-size: clamp(16px, 2vw, 20px);
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 28px;
+    }
+
+    .tag {
+      display: inline-flex;
+      min-height: 32px;
+      align-items: center;
+      border: 1px solid rgb(255 255 255 / 20%);
+      border-radius: 999px;
+      padding: 0 12px;
+      background: rgb(255 255 255 / 8%);
+      color: #eff5ef;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0 0;
+    }
+
+    .summary {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      background: var(--card);
+    }
+
+    .summary strong {
+      display: block;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .summary span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    section { margin-top: 64px; }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .section-head h2 {
+      max-width: 820px;
+      margin-bottom: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(32px, 5vw, 54px);
+      font-weight: 500;
+      letter-spacing: -.035em;
+      line-height: 1;
+    }
+
+    .section-head p {
+      max-width: 540px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .toolbar {
+      display: inline-flex;
+      gap: 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px;
+      background: var(--card);
+    }
+
+    .toolbar button {
+      min-height: 40px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 15px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .toolbar button[aria-pressed="true"] {
+      background: var(--olive);
+      color: white;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .variant {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 14px;
+      background: rgb(255 253 248 / 76%);
+      box-shadow: 0 10px 30px rgb(42 56 45 / 7%);
+    }
+
+    .variant.selected {
+      border-color: var(--olive);
+      box-shadow: 0 0 0 2px rgb(48 75 58 / 12%), var(--shadow);
+    }
+
+    .variant-copy {
+      min-height: 154px;
+      padding: 6px 4px 14px;
+    }
+
+    .variant-label {
+      display: inline-flex;
+      min-width: 30px;
+      height: 30px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      background: var(--olive-soft);
+      color: var(--olive);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .variant h3 {
+      margin: 10px 0 5px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 25px;
+      font-weight: 500;
+    }
+
+    .thesis {
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .trade {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .trade span {
+      border-radius: 10px;
+      padding: 8px;
+      background: #f0eee7;
+    }
+
+    .trade b { display: block; color: var(--olive); }
+
+    .screen {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      min-height: 720px;
+      border: 1px solid #c9cec7;
+      border-radius: 20px;
+      background: #f6f3ec;
+      box-shadow: inset 0 0 0 5px rgb(255 255 255 / 52%);
+      font-size: 10px;
+    }
+
+    .screen-head {
+      padding: 16px 14px 12px;
+      background: linear-gradient(135deg, #294232, #41624b);
+      color: white;
+    }
+
+    .screen-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .screen-title strong {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 21px;
+      font-weight: 500;
+    }
+
+    .connection {
+      border: 1px solid rgb(255 255 255 / 24%);
+      border-radius: 999px;
+      padding: 4px 7px;
+      font-size: 8px;
+      font-weight: 800;
+    }
+
+    .week {
+      display: grid;
+      grid-template-columns: 28px 1fr 28px;
+      gap: 6px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .week > span {
+      text-align: center;
+      color: #dbe7dd;
+      font-size: 9px;
+    }
+
+    .arrow {
+      display: grid;
+      height: 28px;
+      place-items: center;
+      border: 1px solid rgb(255 255 255 / 24%);
+      border-radius: 9px;
+    }
+
+    .mock-body { padding: 11px 10px 72px; }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 84px;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .pills {
+      display: flex;
+      gap: 5px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .pill, .sort, .tiny-action, .rule-chip {
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #cfd4cd;
+      border-radius: 999px;
+      padding: 0 9px;
+      background: #fff;
+      color: #3f4b43;
+      font-size: 8px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .pill.active {
+      border-color: var(--olive);
+      background: var(--olive);
+      color: white;
+    }
+
+    .sort {
+      width: 84px;
+      border-radius: 9px;
+      padding: 0 7px;
+    }
+
+    .rules-line, .activity {
+      display: flex;
+      min-height: 38px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 9px;
+      margin-top: 8px;
+      border-radius: 11px;
+      padding: 7px 9px;
+      background: #fff;
+    }
+
+    .rules-line { border: 1px dashed #aebbad; }
+
+    .rules-line strong, .activity strong {
+      display: block;
+      font-size: 9px;
+    }
+
+    .rules-line span, .activity span {
+      color: #6b756e;
+      font-size: 7px;
+    }
+
+    .activity {
+      border: 1px solid #c6d9c8;
+      background: #edf5ed;
+    }
+
+    .activity.warn {
+      border-color: #dfbb99;
+      background: #fff1e5;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 14px 2px 5px;
+      color: #6a746c;
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .section-title button {
+      min-height: 28px;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 7px;
+      background: #e6ede6;
+      color: var(--olive);
+      font-size: 8px;
+      font-weight: 850;
+    }
+
+    .rows {
+      overflow: hidden;
+      border: 1px solid #d8dbd4;
+      border-radius: 13px;
+      background: #fff;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 27px minmax(0, 1fr) auto;
+      gap: 7px;
+      min-height: 51px;
+      align-items: center;
+      border-bottom: 1px solid #ecece7;
+      padding: 6px 8px;
+    }
+
+    .row:last-child { border-bottom: 0; }
+
+    .check {
+      width: 23px;
+      height: 23px;
+      border: 1px solid #aeb7ae;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+
+    .row strong {
+      display: block;
+      overflow: hidden;
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row small {
+      display: block;
+      overflow: hidden;
+      margin-top: 2px;
+      color: #707a72;
+      font-size: 7px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rule-chip {
+      min-height: 28px;
+      border-radius: 8px;
+      padding: 0 7px;
+      color: var(--olive);
+    }
+
+    .dock {
+      position: absolute;
+      right: 10px;
+      bottom: 9px;
+      left: 10px;
+      display: grid;
+      grid-template-columns: .8fr 1.25fr;
+      gap: 6px;
+      border: 1px solid #cdd2cc;
+      border-radius: 12px;
+      padding: 5px;
+      background: rgb(255 255 255 / 94%);
+      box-shadow: 0 7px 22px rgb(39 51 42 / 18%);
+    }
+
+    .dock span {
+      display: grid;
+      min-height: 36px;
+      place-items: center;
+      border-radius: 8px;
+      background: #ecece6;
+      font-size: 9px;
+      font-weight: 900;
+    }
+
+    .dock span:last-child {
+      background: var(--terra);
+      color: white;
+    }
+
+    /* Direction B */
+    .board .mock-body { background: #f1eadf; }
+    .board .screen-head { background: #6f482f; }
+    .board .source-panel {
+      margin-top: 9px;
+      border: 1px solid #d8cbbb;
+      border-radius: 14px;
+      padding: 9px;
+      background: #fffaf0;
+    }
+    .board .source-panel.weekly {
+      border-color: #b9cbb9;
+      background: #eaf2e7;
+    }
+    .board .source-panel h4 {
+      margin: 0 0 6px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .board .row {
+      grid-template-columns: 24px minmax(0,1fr);
+      min-height: 43px;
+      padding: 4px 2px;
+      background: transparent;
+    }
+    .board .rows { border: 0; background: transparent; }
+    .board .activity { margin: 9px 0; }
+
+    /* Direction C */
+    .edit-lane .screen-head { background: #294b5a; }
+    .edit-lane .mock-body { background: #eef2f3; }
+    .mode-bar {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
+      border: 1px solid #c8d4d8;
+      border-radius: 10px;
+      padding: 7px;
+      background: white;
+    }
+    .mode-bar strong { font-size: 9px; }
+    .mode-toggle {
+      border-radius: 999px;
+      padding: 3px 7px;
+      background: var(--blue);
+      color: white;
+      font-size: 7px;
+      font-weight: 900;
+    }
+    .editor-row {
+      margin-top: 7px;
+      border: 1px solid #cad5d8;
+      border-radius: 11px;
+      padding: 8px;
+      background: white;
+    }
+    .editor-row strong { font-size: 10px; }
+    .inline-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      margin-top: 6px;
+    }
+    .inline-fields span {
+      display: grid;
+      min-height: 28px;
+      place-items: center;
+      border: 1px solid #cbd5d8;
+      border-radius: 7px;
+      color: #42545b;
+      font-size: 7px;
+      font-weight: 800;
+    }
+
+    body[data-viewport="desktop"] .comparison-grid {
+      grid-template-columns: 1fr;
+    }
+
+    body[data-viewport="desktop"] .variant {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    body[data-viewport="desktop"] .variant-copy { min-height: 0; }
+    body[data-viewport="desktop"] .screen { min-height: 485px; }
+    body[data-viewport="desktop"] .mock-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 250px;
+      gap: 10px;
+      padding-bottom: 70px;
+    }
+    body[data-viewport="desktop"] .control-row,
+    body[data-viewport="desktop"] .rules-line,
+    body[data-viewport="desktop"] .activity {
+      grid-column: 1 / -1;
+    }
+    body[data-viewport="desktop"] .dock {
+      right: calc(250px + 20px);
+      left: 10px;
+    }
+    body[data-viewport="desktop"] .board .source-panel,
+    body[data-viewport="desktop"] .edit-lane .editor-row {
+      margin-top: 0;
+    }
+
+    .comparison-table {
+      width: 100%;
+      margin-top: 18px;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--card);
+      font-size: 13px;
+    }
+    .comparison-table th, .comparison-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .comparison-table th {
+      background: var(--olive-pale);
+      color: var(--olive);
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .comparison-table tr:last-child td { border-bottom: 0; }
+
+    .why {
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 16px;
+    }
+
+    .why > div {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      background: var(--card);
+    }
+
+    .why h3 {
+      margin-bottom: 8px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 26px;
+      font-weight: 500;
+    }
+
+    .why p, .why li { color: var(--muted); font-size: 14px; }
+    .why ul { margin-bottom: 0; padding-left: 20px; }
+
+    .decisions {
+      display: grid;
+      gap: 14px;
+    }
+
+    .decision {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      background: var(--card);
+    }
+
+    .decision h3 {
+      margin-bottom: 5px;
+      font-size: 18px;
+    }
+
+    .decision > p {
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .option {
+      position: relative;
+      display: block;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 13px;
+      background: #fbfaf6;
+      cursor: pointer;
+    }
+
+    .option:has(input:checked) {
+      border-color: var(--olive);
+      background: var(--olive-pale);
+      box-shadow: inset 0 0 0 1px var(--olive);
+    }
+
+    .option input { margin: 0 7px 0 0; }
+    .option strong { font-size: 13px; }
+    .option small {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .recommended {
+      display: inline-flex;
+      margin-left: 6px;
+      border-radius: 999px;
+      padding: 2px 6px;
+      background: #dceadb;
+      color: var(--olive);
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fbfaf6;
+      color: var(--ink);
+    }
+
+    .handoff {
+      border-radius: 26px;
+      padding: 24px;
+      background: #1f3026;
+      color: #f8f5ed;
+    }
+
+    .handoff h2 { margin-bottom: 8px; font-family: Georgia, "Times New Roman", serif; font-weight: 500; }
+    .handoff p { color: #cfdcd2; font-size: 13px; }
+
+    #prompt {
+      width: 100%;
+      min-height: 280px;
+      border: 1px solid rgb(255 255 255 / 18%);
+      border-radius: 15px;
+      padding: 14px;
+      background: rgb(255 255 255 / 7%);
+      color: #f8f5ed;
+      font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .handoff-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .handoff-actions button, .source-link {
+      display: inline-flex;
+      min-height: 42px;
+      align-items: center;
+      border: 1px solid rgb(255 255 255 / 20%);
+      border-radius: 11px;
+      padding: 0 14px;
+      background: rgb(255 255 255 / 9%);
+      color: white;
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    #copy { background: #f0cf7e; color: #26352b; }
+    #status { min-height: 22px; margin: 8px 0 0; color: #f0cf7e; font-size: 12px; }
+
+    .source-note {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1050px) {
+      .comparison-grid, .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .comparison-grid .variant:last-child, .summary-grid .summary:last-child { grid-column: 1 / -1; }
+      .why { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 20px, 1520px); padding-top: 10px; }
+      .hero { border-radius: 22px; padding: 28px 20px; }
+      .summary-grid, .comparison-grid, .option-grid { grid-template-columns: 1fr; }
+      .comparison-grid .variant:last-child, .summary-grid .summary:last-child { grid-column: auto; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 12px; }
+      .toolbar { width: 100%; }
+      .toolbar button { flex: 1; }
+      .variant-copy { min-height: 0; }
+      body[data-viewport="desktop"] .variant { display: block; }
+      body[data-viewport="desktop"] .screen { overflow-x: auto; }
+      .comparison-table { display: block; overflow-x: auto; }
+      .trade { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body data-viewport="phone">
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">Design shotgun · Shopping</p>
+      <h1>One rail. One list. Fewer detours.</h1>
+      <p class="hero-copy">
+        Three ways to make the weekly run calmer—tested against the same filters, long recipe
+        names, recurring items, direct choices, and a partial Albert Heijn send.
+      </p>
+      <div class="hero-meta">
+        <span class="tag">Recommended: Run Rail</span>
+        <span class="tag">Overall risk: R2</span>
+        <span class="tag">No schema or auth change</span>
+        <span class="tag">Synthetic content only</span>
+      </div>
+    </header>
+
+    <div class="summary-grid" aria-label="Plan summary">
+      <div class="summary"><strong>3 → 1</strong><span>navigation steps before editing a rule</span></div>
+      <div class="summary"><strong>2</strong><span>reliable sorts: List order and A–Z</span></div>
+      <div class="summary"><strong>1st</strong><span>Weekly items in the All view</span></div>
+      <div class="summary"><strong>0</strong><span>permanently faded interactive edges</span></div>
+    </div>
+
+    <section aria-labelledby="directions-title">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">Comparable evidence</p>
+          <h2 id="directions-title">Three genuinely different directions</h2>
+        </div>
+        <div>
+          <p>Switch the shared viewport. Every direction keeps equivalent content and the same edge state.</p>
+          <div class="toolbar" role="group" aria-label="Preview viewport">
+            <button type="button" data-viewport-button="phone" aria-pressed="true">Phone · 375</button>
+            <button type="button" data-viewport-button="desktop" aria-pressed="false">Desktop · 1280</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="comparison-grid" id="comparison">
+        <article class="variant selected" data-variant="run-rail">
+          <div class="variant-copy">
+            <span class="variant-label">A</span>
+            <h3>Run Rail</h3>
+            <p class="thesis">Quiet source navigation, fixed sort, and direct choice summaries.</p>
+            <div class="trade">
+              <span><b>Strength</b>Fast repeated use</span>
+              <span><b>Trade-off</b>One metadata line per recipe item</span>
+            </div>
+          </div>
+          <div class="screen run-rail" aria-label="Run Rail Shopping mockup">
+            <div class="screen-head">
+              <div class="screen-title"><strong>Shopping</strong><span class="connection">● AH connected</span></div>
+              <div class="week"><span class="arrow">‹</span><span>Upcoming shop · Delivery Tue 28 Jul</span><span class="arrow">›</span></div>
+            </div>
+            <div class="mock-body">
+              <div class="control-row">
+                <div class="pills"><span class="pill active">All</span><span class="pill">Weekly items</span><span class="pill">Weeknight tacos</span><span class="pill">Long family aubergine traybake</span></div>
+                <span class="sort">List order ▾</span>
+              </div>
+              <div class="rules-line"><div><strong>Shopping rules</strong><span>2 ingredients are off this list</span></div><span>Review ›</span></div>
+              <div class="activity warn"><div><strong>6 sent · 1 needs attention</strong><span>AH order · 12:43</span></div><span>Details ›</span></div>
+              <div>
+                <div class="section-title"><span>Weekly items</span><button type="button">Manage</button></div>
+                <div class="rows">
+                  <div class="row"><span class="check"></span><div><strong>Milk</strong><small>2 cartons</small></div><span class="rule-chip">Weekly</span></div>
+                  <div class="row"><span class="check"></span><div><strong>Fruit</strong><small>Mixed bowl</small></div><span class="rule-chip">Weekly</span></div>
+                </div>
+                <div class="section-title"><span>Recipes & extras</span><span></span></div>
+                <div class="rows">
+                  <div class="row"><span class="check"></span><div><strong>Tortillas</strong><small>Every time · Buy: wholegrain</small></div><span class="rule-chip">Edit ›</span></div>
+                  <div class="row"><span class="check"></span><div><strong>Yoghurt</strong><small>Usually stocked · Buy: oat</small></div><span class="rule-chip">Edit ›</span></div>
+                  <div class="row"><span class="check"></span><div><strong>Tomatoes</strong><small>2 recipe rules</small></div><span class="rule-chip">Review ›</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="dock"><span>＋ Add item</span><span>Review AH · 5</span></div>
+          </div>
+        </article>
+
+        <article class="variant" data-variant="source-board">
+          <div class="variant-copy">
+            <span class="variant-label">B</span>
+            <h3>Source Board</h3>
+            <p class="thesis">Editorial source panels make ownership the main organizing idea.</p>
+            <div class="trade">
+              <span><b>Strength</b>Strong provenance</span>
+              <span><b>Trade-off</b>Long and awkward for shared items</span>
+            </div>
+          </div>
+          <div class="screen board" aria-label="Source Board Shopping mockup">
+            <div class="screen-head">
+              <div class="screen-title"><strong>Shopping board</strong><span class="connection">● AH connected</span></div>
+              <div class="week"><span class="arrow">‹</span><span>Upcoming shop · Delivery Tue 28 Jul</span><span class="arrow">›</span></div>
+            </div>
+            <div class="mock-body">
+              <div class="control-row">
+                <div class="pills"><span class="pill active">All</span><span class="pill">Weekly items</span><span class="pill">Weeknight tacos</span><span class="pill">Long family aubergine traybake</span></div>
+                <span class="sort">List order ▾</span>
+              </div>
+              <div>
+                <div class="source-panel weekly">
+                  <h4>Weekly items <span style="float:right;font:800 8px system-ui">Manage</span></h4>
+                  <div class="rows">
+                    <div class="row"><span class="check"></span><div><strong>Milk</strong><small>2 cartons · Weekly</small></div></div>
+                    <div class="row"><span class="check"></span><div><strong>Fruit</strong><small>Mixed bowl · Weekly</small></div></div>
+                  </div>
+                </div>
+                <div class="activity warn"><div><strong>6 sent · 1 needs attention</strong><span>AH order · 12:43</span></div><span>Open timeline ›</span></div>
+                <div class="source-panel">
+                  <h4>Weeknight tacos <span style="float:right;font:800 8px system-ui">Rules</span></h4>
+                  <div class="rows">
+                    <div class="row"><span class="check"></span><div><strong>Tortillas</strong><small>Every time · Wholegrain</small></div></div>
+                    <div class="row"><span class="check"></span><div><strong>Tomatoes</strong><small>Shared with another recipe</small></div></div>
+                  </div>
+                </div>
+                <div class="source-panel">
+                  <h4>Long family aubergine traybake</h4>
+                  <div class="rows">
+                    <div class="row"><span class="check"></span><div><strong>Yoghurt</strong><small>Usually stocked · Oat</small></div></div>
+                    <div class="row"><span class="check"></span><div><strong>Tomatoes</strong><small>Also shown above</small></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="dock"><span>＋ Add item</span><span>Review AH · 5</span></div>
+          </div>
+        </article>
+
+        <article class="variant" data-variant="edit-lane">
+          <div class="variant-copy">
+            <span class="variant-label">C</span>
+            <h3>Edit Lane</h3>
+            <p class="thesis">A sparse shopping list becomes a batch editor only in an explicit mode.</p>
+            <div class="trade">
+              <span><b>Strength</b>Fast bulk maintenance</span>
+              <span><b>Trade-off</b>Mode and duplicate row layouts</span>
+            </div>
+          </div>
+          <div class="screen edit-lane" aria-label="Edit Lane Shopping mockup">
+            <div class="screen-head">
+              <div class="screen-title"><strong>Shopping</strong><span class="connection">● AH connected</span></div>
+              <div class="week"><span class="arrow">‹</span><span>Upcoming shop · Delivery Tue 28 Jul</span><span class="arrow">›</span></div>
+            </div>
+            <div class="mock-body">
+              <div class="control-row">
+                <div class="pills"><span class="pill active">All</span><span class="pill">Weekly items</span><span class="pill">Weeknight tacos</span><span class="pill">Long family aubergine traybake</span></div>
+                <span class="sort">List order ▾</span>
+              </div>
+              <div>
+                <div class="mode-bar"><strong>Choice editor</strong><span class="mode-toggle">Editing on</span></div>
+                <div class="section-title"><span>Weekly items</span><button type="button">Manage</button></div>
+                <div class="editor-row"><strong>Milk</strong><div class="inline-fields"><span>Weekly</span><span>2 cartons</span></div></div>
+                <div class="editor-row"><strong>Fruit</strong><div class="inline-fields"><span>Weekly</span><span>Mixed bowl</span></div></div>
+                <div class="section-title"><span>Recipes & extras</span><span></span></div>
+                <div class="editor-row"><strong>Tortillas</strong><div class="inline-fields"><span>Every time ▾</span><span>Wholegrain ▾</span></div></div>
+                <div class="editor-row"><strong>Yoghurt</strong><div class="inline-fields"><span>Usually stocked ▾</span><span>Oat ▾</span></div></div>
+                <div class="editor-row"><strong>Tomatoes</strong><div class="inline-fields"><span>2 rules</span><span>Review all ›</span></div></div>
+                <div class="activity warn"><div><strong>AH activity</strong><span>6 sent · 1 needs attention</span></div><span>Open drawer ›</span></div>
+              </div>
+            </div>
+            <div class="dock"><span>Done editing</span><span>Save 2 changes</span></div>
+          </div>
+        </article>
+      </div>
+
+      <table class="comparison-table">
+        <thead><tr><th>Direction</th><th>Interaction emphasis</th><th>Best for</th><th>Main cost</th></tr></thead>
+        <tbody>
+          <tr><td><strong>A · Run Rail</strong></td><td>Direct row state and one reusable sheet</td><td>The weekly phone run</td><td>One quiet metadata line</td></tr>
+          <tr><td><strong>B · Source Board</strong></td><td>Section ownership and provenance</td><td>Planning and explanation</td><td>Shared-item duplication pressure</td></tr>
+          <tr><td><strong>C · Edit Lane</strong></td><td>Explicit batch-edit mode</td><td>Occasional rule cleanup</td><td>Mode memory and two row systems</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="recommend-title">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">Recommendation</p>
+          <h2 id="recommend-title">Choose Run Rail</h2>
+        </div>
+      </div>
+      <div class="why">
+        <div>
+          <h3>Why it fits this app</h3>
+          <p>
+            Shopping already has one trustworthy aggregated list. Run Rail removes routing state
+            around it instead of inventing source panels or an edit mode. Weekly ownership changes
+            presentation only; source IDs and recipe revisions still own every persistent choice.
+          </p>
+          <ul>
+            <li>All controls requested by the brief remain visible.</li>
+            <li>Mixed weekly/recipe rows stay single and still match both filters.</li>
+            <li>Substitutes remain approved Dutch terms; AH product preferences remain separate.</li>
+            <li>Uncertain sends never offer Retry.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>What disappears</h3>
+          <ul>
+            <li>Visible “Y left / X in basket” header copy</li>
+            <li>Permanent rail edge mask</li>
+            <li>Store Route and its lexical classifier</li>
+            <li>List options as a mobile router</li>
+            <li>Nested rules → editor sheets</li>
+            <li>“Back to this week”</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="decisions-title">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">Decision workspace</p>
+          <h2 id="decisions-title">Defaults are ready, but taste still matters</h2>
+        </div>
+        <p>Your selections and notes stay in this browser only. Untouched, the workspace hands off the recommended plan.</p>
+      </div>
+
+      <form class="decisions" id="decisions">
+        <fieldset class="decision" data-decision="direction">
+          <h3>Which interaction direction should `/run` implement?</h3>
+          <p>Run Rail best serves the repeated phone task. The alternatives emphasize provenance or batch maintenance.</p>
+          <div class="option-grid">
+            <label class="option"><input type="radio" name="direction" value="Run Rail" checked><strong>Run Rail</strong><span class="recommended">Recommended</span><small>Direct choices, no mode, one canonical list.</small></label>
+            <label class="option"><input type="radio" name="direction" value="Source Board"><strong>Source Board</strong><small>Clearer provenance, heavier and awkward for shared rows.</small></label>
+            <label class="option"><input type="radio" name="direction" value="Edit Lane"><strong>Edit Lane</strong><small>Fast bulk edits, but adds a persistent mode.</small></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="decision" data-decision="rollover">
+          <h3>When should the default advance after delivery?</h3>
+          <p>The app stores a grocery day, not a delivery time. The safest date-only boundary keeps the current run for the full delivery day.</p>
+          <div class="option-grid">
+            <label class="option"><input type="radio" name="rollover" value="Advance the next Amsterdam calendar day" checked><strong>Next calendar day</strong><span class="recommended">Recommended</span><small>Delivery day remains reachable by default.</small></label>
+            <label class="option"><input type="radio" name="rollover" value="Advance at the start of delivery day"><strong>Start of delivery day</strong><small>Looks ahead earlier but can hide an active run.</small></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="decision" data-decision="save">
+          <h3>How should rule and substitute changes commit?</h3>
+          <p>These choices persist to recipe-owned behavior. Explicit Save gives failure recovery a stable draft.</p>
+          <div class="option-grid">
+            <label class="option"><input type="radio" name="save" value="Explicit Save per source" checked><strong>Explicit Save</strong><span class="recommended">Recommended</span><small>Deliberate, revision-safe, and recoverable.</small></label>
+            <label class="option"><input type="radio" name="save" value="Autosave every selection"><strong>Autosave</strong><small>One tap fewer, but accidental writes and weak error recovery.</small></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="decision" data-decision="activity">
+          <h3>Where should recent AH activity live on phone?</h3>
+          <p>The latest handoff affects the current run. Older attempts are history, not primary list content.</p>
+          <div class="option-grid">
+            <label class="option"><input type="radio" name="activity" value="Latest attempt before the list; older sends collapsed" checked><strong>Latest before list</strong><span class="recommended">Recommended</span><small>Immediate status with bounded history.</small></label>
+            <label class="option"><input type="radio" name="activity" value="All send history after the list"><strong>History after list</strong><small>Quieter top, but outcome stays buried.</small></label>
+            <label class="option"><input type="radio" name="activity" value="AH activity only inside its own drawer"><strong>Drawer only</strong><small>Minimal page, but status requires recall and another tap.</small></label>
+          </div>
+        </fieldset>
+
+        <div class="decision">
+          <h3>Clarifications for the implementation pass</h3>
+          <p>These notes are reproduced verbatim in the generated handoff.</p>
+          <textarea id="notes" placeholder="Optional: refine labels, density, rule-chip treatment, or AH activity behavior."></textarea>
+        </div>
+      </form>
+    </section>
+
+    <section class="handoff" aria-labelledby="handoff-title">
+      <h2 id="handoff-title">Paste-ready `/run` handoff</h2>
+      <p>The Markdown plan remains authoritative. This prompt carries your accepted defaults, overrides, and exact notes.</p>
+      <textarea id="prompt" readonly></textarea>
+      <div class="handoff-actions">
+        <button type="button" id="copy">Copy handoff</button>
+        <button type="button" id="reset">Reset decisions</button>
+        <a class="source-link" href="../feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md">Open source plan</a>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <p class="source-note">
+      Source: <code>docs/feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md</code>.
+      Runtime measurements used structural geometry only; household list content is not included.
+    </p>
+  </main>
+
+  <script>
+    (() => {
+      const storageKey = "docs/artifacts/2026-07-28-plan-shopping-journey-simplification.html::v1";
+      const form = document.querySelector("#decisions");
+      const notes = document.querySelector("#notes");
+      const prompt = document.querySelector("#prompt");
+      const status = document.querySelector("#status");
+      const variants = [...document.querySelectorAll(".variant")];
+      const defaults = {
+        direction: "Run Rail",
+        rollover: "Advance the next Amsterdam calendar day",
+        save: "Explicit Save per source",
+        activity: "Latest attempt before the list; older sends collapsed",
+        notes: ""
+      };
+
+      const optionFacts = {
+        direction: {
+          question: "Which interaction direction should /run implement?",
+          recommendation: "Run Rail",
+          rationale: "It preserves one canonical aggregated list while removing navigation and keeping current choice state visible.",
+          assumptions: "Shopping is primarily a repeated phone task; mixed-source items must remain single.",
+          evidence: "Mobile hides sort/rules/weekly management behind List options; the controller chains rules into another editor sheet.",
+          uncertainty: "A household that frequently bulk-edits many rules may prefer Edit Lane.",
+          consequences: {
+            "Run Rail": "One quiet metadata line per recipe row; one-tap direct editor.",
+            "Source Board": "Strong source ownership, but vertical density and shared-row duplication pressure.",
+            "Edit Lane": "Fast bulk maintenance, but introduces a mode and two row layouts."
+          }
+        },
+        rollover: {
+          question: "When should the default advance after delivery?",
+          recommendation: "Advance the next Amsterdam calendar day",
+          rationale: "The stored preference has a day but no time; delivery day may still be an active shopping or receiving day.",
+          assumptions: "Amsterdam local date is authoritative and an explicit week query always wins.",
+          evidence: "Current default always derives from today’s planning week even if its computed delivery date is in the past.",
+          uncertainty: "A future delivery-time preference could support a finer boundary.",
+          consequences: {
+            "Advance the next Amsterdam calendar day": "Current run stays default for the full delivery date.",
+            "Advance at the start of delivery day": "Next run appears earlier but can hide a delivery-day list."
+          }
+        },
+        save: {
+          question: "How should rule and substitute changes commit?",
+          recommendation: "Explicit Save per source",
+          rationale: "Need and substitute decisions persist to a revision-bound recipe source; explicit Save preserves drafts on failure.",
+          assumptions: "One deliberate extra tap is acceptable after the navigation steps are removed.",
+          evidence: "The existing endpoint already validates entry and recipe revisions and closes only after success.",
+          uncertainty: "None that outweighs the persistence and recovery cost of autosave.",
+          consequences: {
+            "Explicit Save per source": "Deliberate mutation with stable draft and error recovery.",
+            "Autosave every selection": "Fewer taps but accidental writes and harder rollback."
+          }
+        },
+        activity: {
+          question: "Where should recent AH activity live on phone?",
+          recommendation: "Latest attempt before the list; older sends collapsed",
+          rationale: "The latest external handoff affects the current run; older attempts should not compete with shopping items.",
+          assumptions: "Empty history renders nothing and uncertain results must remain visible without Retry.",
+          evidence: "The current trailing aside places activity after the full mobile list and expands up to five lines per attempt.",
+          uncertainty: "A household that never revisits send results may prefer drawer-only activity.",
+          consequences: {
+            "Latest attempt before the list; older sends collapsed": "Immediate bounded status and safe recovery.",
+            "All send history after the list": "Quieter top but the current outcome remains buried.",
+            "AH activity only inside its own drawer": "Minimal page, but another tap and more recall."
+          }
+        }
+      };
+
+      function currentState() {
+        const data = new FormData(form);
+        return {
+          direction: data.get("direction") || defaults.direction,
+          rollover: data.get("rollover") || defaults.rollover,
+          save: data.get("save") || defaults.save,
+          activity: data.get("activity") || defaults.activity,
+          notes: notes.value
+        };
+      }
+
+      function safelyStore(state) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(state));
+          status.textContent = "Decisions saved in this browser.";
+        } catch {
+          status.textContent = "Changes are active for this session but could not be saved.";
+        }
+      }
+
+      function restore() {
+        let saved = null;
+        try {
+          saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+        } catch {
+          status.textContent = "Saved choices could not be read; recommendations are active.";
+        }
+        const state = { ...defaults, ...(saved || {}) };
+        for (const [name, value] of Object.entries(state)) {
+          if (name === "notes") continue;
+          const input = form.querySelector(`input[name="${name}"][value="${CSS.escape(value)}"]`);
+          if (input) input.checked = true;
+        }
+        notes.value = state.notes || "";
+      }
+
+      function decisionBlock(key, selected, note) {
+        const fact = optionFacts[key];
+        const accepted = selected === fact.recommendation ? "Accepted recommendation" : "Override";
+        return [
+          `Decision: ${fact.question}`,
+          `Source: ${key === "direction" ? "Design shotgun / Chosen approach" : "Open Questions"}`,
+          `Options: ${Object.keys(fact.consequences).join(" / ")}`,
+          `Selected: ${selected} (${accepted})`,
+          `Recommendation: ${fact.recommendation}`,
+          `Rationale: ${fact.rationale}`,
+          `Assumptions: ${fact.assumptions}`,
+          `Evidence: ${fact.evidence}`,
+          `Uncertainty: ${fact.uncertainty}`,
+          `Practical consequence: ${fact.consequences[selected] || "See the authoritative plan."}`,
+          note ? `User note (verbatim):\n${note}` : "User note: none"
+        ].join("\n");
+      }
+
+      function update() {
+        const state = currentState();
+        variants.forEach((variant) => {
+          const map = { "Run Rail": "run-rail", "Source Board": "source-board", "Edit Lane": "edit-lane" };
+          variant.classList.toggle("selected", variant.dataset.variant === map[state.direction]);
+        });
+        prompt.value = [
+          "Load docs/feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md and execute it with /run.",
+          "",
+          "The Markdown feature list is authoritative. Keep this handoff forward-only: do not read or depend on the HTML artifact.",
+          "Preserve the repository’s Dutch-only AH lookup seam, revision-bound recipe-source writes, active recipe-scoped AH preference precedence, exact-main delivery contract, and privacy rules.",
+          "",
+          decisionBlock("direction", state.direction),
+          "",
+          decisionBlock("rollover", state.rollover),
+          "",
+          decisionBlock("save", state.save),
+          "",
+          decisionBlock("activity", state.activity),
+          "",
+          "Requested follow-up work:",
+          "- Remove visible “Y left / X in basket” header copy.",
+          "- Keep All, Weekly items, and recipe pills fully opaque with List order fixed in the same row.",
+          "- Delete Store Route and all callers/messages/tests.",
+          "- Put Weekly items first in All without duplicating mixed-source rows.",
+          "- Remove Back to this week.",
+          "- Make rule/substitute state visible and directly editable.",
+          "- Make latest AH outcome clear; never offer Retry after an uncertain send.",
+          "",
+          `General clarification (verbatim):\n${state.notes || "none"}`,
+          "",
+          "Run the complete verification matrix and do not perform a real AH push or retain authenticated household evidence."
+        ].join("\n");
+        safelyStore(state);
+      }
+
+      form.addEventListener("change", update);
+      notes.addEventListener("input", update);
+
+      document.querySelectorAll("[data-viewport-button]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const viewport = button.dataset.viewportButton;
+          document.body.dataset.viewport = viewport;
+          document.querySelectorAll("[data-viewport-button]").forEach((candidate) => {
+            candidate.setAttribute("aria-pressed", String(candidate === button));
+          });
+        });
+      });
+
+      document.querySelector("#copy").addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(prompt.value);
+          status.textContent = "Handoff copied.";
+        } catch {
+          prompt.focus();
+          prompt.select();
+          status.textContent = "Clipboard access failed. The full handoff is selected—copy it manually.";
+        }
+      });
+
+      document.querySelector("#reset").addEventListener("click", () => {
+        try { localStorage.removeItem(storageKey); } catch {}
+        form.reset();
+        notes.value = "";
+        document.body.dataset.viewport = "phone";
+        document.querySelectorAll("[data-viewport-button]").forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.viewportButton === "phone"));
+        });
+        update();
+        status.textContent = "Recommendations restored.";
+      });
+
+      restore();
+      update();
+    })();
+  </script>
+</body>
+</html>

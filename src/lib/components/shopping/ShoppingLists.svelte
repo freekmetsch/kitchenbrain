@@ -7,8 +7,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import {
 		shoppingItemKey,
-		type ShoppingListSort,
-		type StoreRouteSection
+		type ShoppingBoardSection
 	} from '$lib/shopping_list_view';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { itemLabel, sourceContextLabels } from './format';
@@ -19,6 +18,7 @@
 	} from './list-controller.svelte';
 	import type { ShoppingListItem, ShoppingListSource } from './types';
 	import SourceDecisionSheet from './SourceDecisionSheet.svelte';
+	import ShoppingRuleEditor from './ShoppingRuleEditor.svelte';
 	import RecurringShoppingList from './RecurringShoppingList.svelte';
 	import LegacyShoppingReview from './LegacyShoppingReview.svelte';
 
@@ -29,6 +29,7 @@
 		recurring: RecurringShoppingItem[];
 		legacy: LegacyShoppingItem[];
 		notices?: Snippet;
+		history?: Snippet;
 		emptyState: 'no_meals' | 'nothing_needed';
 		showCovered: boolean;
 		bonusByName: Record<string, boolean>;
@@ -64,6 +65,7 @@
 		recurring,
 		legacy,
 		notices,
+		history,
 		emptyState,
 		showCovered = $bindable(),
 		bonusByName,
@@ -79,17 +81,27 @@
 	}: Props = $props();
 
 	let weeklyManager = $state<{ openManager: () => Promise<void> }>();
+	let expandedRuleSourceId = $state<number | null>(null);
 
-	function routeLabel(section: StoreRouteSection): string {
-		switch (section) {
-			case 'Fresh': return m.shopping_store_fresh();
-			case 'Bakery': return m.shopping_store_bakery();
-			case 'Chilled': return m.shopping_store_chilled();
-			case 'Pantry': return m.shopping_store_pantry();
-			case 'Frozen': return m.shopping_store_frozen();
-			case 'Household': return m.shopping_store_household();
-			case 'Other': return m.shopping_store_other();
+	function sectionLabel(section: ShoppingBoardSection): string {
+		switch (section.kind) {
+			case 'weekly': return m.shopping_filter_weekly();
+			case 'shared': return m.shopping_section_shared();
+			case 'meal': return section.mealName ?? m.shopping_section_other();
+			case 'other': return m.shopping_section_other();
 		}
+	}
+
+	function needLabel(source: ShoppingListSource): string {
+		if (source.staple) return m.shopping_need_usually_stocked();
+		if (source.optional) return m.shopping_need_nice_to_have();
+		return m.shopping_need_every_time();
+	}
+
+	function ruleSummary(sources: ShoppingListSource[]): string {
+		if (sources.length > 1) return m.shopping_rule_count({ count: sources.length });
+		const source = sources[0];
+		return source ? `${needLabel(source)} · ${source.term}` : '';
 	}
 
 	async function focusShoppingKey(key: string | null) {
@@ -133,114 +145,61 @@
 	$effect(() => {
 		controller.reconcileFilter();
 	});
+
+	export function openRules(scope: 'excluded' | 'all' = 'all') {
+		expandedRuleSourceId = null;
+		controller.openRules(scope);
+	}
 </script>
 
-<div
-	class:owner-only={controller.viewMode === 'empty'}
-	class="shopping-controls"
-	role={controller.viewMode === 'empty' ? undefined : 'region'}
-	aria-label={controller.viewMode === 'empty' ? undefined : m.shopping_list_controls()}
->
-	{#if controller.viewMode !== 'empty'}
-		<div class="shopping-filter-row">
-			<div
-				class="shopping-filter-rail ui-scroll-rail"
-				role="toolbar"
-				aria-label={m.shopping_filter_label()}
+<div class="shopping-controls" role="region" aria-label={m.shopping_list_controls()}>
+	<div class="shopping-filter-row">
+		<div
+			class="shopping-filter-rail"
+			role="toolbar"
+			aria-label={m.shopping_filter_label()}
+		>
+			<button
+				type="button"
+				class:active={controller.filterIs({ kind: 'all' })}
+				aria-pressed={controller.filterIs({ kind: 'all' })}
+				onclick={() => controller.setFilter({ kind: 'all' })}
 			>
+				{m.shopping_filter_all()}
+			</button>
+			<button
+				type="button"
+				class:active={controller.filterIs({ kind: 'weekly' })}
+				aria-pressed={controller.filterIs({ kind: 'weekly' })}
+				onclick={() => controller.setFilter({ kind: 'weekly' })}
+			>
+				{m.shopping_filter_weekly()}
+			</button>
+			{#each controller.filterOptions.meals as meal}
 				<button
 					type="button"
-					class:active={controller.filterIs({ kind: 'all' })}
-					aria-pressed={controller.filterIs({ kind: 'all' })}
-					onclick={() => controller.setFilter({ kind: 'all' })}
+					class:active={controller.filterIs({ kind: 'meal', mealName: meal })}
+					aria-pressed={controller.filterIs({ kind: 'meal', mealName: meal })}
+					title={meal}
+					onclick={() => controller.setFilter({ kind: 'meal', mealName: meal })}
 				>
-					{m.shopping_filter_all()}
+					{meal}
 				</button>
-				{#each controller.filterOptions.meals as meal}
-					<button
-						type="button"
-						class:active={controller.filterIs({ kind: 'meal', mealName: meal })}
-						aria-pressed={controller.filterIs({ kind: 'meal', mealName: meal })}
-						title={meal}
-						onclick={() => controller.setFilter({ kind: 'meal', mealName: meal })}
-					>
-						{meal}
-					</button>
-				{/each}
-				{#if controller.filterOptions.hasWeekly}
-					<button
-						type="button"
-						class:active={controller.filterIs({ kind: 'weekly' })}
-						aria-pressed={controller.filterIs({ kind: 'weekly' })}
-						onclick={() => controller.setFilter({ kind: 'weekly' })}
-					>
-						{m.shopping_filter_weekly()}
-					</button>
-				{/if}
-			</div>
-			<button
-				type="button"
-				class="shopping-options-trigger"
-				aria-haspopup="dialog"
-				aria-label={controller.excludedRecipeSources.length
-					? `${m.shopping_list_options()}. ${m.shopping_excluded_rules({ count: controller.excludedRecipeSources.length })}`
-					: m.shopping_list_options()}
-				onclick={() => controller.openListOptions()}
-			>
-				<Icon name="settings" />
-				<span class="shopping-options-label">{m.shopping_list_options()}</span>
-				{#if controller.excludedRecipeSources.length}
-					<span class="shopping-options-count" aria-hidden="true">
-						{controller.excludedRecipeSources.length}
-					</span>
-				{/if}
-			</button>
+			{/each}
 		</div>
-	{/if}
-	<div class="shopping-list-tools">
-		{#if controller.viewMode !== 'empty'}
-			<label>
-				<span class="sr-only">{m.shopping_sort_label()}</span>
-				<select
-					class="select min-h-11"
-					value={controller.sort}
-					aria-label={m.shopping_sort_label()}
-					onchange={(event) =>
-						controller.setSort(event.currentTarget.value as ShoppingListSort)}
-				>
-					<option value="list">{m.shopping_sort_list()}</option>
-					<option value="alpha">{m.shopping_sort_az()}</option>
-					<option value="store">{m.shopping_sort_store()}</option>
-				</select>
-			</label>
-		{/if}
-		<RecurringShoppingList
-			bind:this={weeklyManager}
-			items={controller.recurring}
-			onAdd={onAddRecurring}
-			onEdit={onEditRecurring}
-			onSkip={onSkipRecurring}
-			onDisable={onDisableRecurring}
-		/>
-		{#if controller.viewMode !== 'empty'}
-			<button
-				type="button"
-				class="shopping-rules-trigger"
-				disabled={!controller.recipeSources.length}
-				onclick={() => controller.openRules('all')}
-			>
-				<Icon name="settings" />
-				{m.shopping_manage_rules()}
-			</button>
-		{/if}
 	</div>
 </div>
 
-{#if controller.excludedRecipeSources.length && controller.viewMode !== 'empty'}
-	<button type="button" class="shopping-excluded-rules" onclick={() => controller.openRules('excluded')}>
-		{m.shopping_excluded_rules({ count: controller.excludedRecipeSources.length })}
-	</button>
-{/if}
+{#if history}{@render history()}{/if}
+
+<RecurringShoppingList
+	bind:this={weeklyManager}
+	items={controller.recurring}
+	onAdd={onAddRecurring}
+	onEdit={onEditRecurring}
+	onSkip={onSkipRecurring}
+	onDisable={onDisableRecurring}
+/>
 
 {#if notices}{@render notices()}{/if}
 <LegacyShoppingReview items={controller.legacy} onResolve={onResolveLegacy} />
@@ -266,38 +225,53 @@
 		description={controller.emptyState === 'no_meals' ? m.shopping_empty_no_meals_desc() : m.shopping_empty_nothing_desc()}
 	>
 		{#snippet action()}
-			<div class="shopping-empty-actions">
-				<a
-					class="btn btn-primary min-h-11"
-					href={controller.emptyState === 'no_meals' ? `${base}/meal-plan` : `${base}/inventory`}
-				>
-					{controller.emptyState === 'no_meals' ? m.shopping_plan_meals_button() : m.shopping_view_stock_button()}
-				</a>
-				<button
-					type="button"
-					class="btn btn-ghost min-h-11"
-					aria-haspopup="dialog"
-					onclick={() => controller.openListOptions()}
-				>
-					<Icon name="settings" />
-					{m.shopping_list_options()}
-				</button>
-			</div>
+			<a
+				class="btn btn-primary min-h-11"
+				href={controller.emptyState === 'no_meals' ? `${base}/meal-plan` : `${base}/inventory`}
+			>
+				{controller.emptyState === 'no_meals' ? m.shopping_plan_meals_button() : m.shopping_view_stock_button()}
+			</a>
 		{/snippet}
 	</EmptyState>
 {:else if controller.viewMode === 'filter-empty'}
-	<div class="shopping-filter-empty">
-		<h2>{m.shopping_filter_empty()}</h2>
-		<button type="button" onclick={() => controller.setFilter({ kind: 'all' })}>{m.shopping_clear_filter()}</button>
-	</div>
+	{#if controller.filter.kind === 'weekly'}
+		<section class="shopping-ledger-section weekly">
+			<header class="shopping-section-header">
+				<h2>{m.shopping_filter_weekly()} <span>· 0</span></h2>
+				<button type="button" onclick={() => weeklyManager?.openManager()}>
+					{m.shopping_recurring_manage()}
+				</button>
+			</header>
+			<p class="shopping-section-empty">{m.shopping_weekly_empty()}</p>
+		</section>
+	{:else}
+		<div class="shopping-filter-empty">
+			<h2>{m.shopping_filter_empty()}</h2>
+			<button type="button" onclick={() => controller.setFilter({ kind: 'all' })}>{m.shopping_clear_filter()}</button>
+		</div>
+	{/if}
 {:else if controller.viewMode === 'active'}
 	<div class="shopping-active-groups">
-		{#each controller.activeGroups as group}
-			{#if group.section}<h2>{routeLabel(group.section)}</h2>{/if}
-			<ul class="market-run-list">
+		{#each controller.activeGroups as group (group.key)}
+			<section
+				class:weekly={group.kind === 'weekly'}
+				class:shared={group.kind === 'shared'}
+				class="shopping-ledger-section"
+			>
+				<header class="shopping-section-header">
+					<h2>{sectionLabel(group)} <span>· {group.items.length}</span></h2>
+					{#if group.kind === 'weekly'}
+						<button type="button" onclick={() => weeklyManager?.openManager()}>
+							{m.shopping_recurring_manage()}
+						</button>
+					{/if}
+				</header>
+				{#if group.items.length}
+				<ul class="market-run-list">
 				{#each group.items as item, index (shoppingItemKey(item))}
 					{@const key = shoppingItemKey(item)}
 					{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
+					{@const actionOwned = item.sources?.filter((source) => source.sourceKind !== 'recipe') ?? []}
 					<li class:warning={item.incompatibleQuantities} class="market-run-row">
 						<label class="market-check-hit" aria-label={m.shopping_mark_bought_aria({ name: item.name })}>
 							<input
@@ -338,7 +312,18 @@
 						</label>
 						<div class="market-row-trailing">
 							{#if bonusByName[item.name]}<span class="market-item-badge bonus">{m.shopping_bonus_chip()}</span>{/if}
-							{#if item.sources?.length}
+							{#if recipeOwned.length}
+								<button
+									type="button"
+									class="market-rule-summary"
+									title={ruleSummary(recipeOwned)}
+									aria-label={m.shopping_edit_rule_aria({ name: item.name })}
+									onclick={() => controller.openRuleSources(recipeOwned)}
+								>
+									{ruleSummary(recipeOwned)}
+								</button>
+							{/if}
+							{#if actionOwned.length}
 								<button
 									type="button"
 									class="market-row-more"
@@ -351,7 +336,11 @@
 						</div>
 					</li>
 				{/each}
-			</ul>
+				</ul>
+				{:else}
+					<p class="shopping-section-empty">{m.shopping_weekly_empty()}</p>
+				{/if}
+			</section>
 		{/each}
 	</div>
 {:else if controller.viewMode === 'complete'}
@@ -434,48 +423,9 @@
 	</ul>
 {/if}
 
-<BottomSheet
-	bind:open={controller.listOptionsOpen}
-	title={m.shopping_list_options()}
-	desktopSide
-	onclose={() => void controller.handleListOptionsClose()}
->
-	{#if controller.viewMode !== 'empty'}
-		<label class="shopping-options-sort">
-			<span>{m.shopping_sort_label()}</span>
-			<select
-				class="select min-h-11 w-full"
-				value={controller.sort}
-				onchange={(event) =>
-					controller.setSort(event.currentTarget.value as ShoppingListSort)}
-			>
-				<option value="list">{m.shopping_sort_list()}</option>
-				<option value="alpha">{m.shopping_sort_az()}</option>
-				<option value="store">{m.shopping_sort_store()}</option>
-			</select>
-		</label>
-	{/if}
-	<div class="shopping-options-actions">
-		<button type="button" onclick={() => controller.openWeeklyAfterListOptions()}>
-			<Icon name="clock" />
-			<span>{m.shopping_manage_weekly_items()}</span>
-			<Icon name="chevronRight" />
-		</button>
-		<button
-			type="button"
-			disabled={!controller.recipeSources.length}
-			onclick={() => controller.openRulesAfterListOptions()}
-		>
-			<Icon name="settings" />
-			<span>{m.shopping_manage_rules()}</span>
-			<Icon name="chevronRight" />
-		</button>
-	</div>
-</BottomSheet>
-
 <SourceDecisionSheet
 	bind:open={controller.sourceSheetOpen}
-	source={controller.selectedSource}
+	sources={controller.selectedSources}
 	onSave={onSaveSource}
 />
 
@@ -487,31 +437,8 @@
 	onclose={controller.handleActionClose.bind(controller)}
 >
 	{#if controller.selectedItem}
-		{@const itemRecipeSources = controller.selectedItem.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
 		{@const itemManualSources = controller.selectedItem.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
 		{@const hasWeeklySource = controller.selectedItem.sources?.some((source) => source.sourceKind === 'weekly')}
-		{#if itemRecipeSources.length}
-			<div class="source-action-group">
-				<h3>
-					{itemRecipeSources.length > 1
-						? m.shopping_choose_rule()
-						: m.shopping_edit_rule()}
-				</h3>
-				{#each itemRecipeSources as source (source.id)}
-					<button
-						type="button"
-						disabled={controller.actionPending}
-						onclick={() => controller.editSourceAfterClose(source, 'actions')}
-					>
-						<span>
-							<strong>{m.shopping_edit_rule()}</strong>
-							<small>{[source.name, source.recipeTitle, source.component].filter(Boolean).join(' · ')}</small>
-						</span>
-						<Icon name="chevronRight" />
-					</button>
-				{/each}
-			</div>
-		{/if}
 		{#if itemManualSources.length}
 			<div class="source-action-group">
 				<h3>{m.shopping_source_manual()}</h3>
@@ -551,7 +478,9 @@
 	bind:open={controller.rulesOpen}
 	title={m.shopping_manage_rules()}
 	desktopSide
-	onclose={controller.handleRulesClose.bind(controller)}
+	onclose={() => {
+		if (!controller.rulesOpen) expandedRuleSourceId = null;
+	}}
 >
 	<p class="rules-help">{m.shopping_manage_rules_help()}</p>
 	{#if controller.excludedRecipeSources.length}
@@ -573,21 +502,30 @@
 	{#if controller.visibleRuleSources.length}
 		<ul class="rules-list">
 			{#each controller.visibleRuleSources as source (source.id)}
-				<li>
-					<div>
-						<strong>{source.name}</strong>
-						<span>{[source.recipeTitle, source.component].filter(Boolean).join(' · ')}</span>
-						<small>
-							{source.staple
-								? m.shopping_need_usually_stocked()
-								: source.optional
-									? m.shopping_need_nice_to_have()
-									: m.shopping_need_every_time()}
-						</small>
-					</div>
-					<button type="button" onclick={() => controller.editSourceAfterClose(source, 'rules')}>
-						{m.shopping_edit_rule()}
+				<li class:expanded={expandedRuleSourceId === source.id}>
+					<button
+						type="button"
+						class="rules-row-summary"
+						aria-expanded={expandedRuleSourceId === source.id}
+						onclick={() => (expandedRuleSourceId = expandedRuleSourceId === source.id ? null : source.id)}
+					>
+						<span>
+							<strong>{source.name}</strong>
+							<small>{[source.recipeTitle, source.component].filter(Boolean).join(' · ')}</small>
+							<small>{needLabel(source)} · {source.term}</small>
+						</span>
+						<Icon name="chevronRight" />
 					</button>
+					{#if expandedRuleSourceId === source.id}
+						<div class="rules-inline-editor">
+							<ShoppingRuleEditor
+								{source}
+								onSave={onSaveSource}
+								onCancel={() => (expandedRuleSourceId = null)}
+								onSaved={() => (expandedRuleSourceId = null)}
+							/>
+						</div>
+					{/if}
 				</li>
 			{/each}
 		</ul>
@@ -598,18 +536,7 @@
 
 <style>
 	.shopping-controls {
-		display: grid;
-		gap: 0.5rem;
 		margin-bottom: 0.55rem;
-	}
-
-	.shopping-controls.owner-only,
-	.shopping-controls.owner-only .shopping-list-tools {
-		display: contents;
-	}
-
-	.shopping-controls.owner-only :global(.shopping-manager-trigger) {
-		display: none;
 	}
 
 	.shopping-filter-row {
@@ -619,10 +546,19 @@
 	.shopping-filter-rail {
 		display: flex;
 		gap: 0.35rem;
+		overflow-x: auto;
+		padding: 0.05rem 0;
+		scroll-padding-inline: 0.35rem;
+		scroll-snap-type: x proximity;
+		scrollbar-width: none;
+		mask-image: none;
 	}
 
-	.shopping-filter-rail button,
-	.shopping-excluded-rules {
+	.shopping-filter-rail::-webkit-scrollbar {
+		display: none;
+	}
+
+	.shopping-filter-rail button {
 		min-height: 2.75rem;
 		flex: 0 0 auto;
 		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 20%, var(--color-base-300));
@@ -632,156 +568,13 @@
 		color: color-mix(in oklab, var(--color-base-content) 76%, transparent);
 		font-size: 0.7rem;
 		font-weight: 750;
+		scroll-snap-align: start;
 	}
 
 	.shopping-filter-rail button.active {
 		border-color: var(--market-olive, #304b3a);
 		background: var(--market-olive, #304b3a);
 		color: white;
-	}
-
-	.shopping-options-trigger {
-		position: relative;
-		display: none;
-		min-width: 2.75rem;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 24%, var(--color-base-300));
-		border-radius: 0.7rem;
-		background: var(--color-base-100);
-		color: var(--market-olive-ink, #304b3a);
-		font-size: 0.7rem;
-		font-weight: 750;
-	}
-
-	.shopping-options-trigger :global(svg) {
-		width: 1rem;
-		height: 1rem;
-	}
-
-	.shopping-options-count {
-		position: absolute;
-		top: -0.25rem;
-		right: -0.25rem;
-		display: inline-grid;
-		min-width: 1.2rem;
-		height: 1.2rem;
-		place-items: center;
-		border-radius: 999px;
-		padding-inline: 0.25rem;
-		background: var(--color-warning);
-		color: var(--color-warning-content);
-		font-size: 0.58rem;
-		font-weight: 850;
-	}
-
-	.shopping-list-tools {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.4rem;
-	}
-
-	.shopping-list-tools label {
-		min-width: 8.5rem;
-		flex: 1 1 8.5rem;
-	}
-
-	.shopping-list-tools select {
-		width: 100%;
-		border-color: color-mix(in oklab, var(--market-olive, #304b3a) 20%, var(--color-base-300));
-		background-color: var(--color-base-100);
-		font-size: 0.72rem;
-		font-weight: 700;
-	}
-
-	.shopping-rules-trigger {
-		display: inline-flex;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		gap: 0.45rem;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 24%, var(--color-base-300));
-		border-radius: 0.7rem;
-		padding: 0 0.75rem;
-		background: var(--color-base-100);
-		color: var(--market-olive-ink, #304b3a);
-		font-size: 0.72rem;
-		font-weight: 750;
-	}
-
-	.shopping-rules-trigger:disabled {
-		opacity: 0.45;
-	}
-
-	.shopping-rules-trigger :global(svg) {
-		width: 1rem;
-		height: 1rem;
-	}
-
-	.shopping-excluded-rules {
-		min-height: 2.4rem;
-		margin: -0.2rem 0 0.55rem;
-		border-style: dashed;
-		color: var(--market-olive-ink, #304b3a);
-	}
-
-	.shopping-empty-actions {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: 0.4rem;
-	}
-
-	.shopping-empty-actions :global(svg) {
-		width: 1rem;
-		height: 1rem;
-	}
-
-	.shopping-options-sort {
-		display: grid;
-		gap: 0.3rem;
-		font-size: 0.72rem;
-		font-weight: 750;
-	}
-
-	.shopping-options-actions {
-		display: grid;
-		gap: 0.25rem;
-		margin-top: 0.75rem;
-	}
-
-	.shopping-options-actions:first-child {
-		margin-top: 0;
-	}
-
-	.shopping-options-actions button {
-		display: grid;
-		min-height: 2.75rem;
-		grid-template-columns: auto minmax(0, 1fr) auto;
-		align-items: center;
-		gap: 0.55rem;
-		border-radius: 0.65rem;
-		padding: 0 0.55rem;
-		color: var(--market-olive-ink, #304b3a);
-		font-size: 0.74rem;
-		font-weight: 750;
-		text-align: left;
-	}
-
-	.shopping-options-actions button:hover,
-	.shopping-options-actions button:focus-visible {
-		background: var(--color-base-200);
-	}
-
-	.shopping-options-actions button:disabled {
-		opacity: 0.45;
-	}
-
-	.shopping-options-actions button :global(svg) {
-		width: 1rem;
-		height: 1rem;
 	}
 
 	.market-covered-toggle {
@@ -834,16 +627,82 @@
 
 	.shopping-active-groups {
 		display: grid;
-		gap: 0.45rem;
+		gap: 0.55rem;
 	}
 
-	.shopping-active-groups h2 {
-		padding: 0.25rem 0.2rem 0;
-		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+	.shopping-ledger-section {
+		overflow: hidden;
+		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 16%, var(--color-base-300));
+		border-radius: 0.8rem;
+		background: var(--color-base-100);
+		box-shadow: 0 5px 16px rgb(48 75 58 / 4%);
+	}
+
+	.shopping-section-header {
+		display: flex;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.65rem;
+		padding: 0 0.55rem 0 0.7rem;
+		background: color-mix(in oklab, var(--market-olive, #304b3a) 7%, var(--color-base-100));
+	}
+
+	.shopping-ledger-section.weekly .shopping-section-header {
+		background: color-mix(in oklab, var(--market-olive, #304b3a) 15%, var(--color-base-100));
+		color: var(--market-olive-ink, #304b3a);
+	}
+
+	.shopping-ledger-section.shared .shopping-section-header {
+		background: color-mix(in oklab, var(--market-terra, #a55f43) 12%, var(--color-base-100));
+	}
+
+	.shopping-section-header h2 {
+		min-width: 0;
+		overflow: hidden;
 		font-size: 0.64rem;
 		font-weight: 850;
 		letter-spacing: 0.09em;
+		text-overflow: ellipsis;
 		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.shopping-section-header h2 span {
+		color: color-mix(in oklab, currentColor 62%, transparent);
+		font-weight: 700;
+		letter-spacing: 0;
+	}
+
+	.shopping-section-header button {
+		min-height: 2.75rem;
+		flex: 0 0 auto;
+		border-radius: 0.55rem;
+		padding: 0 0.55rem;
+		color: var(--market-olive-ink, #304b3a);
+		font-size: 0.65rem;
+		font-weight: 800;
+	}
+
+	.shopping-section-header button:hover,
+	.shopping-section-header button:focus-visible {
+		background: rgb(255 255 255 / 55%);
+	}
+
+	.shopping-section-empty {
+		margin: 0;
+		border-top: 1px solid var(--color-base-200);
+		padding: 0.8rem;
+		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+		font-size: 0.69rem;
+		text-align: center;
+	}
+
+	.shopping-ledger-section .market-run-list {
+		border: 0;
+		border-top: 1px solid var(--color-base-200);
+		border-radius: 0;
+		box-shadow: none;
 	}
 
 	.market-run-list {
@@ -1024,6 +883,25 @@
 		font-size: 0.72rem;
 		font-weight: 800;
 		letter-spacing: 0.06em;
+	}
+
+	.market-rule-summary {
+		max-width: min(9rem, 34vw);
+		min-height: 2.75rem;
+		overflow: hidden;
+		border-radius: 999px;
+		padding: 0 0.55rem;
+		background: color-mix(in oklab, var(--market-olive, #304b3a) 10%, var(--color-base-100));
+		color: var(--market-olive-ink, #304b3a);
+		font-size: 0.6rem;
+		font-weight: 800;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.market-rule-summary:hover,
+	.market-rule-summary:focus-visible {
+		background: color-mix(in oklab, var(--market-olive, #304b3a) 17%, var(--color-base-100));
 	}
 
 	.market-basket-summary {
@@ -1207,106 +1085,59 @@
 	}
 
 	.rules-list li {
-		display: flex;
-		min-height: 3.8rem;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.6rem;
 		border-bottom: 1px solid var(--color-base-200);
-		padding: 0.5rem 0.55rem 0.5rem 0.75rem;
 	}
 
 	.rules-list li:last-child {
 		border-bottom: 0;
 	}
 
-	.rules-list div {
+	.rules-row-summary {
+		display: flex;
+		width: 100%;
+		min-height: 3.8rem;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.6rem;
+		padding: 0.5rem 0.6rem 0.5rem 0.75rem;
+		text-align: left;
+	}
+
+	.rules-row-summary > span {
 		min-width: 0;
 	}
 
-	.rules-list strong,
-	.rules-list span,
-	.rules-list small {
+	.rules-row-summary strong,
+	.rules-row-summary small {
 		display: block;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.rules-list strong {
+	.rules-row-summary strong {
 		font-size: 0.76rem;
 	}
 
-	.rules-list span,
-	.rules-list small {
+	.rules-row-summary small {
 		margin-top: 0.1rem;
 		color: color-mix(in oklab, var(--color-base-content) 64%, transparent);
 		font-size: 0.64rem;
 	}
 
-	.rules-list li > button {
-		min-height: 2.75rem;
+	.rules-row-summary :global(svg) {
+		width: 1rem;
+		height: 1rem;
 		flex: 0 0 auto;
-		border-radius: 0.6rem;
-		padding: 0 0.6rem;
-		color: var(--market-olive-ink, #304b3a);
-		font-size: 0.68rem;
-		font-weight: 750;
+		transition: transform var(--motion-micro) var(--ease-standard);
 	}
 
-	@media (max-width: 47.999rem) {
-		.shopping-controls {
-			gap: 0;
-		}
-
-		.shopping-filter-row {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto;
-			gap: 0.4rem;
-		}
-
-		.shopping-filter-rail {
-			scrollbar-width: none;
-		}
-
-		.shopping-filter-rail::-webkit-scrollbar {
-			display: none;
-		}
-
-		.shopping-options-trigger {
-			display: inline-flex;
-			width: 2.75rem;
-			padding: 0;
-		}
-
-		.shopping-options-label {
-			display: none;
-		}
-
-		.shopping-list-tools {
-			display: contents;
-		}
-
-		.shopping-list-tools > label,
-		.shopping-list-tools > .shopping-rules-trigger,
-		.shopping-list-tools :global(.shopping-manager-trigger) {
-			display: none;
-		}
-
-		.shopping-excluded-rules {
-			display: none;
-		}
+	.rules-list li.expanded .rules-row-summary :global(svg) {
+		transform: rotate(90deg);
 	}
 
-	@media (min-width: 22.5rem) and (max-width: 47.999rem) {
-		.shopping-options-trigger {
-			width: auto;
-			padding: 0 0.7rem;
-		}
-
-		.shopping-options-label {
-			display: inline;
-		}
+	.rules-inline-editor {
+		padding: 0 0.75rem 0.75rem;
 	}
 
 	@media (max-width: 20rem) {

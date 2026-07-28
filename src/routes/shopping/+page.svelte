@@ -20,11 +20,16 @@
 	let bonusByName = $state<Record<string, boolean>>({});
 	let ahSheet = $state<{ openAhModal: () => Promise<void> }>();
 	let addItemForm = $state<{ openAddModal: () => Promise<void> }>();
+	let shoppingLists = $state<{ openRules: (scope?: 'excluded' | 'all') => void }>();
 	let showCovered = $state(false);
 
 	let pending = $derived(items.filter((item) => !item.bought));
 	let done = $derived(items.filter((item) => item.bought));
 	let visibleToBuyCount = $derived(pending.filter((item) => !item.covered).length);
+	let recipeRuleCount = $derived(data.sources.filter((source) => source.sourceKind === 'recipe').length);
+	let excludedRuleCount = $derived(
+		data.sources.filter((source) => source.sourceKind === 'recipe' && !source.included).length
+	);
 	let emptyState = $derived(data.emptyState === 'no_meals' ? ('no_meals' as const) : ('nothing_needed' as const));
 
 	$effect(() => {
@@ -129,16 +134,18 @@
 		weekStart={data.weekStart}
 		prevWeek={data.prevWeek}
 		nextWeek={data.nextWeek}
-		isCurrentWeek={data.isCurrentWeek}
+		isDefaultWeek={data.isDefaultWeek}
 		deliveryDate={data.deliveryDate}
-		remainingCount={visibleToBuyCount}
-		doneCount={done.length}
 		ahConnected={data.ah.connected}
+		{recipeRuleCount}
+		{excludedRuleCount}
+		onOpenRules={() => shoppingLists?.openRules('all')}
 	/>
 
 	<div class="shopping-market-layout ui-kitchen-content">
 		<main class="min-w-0">
 			<ShoppingLists
+				bind:this={shoppingLists}
 				{pending}
 				{done}
 				sources={data.sources}
@@ -188,6 +195,11 @@
 					});
 				}}
 			>
+				{#snippet history()}
+					<div class="shopping-market-mobile-history">
+						<PushHistory pushHistory={data.pushHistory} headingId="shopping-mobile-push-history" />
+					</div>
+				{/snippet}
 				{#snippet notices()}
 					<ShoppingNotices
 						showAhNotice={!data.ah.connected && items.length > 0}
@@ -223,7 +235,13 @@
 
 			</div>
 
-			<PushHistory pushHistory={data.pushHistory} compact />
+			<div class="shopping-market-desktop-history">
+				<PushHistory
+					pushHistory={data.pushHistory}
+					compact
+					headingId="shopping-desktop-push-history"
+				/>
+			</div>
 		</aside>
 	</div>
 
@@ -288,6 +306,14 @@
 	}
 
 	.shopping-market-desktop {
+		display: none;
+	}
+
+	.shopping-market-mobile-history {
+		display: block;
+	}
+
+	.shopping-market-desktop-history {
 		display: none;
 	}
 
@@ -432,6 +458,14 @@
 		}
 
 		.shopping-market-desktop {
+			display: block;
+		}
+
+		.shopping-market-mobile-history {
+			display: none;
+		}
+
+		.shopping-market-desktop-history {
 			display: block;
 		}
 	}
