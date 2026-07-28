@@ -108,7 +108,7 @@ export function createTimerAlertService(options: TimerAlertServiceOptions) {
 				body: 'If this notification made a sound, background timer alerts are working.',
 				navigate: '/'
 			};
-			options.repository.createTest(test);
+			options.repository.createTest(test, currentTime);
 			let result: Awaited<ReturnType<TimerAlertSender>>;
 			try {
 				result = await send({

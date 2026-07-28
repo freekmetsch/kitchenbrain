@@ -488,8 +488,8 @@ foreground timers alive across in-app navigation, records worker/display receipt
 late-delivery window, and uses a measured two-phone gate before considering a native Android
 companion.
 
-Touched: docs/artifacts/2026-07-28-plan-mobile-timer-reliability.html,
-docs/feature-lists/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md,
+Touched: docs/artifacts/archive/2026-07-28-plan-mobile-timer-reliability.html,
+docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md,
 docs/known_issues/current/ISSUE_MOBILE_TIMER_SOUND_20260728-1410.md
 
 ## 2026-07-28 | implementation awaiting device verification: Mobile timer reliability
@@ -513,7 +513,7 @@ drizzle/0024_sparkling_spirit.sql,
 src/lib/timer/cook-timer-coordinator.svelte.ts,
 src/service-worker.ts
 
-## 2026-07-28 | archive-scan | 1 feature list, 1 HTML archived
+## 2026-07-28 | archive-scan | Mobile timer reliability
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md,
 docs/artifacts/archive/2026-07-28-plan-mobile-timer-reliability.html

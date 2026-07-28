@@ -39,15 +39,16 @@
 	});
 	onDestroy(() => chatAgent?.destroy());
 
-	function createTimerCoordinator() {
+	function createTimerCoordinator(userId: number) {
 		return new CookTimerCoordinator({
 			browser: createCookModeLifecycleBrowserAdapters(() => new TimerWorker()),
-			storage: browser ? localStorage : null
+			storage: browser ? localStorage : null,
+			storageKey: `cook-timer-registry:${userId}:v1`
 		});
 	}
 
 	let timerCoordinator = $state<CookTimerCoordinator | null>(
-		untrack(() => (data.user ? createTimerCoordinator() : null))
+		untrack(() => (data.user ? createTimerCoordinator(data.user.id) : null))
 	);
 	let timerCoordinatorUserId = untrack(() => data.user?.id ?? null);
 	provideCookTimerCoordinator({
@@ -60,7 +61,7 @@
 		if (userId === timerCoordinatorUserId) return;
 		timerCoordinator?.destroy();
 		timerCoordinatorUserId = userId;
-		timerCoordinator = userId == null ? null : createTimerCoordinator();
+		timerCoordinator = userId == null ? null : createTimerCoordinator(userId);
 	});
 	$effect(() => {
 		if (browser) timerCoordinator?.mount();
