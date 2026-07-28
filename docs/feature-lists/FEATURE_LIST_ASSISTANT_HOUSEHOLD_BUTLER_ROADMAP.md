@@ -1,6 +1,7 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 4 of 4 (First slice verified locally; delivery in progress 2026-07-29)_
+_Status: In flight - Plan → Shop First slice shipped 2026-07-29; remaining Wave 1 ideas are
+unpromoted_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -433,8 +434,7 @@ _Completed 2026-07-29._
 
 ### Phase 4 — verify and deliver the First slice
 
-_In progress: local verification is complete; exact-revision delivery and production canary
-remain._
+_Completed 2026-07-29._
 
 - Run focused provider-free unit/API tests after each vertical behavior, then the complete
   repository gate.
@@ -686,7 +686,7 @@ BTL-07 through BTL-11 are retained for later Wave 1 work and must not be touched
 
 ### BTL-12 — Verify and promote one loop at a time
 
-**Status: In progress 2026-07-29: local gate complete; promotion/canary pending.**
+**Status: Completed 2026-07-29.**
 
 - **Observable behavior:** each selected loop passes its focused fast loop, full repository gate,
   additive migration rehearsal where applicable, exact-revision deployment, and authenticated
@@ -721,6 +721,7 @@ background provider turn, Butler Brief, notification, or second Assistant surfac
 | AH boundary | The preview reuses Dutch Shopping-source lineage and the existing fingerprinted push route; no push occurs until the separate `Send to AH` button. AH is explicitly outside local Undo. |
 | Responsive behavior | The authenticated Playwright story passes at 375 and 1280 px for both isolated users with selectable rows and no horizontal overflow. |
 | Verification | `npm test`: 659 Vitest tests, 21 primary authenticated browser tests, clean Svelte diagnostics, and production build; `npm run test:e2e:secondary`: 21 passed. |
+| Delivery | PR #29 merged as remote `main` `99cadd6a441c4ed2ddfcb836f3f6ed10c0f49785`; Railway deployment `7221b445-3258-46ca-bc14-88c89166193a` reported `SUCCESS` for that exact revision, and both household authentication canaries passed without a provider turn, household mutation, AH lookup, or AH push. |
 
 ## Failure-mode critique
 
@@ -833,17 +834,18 @@ None. Feedback resolved every gate on 2026-07-28:
 
 - **Goal:** keep evolving the 27-tool model surface into a layered, assertive, trustworthy
   household butler after the selected Plan → Shop First slice.
-- **Current state:** the six First-slice ideas are implemented and locally verified on
-  `codex/assistant-plan-shop-first-slice`; the branch is code-only R2 and adds no schema.
-- **First command:** inspect the exact branch/PR/deployment state, then resume BTL-12 only.
+- **Current state:** the six First-slice ideas shipped through PR #29 and passed exact-main
+  Railway delivery plus both authenticated no-mutation canaries. The slice is code-only R2 and
+  adds no schema.
+- **First command:** choose and promote a specific remaining Wave 1 ticket in this Markdown
+  before starting another `$run`; do not infer the next slice from rank alone.
 - **First files:** this feature list; `src/lib/server/ai/capability_registry.ts`;
   `src/lib/server/ai/meal_plan_proposal.ts`;
   `src/lib/components/chat/MealPlanReview.svelte`;
   `src/lib/server/workflows/meal-plan-proposal.ts`.
 - **First implementation move:** none; do not expand beyond the six First-slice ideas.
-- **Pending verification:** rerun the complete gate only if delivery changes code; then push the
-  exact revision, merge through the ordinary code-only route, supervise Railway, and run an
-  authenticated no-basket canary.
+- **Pending verification:** none for the shipped First slice. Any later promoted ticket gets its
+  own risk-proportionate gate, exact-main deployment check, and safe canary.
 - **Open questions:** none.
 - **Beta wide-sweep note:** any selected schema-backed action-bundle, fridge, brief-state, or
   preference work must use the schema split and PR path from app-stage delivery guidance.
