@@ -395,45 +395,169 @@ export const tools: Anthropic.Tool[] = [
 	{
 		name: 'propose_recipe_patch',
 		description:
-			'Stage selected before/after recipe corrections for review. Never writes the recipe. Use add_ingredient, update_ingredient (amount/unit/preparation/role/optional), add_substitute, or recipe_field (servings/directions/notes). Ingredient names stay Dutch. Attach AH evidence only with evidence_key returned by search_ah_products in this turn.',
+			'Stage recipe corrections and/or three-to-nine distinct AH product-form choices for review. Never writes the recipe. Ingredient names stay Dutch. Use only opaque evidence_key values returned by search_ah_products in this turn; never send a product ID.',
 		input_schema: {
 			type: 'object',
+			additionalProperties: false,
 			properties: {
 				slug: { type: 'string' },
 				operations: {
 					type: 'array',
-					minItems: 1,
+					minItems: 0,
 					maxItems: 30,
 					items: {
-						type: 'object',
-						properties: {
-							kind: {
-								type: 'string',
-								enum: ['add_ingredient', 'update_ingredient', 'add_substitute', 'recipe_field']
-							},
-							ingredient_id: { type: 'string' },
-							field: { type: 'string', enum: ['servings', 'directions', 'notes'] },
-							after: {
-								description:
-									'For add_ingredient/add_substitute use the typed object; for recipe_field use the new scalar or directions array.'
-							},
-							changes: {
+						oneOf: [
+							{
 								type: 'object',
-								description:
-									'For update_ingredient: changed amount, unit, preparation, role, and/or optional fields.'
+								additionalProperties: false,
+								properties: {
+									kind: { type: 'string', enum: ['add_ingredient'] },
+									after: {
+										type: 'object',
+										additionalProperties: false,
+										properties: {
+											name: { type: 'string' },
+											amount: { type: 'string' },
+											unit: { type: ['string', 'null'] },
+											preparation: { type: ['string', 'null'] },
+											role: { type: 'string', enum: ['cook_in', 'serve_fresh'] },
+											optional: { type: 'boolean' },
+											component: { type: ['string', 'null'] },
+											purchaseForm: {
+												type: 'string',
+												enum: ['fresh', 'preserved', 'frozen', 'dried', 'any']
+											},
+											scale: { type: 'string', enum: ['linear', 'whole', 'fixed'] }
+										},
+										required: ['name', 'amount']
+									},
+									reason: { type: 'string' },
+									evidence: {
+										type: 'object',
+										additionalProperties: false,
+										properties: { evidence_key: { type: 'string' } },
+										required: ['evidence_key']
+									}
+								},
+								required: ['kind', 'after', 'reason']
+							},
+							{
+								type: 'object',
+								additionalProperties: false,
+								properties: {
+									kind: { type: 'string', enum: ['update_ingredient'] },
+									ingredient_id: { type: 'string' },
+									changes: {
+										type: 'object',
+										additionalProperties: false,
+										properties: {
+											amount: { type: 'string' },
+											unit: { type: ['string', 'null'] },
+											preparation: { type: ['string', 'null'] },
+											role: {
+												type: ['string', 'null'],
+												enum: ['cook_in', 'serve_fresh', null]
+											},
+											optional: { type: 'boolean' }
+										}
+									},
+									reason: { type: 'string' },
+									evidence: {
+										type: 'object',
+										additionalProperties: false,
+										properties: { evidence_key: { type: 'string' } },
+										required: ['evidence_key']
+									}
+								},
+								required: ['kind', 'ingredient_id', 'changes', 'reason']
+							},
+							{
+								type: 'object',
+								additionalProperties: false,
+								properties: {
+									kind: { type: 'string', enum: ['add_substitute'] },
+									ingredient_id: { type: 'string' },
+									after: {
+										type: 'object',
+										additionalProperties: false,
+										properties: {
+											name: { type: 'string' },
+											kind: {
+												type: 'string',
+												enum: ['protein', 'spice', 'vegetable', 'other']
+											},
+											note: { type: 'string' }
+										},
+										required: ['name']
+									},
+									reason: { type: 'string' },
+									evidence: {
+										type: 'object',
+										additionalProperties: false,
+										properties: { evidence_key: { type: 'string' } },
+										required: ['evidence_key']
+									}
+								},
+								required: ['kind', 'ingredient_id', 'after', 'reason']
+							},
+							{
+								type: 'object',
+								additionalProperties: false,
+								properties: {
+									kind: { type: 'string', enum: ['recipe_field'] },
+									field: { type: 'string', enum: ['servings', 'directions', 'notes'] },
+									after: {
+										description:
+											'Servings number/null, directions string array, or notes string/null.'
+									},
+									reason: { type: 'string' }
+								},
+								required: ['kind', 'field', 'after', 'reason']
+							}
+						]
+					}
+				},
+				product_choices: {
+					type: 'array',
+					minItems: 0,
+					maxItems: 10,
+					items: {
+						type: 'object',
+						additionalProperties: false,
+						properties: {
+							ingredient_id: {
+								type: 'string',
+								description: 'Stable ingredient ID returned by get_recipe'
 							},
 							reason: { type: 'string' },
-							evidence: {
-								type: 'object',
-								properties: { evidence_key: { type: 'string' } },
-								required: ['evidence_key']
+							candidates: {
+								type: 'array',
+								minItems: 3,
+								maxItems: 9,
+								items: {
+									type: 'object',
+									additionalProperties: false,
+									properties: {
+										evidence_key: { type: 'string' },
+										form_label: {
+											type: 'string',
+											description:
+												'Canonical purchase-form category, e.g. whole block, freshly grated, or grated powder. Products with the same form must use the same label regardless of brand, size, cultivar, or marketing wording, and cannot both be candidates.'
+										},
+										distinction: {
+											type: 'string',
+											description: 'Optional one-line comparison of use, texture, or convenience'
+										}
+									},
+									required: ['evidence_key', 'form_label']
+								}
 							}
 						},
-						required: ['kind', 'reason']
+						required: ['ingredient_id', 'reason', 'candidates']
 					}
 				}
 			},
-			required: ['slug', 'operations']
+			required: ['slug', 'operations', 'product_choices']
 		}
 	},
 	{

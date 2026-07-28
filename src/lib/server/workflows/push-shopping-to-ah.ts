@@ -36,9 +36,11 @@ import {
 	createShoppingPushAttempt,
 	getShoppingWeekView,
 	listAhFavorites,
+	listRecipeAhPreferencesForSources,
 	recordShoppingPushOutcome,
 	type ShoppingPushItemInsert,
-	type ShoppingBuyRow
+	type ShoppingBuyRow,
+	type RecipeAhPreference
 } from '$lib/server/domains/shopping';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import type { PreviewItem, PreviewProduct } from '$lib/shopping_ah';
@@ -188,6 +190,51 @@ async function searchWithFallback(
 	return { outcome, usedDutchTerm: cleanedDutchTerm };
 }
 
+type RowPreference =
+	| { kind: 'none' }
+	| { kind: 'recipe'; preference: RecipeAhPreference }
+	| { kind: 'unresolved' };
+
+function resolveRowPreference(
+	row: ShoppingBuyRow,
+	preferences: Map<string, RecipeAhPreference>,
+	globalFavoriteId: string | undefined
+): RowPreference {
+	const sourcePreferences = row.sources.map((source) => {
+		if (
+			source.sourceKind !== 'recipe' ||
+			source.recipeId == null ||
+			!source.ingredientId
+		) {
+			return null;
+		}
+		return preferences.get(`${source.recipeId}\u0000${source.ingredientId}`) ?? null;
+	});
+	const selected = sourcePreferences.filter(
+		(preference): preference is RecipeAhPreference => preference !== null
+	);
+	if (selected.length === 0) return { kind: 'none' };
+	const everySourcePreferred =
+		selected.length === row.sources.length &&
+		row.sources.every((source) => source.sourceKind === 'recipe');
+	const productIds = new Set(selected.map((preference) => preference.productId));
+	if (!everySourcePreferred || productIds.size !== 1) return { kind: 'unresolved' };
+	const preference = selected[0];
+	if (globalFavoriteId && globalFavoriteId !== preference.productId) {
+		return { kind: 'unresolved' };
+	}
+	return { kind: 'recipe', preference };
+}
+
+function preferenceSignature(
+	resolution: RowPreference,
+	globalFavoriteId: string | undefined
+): string {
+	if (resolution.kind === 'recipe') return `recipe:${resolution.preference.productId}`;
+	if (resolution.kind === 'unresolved') return 'unresolved';
+	return `global:${globalFavoriteId ?? ''}`;
+}
+
 export async function previewShoppingForAh(
 	input: PreviewShoppingForAhInput,
 	dependencies: ShoppingAhDependencies = defaultDependencies()
@@ -205,9 +252,31 @@ export async function previewShoppingForAh(
 			listAhFavorites(tx)
 				.map((favorite) => [favorite.nameKey, favorite])
 		);
-		return { rows, favorites };
+		const recipePreferences = new Map(
+			listRecipeAhPreferencesForSources(
+				tx,
+				rows.flatMap((row) => row.sources)
+			).map((preference) => [
+				`${preference.recipeId}\u0000${preference.ingredientId}`,
+				preference
+			])
+		);
+		const rowPreferences = new Map(
+			rows.map((row) => {
+				const ref = `entries:${[...row.entryIds].sort((a, b) => a - b).join(',')}`;
+				return [
+					ref,
+					resolveRowPreference(
+						row,
+						recipePreferences,
+						favorites.get(normalize(row.name))?.productId
+					)
+				] as const;
+			})
+		);
+		return { rows, favorites, rowPreferences };
 	});
-	const { rows, favorites } = prepared;
+	const { rows, favorites, rowPreferences } = prepared;
 	const represented = new Set(rows.flatMap((row) => row.entryIds));
 	if ([...requested].some((id) => !represented.has(id))) {
 		throw new ShoppingAhWorkflowError(409, 'The shopping list changed; review it again');
@@ -216,6 +285,7 @@ export async function previewShoppingForAh(
 	const items: PreviewItem[] = await Promise.all(
 		rows.map(async (row): Promise<PreviewItem> => {
 			const ref = `entries:${[...row.entryIds].sort((a, b) => a - b).join(',')}`;
+			const rowPreference = rowPreferences.get(ref) ?? { kind: 'none' as const };
 			const purchaseForm = row.sources.find((source) => source.purchaseForm)?.purchaseForm;
 			const { outcome, usedDutchTerm } = await searchWithFallback(ah, row.name);
 			const sourceAmounts = quantitySources(row);
@@ -231,7 +301,18 @@ export async function previewShoppingForAh(
 					purchaseForm,
 					status: 'unknown',
 					candidates: [],
-					lowConfidence: false
+					lowConfidence: false,
+					...(rowPreference.kind === 'recipe'
+						? {
+								preferenceState: 'recipe' as const,
+								preferenceLabel: rowPreference.preference.variantLabel
+							}
+						: rowPreference.kind === 'unresolved'
+							? {
+								requiresExplicitDecision: true,
+								preferenceState: 'unresolved' as const
+							}
+						: {})
 				};
 			}
 			if (!outcome.products.length) {
@@ -246,7 +327,18 @@ export async function previewShoppingForAh(
 					purchaseForm,
 					status: 'freetext',
 					candidates: [],
-					lowConfidence: false
+					lowConfidence: false,
+					...(rowPreference.kind === 'recipe'
+						? {
+								preferenceState: 'recipe' as const,
+								preferenceLabel: rowPreference.preference.variantLabel
+							}
+						: rowPreference.kind === 'unresolved'
+							? {
+								requiresExplicitDecision: true,
+								preferenceState: 'unresolved' as const
+							}
+						: {})
 				};
 			}
 			const { ranked, lowConfidence } = rankProducts(
@@ -274,37 +366,73 @@ export async function previewShoppingForAh(
 							row.incompatibleQuantities
 						)
 					),
-				lowConfidence
+				lowConfidence,
+				...(rowPreference.kind === 'recipe'
+					? {
+							preferenceState: 'recipe' as const,
+							preferenceLabel: rowPreference.preference.variantLabel
+						}
+					: rowPreference.kind === 'unresolved'
+						? {
+								requiresExplicitDecision: true,
+								preferenceState: 'unresolved' as const
+							}
+						: {})
 			};
 		})
 	);
 
-	const missingFavorites: Array<{ item: PreviewItem; productId: string }> = [];
+	const missingPins: Array<{
+		item: PreviewItem;
+		productId: string;
+		kind: 'favorite' | 'recipe';
+	}> = [];
 	for (const item of items) {
-		if (item.status === 'unknown') continue;
-		const favorite = favorites.get(normalize(item.term));
-		if (!favorite) continue;
+		const rowPreference = rowPreferences.get(item.ref) ?? { kind: 'none' as const };
+		if (rowPreference.kind === 'unresolved') continue;
+		const recipePreference =
+			rowPreference.kind === 'recipe' ? rowPreference.preference : undefined;
+		const favorite = recipePreference ? undefined : favorites.get(normalize(item.term));
+		const productId = recipePreference?.productId ?? favorite?.productId;
+		if (!productId || (item.status === 'unknown' && !recipePreference)) continue;
 		const index = item.candidates.findIndex(
-			(candidate) => candidate.id === favorite.productId
+			(candidate) => candidate.id === productId
 		);
 		if (index >= 0) {
 			const [candidate] = item.candidates.splice(index, 1);
-			item.candidates.unshift({ ...candidate, isFavorite: true });
+			item.candidates.unshift({
+				...candidate,
+				...(recipePreference
+					? { isRecipePreference: true }
+					: { isFavorite: true })
+			});
+			item.status = 'product';
+			item.lowConfidence = false;
 		} else {
-			missingFavorites.push({ item, productId: favorite.productId });
+			missingPins.push({
+				item,
+				productId,
+				kind: recipePreference ? 'recipe' : 'favorite'
+			});
 		}
 	}
-	if (missingFavorites.length) {
+	if (missingPins.length) {
 		const fetched = new Map(
 			(
 				await ah.getProductsByIds([
-					...new Set(missingFavorites.map((item) => item.productId))
+					...new Set(missingPins.map((item) => item.productId))
 				])
 			).map((product) => [product.id, product])
 		);
-		for (const { item, productId } of missingFavorites) {
+		for (const { item, productId, kind } of missingPins) {
 			const product = fetched.get(productId);
-			if (!product) continue;
+			if (!product) {
+				if (kind === 'recipe') {
+					item.preferenceState = 'unavailable';
+					item.requiresExplicitDecision = true;
+				}
+				continue;
+			}
 			item.candidates.unshift({
 				...toPreviewProduct(
 					product,
@@ -312,7 +440,9 @@ export async function previewShoppingForAh(
 					item.unit,
 					item.incompatibleQuantities
 				),
-				isFavorite: true
+				...(kind === 'recipe'
+					? { isRecipePreference: true }
+					: { isFavorite: true })
 			});
 			item.status = 'product';
 			item.lowConfidence = false;
@@ -322,6 +452,8 @@ export async function previewShoppingForAh(
 		(item) =>
 			item.status === 'product' &&
 			!item.candidates[0]?.isFavorite &&
+			!item.candidates[0]?.isRecipePreference &&
+			!item.requiresExplicitDecision &&
 			item.candidates.length > 1
 	);
 	const picks = await ah.pickArchetypes(adjustable);
@@ -352,6 +484,10 @@ export async function previewShoppingForAh(
 				unit: item.unit,
 				incompatibleQuantities: item.incompatibleQuantities,
 				quantitySummary: quantitySummary(row),
+				preferenceSignature: preferenceSignature(
+					rowPreferences.get(item.ref) ?? { kind: 'none' },
+					favorites.get(normalize(row.name))?.productId
+				),
 				offeredProducts: item.candidates.map((candidate) => ({
 					id: candidate.id,
 					name: candidate.name
@@ -386,6 +522,18 @@ function assertCurrentPreview(
 				row
 			])
 	);
+	const favorites = new Map(
+		listAhFavorites(db).map((favorite) => [favorite.nameKey, favorite])
+	);
+	const recipePreferences = new Map(
+		listRecipeAhPreferencesForSources(
+			db,
+			[...currentRows.values()].flatMap((row) => row.sources)
+		).map((preference) => [
+			`${preference.recipeId}\u0000${preference.ingredientId}`,
+			preference
+		])
+	);
 	for (const binding of bindings) {
 		const row = currentRows.get(binding.ref);
 		if (
@@ -419,6 +567,23 @@ function assertCurrentPreview(
 			throw new ShoppingAhWorkflowError(
 				409,
 				'A shopping choice changed; review it again'
+			);
+		}
+		const currentPreferenceSignature = preferenceSignature(
+			resolveRowPreference(
+				row,
+				recipePreferences,
+				favorites.get(normalize(row.name))?.productId
+			),
+			favorites.get(normalize(row.name))?.productId
+		);
+		if (
+			binding.preferenceSignature !== undefined &&
+			binding.preferenceSignature !== currentPreferenceSignature
+		) {
+			throw new ShoppingAhWorkflowError(
+				409,
+				'An AH product preference changed; review the shopping list again'
 			);
 		}
 	}

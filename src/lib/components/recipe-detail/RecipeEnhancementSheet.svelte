@@ -89,6 +89,6 @@
 			<Spinner size="sm" />{m.recipe_enhance_loading()}
 		</div>
 	{:else if proposal}
-		<RecipeEnhancementReview {proposal} onApplied={applied} />
+		<RecipeEnhancementReview {proposal} verifyStatus={false} onApplied={applied} />
 	{/if}
 </BottomSheet>

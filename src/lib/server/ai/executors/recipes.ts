@@ -55,9 +55,14 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 		const input = z
 			.object({
 				slug: z.string(),
-				operations: z.array(z.unknown()).min(1).max(30)
+				operations: z.array(z.unknown()).max(30).optional().default([]),
+				product_choices: z.array(z.unknown()).max(10).optional().default([])
 			})
 			.strict()
+			.refine(
+				(value) => value.operations.length > 0 || value.product_choices.length > 0,
+				'Provide recipe operations and/or product choices'
+			)
 			.parse(raw);
 		const recipe = getRecipeBySlug(db, input.slug);
 		if (!recipe) return { ok: false, error: 'Recipe not found' };
@@ -66,7 +71,9 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			proposal = stageRecipePatch(recipe, {
 				userId,
 				operations: input.operations,
-				evidence: (key) => turnSafety?.ahEvidence.get(key)
+				productChoices: input.product_choices,
+				evidence: (key) => turnSafety?.ahEvidence.get(key),
+				replacement: turnSafety?.recipeChoiceReplacement
 			});
 		} catch (error) {
 			if (error instanceof RecipePatchContractError) {

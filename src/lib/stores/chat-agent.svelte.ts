@@ -290,13 +290,17 @@ export class ChatAgentController {
 		this.abortController?.abort();
 	}
 
-	async send(text = this.input, isRetry = false): Promise<void> {
+	async send(
+		text = this.input,
+		isRetry = false,
+		recipeChoiceFollowUp?: { token: string; groupId: string }
+	): Promise<void> {
 		if (this.capExceeded) return;
-		const outgoing = this.attachments;
+		const outgoing = recipeChoiceFollowUp ? [] : this.attachments;
 		const hasAttachments = outgoing.length > 0;
 		if (this.isStreaming || (!text.trim() && !hasAttachments)) return;
 
-		this.attachments = [];
+		if (!recipeChoiceFollowUp) this.attachments = [];
 		this.attachError = '';
 		this.messages.push({
 			role: 'user',
@@ -329,7 +333,11 @@ export class ChatAgentController {
 				body = form;
 			} else {
 				headers['Content-Type'] = 'application/json';
-				body = JSON.stringify({ message: text, retry: isRetry });
+				body = JSON.stringify({
+					message: text,
+					retry: isRetry,
+					...(recipeChoiceFollowUp ? { recipeChoiceFollowUp } : {})
+				});
 			}
 			const response = await fetch(`${base}/api/chat`, {
 				method: 'POST',
@@ -448,6 +456,18 @@ export class ChatAgentController {
 			}
 			if (wrote) this.scheduleInvalidation();
 		}
+	}
+
+	async findDifferentRecipeProducts(input: {
+		token: string;
+		groupId: string;
+		ingredientLabel: string;
+	}): Promise<void> {
+		await this.send(
+			m.recipe_product_find_different_request({ ingredient: input.ingredientLabel }),
+			false,
+			{ token: input.token, groupId: input.groupId }
+		);
 	}
 
 	destroy(): void {

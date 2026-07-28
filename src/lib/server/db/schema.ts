@@ -5,6 +5,7 @@ import {
 	real,
 	unique,
 	index,
+	primaryKey,
 	foreignKey,
 	type AnySQLiteColumn
 } from 'drizzle-orm/sqlite-core';
@@ -420,6 +421,21 @@ export const ahFavorites = sqliteTable('ah_favorites', {
 	productName: text('product_name').notNull(),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
+
+export const recipeAhPreferences = sqliteTable(
+	'recipe_ah_preferences',
+	{
+		recipeId: integer('recipe_id')
+			.notNull()
+			.references(() => recipes.id, { onDelete: 'cascade' }),
+		ingredientId: text('ingredient_id').notNull(),
+		productId: text('ah_product_id').notNull(),
+		productName: text('ah_product_name').notNull(),
+		variantLabel: text('variant_label').notNull(),
+		selectedAt: integer('selected_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => [primaryKey({ columns: [table.recipeId, table.ingredientId] })]
+);
 
 export type ShoppingPushDestination = 'order' | 'list';
 export type ShoppingPushItemMode = 'product' | 'freetext' | 'skip';

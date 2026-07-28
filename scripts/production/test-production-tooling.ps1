@@ -189,6 +189,9 @@ $admin = Get-Content -Raw -LiteralPath $powerShellScripts[2]
 $bucketReset = Get-Content -Raw -LiteralPath $powerShellScripts[4]
 $authCanaryPath = Join-Path $repoRoot 'scripts\production\verify-production-auth.mjs'
 $authCanary = Get-Content -Raw -LiteralPath $authCanaryPath
+$recipeOptionsCanaryPath = Join-Path $repoRoot 'scripts\canary\recipe-options-live.ts'
+$recipeOptionsCanary = Get-Content -Raw -LiteralPath $recipeOptionsCanaryPath
+$tsxCli = Join-Path $repoRoot 'node_modules\tsx\dist\cli.mjs'
 $template = Get-Content -Raw -LiteralPath (Join-Path $repoRoot '.env.template')
 
 Assert-True ($wrapper -notmatch '(?i)\[(string|securestring)\]\$(Secret|Value|Token)\b') 'Wrapper accepts a secret-bearing parameter'
@@ -199,6 +202,10 @@ Assert-True ($admin -notmatch 'Write-(Output|Host).*(managementKey|oldAppKey|new
 Assert-True ($bucketReset -match "'--reset'" -and $bucketReset -notmatch "'--json'") 'Bucket reset is not fixed to the output-suppressed reset route'
 Assert-True ($authCanary -match [regex]::Escape('https://household-brain-production.up.railway.app')) 'Auth canary is not fixed to production'
 Assert-True ($authCanary -notmatch 'response\.(text|json|arrayBuffer)\(') 'Auth canary can read a production response body'
+Assert-True ($wrapper -match "'RunRecipeOptionsCanary'") 'Secret wrapper does not expose the fixed recipe-options canary'
+Assert-True ($recipeOptionsCanary -notmatch 'console\.(log|error|warn)') 'Recipe-options canary can print child details'
+Assert-True ($recipeOptionsCanary -match "delete process\.env\.HOUSEHOLD_BRAIN_NEW_OPENROUTER_API_KEY") 'Recipe-options canary retains the source secret name'
+Assert-True ($recipeOptionsCanary -notmatch 'productId\s*:|product_id\s*:') 'Recipe-options fixture exposes a product ID'
 Assert-True (
     @($template -split "`r?`n" | Where-Object {
         $_ -match '^[A-Z][A-Z0-9_]*=' -and $_ -notmatch '=("?op://Dev-Agents/)'
@@ -211,6 +218,7 @@ $adminValidation = & pwsh -NoProfile -File $powerShellScripts[2] -ValidateOnly
 $bucketResetValidation = & pwsh -NoProfile -File $powerShellScripts[4] -ValidateOnly
 $truthValidation = & node (Join-Path $repoRoot 'scripts\production\railway-deployment-truth.mjs') --validate-only
 $authValidation = & node $authCanaryPath --validate-only
+$recipeOptionsCanaryValidation = & node $tsxCli $recipeOptionsCanaryPath --validate-only
 
 Assert-True ($wrapperValidation -eq 'PRODUCTION-SECRET-TOOL-VALID') 'Secret wrapper validation failed'
 Assert-True ($stagerValidation -eq 'RAILWAY-CONFIG-STAGER-VALID') 'Railway stager validation failed'
@@ -218,6 +226,7 @@ Assert-True ($adminValidation -eq 'OPENROUTER-KEY-ADMIN-VALID') 'OpenRouter admi
 Assert-True ($bucketResetValidation -eq 'RAILWAY-BUCKET-RESET-VALID') 'Bucket reset validation failed'
 Assert-True ($truthValidation -eq 'RAILWAY-DEPLOYMENT-TRUTH-VALID') 'Deployment-truth validation failed'
 Assert-True ($authValidation -eq 'PRODUCTION-AUTH-CANARY-VALID') 'Production auth canary validation failed'
+Assert-True ($recipeOptionsCanaryValidation -eq 'RECIPE-OPTIONS-LIVE-CANARY-VALID') 'Recipe-options live canary validation failed'
 
 $priorSecretEnvironment = @{
     HOUSEHOLD_BRAIN_OLD_OPENROUTER_API_KEY = $env:HOUSEHOLD_BRAIN_OLD_OPENROUTER_API_KEY

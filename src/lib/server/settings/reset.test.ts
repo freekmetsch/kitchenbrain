@@ -193,6 +193,17 @@ describe('resetGroup(chat_history / spending_log / ah_favorites)', () => {
 		db.insert(schema.ahFavorites)
 			.values({ nameKey: 'knoflook', productId: '123', productName: 'Go-Tan knoflook', createdAt: NOW })
 			.run();
+		const recipeId = seedRecipe(db, 'pasta');
+		db.insert(schema.recipeAhPreferences)
+			.values({
+				recipeId,
+				ingredientId: 'parmezaan',
+				productId: '456',
+				productName: 'Parmigiano Reggiano',
+				variantLabel: 'Heel stuk',
+				selectedAt: NOW
+			})
+			.run();
 
 		resetGroup(db, 'chat_history');
 		resetGroup(db, 'spending_log');
@@ -201,6 +212,7 @@ describe('resetGroup(chat_history / spending_log / ah_favorites)', () => {
 		expect(db.select().from(schema.chatMessages).all()).toHaveLength(0);
 		expect(db.select().from(schema.spending).all()).toHaveLength(0);
 		expect(db.select().from(schema.ahFavorites).all()).toHaveLength(0);
+		expect(db.select().from(schema.recipeAhPreferences).all()).toHaveLength(0);
 	});
 });
 

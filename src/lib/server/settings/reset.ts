@@ -58,8 +58,8 @@ export const RESET_GROUPS: Record<ResetGroupKey, { label: string; description: s
 		description: 'Shopping list overrides and Albert Heijn push history.'
 	},
 	ah_favorites: {
-		label: 'AH Favorites',
-		description: 'Pinned Albert Heijn products per ingredient name.'
+		label: 'AH product preferences',
+		description: 'Household-wide favorites and product choices saved for individual recipes.'
 	},
 	timer_alerts: {
 		label: 'Timer alert devices',
@@ -85,7 +85,7 @@ const GROUP_TABLES: Record<ResetGroupKey, AnySQLiteTable[]> = {
 		schema.shoppingListOverrides,
 		schema.shoppingPushHistory
 	],
-	ah_favorites: [schema.ahFavorites],
+	ah_favorites: [schema.recipeAhPreferences, schema.ahFavorites],
 	timer_alerts: [schema.timerAlertJobs, schema.pushSubscriptions]
 };
 

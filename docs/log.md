@@ -419,6 +419,67 @@ docs/artifacts/archive/2026-07-28-plan-mobile-timer-sound.html
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
 
+## 2026-07-28 | html-artifact | plan: Assistant recipe product choices and dense chat
+
+Diagnosed the latest production assistant trace, false multi-option promise, proposal lifecycle,
+tool-retry leakage, and stacked chat width caps. Planned three distinct recipe-scoped AH product
+choices, bounded show/find-more behavior, additive preference persistence, strict mixed-source
+shopping conflicts, single-use proposal apply, wider responsive chat, and compact tool activity.
+The independent Opus critique's eight P1 gaps were integrated before the plan was marked GO.
+
+Touched: docs/artifacts/2026-07-28-plan-assistant-recipe-options-chat-density.html,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md
+
+## 2026-07-28 | run | Assistant recipe product choices and dense chat
+
+Implemented three distinct, recipe-scoped AH product choices with opaque server evidence, atomic
+preference apply, strict mixed-source shopping conflicts, bounded replacement, compact tool
+activity, final-only assistant prose, and a wider responsive chat review. Fresh and upgraded
+database proofs, the secondary account flow, the client-bundle marker scan, and the complete
+provider-free `npm test` gate passed. After current-main integration, the gate passed 604 unit
+tests, all 20 primary browser stories, Svelte diagnostics, and the production build. The names-only
+lineage verifier reports exact `main` equality; production remains intentionally unpromoted pending
+draft-PR review and the separately authorized live provider-canary decision.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md,
+drizzle/0025_unusual_boomer.sql
+
+## 2026-07-28 | run | Assistant recipe live-provider canary refinement
+
+Ran five bounded provider-backed scenarios against synthetic recipe and AH-like fixtures. All five
+put block, fresh-grated, and powder products in the first three visible choices without reading
+household data, calling AH, applying a preference, or pushing a basket. Refined proposal turns so
+long or multi-line final narration collapses to the localized card-ready sentence. The complete
+gate then passed 607 unit tests, all 20 primary browser stories, Svelte diagnostics, and the
+production build.
+
+Touched: scripts/canary/recipe-options-live.ts,
+scripts/invoke-production-secret-tool.ps1,
+src/lib/server/ai/final_iteration_text.ts,
+src/routes/api/chat/+server.ts,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md
+
+## 2026-07-28 | run | Varied assistant recipe-option matrix
+
+Expanded the bounded live-provider canary from one ingredient family to nine varied scenarios,
+including a five-candidate reveal pool, optional and multi-ingredient recipes, and an insufficient
+catalog negative control. Iterative failures led to one-proposal-per-turn, canonical product-form
+labels, distinct first-visible forms, and explicit stage-or-refuse guidance. The final matrix
+passed in 31 provider calls / 205,449 tokens / a reported $0.05; the complete repository gate then
+passed 609 unit tests, all 20 primary browser stories, Svelte diagnostics, and the production
+build. Required Opus review attempts were unavailable; no independent findings were accepted.
+
+Touched: scripts/canary/recipe-options-live.ts,
+src/lib/server/ai/prompts/system.md,
+src/lib/server/ai/prompt_contract.test.ts,
+src/lib/server/ai/tools.ts,
+src/lib/server/ai/tools.test.ts,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md
+
 ## 2026-07-28 | html-artifact | plan: Mobile timer reliability
 
 Reopened the shipped mobile-timer issue after the Android device check. Production evidence proves
@@ -459,3 +520,20 @@ docs/artifacts/archive/2026-07-28-plan-mobile-timer-reliability.html
 
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback.
+
+## 2026-07-28 | run | Recipe options integrated with timer-reliability main
+
+Merged current `main`, kept timer delivery receipts at migration 0024, and regenerated the
+additive recipe preference table as 0025. A populated 0023→0024→0025 rehearsal preserved Dutch
+recipe ingredients and passed foreign-key checks. After timer hardening follow-up PR #24, the
+final combined gate passed 117 test files / 630 unit tests, all 20 primary browser stories, Svelte
+diagnostics, and the production build. The
+long Cook Mode navigation/resume story retains all assertions and now uses Playwright's explicit
+slow-test budget after passing repeated focused runs.
+
+Touched: drizzle/0025_unusual_boomer.sql,
+drizzle/meta/0025_snapshot.json,
+src/lib/server/db/recipe_ah_preferences_migration.test.ts,
+tests/e2e/responsive-parity.e2e.ts,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md

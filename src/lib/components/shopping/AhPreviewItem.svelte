@@ -188,6 +188,33 @@
 				{/each}
 			</ul>
 		{/if}
+	{:else if item.requiresExplicitDecision}
+		<div class="mt-2 rounded-xl border border-warning/30 bg-warning/10 px-2.5 py-2" role="status">
+			<p class="text-xs text-base-content/75">
+				{item.preferenceState === 'unavailable'
+					? m.shopping_ah_recipe_preference_unavailable()
+					: m.shopping_ah_recipe_preference_conflict()}
+			</p>
+		</div>
+		{#if item.candidates.length}
+			<div class="mt-2 grid gap-1.5">
+				{#each item.candidates.slice(0, 3) as candidate, index (candidate.id)}
+					<button
+						type="button"
+						class="min-h-11 rounded-lg border border-base-300 px-2 py-1.5 text-left text-sm hover:bg-base-200"
+						onclick={() => onPickProduct(index)}
+					>
+						<span class="block truncate">{candidate.name}</span>
+						<span class="block text-xs text-base-content/50">
+							{candidate.salesUnitSize ?? ''}{candidate.salesUnitSize && candidate.unitPrice ? ' · ' : ''}{candidate.unitPrice ?? ''}
+						</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
+		<button type="button" class="mt-1 min-h-11 text-xs text-primary" onclick={() => onDemoteToText()}>
+			{m.shopping_ah_send_as_text()}
+		</button>
 	{:else}
 		<p class="mt-1.5 text-xs text-base-content/60">
 			{item.status === 'unknown'

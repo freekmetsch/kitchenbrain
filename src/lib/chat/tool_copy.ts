@@ -393,12 +393,18 @@ export function inventoryChangeSummary(
 export function safeToolErrorSummary(error: string, locale: ChatLocale): string {
 	if (locale === 'nl') {
 		if (/^AI service error/.test(error)) return 'De AI-service haperde bij deze stap — probeer opnieuw.';
+		if (/changed|stale|expired|verlopen|gewijzigd/i.test(error)) {
+			return 'De gegevens zijn gewijzigd — controleer ze opnieuw.';
+		}
+		if (/not found|unavailable|niet gevonden|niet beschikbaar/i.test(error)) {
+			return 'Deze informatie kon niet worden gecontroleerd.';
+		}
 		return 'Deze stap is mislukt — probeer opnieuw.';
 	}
 	if (/^AI service error/.test(error)) return 'The AI service hiccuped on this step — try again.';
-	if (/[{}[\]]/.test(error) || /\n/.test(error)) return 'This step failed — try again.';
-	if (error.length > 160) return `${error.slice(0, 157)}…`;
-	return error;
+	if (/changed|stale|expired/i.test(error)) return 'The data changed — review it again.';
+	if (/not found|unavailable/i.test(error)) return 'This information could not be verified.';
+	return 'This step failed — try again.';
 }
 
 export function commitRiskDeleteSummary(

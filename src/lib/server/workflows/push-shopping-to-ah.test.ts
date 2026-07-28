@@ -8,13 +8,33 @@ import {
 	createAhPreviewToken
 } from '$lib/server/ah/preview_tokens';
 import {
+	previewShoppingForAh,
 	pushShoppingToAh,
 	type ShoppingAhAdapter,
 	type ShoppingAhDependencies
 } from './push-shopping-to-ah';
+import { getShoppingWeekView } from '$lib/server/domains/shopping';
+import { materializeShoppingWeek } from './reconcile-shopping';
+import type { AHProduct } from '$lib/server/ah/client';
 
 const WEEK = '2026-07-22';
 const NOW = new Date('2026-07-27T12:00:00.000Z');
+
+function ahProduct(id: string, name: string): AHProduct {
+	return {
+		id,
+		name,
+		priceBeforeBonus: 4.99,
+		currentPrice: null,
+		isBonus: false,
+		bonusMechanism: null,
+		salesUnitSize: '100 g',
+		unitPriceDescription: '€49.90/kg',
+		imageUrl: null,
+		isPreviouslyBought: false,
+		mainCategory: 'Kaas'
+	};
+}
 
 function fakeAdapter(
 	overrides: Partial<ShoppingAhAdapter> = {}
@@ -91,6 +111,47 @@ function seedEntries(db: TestDb) {
 	return { pasta: rows[0], tomatoes: rows[1] };
 }
 
+function seedRecipeShoppingRow(db: TestDb, recipeCount: number) {
+	for (let index = 0; index < recipeCount; index += 1) {
+		const recipe = db
+			.insert(schema.recipes)
+			.values({
+				slug: `pasta-${index + 1}`,
+				title: `Pasta ${index + 1}`,
+				ingredients: [
+					{
+						id: `cheese-${index + 1}`,
+						name: 'Parmezaanse kaas',
+						amount: '50',
+						unit: 'g',
+						role: 'cook_in'
+					}
+				],
+				directions: ['Kook.'],
+				createdAt: NOW,
+				updatedAt: NOW
+			})
+			.returning()
+			.get();
+		db.insert(schema.mealPlanMeals)
+			.values({
+				weekNumber: 30,
+				weekStartDate: WEEK,
+				dinner: recipe.title,
+				recipeSlug: recipe.slug,
+				status: 'planned',
+				source: 'fresh',
+				sortOrder: index,
+				createdAt: NOW
+			})
+			.run();
+	}
+	materializeShoppingWeek(db, WEEK, { weekStartDay: 2 });
+	return getShoppingWeekView(db, WEEK).toBuy.find(
+		(row) => row.name === 'Parmezaanse kaas'
+	)!;
+}
+
 function tokenFor(
 	userId: number,
 	entries: ReturnType<typeof seedEntries>
@@ -124,6 +185,360 @@ function tokenFor(
 describe('pushShoppingToAh', () => {
 	beforeEach(() => {
 		clearAhPreviewTokensForTest();
+	});
+
+	it('pins a unanimous recipe preference and never leaks it to a neutral source', async () => {
+		const preferred = ahProduct('cheese-block', 'AH Parmigiano Reggiano stuk');
+		const ordinary = ahProduct('cheese-grated', 'AH Parmigiano Reggiano geraspt');
+
+		const preferredDb = createTestDb();
+		const preferredRow = seedRecipeShoppingRow(preferredDb, 1);
+		preferredDb
+			.insert(schema.recipeAhPreferences)
+			.values({
+				recipeId: preferredRow.sources[0].recipeId!,
+				ingredientId: preferredRow.sources[0].ingredientId!,
+				productId: preferred.id,
+				productName: preferred.name,
+				variantLabel: 'Heel stuk',
+				selectedAt: NOW
+			})
+			.run();
+		const preferredPreview = await previewShoppingForAh(
+			{
+				userId: 1,
+				weekStart: WEEK,
+				entryIds: preferredRow.entryIds
+			},
+			dependencies(
+				preferredDb,
+				fakeAdapter({
+					searchProducts: async () => ({ ok: true, products: [ordinary] }),
+					getProductsByIds: async () => [preferred]
+				})
+			)
+		);
+		expect(preferredPreview.items[0]).toMatchObject({
+			preferenceState: 'recipe',
+			preferenceLabel: 'Heel stuk',
+			status: 'product'
+		});
+		expect(preferredPreview.items[0].candidates[0]).toMatchObject({
+			id: preferred.id,
+			isRecipePreference: true
+		});
+		expect(preferredPreview.items[0].requiresExplicitDecision).not.toBe(true);
+
+		clearAhPreviewTokensForTest();
+		const mixedDb = createTestDb();
+		const mixedRow = seedRecipeShoppingRow(mixedDb, 2);
+		mixedDb
+			.insert(schema.recipeAhPreferences)
+			.values({
+				recipeId: mixedRow.sources[0].recipeId!,
+				ingredientId: mixedRow.sources[0].ingredientId!,
+				productId: preferred.id,
+				productName: preferred.name,
+				variantLabel: 'Heel stuk',
+				selectedAt: NOW
+			})
+			.run();
+		const mixedPreview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: mixedRow.entryIds },
+			dependencies(
+				mixedDb,
+				fakeAdapter({
+					searchProducts: async () => ({ ok: true, products: [ordinary, preferred] })
+				})
+			)
+		);
+		expect(mixedPreview.items[0]).toMatchObject({
+			preferenceState: 'unresolved',
+			requiresExplicitDecision: true
+		});
+		expect(mixedPreview.items[0].candidates[0]?.isRecipePreference).not.toBe(true);
+	});
+
+	it('requires review when a saved recipe product is unavailable', async () => {
+		const db = createTestDb();
+		const row = seedRecipeShoppingRow(db, 1);
+		db.insert(schema.recipeAhPreferences)
+			.values({
+				recipeId: row.sources[0].recipeId!,
+				ingredientId: row.sources[0].ingredientId!,
+				productId: 'missing-product',
+				productName: 'Verdwenen kaas',
+				variantLabel: 'Heel stuk',
+				selectedAt: NOW
+			})
+			.run();
+		const preview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: row.entryIds },
+			dependencies(
+				db,
+				fakeAdapter({
+					searchProducts: async () => ({
+						ok: true,
+						products: [ahProduct('ordinary', 'AH Geraspte kaas')]
+					}),
+					getProductsByIds: async () => []
+				})
+			)
+		);
+		expect(preview.items[0]).toMatchObject({
+			preferenceState: 'unavailable',
+			requiresExplicitDecision: true
+		});
+	});
+
+	it('pins only unanimous recipe preferences and rejects conflicting ones', async () => {
+		const preferred = ahProduct('cheese-block', 'AH Parmigiano Reggiano stuk');
+		const grated = ahProduct('cheese-grated', 'AH Parmigiano Reggiano geraspt');
+
+		const unanimousDb = createTestDb();
+		const unanimousRow = seedRecipeShoppingRow(unanimousDb, 2);
+		unanimousDb
+			.insert(schema.recipeAhPreferences)
+			.values(
+				unanimousRow.sources.map((source) => ({
+					recipeId: source.recipeId!,
+					ingredientId: source.ingredientId!,
+					productId: preferred.id,
+					productName: preferred.name,
+					variantLabel: 'Heel stuk',
+					selectedAt: NOW
+				}))
+			)
+			.run();
+		const unanimousPreview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: unanimousRow.entryIds },
+			dependencies(
+				unanimousDb,
+				fakeAdapter({
+					searchProducts: async () => ({ ok: true, products: [grated] }),
+					getProductsByIds: async () => [preferred]
+				})
+			)
+		);
+		expect(unanimousPreview.items[0]).toMatchObject({
+			preferenceState: 'recipe'
+		});
+		expect(unanimousPreview.items[0].requiresExplicitDecision).toBeUndefined();
+		expect(unanimousPreview.items[0].candidates[0]).toMatchObject({
+			id: preferred.id,
+			isRecipePreference: true
+		});
+
+		clearAhPreviewTokensForTest();
+		const conflictingDb = createTestDb();
+		const conflictingRow = seedRecipeShoppingRow(conflictingDb, 2);
+		conflictingDb
+			.insert(schema.recipeAhPreferences)
+			.values(
+				conflictingRow.sources.map((source, index) => ({
+					recipeId: source.recipeId!,
+					ingredientId: source.ingredientId!,
+					productId: index === 0 ? preferred.id : grated.id,
+					productName: index === 0 ? preferred.name : grated.name,
+					variantLabel: index === 0 ? 'Heel stuk' : 'Vers geraspt',
+					selectedAt: NOW
+				}))
+			)
+			.run();
+		const conflictingPreview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: conflictingRow.entryIds },
+			dependencies(
+				conflictingDb,
+				fakeAdapter({
+					searchProducts: async () => ({ ok: true, products: [grated, preferred] })
+				})
+			)
+		);
+		expect(conflictingPreview.items[0]).toMatchObject({
+			preferenceState: 'unresolved',
+			requiresExplicitDecision: true
+		});
+	});
+
+	it('requires an explicit choice for recipe-plus-manual and global-favorite conflicts', async () => {
+		const preferred = ahProduct('cheese-block', 'AH Parmigiano Reggiano stuk');
+		const grated = ahProduct('cheese-grated', 'AH Parmigiano Reggiano geraspt');
+
+		const manualDb = createTestDb();
+		const initialRow = seedRecipeShoppingRow(manualDb, 1);
+		manualDb
+			.insert(schema.recipeAhPreferences)
+			.values({
+				recipeId: initialRow.sources[0].recipeId!,
+				ingredientId: initialRow.sources[0].ingredientId!,
+				productId: preferred.id,
+				productName: preferred.name,
+				variantLabel: 'Heel stuk',
+				selectedAt: NOW
+			})
+			.run();
+		manualDb
+			.insert(schema.shoppingWeekEntries)
+			.values({
+				weekStartDate: WEEK,
+				sourceKey: 'manual:cheese',
+				sourceKind: 'manual',
+				name: 'Parmezaanse kaas',
+				amount: '25',
+				unit: 'g',
+				approvedTerms: ['Parmezaanse kaas'],
+				createdAt: NOW,
+				updatedAt: NOW
+			})
+			.run();
+		const mixedRow = getShoppingWeekView(manualDb, WEEK).toBuy.find(
+			(row) => row.name === 'Parmezaanse kaas'
+		)!;
+		expect(mixedRow.sources.some((source) => source.sourceKind === 'manual')).toBe(true);
+		const manualPreview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: mixedRow.entryIds },
+			dependencies(
+				manualDb,
+				fakeAdapter({
+					searchProducts: async () => ({ ok: true, products: [grated, preferred] })
+				})
+			)
+		);
+		expect(manualPreview.items[0]).toMatchObject({
+			preferenceState: 'unresolved',
+			requiresExplicitDecision: true
+		});
+
+		clearAhPreviewTokensForTest();
+		const favoriteDb = createTestDb();
+		const favoriteRow = seedRecipeShoppingRow(favoriteDb, 1);
+		favoriteDb
+			.insert(schema.recipeAhPreferences)
+			.values({
+				recipeId: favoriteRow.sources[0].recipeId!,
+				ingredientId: favoriteRow.sources[0].ingredientId!,
+				productId: preferred.id,
+				productName: preferred.name,
+				variantLabel: 'Heel stuk',
+				selectedAt: NOW
+			})
+			.run();
+		favoriteDb
+			.insert(schema.ahFavorites)
+			.values({
+				nameKey: 'parmezaanse kaas',
+				productId: grated.id,
+				productName: grated.name,
+				createdAt: NOW
+			})
+			.run();
+		const favoritePreview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: favoriteRow.entryIds },
+			dependencies(
+				favoriteDb,
+				fakeAdapter({
+					searchProducts: async () => ({ ok: true, products: [grated, preferred] })
+				})
+			)
+		);
+		expect(favoritePreview.items[0]).toMatchObject({
+			preferenceState: 'unresolved',
+			requiresExplicitDecision: true
+		});
+		expect(favoritePreview.items[0].candidates[0]?.isFavorite).not.toBe(true);
+		expect(favoritePreview.items[0].candidates[0]?.isRecipePreference).not.toBe(true);
+	});
+
+	it('keeps the existing global favorite fallback when no recipe preference exists', async () => {
+		const db = createTestDb();
+		const entries = seedEntries(db);
+		const favorite = ahProduct('favorite-pasta', 'AH Volkoren penne');
+		db.insert(schema.ahFavorites)
+			.values({
+				nameKey: 'pasta',
+				productId: favorite.id,
+				productName: favorite.name,
+				createdAt: NOW
+			})
+			.run();
+
+		const preview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: [entries.pasta.id] },
+			dependencies(
+				db,
+				fakeAdapter({
+					searchProducts: async () => ({
+						ok: true,
+						products: [ahProduct('ordinary-pasta', 'AH Spaghetti')]
+					}),
+					getProductsByIds: async () => [favorite]
+				})
+			)
+		);
+
+		expect(preview.items[0].preferenceState).toBeUndefined();
+		expect(preview.items[0].candidates[0]).toMatchObject({
+			id: favorite.id,
+			isFavorite: true
+		});
+	});
+
+	it('invalidates a preview token when its recipe preference changes', async () => {
+		const db = createTestDb();
+		const row = seedRecipeShoppingRow(db, 1);
+		const preferred = ahProduct('cheese-block', 'AH Parmigiano Reggiano stuk');
+		db.insert(schema.recipeAhPreferences)
+			.values({
+				recipeId: row.sources[0].recipeId!,
+				ingredientId: row.sources[0].ingredientId!,
+				productId: preferred.id,
+				productName: preferred.name,
+				variantLabel: 'Heel stuk',
+				selectedAt: NOW
+			})
+			.run();
+		let writes = 0;
+		const deps = dependencies(
+			db,
+			fakeAdapter({
+				searchProducts: async () => ({ ok: true, products: [preferred] }),
+				addProductItems: async () => {
+					writes += 1;
+					return { ok: true, status: 200, uncertain: false };
+				}
+			})
+		);
+		const preview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: row.entryIds },
+			deps
+		);
+		db.update(schema.recipeAhPreferences)
+			.set({
+				productId: 'cheese-grated',
+				productName: 'AH Parmigiano Reggiano geraspt',
+				variantLabel: 'Vers geraspt',
+				selectedAt: new Date(NOW.getTime() + 1_000)
+			})
+			.run();
+
+		await expect(
+			pushShoppingToAh(
+				{
+					userId: 1,
+					previewToken: preview.previewToken,
+					decisions: [
+						{
+							ref: preview.items[0].ref,
+							mode: 'product',
+							productId: preview.items[0].candidates[0].id,
+							qty: 1
+						}
+					]
+				},
+				deps
+			)
+		).rejects.toMatchObject({ status: 409 });
+		expect(writes).toBe(0);
 	});
 
 	it('records pending before product-first dispatch and marks only definite successes bought', async () => {

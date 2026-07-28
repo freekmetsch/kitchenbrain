@@ -220,6 +220,22 @@ const ShoppingWeekEntryImport = z.object({
 	updatedAt: zTimestamp
 });
 
+const AhFavoriteImport = z.object({
+	nameKey: z.string().min(1),
+	productId: z.string().min(1),
+	productName: z.string().min(1),
+	createdAt: zTimestamp
+});
+
+const RecipeAhPreferenceImport = z.object({
+	recipeId: z.number().int(),
+	ingredientId: z.string().min(1),
+	productId: z.string().min(1),
+	productName: z.string().min(1),
+	variantLabel: z.string().min(1),
+	selectedAt: zTimestamp
+});
+
 const ImportFileSchema = z.object({
 	exported_at: z.string().optional(),
 	inventory: z.array(InventoryItemImport).default([]),
@@ -229,7 +245,9 @@ const ImportFileSchema = z.object({
 	meal_sub_recipes: z.array(MealSubRecipeImport).default([]),
 	shopping_overrides: z.array(ShoppingOverrideImport).default([]),
 	recurring_shopping_items: z.array(RecurringShoppingItemImport).default([]),
-	shopping_week_entries: z.array(ShoppingWeekEntryImport).default([])
+	shopping_week_entries: z.array(ShoppingWeekEntryImport).default([]),
+	ah_favorites: z.array(AhFavoriteImport).default([]),
+	recipe_ah_preferences: z.array(RecipeAhPreferenceImport).default([])
 });
 
 export type ImportFileData = z.infer<typeof ImportFileSchema>;
@@ -282,6 +300,15 @@ export function validateImportFile(raw: unknown): ImportValidation {
 		(entry) => `${entry.weekStartDate}\u0000${entry.sourceKey}`
 	);
 	if (dupWeekSource != null) return { ok: false, error: 'Duplicate shopping week/source key' };
+	const dupFavorite = firstDuplicate(data.ah_favorites, (favorite) => favorite.nameKey);
+	if (dupFavorite != null) return { ok: false, error: `Duplicate AH favorite "${dupFavorite}"` };
+	const dupRecipePreference = firstDuplicate(
+		data.recipe_ah_preferences,
+		(preference) => `${preference.recipeId}\u0000${preference.ingredientId}`
+	);
+	if (dupRecipePreference != null) {
+		return { ok: false, error: 'Duplicate recipe AH preference' };
+	}
 	const recurringIds = new Set(data.recurring_shopping_items.map((item) => item.id));
 	for (const entry of data.shopping_week_entries) {
 		if (entry.recurringItemId != null && !recurringIds.has(entry.recurringItemId)) {
@@ -306,6 +333,22 @@ export function validateImportFile(raw: unknown): ImportValidation {
 			return { ok: false, error: `meal_sub_recipes ${sub.id} references missing sub recipe id ${sub.subRecipeId}` };
 		}
 	}
+	const recipesById = new Map(data.recipes.map((recipe) => [recipe.id, recipe]));
+	for (const preference of data.recipe_ah_preferences) {
+		const recipe = recipesById.get(preference.recipeId);
+		if (!recipe) {
+			return {
+				ok: false,
+				error: `Recipe AH preference references missing recipe id ${preference.recipeId}`
+			};
+		}
+		if (!recipe.ingredients.some((ingredient) => ingredient.id === preference.ingredientId)) {
+			return {
+				ok: false,
+				error: `Recipe AH preference references missing ingredient ${preference.ingredientId}`
+			};
+		}
+	}
 
 	return { ok: true, data };
 }
@@ -325,7 +368,9 @@ export function isBootstrapEligible(db: DB): boolean {
 		rowCount(db, schema.mealSubRecipes) === 0 &&
 		rowCount(db, schema.shoppingListOverrides) === 0 &&
 		rowCount(db, schema.recurringShoppingItems) === 0 &&
-		rowCount(db, schema.shoppingWeekEntries) === 0
+		rowCount(db, schema.shoppingWeekEntries) === 0 &&
+		rowCount(db, schema.ahFavorites) === 0 &&
+		rowCount(db, schema.recipeAhPreferences) === 0
 	);
 }
 
@@ -345,6 +390,12 @@ export function getBootstrapBlockers(db: DB): ResetGroupKey[] {
 	) {
 		blockers.push('shopping_data');
 	}
+	if (
+		rowCount(db, schema.ahFavorites) > 0 ||
+		rowCount(db, schema.recipeAhPreferences) > 0
+	) {
+		blockers.push('ah_favorites');
+	}
 	return blockers;
 }
 
@@ -353,7 +404,7 @@ export type ImportOutcome = { ok: true; inserted: Record<string, number> } | { o
 // Exported so the Settings > Data panel can show the same sentence instead of
 // hand-copying a second one that could drift from this actual eligibility rule.
 export const NOT_EMPTY_ERROR =
-	'Import is only allowed when recipes, inventory, meal plan, meal log, and meal sub-recipes are all empty. Reset those groups first.';
+	'Import is only allowed when recipes, inventory, meal history, shopping data, and AH product preferences are empty. Reset those groups first.';
 
 /** Insert order satisfies FK dependencies: recipes → meal_sub_recipes (FK to
  * recipes) → inventory (optional FK to recipes) → meal_plan_meals → meal_log
@@ -383,6 +434,15 @@ export function importBootstrap(db: DB, data: ImportFileData): ImportOutcome {
 				.insert(schema.shoppingWeekEntries)
 				.values(data.shopping_week_entries)
 				.run().changes;
+		if (data.ah_favorites.length) {
+			inserted.ah_favorites = tx.insert(schema.ahFavorites).values(data.ah_favorites).run().changes;
+		}
+		if (data.recipe_ah_preferences.length) {
+			inserted.recipe_ah_preferences = tx
+				.insert(schema.recipeAhPreferences)
+				.values(data.recipe_ah_preferences)
+				.run().changes;
+		}
 		delHouseholdPref(tx as unknown as DB, K_SHOPPING_SOURCE_MIGRATION);
 
 		return { ok: true, inserted };

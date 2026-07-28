@@ -154,7 +154,20 @@ export function buildToolDisplay(
 			recipePatch: {
 				token: result.token,
 				recipeSlug: result.recipeSlug,
-				operations: result.operations as NonNullable<ToolDisplay['recipePatch']>['operations']
+				recipeRevision:
+					typeof result.recipeRevision === 'number' ? result.recipeRevision : 0,
+				status:
+					result.status === 'active' ||
+					result.status === 'applying' ||
+					result.status === 'superseded' ||
+					result.status === 'applied' ||
+					result.status === 'expired'
+						? result.status
+						: 'active',
+				operations: result.operations as NonNullable<ToolDisplay['recipePatch']>['operations'],
+				productChoices: Array.isArray(result.productChoices)
+					? (result.productChoices as NonNullable<ToolDisplay['recipePatch']>['productChoices'])
+					: []
 			}
 		};
 	}

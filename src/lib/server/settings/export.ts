@@ -7,7 +7,9 @@ import {
 	mealSubRecipes,
 	shoppingListOverrides,
 	recurringShoppingItems,
-	shoppingWeekEntries
+	shoppingWeekEntries,
+	ahFavorites,
+	recipeAhPreferences
 } from '$lib/server/db/schema';
 import type { Db } from '$lib/server/db/types';
 
@@ -27,6 +29,8 @@ export function buildHouseholdExport(database: Db, now = new Date()) {
 		meal_sub_recipes: database.select().from(mealSubRecipes).all(),
 		shopping_overrides: database.select().from(shoppingListOverrides).all(),
 		recurring_shopping_items: database.select().from(recurringShoppingItems).all(),
-		shopping_week_entries: database.select().from(shoppingWeekEntries).all()
+		shopping_week_entries: database.select().from(shoppingWeekEntries).all(),
+		ah_favorites: database.select().from(ahFavorites).all(),
+		recipe_ah_preferences: database.select().from(recipeAhPreferences).all()
 	};
 }

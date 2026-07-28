@@ -560,3 +560,32 @@ export function upsertAhFavorite(
 export function deleteAhFavorite(db: DbOrTx, nameKey: string): void {
 	db.delete(schema.ahFavorites).where(eq(schema.ahFavorites.nameKey, nameKey)).run();
 }
+
+export function upsertRecipeAhPreference(
+	db: DbOrTx,
+	input: {
+		recipeId: number;
+		ingredientId: string;
+		productId: string;
+		productName: string;
+		variantLabel: string;
+		selectedAt?: Date;
+	}
+): void {
+	const selectedAt = input.selectedAt ?? new Date();
+	db.insert(schema.recipeAhPreferences)
+		.values({ ...input, selectedAt })
+		.onConflictDoUpdate({
+			target: [
+				schema.recipeAhPreferences.recipeId,
+				schema.recipeAhPreferences.ingredientId
+			],
+			set: {
+				productId: input.productId,
+				productName: input.productName,
+				variantLabel: input.variantLabel,
+				selectedAt
+			}
+		})
+		.run();
+}

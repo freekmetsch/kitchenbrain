@@ -40,9 +40,12 @@ describe('chat tool copy', () => {
 		);
 	});
 
-	it('preserves specific readable English errors', () => {
+	it('maps readable English errors without exposing executor text', () => {
 		expect(safeToolErrorSummary('Inventory item was already removed', 'en')).toBe(
-			'Inventory item was already removed'
+			'This step failed — try again.'
+		);
+		expect(safeToolErrorSummary('Recipe proposal expired', 'en')).toBe(
+			'The data changed — review it again.'
 		);
 	});
 });

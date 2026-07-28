@@ -264,6 +264,36 @@ describe('server architecture boundaries', () => {
 		expect(violations).toEqual([]);
 	});
 
+	it('keeps direct recipe ingredient updates behind the canonical recipe command', () => {
+		const violations = productionSourceFiles(serverRoot).flatMap((file) => {
+			let writesIngredients = false;
+			function visit(node: ts.Node): void {
+				if (
+					ts.isCallExpression(node) &&
+					ts.isPropertyAccessExpression(node.expression) &&
+					node.expression.name.text === 'set' &&
+					node.arguments.some(
+						(argument) =>
+							ts.isObjectLiteralExpression(argument) &&
+							argument.properties.some(
+								(property) =>
+									(ts.isPropertyAssignment(property) ||
+										ts.isShorthandPropertyAssignment(property)) &&
+									property.name?.getText() === 'ingredients'
+							)
+					)
+				) {
+					writesIngredients = true;
+				}
+				ts.forEachChild(node, visit);
+			}
+			visit(parseSource(file));
+			return writesIngredients ? [toRepoPath(file)] : [];
+		});
+
+		expect(violations).toEqual([]);
+	});
+
 	it('keeps runtime LLM SDK imports behind the AI client seam', () => {
 		const runtimeSdkImporters = productionSourceFiles(serverRoot)
 			.filter((file) =>

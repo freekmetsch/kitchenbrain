@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="data:," />
+	<title>Assistant recipe choices and dense chat — plan review</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--ink: #252119;
+			--muted: #6e675c;
+			--paper: #f5f0e7;
+			--paper-2: #fffdf8;
+			--line: #d8cdbb;
+			--leaf: #315c47;
+			--leaf-soft: #e2eee7;
+			--tomato: #a13c2d;
+			--tomato-soft: #f6e5df;
+			--mustard: #b57b22;
+			--shadow: 0 14px 34px rgba(54, 42, 24, 0.11);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		}
+		* { box-sizing: border-box; }
+		html { background: var(--paper); color: var(--ink); }
+		body { margin: 0; min-height: 100vh; }
+		button, textarea, input { font: inherit; }
+		a { color: var(--leaf); overflow-wrap: anywhere; }
+		.page {
+			width: min(1180px, calc(100% - 28px));
+			margin: 0 auto;
+			padding: 28px 0 72px;
+		}
+		.hero {
+			display: grid;
+			grid-template-columns: minmax(0, 1.5fr) minmax(250px, .7fr);
+			gap: 24px;
+			padding: clamp(24px, 5vw, 54px);
+			background:
+				linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,251,241,.88)),
+				repeating-linear-gradient(90deg, transparent 0 31px, rgba(49,92,71,.035) 31px 32px);
+			border: 1px solid var(--line);
+			border-radius: 26px;
+			box-shadow: var(--shadow);
+		}
+		.kicker {
+			margin: 0 0 10px;
+			color: var(--tomato);
+			font-size: .76rem;
+			font-weight: 800;
+			letter-spacing: .12em;
+			text-transform: uppercase;
+		}
+		h1 {
+			margin: 0;
+			max-width: 780px;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.2rem, 6vw, 4.7rem);
+			font-weight: 500;
+			line-height: .98;
+			letter-spacing: -.045em;
+		}
+		.lede {
+			max-width: 730px;
+			margin: 22px 0 0;
+			color: var(--muted);
+			font-size: clamp(1rem, 2vw, 1.2rem);
+			line-height: 1.6;
+		}
+		.status {
+			align-self: start;
+			padding: 18px;
+			background: var(--leaf);
+			color: white;
+			border-radius: 18px;
+		}
+		.status strong { display: block; font-size: 1.45rem; }
+		.status span { display: block; margin-top: 8px; color: #dce9e1; line-height: 1.45; }
+		.status a { color: white; text-underline-offset: 3px; }
+		.metrics {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 10px;
+			margin: 18px 0 0;
+		}
+		.metric {
+			padding: 16px;
+			background: var(--paper-2);
+			border: 1px solid var(--line);
+			border-radius: 15px;
+		}
+		.metric b { display: block; color: var(--tomato); font-size: 1.55rem; }
+		.metric span { display: block; margin-top: 4px; color: var(--muted); font-size: .82rem; line-height: 1.35; }
+		.layout {
+			display: grid;
+			grid-template-columns: minmax(0, 1.45fr) minmax(320px, .75fr);
+			gap: 22px;
+			margin-top: 22px;
+			align-items: start;
+		}
+		.main, .decisions {
+			display: grid;
+			gap: 18px;
+		}
+		.section {
+			padding: clamp(20px, 3vw, 32px);
+			background: rgba(255,253,248,.92);
+			border: 1px solid var(--line);
+			border-radius: 20px;
+		}
+		h2 {
+			margin: 0 0 15px;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(1.55rem, 3vw, 2.25rem);
+			font-weight: 500;
+			letter-spacing: -.025em;
+		}
+		h3 { margin: 0 0 8px; font-size: 1rem; }
+		p { line-height: 1.62; }
+		.muted { color: var(--muted); }
+		.problem-list, .control-list, .phase-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+		.problem-list li, .control-list li {
+			display: grid;
+			grid-template-columns: 28px 1fr;
+			gap: 10px;
+			align-items: start;
+		}
+		.index {
+			display: grid;
+			place-items: center;
+			width: 28px;
+			height: 28px;
+			background: var(--tomato-soft);
+			color: var(--tomato);
+			border-radius: 50%;
+			font-size: .76rem;
+			font-weight: 800;
+		}
+		.flow {
+			display: grid;
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+			gap: 8px;
+			align-items: stretch;
+		}
+		.flow-step {
+			position: relative;
+			padding: 14px 12px;
+			background: var(--leaf-soft);
+			border: 1px solid #bcd2c5;
+			border-radius: 13px;
+			font-size: .82rem;
+			line-height: 1.4;
+		}
+		.flow-step:not(:last-child)::after {
+			content: "→";
+			position: absolute;
+			z-index: 2;
+			right: -9px;
+			top: 50%;
+			transform: translateY(-50%);
+			color: var(--leaf);
+			font-weight: 900;
+		}
+		.choice-demo {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 10px;
+		}
+		.product {
+			padding: 14px;
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			background: white;
+		}
+		.product:first-child { border-color: var(--leaf); box-shadow: inset 0 0 0 1px var(--leaf); }
+		.product small { color: var(--muted); }
+		.product strong { display: block; margin: 5px 0; }
+		.callout {
+			padding: 15px 17px;
+			background: var(--tomato-soft);
+			border-left: 4px solid var(--tomato);
+			border-radius: 0 12px 12px 0;
+			line-height: 1.55;
+		}
+		.phase-list { counter-reset: phase; }
+		.phase-list li {
+			counter-increment: phase;
+			display: grid;
+			grid-template-columns: 44px 1fr;
+			gap: 12px;
+			padding: 12px 0;
+			border-top: 1px solid var(--line);
+		}
+		.phase-list li::before {
+			content: counter(phase);
+			display: grid;
+			place-items: center;
+			width: 38px;
+			height: 38px;
+			border-radius: 12px;
+			background: var(--ink);
+			color: white;
+			font-weight: 800;
+		}
+		.phase-list p { margin: 4px 0 0; color: var(--muted); }
+		.failure-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 10px;
+		}
+		.failure {
+			padding: 14px;
+			border: 1px solid var(--line);
+			border-radius: 13px;
+		}
+		.failure b { display: block; color: var(--tomato); margin-bottom: 5px; }
+		.decision {
+			padding: 18px;
+			background: var(--paper-2);
+			border: 1px solid var(--line);
+			border-radius: 17px;
+		}
+		.decision.recommended { border-top: 4px solid var(--leaf); }
+		.decision p { margin: 5px 0 12px; color: var(--muted); font-size: .9rem; }
+		.option {
+			display: grid;
+			grid-template-columns: 22px 1fr;
+			gap: 8px;
+			padding: 10px;
+			margin-top: 7px;
+			border: 1px solid var(--line);
+			border-radius: 11px;
+			cursor: pointer;
+		}
+		.option:has(input:checked) {
+			border-color: var(--leaf);
+			background: var(--leaf-soft);
+		}
+		.option input { margin-top: 3px; accent-color: var(--leaf); }
+		.option span { font-size: .9rem; line-height: 1.4; }
+		.option small { display: block; margin-top: 3px; color: var(--muted); }
+		.note {
+			width: 100%;
+			min-height: 72px;
+			margin-top: 10px;
+			padding: 10px;
+			resize: vertical;
+			color: var(--ink);
+			background: white;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+		}
+		.note:focus, button:focus-visible, input:focus-visible {
+			outline: 3px solid rgba(49,92,71,.35);
+			outline-offset: 2px;
+		}
+		.prompt-box {
+			position: sticky;
+			top: 14px;
+			padding: 18px;
+			background: #24251f;
+			color: white;
+			border-radius: 18px;
+			box-shadow: var(--shadow);
+		}
+		.prompt-box h2 { font-family: inherit; font-size: 1.15rem; font-weight: 750; }
+		.prompt-box p { color: #cfcfc7; font-size: .88rem; }
+		.prompt {
+			width: 100%;
+			min-height: 220px;
+			padding: 12px;
+			resize: vertical;
+			border: 1px solid #606157;
+			border-radius: 10px;
+			background: #171813;
+			color: #f8f5ec;
+			font: .78rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		}
+		.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+		.button {
+			min-height: 44px;
+			padding: 0 15px;
+			border: 0;
+			border-radius: 10px;
+			background: var(--leaf);
+			color: white;
+			font-weight: 750;
+			cursor: pointer;
+		}
+		.button.secondary { background: #515248; }
+		.save-state { margin-top: 8px; color: #bfc6bc; font-size: .76rem; }
+		.source-note {
+			margin-top: 22px;
+			padding: 14px 18px;
+			color: var(--muted);
+			font-size: .86rem;
+			text-align: center;
+		}
+		@media (max-width: 900px) {
+			.hero, .layout { grid-template-columns: 1fr; }
+			.status { max-width: none; }
+			.metrics { grid-template-columns: repeat(2, 1fr); }
+			.prompt-box { position: static; }
+		}
+		@media (max-width: 620px) {
+			.page { width: min(100% - 18px, 1180px); padding-top: 9px; }
+			.hero { border-radius: 18px; }
+			.metrics, .choice-demo, .failure-grid { grid-template-columns: 1fr; }
+			.flow { grid-template-columns: 1fr; }
+			.flow-step:not(:last-child)::after {
+				content: "↓";
+				right: auto;
+				left: 50%;
+				top: auto;
+				bottom: -12px;
+				transform: translateX(-50%);
+			}
+		}
+		@media (prefers-reduced-motion: reduce) {
+			* { scroll-behavior: auto !important; }
+		}
+	</style>
+</head>
+<body>
+	<main class="page">
+		<header class="hero">
+			<div>
+				<p class="kicker">Implementation plan · R3 · beta</p>
+				<h1>Real product choices, without the wall of chat.</h1>
+				<p class="lede">
+					The assistant will offer three meaningfully different AH product forms per recipe
+					ingredient, remember an explicit choice for that recipe only, and give the review card
+					the width—not the prose—the decision deserves.
+				</p>
+				<div class="metrics" aria-label="Current production measurements">
+					<div class="metric"><b>13</b><span>tool calls in the latest turn</span></div>
+					<div class="metric"><b>482 px</b><span>measured desktop card width</span></div>
+					<div class="metric"><b>166 px</b><span>measured narrow card width</span></div>
+					<div class="metric"><b>4,650 px</b><span>latest narrow bubble height</span></div>
+				</div>
+			</div>
+			<aside class="status">
+				<strong>GO for $run</strong>
+				<span>Five phases, nine tickets, additive migration, isolated-proof default.</span>
+				<span>Authoritative source: <a href="../feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md">Markdown feature list</a></span>
+			</aside>
+		</header>
+
+		<div class="layout">
+			<div class="main">
+				<section class="section">
+					<h2>What actually went wrong</h2>
+					<ul class="problem-list">
+						<li><span class="index">1</span><span><strong>False capability.</strong> The assistant promised adjustable alternatives, but the contract held one fixed value and one checkbox.</span></li>
+						<li><span class="index">2</span><span><strong>Retry leakage.</strong> Oversized searches, guessed fields, evidence failures, and “let me retry” narration became household-facing chat.</span></li>
+						<li><span class="index">3</span><span><strong>Duplicate decision surfaces.</strong> The final response restated the card, while an older proposal stayed active-looking.</span></li>
+						<li><span class="index">4</span><span><strong>Stacked width caps.</strong> The page rail, bubble cap, and nested card padding discarded most useful horizontal space.</span></li>
+					</ul>
+				</section>
+
+				<section class="section">
+					<h2>The intended choice</h2>
+					<p class="muted">Three options are different by product form and use—not merely brand, price, or package size.</p>
+					<div class="choice-demo" aria-label="Parmesan example">
+						<div class="product"><small>Option 1</small><strong>Whole block</strong><span>Grate it yourself; recipe-only preference.</span></div>
+						<div class="product"><small>Option 2</small><strong>Fresh pre-grated</strong><span>Convenient, softer texture.</span></div>
+						<div class="product"><small>Option 3</small><strong>Grated powder</strong><span>Shelf-stable, different cooking result.</span></div>
+					</div>
+					<p class="callout"><strong>No default selection.</strong> The agent does not know the preference until the user chooses. “Show 3 more” reveals already staged products; “Find different options” starts a visible, bounded replacement turn.</p>
+				</section>
+
+				<section class="section">
+					<h2>One controlled path</h2>
+					<div class="flow" aria-label="Architecture flow">
+						<div class="flow-step"><strong>Read recipe</strong><br />Current revision and stable ingredient IDs</div>
+						<div class="flow-step"><strong>Search AH</strong><br />Dutch queries, opaque evidence keys</div>
+						<div class="flow-step"><strong>Review</strong><br />Patch rows plus 3–9 candidates</div>
+						<div class="flow-step"><strong>Apply once</strong><br />Token-bound, transaction-checked</div>
+						<div class="flow-step"><strong>Future preview</strong><br />Pin only when all sources agree</div>
+					</div>
+					<ul class="control-list" style="margin-top:18px">
+						<li><span class="index">A</span><span>AH product IDs stay server-side. Browser Apply sends only a server-minted candidate ID.</span></li>
+						<li><span class="index">B</span><span>The recipe preference lives in an additive table keyed by recipe ID and stable ingredient ID—not in the Dutch name.</span></li>
+						<li><span class="index">C</span><span>Mixed preferred, neutral, manual, or conflicting shopping sources block push until explicitly resolved.</span></li>
+						<li><span class="index">D</span><span>A replacement retires the old proposal only after three novel candidates validate; failure preserves the old card and selections.</span></li>
+					</ul>
+				</section>
+
+				<section class="section">
+					<h2>Five execution phases</h2>
+					<ol class="phase-list">
+						<li><div><h3>Lock the failure into tests</h3><p>Seed realistic chat/proposal JSON and make the 24.8-second browser loop fail behaviorally.</p></div></li>
+						<li><div><h3>Establish proposal and data boundaries</h3><p>Opaque evidence, typed choice groups, single-use tokens, additive preference migration.</p></div></li>
+						<li><div><h3>Carry choices into shopping</h3><p>Strict all-source agreement, explicit unresolved rows, stale-product recovery.</p></div></li>
+						<li><div><h3>Replace the tall chat surface</h3><p>Three-column wide choices, compact phone disclosure, wider bubbles, aggregated activity, final-only prose.</p></div></li>
+						<li><div><h3>Rehearse and promote</h3><p>Fresh/upgraded isolated database proof, full gate, deployment-lineage dependency, exact Railway main revision, optional live model canary.</p></div></li>
+					</ol>
+				</section>
+
+				<section class="section">
+					<h2>Failure controls that block release</h2>
+					<div class="failure-grid">
+						<div class="failure"><b>Cross-recipe leakage</b>Auto-pin only when every source carries the same recipe preference. Any neutral or conflicting source requires a choice.</div>
+						<div class="failure"><b>Token replay</b>Apply claims active → applying server-side; non-active and replayed tokens write nothing.</div>
+						<div class="failure"><b>Partial write</b>Revision, ingredient, operation, and candidate checks happen inside the same SQLite transaction.</div>
+						<div class="failure"><b>Orphan preference</b>Foreign keys are asserted and checked; canonical ingredient updates also prune removed IDs.</div>
+						<div class="failure"><b>Bad replacement</b>Overlapping or incomplete candidates never supersede the useful proposal.</div>
+						<div class="failure"><b>Hidden error</b>Routine reads collapse, but writes, proposals, confirmations, unresolved pushes, and terminal errors stay visible.</div>
+					</div>
+				</section>
+			</div>
+
+			<aside class="decisions" aria-label="Plan decisions">
+				<section class="decision recommended" data-decision="sharing">
+					<h3>1. Who shares the recipe choice?</h3>
+					<p>Recommendation: keep it household-shared, matching recipes and the existing AH connection.</p>
+					<label class="option"><input type="radio" name="sharing" value="household" checked /><span><strong>Household-shared</strong><small>One recipe choice for both seeded users.</small></span></label>
+					<label class="option"><input type="radio" name="sharing" value="per-user" /><span><strong>Per user</strong><small>Adds a new identity/conflict model and broader scope.</small></span></label>
+					<label class="option"><input type="radio" name="sharing" value="exclude" /><span><strong>Exclude preference persistence</strong><small>Choices become one-time and cannot guide future AH previews.</small></span></label>
+					<textarea class="note" data-note="sharing" placeholder="Clarification for this decision"></textarea>
+				</section>
+
+				<section class="decision recommended" data-decision="staging">
+					<h3>2. What proof comes before production?</h3>
+					<p>Recommendation: isolated local container plus upgraded database copy; use Railway staging only if it already exists.</p>
+					<label class="option"><input type="radio" name="staging" value="stage-first" checked /><span><strong>Isolated proof first</strong><small>Rehearse fresh/upgraded DB and rollback without creating a service.</small></span></label>
+					<label class="option"><input type="radio" name="staging" value="direct" /><span><strong>Direct production</strong><small>Faster, but skips the safest proof for real data.</small></span></label>
+					<label class="option"><input type="radio" name="staging" value="exclude" /><span><strong>Do not deploy yet</strong><small>Implementation may finish, but promotion stays blocked.</small></span></label>
+					<textarea class="note" data-note="staging" placeholder="Clarification for this decision"></textarea>
+				</section>
+
+				<section class="decision recommended" data-decision="canary">
+					<h3>3. Run a live model canary?</h3>
+					<p>Recommendation: decide explicitly during $run, after deterministic gates. One turn only; stop before Apply or AH push.</p>
+					<label class="option"><input type="radio" name="canary" value="authorize-later" checked /><span><strong>Ask during $run</strong><small>Preserves the paid/external-action gate.</small></span></label>
+					<label class="option"><input type="radio" name="canary" value="authorize-now" /><span><strong>Authorize one canary now</strong><small>Allows one metered production turn after isolated proof and lineage gates pass.</small></span></label>
+					<label class="option"><input type="radio" name="canary" value="skip" /><span><strong>Skip live canary</strong><small>Use provider-free and isolated pre-production evidence only.</small></span></label>
+					<textarea class="note" data-note="canary" placeholder="Clarification for this decision"></textarea>
+				</section>
+
+				<section class="prompt-box">
+					<h2>Generated handoff</h2>
+					<p>Selections and notes are autosaved locally. The prompt points the next agent to the Markdown source, never this HTML.</p>
+					<textarea id="handoff" class="prompt" readonly aria-label="Generated handoff prompt"></textarea>
+					<div class="actions">
+						<button id="copy" class="button" type="button">Copy prompt</button>
+						<button id="reset" class="button secondary" type="button">Reset defaults</button>
+					</div>
+					<div id="save-state" class="save-state" role="status" aria-live="polite">Defaults loaded.</div>
+				</section>
+			</aside>
+		</div>
+
+		<p class="source-note">
+			This workspace is a review aid. The authoritative execution state remains
+			<a href="../feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md">FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md</a>.
+		</p>
+	</main>
+
+	<script>
+		(() => {
+			"use strict";
+			const storageKey = "artifact:docs/artifacts/2026-07-28-plan-assistant-recipe-options-chat-density.html:v2";
+			const defaults = {
+				sharing: "household",
+				staging: "stage-first",
+				canary: "authorize-later",
+				notes: { sharing: "", staging: "", canary: "" }
+			};
+			const labels = {
+				sharing: {
+					question: "Who shares a selected recipe-specific AH product preference?",
+					recommendation: "Household-shared",
+					rationale: "Recipes, AH connection, and current favorites are household-shared in this single-household app.",
+					uncertainty: "Different preferences between seeded users would require a new identity and conflict model.",
+					options: {
+						household: "Household-shared — one explicit preference for the recipe.",
+						"per-user": "Per user — add user identity to preference storage and conflicts.",
+						exclude: "Exclude persistence — keep product choices one-time."
+					}
+				},
+				staging: {
+					question: "Should the additive preference migration and AH precedence change receive isolated pre-production proof?",
+					recommendation: "Isolated proof first",
+					rationale: "Schema and real household selection behavior are R3; a local container and upgraded database copy prove the flow without assuming a new external service.",
+					uncertainty: "Use Railway staging only if it is already configured. Production promotion also waits for the separate deployment-lineage recovery.",
+					options: {
+						"stage-first": "Isolated proof first — rehearse database upgrade, flow, and rollback; use existing Railway staging only if available.",
+						direct: "Direct production — promote after local gates without isolated end-to-end proof.",
+						exclude: "Do not deploy yet — implementation can finish but promotion remains blocked."
+					}
+				},
+				canary: {
+					question: "Should the final gate include one metered live provider canary?",
+					recommendation: "Ask explicitly during $run",
+					rationale: "The canary uniquely checks candidate diversity from the configured model but costs money and writes chat history.",
+					uncertainty: "Provider-free tests cannot prove semantic diversity; isolated proof cannot reproduce the exact production model unless invoked.",
+					options: {
+						"authorize-later": "Ask during $run — preserve explicit authority after deterministic gates.",
+						"authorize-now": "Authorize one canary now — one turn after isolated proof and delivery-lineage gates, stop before Apply/AH push.",
+						skip: "Skip live canary — use provider-free and isolated pre-production evidence only."
+					}
+				}
+			};
+			const status = document.getElementById("save-state");
+			const handoff = document.getElementById("handoff");
+
+			function currentState() {
+				const state = { notes: {} };
+				for (const key of ["sharing", "staging", "canary"]) {
+					state[key] = document.querySelector(`input[name="${key}"]:checked`)?.value || defaults[key];
+					state.notes[key] = document.querySelector(`[data-note="${key}"]`)?.value || "";
+				}
+				return state;
+			}
+
+			function applyState(state) {
+				for (const key of ["sharing", "staging", "canary"]) {
+					const value = state[key] || defaults[key];
+					const radio = document.querySelector(`input[name="${key}"][value="${value}"]`);
+					if (radio) radio.checked = true;
+					const note = document.querySelector(`[data-note="${key}"]`);
+					if (note) note.value = state.notes?.[key] || "";
+				}
+			}
+
+			function buildPrompt(state) {
+				const lines = [
+					"Load docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md and continue the $plan → $run workflow from that authoritative Markdown source.",
+					"",
+					"Goal: implement three meaningfully different AH product-form choices per eligible recipe ingredient, remember an explicit choice for that recipe only, provide bounded show-more/find-different behavior, and widen/compress the chat decision surface.",
+					"",
+					"Accepted plan facts:",
+					"- Use opaque evidence and server-minted candidate IDs; never accept an AH product ID from the model or browser.",
+					"- Use an additive recipe_ah_preferences table keyed by recipe ID and stable ingredient ID; never rewrite the Dutch ingredient name.",
+					"- Apply token, revision, ingredient, operations, and selections atomically; non-active tokens are single-use failures.",
+					"- Auto-pin in AH preview only when every aggregated source carries the same scoped preference; mixed/neutral/manual/conflicting rows block push until resolved.",
+					"- A find-different replacement must be complete and non-overlapping before it supersedes; failure preserves the old proposal and selections.",
+					"- Buffer intermediate tool-iteration prose, aggregate routine activity, and keep only final assistant prose.",
+					"- Execute ARO-1 first so the realistic provider-free browser seam fails before implementation.",
+					"- Do not promote until deployment-lineage recovery is verified; production must report SUCCESS from GitHub main at the exact remote-main commit via node scripts/production/railway-deployment-truth.mjs.",
+					""
+				];
+				for (const key of ["sharing", "staging", "canary"]) {
+					const info = labels[key];
+					lines.push(`Decision: ${info.question}`);
+					lines.push(`Selected outcome: ${info.options[state[key]]}`);
+					lines.push(`Recommendation: ${info.recommendation}.`);
+					lines.push(`Rationale: ${info.rationale}`);
+					lines.push(`Uncertainty: ${info.uncertainty}`);
+					lines.push(`Available options: ${Object.values(info.options).join(" / ")}`);
+					const note = state.notes[key]?.trim();
+					if (note) {
+						lines.push("User note (verbatim):");
+						lines.push(note);
+					} else {
+						lines.push("User note: none.");
+					}
+					lines.push("");
+				}
+				lines.push("Proceed forward-only. Preserve unrelated worktree changes. Do not use this HTML as plan state.");
+				return lines.join("\n");
+			}
+
+			function render(message) {
+				const state = currentState();
+				handoff.value = buildPrompt(state);
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state));
+					status.textContent = message || "Saved locally.";
+				} catch {
+					status.textContent = "Changes work for this session but could not be saved locally.";
+				}
+			}
+
+			function load() {
+				let state = defaults;
+				try {
+					const saved = localStorage.getItem(storageKey);
+					if (saved) state = { ...defaults, ...JSON.parse(saved), notes: { ...defaults.notes, ...(JSON.parse(saved).notes || {}) } };
+				} catch {
+					status.textContent = "Local save is unavailable; the workspace still works for this session.";
+				}
+				applyState(state);
+				handoff.value = buildPrompt(currentState());
+			}
+
+			document.addEventListener("change", () => render());
+			document.addEventListener("input", (event) => {
+				if (event.target.matches(".note")) render();
+			});
+			document.getElementById("reset").addEventListener("click", () => {
+				applyState(defaults);
+				try { localStorage.removeItem(storageKey); } catch {}
+				render("Defaults restored.");
+			});
+			document.getElementById("copy").addEventListener("click", async () => {
+				try {
+					await navigator.clipboard.writeText(handoff.value);
+					status.textContent = "Prompt copied.";
+				} catch {
+					handoff.focus();
+					handoff.select();
+					status.textContent = "Clipboard access failed. The prompt is selected; copy it manually.";
+				}
+			});
+			load();
+		})();
+	</script>
+</body>
+</html>

@@ -37,6 +37,20 @@
 	let username = $derived(controller.username);
 	let messageListEl = $state<HTMLElement>();
 	let textareaEl = $state<HTMLTextAreaElement>();
+	const proposalSelections = new Map<
+		string,
+		{ operationIds: string[]; productSelections: Record<string, string> }
+	>();
+	let latestProposalTokens = $derived.by(() => {
+		const latest = new Map<string, string>();
+		for (const message of messages) {
+			for (const tool of message.toolCalls ?? []) {
+				const proposal = tool.display?.recipePatch;
+				if (proposal) latest.set(proposal.recipeSlug, proposal.token);
+			}
+		}
+		return latest;
+	});
 
 	// Entry motion for new turns only — history renders instantly (Svelte plays no
 	// intro on initial mount) and reduced-motion users get none at all.
@@ -150,6 +164,74 @@
 		return group?.length ? group : firstUndoableOp(tool);
 	}
 
+	function proposalSelection(recipeSlug: string) {
+		return proposalSelections.get(recipeSlug);
+	}
+
+	function saveProposalSelection(
+		recipeSlug: string,
+		selection: { operationIds: string[]; productSelections: Record<string, string> }
+	) {
+		proposalSelections.set(recipeSlug, selection);
+	}
+
+	type ToolRenderRow =
+		| { kind: 'tool'; tool: ToolCall; index: number }
+		| { kind: 'activity'; tools: ToolCall[] };
+
+	function isRoutineActivity(tool: ToolCall): boolean {
+		if (tool.display?.kind === 'read') return true;
+		if (tool.display?.kind !== 'error' || !tool.result || typeof tool.result !== 'object') {
+			return false;
+		}
+		const code = (tool.result as { contract_error?: unknown }).contract_error;
+		return code === 'invalid_input' || code === 'missing_provenance';
+	}
+
+	function toolRows(tools: ToolCall[]): ToolRenderRow[] {
+		const rows: ToolRenderRow[] = [];
+		for (let index = 0; index < tools.length; ) {
+			if (!isRoutineActivity(tools[index])) {
+				rows.push({ kind: 'tool', tool: tools[index], index });
+				index += 1;
+				continue;
+			}
+			const routine: ToolCall[] = [];
+			while (index < tools.length && isRoutineActivity(tools[index])) {
+				routine.push(tools[index]);
+				index += 1;
+			}
+			if (routine.length === 1) {
+				rows.push({ kind: 'tool', tool: routine[0], index: index - 1 });
+			} else {
+				rows.push({ kind: 'activity', tools: routine });
+			}
+		}
+		return rows;
+	}
+
+	function activitySummary(tools: ToolCall[]): string {
+		const recipeChecks = tools.filter((tool) => tool.name === 'get_recipe').length;
+		const ahSearches = tools
+			.filter((tool) => tool.name === 'search_ah_products')
+			.reduce((total, tool) => {
+				const queries =
+					tool.input &&
+					typeof tool.input === 'object' &&
+					Array.isArray((tool.input as { queries?: unknown }).queries)
+						? (tool.input as { queries: unknown[] }).queries.length
+						: 1;
+				return total + queries;
+			}, 0);
+		if (recipeChecks && ahSearches) {
+			return m.chat_activity_recipe_ah({ count: ahSearches });
+		}
+		if (ahSearches) {
+			return m.chat_activity_ah({ count: ahSearches });
+		}
+		return m.chat_activity_checks({ count: tools.length });
+	}
+
 	// Best-effort plan check-off (P5.2): count the completed write-displays that
 	// follow this present_plan in the same turn. No rigid step↔tool binding — a
 	// plan of N steps checks off the first min(N, writesDone) rows. Only writes
@@ -254,8 +336,8 @@
 			<div class="chat min-w-0 {msg.role === 'user' ? 'chat-end' : 'chat-start'}" in:fly={{ y: 10, duration: motionMs }}>
 				<div
 					class="chat-bubble {msg.role === 'user'
-						? 'chat-bubble-primary'
-						: 'bg-base-200 text-base-content'} min-w-0 max-w-[85%] whitespace-pre-wrap break-words text-base leading-relaxed [overflow-wrap:anywhere]"
+						? 'chat-bubble-primary max-w-[90%] md:max-w-[72%]'
+						: 'w-[calc(100%-0.5rem)] max-w-none bg-base-200 text-base-content md:w-[calc(100%-1rem)]'} min-w-0 whitespace-pre-wrap break-words text-base leading-relaxed [overflow-wrap:anywhere]"
 				>
 					{#if msg.images && msg.images.length > 0}
 						<div class="mb-2 flex flex-wrap gap-1.5">
@@ -272,7 +354,21 @@
 					{/if}
 					{#if msg.toolCalls && msg.toolCalls.length > 0}
 						<div class="mb-2 flex min-w-0 flex-col gap-1.5">
-							{#each msg.toolCalls as tool, ti}
+							{#each toolRows(msg.toolCalls) as row}
+								{#if row.kind === 'activity'}
+									<details class="rounded-md bg-base-100/40 px-2 py-1.5 text-xs text-base-content/60">
+										<summary class="min-h-6 cursor-pointer font-medium">
+											{activitySummary(row.tools)}
+										</summary>
+										<ul class="mt-1 space-y-1 pl-4">
+											{#each row.tools as activity}
+												<li>{activity.display?.summary}</li>
+											{/each}
+										</ul>
+									</details>
+								{:else}
+									{@const tool = row.tool}
+									{@const ti = row.index}
 								{#if tool.display && tool.display.kind === 'plan' && tool.display.steps}
 									{@const d = tool.display}
 									{@const done = planStepsDone(msg.toolCalls, ti)}
@@ -387,7 +483,15 @@
 											</div>
 										{/if}
 										{#if d.kind === 'proposal' && d.recipePatch}
-											<RecipeEnhancementReview proposal={d.recipePatch} />
+											<RecipeEnhancementReview
+												proposal={d.recipePatch}
+												isLatest={latestProposalTokens.get(d.recipePatch.recipeSlug) === d.recipePatch.token}
+												initialSelection={proposalSelection(d.recipePatch.recipeSlug)}
+												onSelectionChange={(selection) =>
+													saveProposalSelection(d.recipePatch!.recipeSlug, selection)}
+												onFindDifferent={(input) =>
+													controller.findDifferentRecipeProducts(input)}
+											/>
 										{/if}
 									</div>
 								{:else}
@@ -396,6 +500,7 @@
 										<summary class="cursor-pointer text-xs font-mono select-none">⚙ {tool.name}</summary>
 									<pre class="mt-1 max-w-full overflow-x-auto whitespace-pre text-xs">{JSON.stringify(tool.result, null, 2)}</pre>
 									</details>
+								{/if}
 								{/if}
 							{/each}
 						</div>
