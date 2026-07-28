@@ -159,6 +159,24 @@ docs/artifacts/archive/2026-07-25-plan-chat-starter-rail-refinement.html
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
 
+## 2026-07-28 | shipped | Production lineage and Shopping recovery
+
+Reconciled the complete safety and Shopping history through PRs #17 and #18, restored GitHub
+`main` as the exact Railway production source, and proved the compact Shopping controls with no
+progress indicator at 320 and 1280 px. Rotated both household passwords and the OpenRouter
+application key, reset Litestream bucket credentials behind Railway references, and passed live
+auth, AI, backup-restore, browser-console, and runtime-log checks.
+
+Archived the terminal recovery feature list, stale-deploy issue, plan workspace, and degraded
+canary artifact. The dormant Anthropic runtime value is inert; no uniquely identifiable
+provider-side key was available for safe revocation.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_PRODUCTION_DEPLOYMENT_LINEAGE_RECOVERY.md,
+docs/known_issues/solved/ISSUE_RAILWAY_PRODUCTION_STALE_DEPLOY_20260728-1413.md,
+docs/artifacts/archive/2026-07-28-plan-production-deployment-lineage-recovery.html,
+docs/artifacts/archive/2026-07-28-canary-shopping-stale-deployment.html,
+docs/deploys/2026-07.md
+
 ## 2026-07-25 22:17 | archive-scan | 1 feature list, 0 HTMLs archived
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_MARKET_RUN_SHOPPING_PAGE.md
