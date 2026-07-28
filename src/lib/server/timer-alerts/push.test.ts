@@ -1,7 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
+import webpush from 'web-push';
 import { createWebPushSender } from './push';
 
 describe('Web Push timer sender', () => {
+	it('loads the CommonJS production client through its default export', () => {
+		const vapid = webpush.generateVAPIDKeys();
+
+		expect(() =>
+			createWebPushSender({
+				...vapid,
+				subject: 'https://example.com'
+			})
+		).not.toThrow();
+	});
+
 	it('sends an encrypted declarative notification with timer-safe delivery options', async () => {
 		const setVapidDetails = vi.fn();
 		const sendNotification = vi.fn(async () => ({
