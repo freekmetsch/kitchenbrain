@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Mobile timer reliability — decision workspace</title>
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='22' fill='%231d6047'/%3E%3Cpath d='M26 4h12v7H26zM32 18v18l11 7' fill='none' stroke='%23fffdf7' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
+	<style>
+		:root {
+			color-scheme: light;
+			--ink: #18201c;
+			--muted: #59635d;
+			--paper: #f7f2e8;
+			--paper-2: #fffdf7;
+			--line: #c9c1af;
+			--green: #1d6047;
+			--green-soft: #dcebdd;
+			--amber: #a84f14;
+			--amber-soft: #f8dfba;
+			--red: #9c2e25;
+			--blue: #245e78;
+			--shadow: 0 18px 45px rgba(55, 46, 28, .12);
+		}
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			background:
+				linear-gradient(90deg, transparent 49.7%, rgba(89,99,93,.06) 50%, transparent 50.3%),
+				var(--paper);
+			color: var(--ink);
+			font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+			line-height: 1.55;
+		}
+		button, textarea, input { font: inherit; }
+		a { color: var(--green); text-underline-offset: 3px; }
+		.skip {
+			position: absolute; left: -999px; top: 0;
+			background: var(--ink); color: white; padding: .7rem 1rem; z-index: 10;
+		}
+		.skip:focus { left: .75rem; top: .75rem; }
+		header {
+			min-height: 76vh;
+			display: grid;
+			align-content: center;
+			padding: clamp(3rem, 8vw, 7rem) max(1.25rem, calc((100vw - 1120px) / 2));
+			border-bottom: 1px solid var(--line);
+			background:
+				radial-gradient(circle at 83% 22%, rgba(168,79,20,.17), transparent 25rem),
+				radial-gradient(circle at 13% 80%, rgba(29,96,71,.15), transparent 28rem);
+		}
+		.eyebrow {
+			margin: 0 0 1rem;
+			font-size: .78rem;
+			font-weight: 800;
+			letter-spacing: .13em;
+			text-transform: uppercase;
+			color: var(--green);
+		}
+		h1 {
+			max-width: 15ch;
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(3rem, 9vw, 7rem);
+			font-weight: 500;
+			line-height: .92;
+			letter-spacing: -.045em;
+		}
+		.lede {
+			max-width: 720px;
+			margin: 2rem 0 0;
+			font-size: clamp(1.15rem, 2.3vw, 1.55rem);
+		}
+		.verdict {
+			display: inline-flex;
+			align-items: center;
+			gap: .6rem;
+			margin-top: 2rem;
+			padding: .65rem .85rem;
+			border: 1px solid var(--green);
+			border-radius: 999px;
+			background: var(--green-soft);
+			font-weight: 750;
+		}
+		.verdict::before {
+			content: "";
+			width: .65rem; height: .65rem; border-radius: 50%;
+			background: var(--green);
+		}
+		main {
+			max-width: 1120px;
+			margin: 0 auto;
+			padding: 5rem 1.25rem 8rem;
+		}
+		section { scroll-margin-top: 1rem; }
+		.section-head {
+			display: grid;
+			grid-template-columns: minmax(10rem, 1fr) 2fr;
+			gap: 2rem;
+			align-items: end;
+			margin: 0 0 2rem;
+		}
+		.section-head h2 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.1rem, 5vw, 4rem);
+			font-weight: 500;
+			line-height: 1;
+		}
+		.section-head p { margin: 0; max-width: 650px; color: var(--muted); }
+		.signal {
+			margin: 0 0 6rem;
+			padding: 2rem 0;
+			border-block: 1px solid var(--line);
+		}
+		.signal ol {
+			list-style: none;
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			margin: 0; padding: 0;
+			counter-reset: signal;
+		}
+		.signal li {
+			position: relative;
+			min-height: 11rem;
+			padding: 3.2rem 1.1rem 1rem;
+			border-left: 1px solid var(--line);
+			counter-increment: signal;
+		}
+		.signal li:last-child { border-right: 1px solid var(--line); }
+		.signal li::before {
+			content: counter(signal);
+			position: absolute; top: .5rem; left: 1rem;
+			font-family: Georgia, serif; font-size: 1.8rem; color: var(--amber);
+		}
+		.signal strong { display: block; margin-bottom: .35rem; }
+		.signal small { color: var(--muted); }
+		.problem {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 1px;
+			margin-bottom: 6rem;
+			background: var(--line);
+			border: 1px solid var(--line);
+			box-shadow: var(--shadow);
+		}
+		.problem article { background: var(--paper-2); padding: clamp(1.5rem, 4vw, 3rem); }
+		.problem h3 { margin: 0 0 .7rem; font-size: 1.35rem; }
+		.problem p { margin: 0; }
+		.problem .bad { color: var(--red); font-weight: 800; }
+		.problem .good { color: var(--green); font-weight: 800; }
+		.route-map {
+			display: grid;
+			grid-template-columns: 1fr auto 1fr auto 1fr;
+			align-items: center;
+			gap: 1rem;
+			margin: 2rem 0 6rem;
+			padding: clamp(1.25rem, 4vw, 2.5rem);
+			border: 1px solid var(--line);
+			background: rgba(255,253,247,.75);
+		}
+		.route-map div {
+			min-height: 8rem;
+			display: grid; place-content: center; text-align: center;
+			padding: 1rem;
+			border: 2px solid var(--ink);
+			border-radius: 50%;
+		}
+		.route-map b { display: block; }
+		.route-map span { font-size: .88rem; color: var(--muted); }
+		.arrow { font-size: 2rem; color: var(--amber); }
+		.decisions { margin-bottom: 6rem; }
+		.decision {
+			display: grid;
+			grid-template-columns: minmax(13rem, .75fr) 2fr;
+			gap: clamp(1.5rem, 5vw, 4rem);
+			padding: 2.5rem 0;
+			border-top: 1px solid var(--line);
+		}
+		.decision:last-child { border-bottom: 1px solid var(--line); }
+		.decision h3 { margin: 0; font: 500 1.7rem/1.15 Georgia, serif; }
+		.decision .context { margin: .55rem 0 0; color: var(--muted); font-size: .92rem; }
+		fieldset { margin: 0; padding: 0; border: 0; }
+		legend { font-weight: 800; margin-bottom: .8rem; }
+		.option {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: .8rem;
+			padding: 1rem;
+			margin-bottom: .7rem;
+			border: 1px solid var(--line);
+			background: var(--paper-2);
+			cursor: pointer;
+		}
+		.option:has(input:checked) {
+			border: 2px solid var(--green);
+			padding: calc(1rem - 1px);
+			background: var(--green-soft);
+		}
+		.option input { width: 1.25rem; height: 1.25rem; accent-color: var(--green); }
+		.option strong { display: block; }
+		.option small { display: block; margin-top: .25rem; color: var(--muted); }
+		.recommend {
+			display: inline-block;
+			margin-left: .35rem;
+			padding: .12rem .42rem;
+			border-radius: 999px;
+			background: var(--green);
+			color: white;
+			font-size: .7rem;
+			font-weight: 800;
+			letter-spacing: .04em;
+			text-transform: uppercase;
+		}
+		textarea {
+			width: 100%;
+			min-height: 5.5rem;
+			margin-top: .75rem;
+			padding: .8rem;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 0;
+			background: rgba(255,255,255,.75);
+			color: var(--ink);
+		}
+		textarea:focus, button:focus-visible, input:focus-visible {
+			outline: 3px solid #e2a66d;
+			outline-offset: 2px;
+		}
+		.save-note { min-height: 1.4rem; color: var(--muted); font-size: .82rem; }
+		.sequence {
+			display: grid;
+			grid-template-columns: repeat(6, minmax(8rem, 1fr));
+			overflow-x: auto;
+			margin: 0 0 6rem;
+			border: 1px solid var(--line);
+			background: var(--paper-2);
+		}
+		.sequence article { padding: 1.2rem; border-right: 1px solid var(--line); }
+		.sequence article:last-child { border: 0; }
+		.sequence b { display: block; color: var(--amber); font-size: .78rem; text-transform: uppercase; }
+		.sequence strong { display: block; margin: .45rem 0; }
+		.sequence small { color: var(--muted); }
+		.gate {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 1.25rem;
+			margin: 0 0 6rem;
+		}
+		.gate article {
+			padding: clamp(1.5rem, 4vw, 2.5rem);
+			border: 1px solid var(--line);
+			background: var(--paper-2);
+		}
+		.gate h3 { margin-top: 0; font-family: Georgia, serif; font-size: 1.55rem; }
+		.metric {
+			display: block;
+			margin: .7rem 0;
+			font: 500 clamp(2.4rem, 6vw, 4.6rem)/1 Georgia, serif;
+			color: var(--green);
+		}
+		.risk-list { margin: .8rem 0 0; padding-left: 1.25rem; }
+		.risk-list li { margin-bottom: .55rem; }
+		.handoff {
+			margin-top: 2rem;
+			padding: clamp(1.5rem, 5vw, 3rem);
+			background: var(--ink);
+			color: #fffdf7;
+			box-shadow: var(--shadow);
+		}
+		.handoff h2 { margin-top: 0; font-family: Georgia, serif; font-size: 2.2rem; }
+		.handoff p { max-width: 760px; color: #d9ddd9; }
+		.prompt {
+			width: 100%;
+			min-height: 19rem;
+			background: #fdf9ee;
+			color: var(--ink);
+			border: 0;
+			padding: 1rem;
+		}
+		.actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1rem; }
+		button {
+			min-height: 44px;
+			padding: .65rem 1rem;
+			border: 1px solid #fffdf7;
+			background: transparent;
+			color: #fffdf7;
+			cursor: pointer;
+			font-weight: 750;
+		}
+		button.primary { background: #fffdf7; color: var(--ink); }
+		.status { min-height: 1.5rem; margin-top: .8rem; color: #f2cb8f; }
+		.source {
+			margin-top: 2rem;
+			font-size: .9rem;
+			color: var(--muted);
+		}
+		@media (max-width: 760px) {
+			header { min-height: auto; }
+			.section-head, .decision, .problem, .gate { grid-template-columns: 1fr; }
+			.signal ol { grid-template-columns: 1fr 1fr; }
+			.signal li:nth-child(2) { border-right: 1px solid var(--line); }
+			.route-map { grid-template-columns: 1fr; }
+			.route-map div { min-height: 6rem; border-radius: 1rem; }
+			.arrow { transform: rotate(90deg); text-align: center; }
+			.sequence { grid-template-columns: repeat(6, 78vw); }
+		}
+		@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+	</style>
+</head>
+<body>
+	<a class="skip" href="#decisions">Skip to decisions</a>
+	<header>
+		<p class="eyebrow">Keukenbrein · Android timer follow-up</p>
+		<h1>Make silence observable. Then remove it.</h1>
+		<p class="lede">
+			The server did its job. The browser accepted the pushes. Two application choices still
+			make the result look random: a visible Keukenbrein page silences notifications, and leaving
+			Cook Mode destroys the foreground alarm owner.
+		</p>
+		<div class="verdict">Recommended: repair and measure the PWA before going native</div>
+	</header>
+
+	<main>
+		<section class="signal" aria-labelledby="signal-title">
+			<div class="section-head">
+				<h2 id="signal-title">What “sent” hides</h2>
+				<p>
+					The implementation will name each boundary separately. Only the third boundary proves
+					that the browser asked Android to show the notification; none can prove a person heard it.
+				</p>
+			</div>
+			<ol>
+				<li><strong>Provider accepted</strong><small>Railway handed the encrypted push to the browser service.</small></li>
+				<li><strong>Worker received</strong><small>Chrome woke Keukenbrein's service worker on this phone.</small></li>
+				<li><strong>Notification shown</strong><small><code>showNotification()</code> resolved successfully.</small></li>
+				<li><strong>Sound heard</strong><small>Physical check; Android settings remain the final authority.</small></li>
+			</ol>
+		</section>
+
+		<section aria-labelledby="evidence-title">
+			<div class="section-head">
+				<h2 id="evidence-title">The two proven breaks</h2>
+				<p>These are deterministic source findings that match Freek's phone result.</p>
+			</div>
+			<div class="problem">
+				<article>
+					<p class="bad">Break 1 · false silence</p>
+					<h3>Any visible app route suppresses notification sound</h3>
+					<p>
+						The Test button is pressed from a visible page, so its notification sets
+						<code>silent: true</code>. Another visible Keukenbrein route does the same even
+						though it has no timer audio.
+					</p>
+				</article>
+				<article>
+					<p class="good">Repair</p>
+					<h3>Every valid timer/Test push starts fail-loud</h3>
+					<p>
+						Remove the visibility guess. Accept a possible brief duplicate foreground alert
+						until a matching timer can positively prove it already sounded.
+					</p>
+				</article>
+				<article>
+					<p class="bad">Break 2 · page-owned lifetime</p>
+					<h3>Cook Mode navigation destroys the foreground alarm</h3>
+					<p>
+						SQLite and local storage retain data, but the live controller, ticker, and audio
+						are torn down with the page.
+					</p>
+				</article>
+				<article>
+					<p class="good">Repair</p>
+					<h3>One coordinator lives in the persistent app shell</h3>
+					<p>
+						Cook Mode becomes a view of the household timer manager. A compact timer bar keeps
+						the countdown, return, cancel, and dismiss actions available on other routes.
+					</p>
+				</article>
+			</div>
+		</section>
+
+		<section aria-labelledby="shape-title">
+			<div class="section-head">
+				<h2 id="shape-title">The durable shape</h2>
+				<p>In-app continuity and screen-off delivery stay separate, with explicit evidence between them.</p>
+			</div>
+			<div class="route-map" role="img" aria-label="Timer flow from app shell through server and Android">
+				<div><b>App shell</b><span>countdown + foreground alarm across routes</span></div>
+				<span class="arrow" aria-hidden="true">→</span>
+				<div><b>SQLite + Railway</b><span>durable deadline + five-minute delivery window</span></div>
+				<span class="arrow" aria-hidden="true">→</span>
+				<div><b>Chrome + Android</b><span>audible notification + receipt states</span></div>
+			</div>
+		</section>
+
+		<section class="decisions" id="decisions" aria-labelledby="decisions-title">
+			<div class="section-head">
+				<h2 id="decisions-title">Four decisions</h2>
+				<p>
+					Recommendations are preselected. Change only what you want `$run` to implement
+					differently. Notes are copied verbatim into the handoff.
+				</p>
+			</div>
+
+			<article class="decision" data-decision="sound">
+				<div>
+					<h3>Which failure should we prefer?</h3>
+					<p class="context">
+						A weak dedupe guess already caused silence. A fail-loud default can produce a brief
+						double sound when both foreground audio and Web Push succeed.
+					</p>
+				</div>
+				<div>
+					<fieldset>
+						<legend>Foreground notification policy</legend>
+						<label class="option">
+							<input type="radio" name="sound" value="fail-loud" checked />
+							<span><strong>Fail loud <em class="recommend">Recommended</em></strong>
+								<small>Never set silent merely because an app window is visible. Add exact-job dedupe later only if device evidence justifies it.</small></span>
+						</label>
+						<label class="option">
+							<input type="radio" name="sound" value="ack-dedupe" />
+							<span><strong>Build acknowledgement dedupe now</strong>
+								<small>Silence push only after the matching timer says it played audio. Less nuisance, but adds a new race before reliability is measured.</small></span>
+						</label>
+					</fieldset>
+					<textarea data-note="sound" aria-label="Notes about foreground notification policy" placeholder="Optional clarification…"></textarea>
+				</div>
+			</article>
+
+			<article class="decision" data-decision="stage">
+				<div>
+					<h3>Where should the physical gate run?</h3>
+					<p class="context">
+						The deployment has two known users. The schema change is additive and the previous
+						app can ignore it, but receipts add an authenticated write boundary.
+					</p>
+				</div>
+				<div>
+					<fieldset>
+						<legend>Deployment stage</legend>
+						<label class="option">
+							<input type="radio" name="stage" value="production-beta" checked />
+							<span><strong>Controlled production-beta <em class="recommend">Recommended</em></strong>
+								<small>Merge after all gates, supervise exact main/SUCCESS/canary, then stop at the physical checkpoint. Fastest route to the two real phones.</small></span>
+						</label>
+						<label class="option">
+							<input type="radio" name="stage" value="separate-stage" />
+							<span><strong>Create a separate Railway stage</strong>
+								<small>Stronger isolation, but adds a second database, config, deployment path, and account/device sign-in just for this two-phone beta.</small></span>
+						</label>
+					</fieldset>
+					<textarea data-note="stage" aria-label="Notes about deployment stage" placeholder="Optional clarification…"></textarea>
+				</div>
+			</article>
+
+			<article class="decision" data-decision="late">
+				<div>
+					<h3>How late is still useful?</h3>
+					<p class="context">
+						The current 60-second TTL and stale grace permanently drop alerts after a short
+						sleep or connectivity gap. An overly long window creates confusing stale alarms.
+					</p>
+				</div>
+				<div>
+					<fieldset>
+						<legend>Late-delivery window</legend>
+						<label class="option">
+							<input type="radio" name="late" value="five-minutes" checked />
+							<span><strong>Five minutes <em class="recommend">Recommended</em></strong>
+								<small>Covers ordinary short disruptions while keeping a late kitchen alert relevant.</small></span>
+						</label>
+						<label class="option">
+							<input type="radio" name="late" value="ten-minutes" />
+							<span><strong>Ten minutes</strong>
+								<small>More tolerant of power/network delay, but increases the chance of a surprising stale alarm.</small></span>
+						</label>
+						<label class="option">
+							<input type="radio" name="late" value="sixty-seconds" />
+							<span><strong>Keep sixty seconds</strong>
+								<small>Minimizes stale alerts but preserves a known reliability weakness.</small></span>
+						</label>
+					</fieldset>
+					<textarea data-note="late" aria-label="Notes about late delivery" placeholder="Optional clarification…"></textarea>
+				</div>
+			</article>
+
+			<article class="decision" data-decision="native">
+				<div>
+					<h3>When should native Android start?</h3>
+					<p class="context">
+						Capacitor Local Notifications can schedule on-device, but this adapter-node app
+						needs a real bundled client/API boundary, exact-alarm permission handling, signing,
+						and update ownership.
+					</p>
+				</div>
+				<div>
+					<fieldset>
+						<legend>Native flip point</legend>
+						<label class="option">
+							<input type="radio" name="native" value="after-gate" checked />
+							<span><strong>Only after a measured PWA miss <em class="recommend">Recommended</em></strong>
+								<small>Switch if any healthy test lacks a display receipt, either phone misses locked-screen sound with Alerting enabled, or offline/looping behavior becomes required.</small></span>
+						</label>
+						<label class="option">
+							<input type="radio" name="native" value="parallel-spike" />
+							<span><strong>Run a Capacitor feasibility spike in parallel</strong>
+								<small>Reduces discovery time if PWA fails, but splits attention before the proven defects and delivery evidence are fixed.</small></span>
+						</label>
+						<label class="option">
+							<input type="radio" name="native" value="native-now" />
+							<span><strong>Go native now</strong>
+								<small>Best route to exact local scheduling, with the largest architecture, auth, release, and maintenance change.</small></span>
+						</label>
+					</fieldset>
+					<textarea data-note="native" aria-label="Notes about native Android threshold" placeholder="Optional clarification…"></textarea>
+				</div>
+			</article>
+			<p class="save-note" id="save-note" role="status"></p>
+		</section>
+
+		<section aria-labelledby="sequence-title">
+			<div class="section-head">
+				<h2 id="sequence-title">Six bounded moves</h2>
+				<p>The schema/auth work pauses for the required independent R3 review before edits.</p>
+			</div>
+			<div class="sequence">
+				<article><b>01 · R1/S</b><strong>Contract</strong><small>Make current defects fail at the right seams.</small></article>
+				<article><b>02 · R2/M</b><strong>App shell</strong><small>Keep timers alive across routes.</small></article>
+				<article><b>03 · R3/M</b><strong>Receipts</strong><small>Add owned, privacy-safe delivery evidence.</small></article>
+				<article><b>04 · R2/M</b><strong>Worker</strong><small>Fail loud, parse both push forms, extend TTL.</small></article>
+				<article><b>05 · R2/S</b><strong>Truthful UX</strong><small>Show accepted, received, shown, and recovery.</small></article>
+				<article><b>06 · R3/M</b><strong>Phone gate</strong><small>Deploy, canary, test both Android phones.</small></article>
+			</div>
+		</section>
+
+		<section aria-labelledby="gate-title">
+			<div class="section-head">
+				<h2 id="gate-title">The evidence gate</h2>
+				<p>A native decision should be made from delivery evidence, not from another opaque “sent”.</p>
+			</div>
+			<div class="gate">
+				<article>
+					<h3>PWA acceptance</h3>
+					<span class="metric">48 alerts</span>
+					<p>24 per phone: three runs in each of four states.</p>
+					<ul class="risk-list">
+						<li>visible Test;</li>
+						<li>another Keukenbrein route;</li>
+						<li>screen locked;</li>
+						<li>app swiped away.</li>
+					</ul>
+					<p><strong>Pass:</strong> zero missing display receipts and zero sound misses with Android notifications set to Alerting.</p>
+				</article>
+				<article>
+					<h3>Native trigger</h3>
+					<span class="metric">1 miss</span>
+					<p>Plan a small native Android timer companion if one healthy-network alert fails the display gate or either phone misses locked-screen sound.</p>
+					<ul class="risk-list">
+						<li>Also switch for offline exact timing.</li>
+						<li>Also switch for custom sound or ring-until-dismissed.</li>
+						<li>Never use Capacitor remote <code>server.url</code> as production architecture.</li>
+					</ul>
+				</article>
+			</div>
+		</section>
+
+		<section class="handoff" aria-labelledby="handoff-title">
+			<h2 id="handoff-title">Paste-ready `$run` handoff</h2>
+			<p>
+				This prompt points the next agent to the Markdown source of truth. It includes your
+				selections and notes; the HTML is never required for implementation.
+			</p>
+			<textarea class="prompt" id="prompt" readonly aria-label="Generated handoff prompt"></textarea>
+			<div class="actions">
+				<button class="primary" id="copy" type="button">Copy handoff</button>
+				<button id="reset" type="button">Reset recommendations</button>
+			</div>
+			<div class="status" id="copy-status" role="status"></div>
+		</section>
+
+		<p class="source">
+			Authoritative source:
+			<a href="../feature-lists/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md">FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md</a>.
+			Independent Opus review was unavailable due to an HTTP 429 session limit; `$run` must retry
+			it before editing the R3 migration or authenticated receipt boundary.
+		</p>
+	</main>
+
+	<script>
+		(() => {
+			"use strict";
+			const artifactKey = "docs/artifacts/2026-07-28-plan-mobile-timer-reliability.html";
+			const version = 1;
+			const storageKey = `decision-workspace:${artifactKey}:v${version}`;
+			const defaults = {
+				sound: "fail-loud",
+				stage: "production-beta",
+				late: "five-minutes",
+				native: "after-gate",
+				notes: { sound: "", stage: "", late: "", native: "" }
+			};
+			const detail = {
+				sound: {
+					question: "Which failure should the implementation prefer?",
+					source: "Open questions and defaults; Target design §2",
+					options: {
+						"fail-loud": "Fail loud: every valid timer/Test push may alert; tolerate a possible brief foreground duplicate.",
+						"ack-dedupe": "Build exact-job foreground acknowledgement dedupe before shipping."
+					},
+					recommendation: "fail-loud",
+					rationale: "The existing visibility guess caused proven silence. Reliability is the stated priority, and a new acknowledgement race could recreate it.",
+					evidence: "notification.ts sets silent for any visible same-origin window; the Test is necessarily initiated from a visible window.",
+					uncertainty: "The physical matrix has not yet measured how often a duplicate foreground sound occurs.",
+					consequence: "Fail-loud can produce a brief duplicate; acknowledgement dedupe adds state and timing risk."
+				},
+				stage: {
+					question: "Where should the physical gate run?",
+					source: "Rollout, rollback, and native flip point",
+					options: {
+						"production-beta": "Use the current production-beta deployment as the controlled household stage.",
+						"separate-stage": "Create a separate Railway stage and database first."
+					},
+					recommendation: "production-beta",
+					rationale: "There are two known users, the migration is additive, rollback is code-only, and exact-main/SUCCESS/canary tooling already exists.",
+					evidence: "The current deployment is one Railway process sourced from GitHub main; both household users are the target Android matrix.",
+					uncertainty: "The authenticated receipt boundary still requires the outside R3 pre-edit review that was rate-limited during planning.",
+					consequence: "Production-beta is faster but exposes the two users after the explicit checkpoint; separate stage adds infrastructure and device setup."
+				},
+				late: {
+					question: "How late is still useful?",
+					source: "Target design §4",
+					options: {
+						"five-minutes": "Retain undelivered alerts for five minutes.",
+						"ten-minutes": "Retain undelivered alerts for ten minutes.",
+						"sixty-seconds": "Keep the existing sixty-second window."
+					},
+					recommendation: "five-minutes",
+					rationale: "It covers ordinary short sleep/connectivity gaps without creating an hour-late kitchen alarm.",
+					evidence: "The current provider TTL and scheduler stale grace are both 60 seconds.",
+					uncertainty: "Real device latency distribution is not yet measured.",
+					consequence: "Longer retention improves delivery but raises stale-alert surprise."
+				},
+				native: {
+					question: "When should native Android work start?",
+					source: "Research and option decision; Rollout, rollback, and native flip point",
+					options: {
+						"after-gate": "Only after a measured repaired-PWA miss or a new offline/looping requirement.",
+						"parallel-spike": "Run a bounded Capacitor feasibility spike in parallel.",
+						"native-now": "Replace this iteration with native Android delivery now."
+					},
+					recommendation: "after-gate",
+					rationale: "Two deterministic app bugs are cheaper to fix, and receipts create the evidence needed to scope native work.",
+					evidence: "Capacitor Local Notifications is active, but adapter-node output is not the static webDir bundle Capacitor expects; server.url is not intended for production.",
+					uncertainty: "Web Push may still fail Android locked-screen reliability after the proven defects are fixed.",
+					consequence: "Waiting avoids a second client/release pipeline; native improves local scheduling but adds auth, Gradle, signing, updates, permissions, and device reconciliation."
+				}
+			};
+			let state = structuredClone(defaults);
+			let storageAvailable = true;
+			const saveNote = document.querySelector("#save-note");
+
+			function readState() {
+				try {
+					const raw = localStorage.getItem(storageKey);
+					if (!raw) return;
+					const parsed = JSON.parse(raw);
+					for (const key of ["sound", "stage", "late", "native"]) {
+						if (detail[key].options[parsed[key]]) state[key] = parsed[key];
+					}
+					for (const key of Object.keys(state.notes)) {
+						if (typeof parsed.notes?.[key] === "string") state.notes[key] = parsed.notes[key];
+					}
+				} catch {
+					storageAvailable = false;
+					saveNote.textContent = "Selections work for this session, but this browser did not allow local saving.";
+				}
+			}
+
+			function saveState() {
+				if (!storageAvailable) return;
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state));
+					saveNote.textContent = "Selections saved on this device.";
+				} catch {
+					storageAvailable = false;
+					saveNote.textContent = "Selections work for this session, but changes could not be saved.";
+				}
+			}
+
+			function selectedLabel(key) {
+				return detail[key].options[state[key]];
+			}
+
+			function noteBlock(key) {
+				const note = state.notes[key];
+				return note ? `\nUser note for this exact decision (verbatim):\n${note}\n` : "\nUser note: none.\n";
+			}
+
+			function buildPrompt() {
+				const keys = ["sound", "stage", "late", "native"];
+				const decisions = keys.map((key, index) => {
+					const item = detail[key];
+					const accepted = state[key] === item.recommendation ? "accepted recommendation" : "override";
+					return `${index + 1}. ${item.question}
+Source location: ${item.source}
+Available options:
+${Object.entries(item.options).map(([value, label]) => `- ${value === state[key] ? "[selected]" : "[not selected]"} ${label}`).join("\n")}
+Outcome: ${accepted} — ${selectedLabel(key)}
+Recommendation: ${item.options[item.recommendation]}
+Rationale: ${item.rationale}
+Assumptions/evidence: ${item.evidence}
+Uncertainty: ${item.uncertainty}
+Practical consequence: ${item.consequence}${noteBlock(key)}`;
+				}).join("\n");
+
+				return `Use $run to execute the authoritative plan at docs/feature-lists/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md.
+
+Load AGENTS.md, the plan, and docs/known_issues/current/ISSUE_MOBILE_TIMER_SOUND_20260728-1410.md before acting. Continue forward from TIMER-REL-1; do not use this HTML as a source. Preserve unrelated worktree changes. The plan is R3 because it adds an append-only migration and an authenticated service-worker receipt boundary. Re-invoke the required independent Opus critique before editing those R3 files; planning-time Opus was unavailable with HTTP 429 and no findings were accepted.
+
+Apply these reviewed decisions:
+
+${decisions}
+Follow-up work retained:
+- Correct the behavior with failing tests at the notification, app-shell, receipt, and late-delivery seams.
+- Move timer ownership into the persistent app shell and add the compact active-timer surface.
+- Add privacy-safe provider/worker/display states with authenticated ownership and bounded offline receipt retry.
+- Make valid Test and timer pushes audible by default, parse classic and declarative events, and use the selected late-delivery window.
+- Replace false readiness/success copy, add Test cooldown and Android Alerting recovery guidance.
+- Run npm test, migration rehearsals, exact-main Railway deployment truth, authenticated canary, and the selected two-phone gate.
+- Do not begin native Android work unless the selected flip condition is met.
+
+Use the plan's ticket scopes, target paths, verification, rollback, stage checkpoints, and privacy rules. Update the issue and feature-list evidence as execution progresses.`;
+			}
+
+			function render() {
+				for (const key of ["sound", "stage", "late", "native"]) {
+					const radio = document.querySelector(`input[name="${key}"][value="${CSS.escape(state[key])}"]`);
+					if (radio) radio.checked = true;
+					const note = document.querySelector(`[data-note="${key}"]`);
+					if (note && note.value !== state.notes[key]) note.value = state.notes[key];
+				}
+				document.querySelector("#prompt").value = buildPrompt();
+			}
+
+			readState();
+			render();
+
+			document.querySelectorAll('input[type="radio"]').forEach((input) => {
+				input.addEventListener("change", () => {
+					state[input.name] = input.value;
+					saveState();
+					render();
+				});
+			});
+			document.querySelectorAll("[data-note]").forEach((area) => {
+				area.addEventListener("input", () => {
+					state.notes[area.dataset.note] = area.value;
+					saveState();
+					render();
+				});
+			});
+			document.querySelector("#reset").addEventListener("click", () => {
+				state = structuredClone(defaults);
+				try { localStorage.removeItem(storageKey); } catch {}
+				saveNote.textContent = "Recommendations restored.";
+				render();
+			});
+			document.querySelector("#copy").addEventListener("click", async () => {
+				const prompt = document.querySelector("#prompt");
+				const status = document.querySelector("#copy-status");
+				try {
+					await navigator.clipboard.writeText(prompt.value);
+					status.textContent = "Handoff copied.";
+				} catch {
+					prompt.focus();
+					prompt.select();
+					status.textContent = "Clipboard access was blocked. The full handoff is selected; copy it manually.";
+				}
+			});
+		})();
+	</script>
+</body>
+</html>

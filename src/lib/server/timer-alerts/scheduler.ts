@@ -1,4 +1,8 @@
 import type { ClaimedTimerAlert, TimerAlertRepository } from './repository';
+import {
+	TIMER_ALERT_DELIVERY_WINDOW_MS,
+	TIMER_TEST_RECEIPT_RETENTION_MS
+} from './constants';
 
 export type TimerAlertSendResult =
 	| { outcome: 'sent' }
@@ -25,12 +29,21 @@ type TimerAlertSchedulerOptions = {
 
 export function createTimerAlertScheduler(options: TimerAlertSchedulerOptions) {
 	const now = options.now ?? (() => new Date());
-	const staleGraceMs = options.staleGraceMs ?? 60_000;
+	const staleGraceMs = options.staleGraceMs ?? TIMER_ALERT_DELIVERY_WINDOW_MS;
 	const retryDelaysMs = options.retryDelaysMs ?? [1_000, 5_000, 15_000];
+	let nextTestEvidencePruneAt = 0;
+
+	function pruneTestEvidence(currentTime: Date): void {
+		if (currentTime.getTime() < nextTestEvidencePruneAt) return;
+		options.repository.pruneTestEvidence(currentTime, TIMER_TEST_RECEIPT_RETENTION_MS);
+		nextTestEvidencePruneAt = currentTime.getTime() + 24 * 60 * 60_000;
+	}
 
 	return {
 		recover(): { recovered: number; expired: number } {
 			const recoveryTime = now();
+			pruneTestEvidence(recoveryTime);
+			options.repository.failInterruptedTests(recoveryTime);
 			const expired = options.repository.expireStale(recoveryTime, staleGraceMs);
 			const recovered = options.repository.recoverClaimed(recoveryTime, staleGraceMs);
 			return { recovered, expired };
@@ -44,6 +57,7 @@ export function createTimerAlertScheduler(options: TimerAlertSchedulerOptions) {
 				expired: 0
 			};
 			const tickTime = now();
+			pruneTestEvidence(tickTime);
 			result.expired = options.repository.expireStale(tickTime, staleGraceMs);
 			const claimed = options.repository.claimDue(tickTime);
 			for (const job of claimed) {
@@ -54,7 +68,7 @@ export function createTimerAlertScheduler(options: TimerAlertSchedulerOptions) {
 					sendResult = { outcome: 'retry', category: 'sender-error' };
 				}
 				if (sendResult.outcome === 'sent') {
-					options.repository.markSent(job.id, now());
+					options.repository.markProviderAccepted(job.id, now());
 					result.sent += 1;
 					continue;
 				}

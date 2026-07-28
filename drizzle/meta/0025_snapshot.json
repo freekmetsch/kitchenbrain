@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "bb70c20c-00c5-43f4-ad9a-f58bbbed045e",
-  "prevId": "7faa2386-9676-457a-b73c-b11264a81985",
+  "id": "4a104df0-26c2-4e38-8749-a1763938152d",
+  "prevId": "bb70c20c-00c5-43f4-ad9a-f58bbbed045e",
   "tables": {
     "ah_favorites": {
       "name": "ah_favorites",
@@ -939,6 +939,80 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "recipe_ah_preferences": {
+      "name": "recipe_ah_preferences",
+      "columns": {
+        "recipe_id": {
+          "name": "recipe_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ingredient_id": {
+          "name": "ingredient_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ah_product_id": {
+          "name": "ah_product_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ah_product_name": {
+          "name": "ah_product_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "variant_label": {
+          "name": "variant_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "selected_at": {
+          "name": "selected_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "recipe_ah_preferences_recipe_id_recipes_id_fk": {
+          "name": "recipe_ah_preferences_recipe_id_recipes_id_fk",
+          "tableFrom": "recipe_ah_preferences",
+          "tableTo": "recipes",
+          "columnsFrom": [
+            "recipe_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "recipe_ah_preferences_recipe_id_ingredient_id_pk": {
+          "columns": [
+            "recipe_id",
+            "ingredient_id"
+          ],
+          "name": "recipe_ah_preferences_recipe_id_ingredient_id_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },

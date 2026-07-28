@@ -444,7 +444,7 @@ draft-PR review and the separately authorized live provider-canary decision.
 
 Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
 docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md,
-drizzle/0024_lumpy_wallflower.sql
+drizzle/0025_unusual_boomer.sql
 
 ## 2026-07-28 | run | Assistant recipe live-provider canary refinement
 
@@ -477,5 +477,62 @@ src/lib/server/ai/prompts/system.md,
 src/lib/server/ai/prompt_contract.test.ts,
 src/lib/server/ai/tools.ts,
 src/lib/server/ai/tools.test.ts,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md
+
+## 2026-07-28 | html-artifact | plan: Mobile timer reliability
+
+Reopened the shipped mobile-timer issue after the Android device check. Production evidence proves
+timer jobs and provider acceptance; the new plan fixes origin-wide notification silencing, keeps
+foreground timers alive across in-app navigation, records worker/display receipts, extends the
+late-delivery window, and uses a measured two-phone gate before considering a native Android
+companion.
+
+Touched: docs/artifacts/2026-07-28-plan-mobile-timer-reliability.html,
+docs/feature-lists/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md,
+docs/known_issues/current/ISSUE_MOBILE_TIMER_SOUND_20260728-1410.md
+
+## 2026-07-28 | implementation awaiting device verification: Mobile timer reliability
+
+Moved timer ownership into the persistent app shell, made valid Test and timer notifications
+audible by default, added privacy-bounded worker/display receipts and truthful Test states, and
+extended the useful push window to five minutes. An authenticated browser regression caught and
+fixed a restore transaction that erased the registry on a second reload.
+
+The 0023→0024 upgrade preserved existing jobs and rollback-readable `sent_at`; SQLite integrity and
+foreign keys passed. The full CI-mode repository gate passed 594 unit tests, authenticated browser
+flows, and the production/service-worker build. The primary and secondary household-account timer
+flows passed, the production dependency audit found zero vulnerabilities, and the client bundle
+scan found no capability material. The known issue remains open for Freek's and Ylfa's Android
+screen-off checks.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md,
+docs/artifacts/archive/2026-07-28-plan-mobile-timer-reliability.html,
+docs/known_issues/current/ISSUE_MOBILE_TIMER_SOUND_20260728-1410.md,
+drizzle/0024_sparkling_spirit.sql,
+src/lib/timer/cook-timer-coordinator.svelte.ts,
+src/service-worker.ts
+
+## 2026-07-28 | archive-scan | 1 feature list, 1 HTML archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md,
+docs/artifacts/archive/2026-07-28-plan-mobile-timer-reliability.html
+
+The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
+validated inline fallback.
+
+## 2026-07-28 | run | Recipe options integrated with timer-reliability main
+
+Merged current `main`, kept timer delivery receipts at migration 0024, and regenerated the
+additive recipe preference table as 0025. A populated 0023→0024→0025 rehearsal preserved Dutch
+recipe ingredients and passed foreign-key checks. The final combined gate passed 117 test files /
+622 unit tests, all 20 primary browser stories, Svelte diagnostics, and the production build. The
+long Cook Mode navigation/resume story retains all assertions and now uses Playwright's explicit
+slow-test budget after passing repeated focused runs.
+
+Touched: drizzle/0025_unusual_boomer.sql,
+drizzle/meta/0025_snapshot.json,
+src/lib/server/db/recipe_ah_preferences_migration.test.ts,
+tests/e2e/responsive-parity.e2e.ts,
 docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
 docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md

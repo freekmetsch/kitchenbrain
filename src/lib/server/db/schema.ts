@@ -85,6 +85,7 @@ export type TimerAlertJobState =
 	| 'cancelled'
 	| 'failed'
 	| 'expired';
+export type TimerAlertJobKind = 'timer' | 'test';
 
 export const timerAlertJobs = sqliteTable(
 	'timer_alert_jobs',
@@ -98,11 +99,19 @@ export const timerAlertJobs = sqliteTable(
 		title: text('title').notNull(),
 		body: text('body').notNull(),
 		navigate: text('navigate').notNull(),
+		kind: text('kind').notNull().default('timer').$type<TimerAlertJobKind>(),
 		state: text('state').notNull().default('scheduled').$type<TimerAlertJobState>(),
 		attemptCount: integer('attempt_count').notNull().default(0),
 		nextAttemptAt: integer('next_attempt_at', { mode: 'timestamp' }).notNull(),
 		claimedAt: integer('claimed_at', { mode: 'timestamp' }),
-		sentAt: integer('sent_at', { mode: 'timestamp' }),
+		// Keep the physical sent_at name so the previous app remains rollback-compatible.
+		// The application-level meaning is only push-provider acceptance.
+		providerAcceptedAt: integer('sent_at', { mode: 'timestamp' }),
+		workerReceivedAt: integer('worker_received_at', { mode: 'timestamp' }),
+		notificationShownAt: integer('notification_shown_at', { mode: 'timestamp' }),
+		displayFailedAt: integer('display_failed_at', { mode: 'timestamp' }),
+		displayError: text('display_error'),
+		clickedAt: integer('clicked_at', { mode: 'timestamp' }),
 		lastError: text('last_error'),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()

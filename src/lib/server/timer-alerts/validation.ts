@@ -62,6 +62,35 @@ export const TimerAlertScheduleBodySchema = z
 	})
 	.strict();
 
+export const TimerAlertReceiptBodySchema = z
+	.object({
+		event: z.enum([
+			'worker-received',
+			'notification-shown',
+			'display-failed',
+			'clicked'
+		]),
+		occurredAt: z.number().int().nonnegative(),
+		errorCategory: z.enum(['permission', 'show-notification', 'unknown']).optional()
+	})
+	.strict()
+	.superRefine((value, context) => {
+		if (value.event === 'display-failed' && !value.errorCategory) {
+			context.addIssue({
+				code: 'custom',
+				path: ['errorCategory'],
+				message: 'Display failures require an error category'
+			});
+		}
+		if (value.event !== 'display-failed' && value.errorCategory) {
+			context.addIssue({
+				code: 'custom',
+				path: ['errorCategory'],
+				message: 'Only display failures accept an error category'
+			});
+		}
+	});
+
 export type ValidTimerAlertSchedule = Omit<
 	z.infer<typeof TimerAlertScheduleBodySchema>,
 	'deadline'

@@ -678,6 +678,15 @@ was invoked repeatedly; earlier attempts returned a provider session-limit respo
 post-reset attempt timed out after three minutes. No independent findings were accepted, so the
 draft PR and R3 production gate remain the review boundary.
 
+After `main` advanced through timer-reliability PR #23, the branch was merged forward and the
+recipe preference migration was regenerated as 0025 so main's timer receipt migration remains
+0024. A populated 0023→0024→0025 rehearsal preserved Dutch recipe ingredients and passed SQLite
+foreign-key checks. The combined repository gate passed 117 test files / 622 unit tests, all 20
+primary browser stories, zero Svelte diagnostics, and the production build. One Cook Mode
+multi-navigation story exceeded its 30-second total budget once under full-suite load; three
+consecutive desktop reruns and fresh phone/desktop runs passed, so the complete story keeps all
+assertions and is explicitly marked slow rather than weakening its waits.
+
 ## Risk tier and audit findings
 
 Overall risk is **R3** because the selected design adds persistent schema and changes how a chosen
@@ -885,8 +894,8 @@ ingredient, remember the explicit choice for that recipe only, and make the full
 surface substantially wider and denser.
 
 **Current state:** all ARO tickets are implemented on draft PR #21 and integrated with current
-`main`. Migration 0024 is append-only; fresh/upgraded database proof, the primary and secondary
-browser paths, responsive inspection, bundle scan, 609 unit tests, all 20 primary browser stories,
+`main`. Migration 0025 is append-only; fresh/upgraded database proof, the primary and secondary
+browser paths, responsive inspection, bundle scan, 622 unit tests, all 20 primary browser stories,
 Svelte diagnostics, and the production build pass. A nine-scenario live-provider matrix passed
 with three distinct first-visible product forms in every eligible scenario, a complete
 two-ingredient proposal, a five-item local reveal pool, and a correct no-proposal outcome when

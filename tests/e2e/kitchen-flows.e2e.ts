@@ -224,6 +224,8 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 	const progressKey = `cookmode-progress:${fixture.cookRecipeSlug}:direct`;
 
 	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+	await page.evaluate(() => localStorage.removeItem('cook-timer-registry:v1'));
+	await page.reload();
 	await page.waitForLoadState('networkidle');
 
 	const firstStep = page.getByRole('button', {
@@ -245,7 +247,18 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 		)
 		.toBe('1:pot');
 
+	await page.getByRole('button', { name: 'Start timer for 1:00' }).click();
 	await page.goto('/recipes');
+	const persistentTimer = page.getByRole('timer');
+	await expect(persistentTimer).toBeVisible();
+	await expect(
+		persistentTimer.getByRole('link', { name: `Return to ${fixture.cookRecipeTitle}` })
+	).toBeVisible();
+	await page.reload();
+	await expect(page.getByRole('timer')).toBeVisible();
+	await page.getByRole('button', { name: 'Cancel this timer' }).click();
+	await expect(page.getByRole('timer')).toBeHidden();
+
 	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
 	await expect(secondStep).toHaveAttribute('aria-current', 'step', { timeout: 15_000 });
 

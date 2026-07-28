@@ -331,6 +331,7 @@ for (const viewport of VIEWPORTS) {
 	test(`Cook Mode resumes and recovers malformed progress at ${viewport.name}`, async ({
 		page
 	}, testInfo) => {
+		test.slow();
 		const fixture = kitchenFixtureFor(testInfo);
 		const route = `/recipes/${fixture.cookRecipeSlug}`;
 		const progressKey = `cookmode-progress:${fixture.cookRecipeSlug}:direct`;

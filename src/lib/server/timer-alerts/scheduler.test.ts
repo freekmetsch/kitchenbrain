@@ -43,7 +43,7 @@ describe('timer alert scheduler', () => {
 		expect(send).toHaveBeenCalledOnce();
 		expect(repository.getJob(userId, id)).toMatchObject({
 			state: 'sent',
-			sentAt: new Date(20_000)
+			providerAcceptedAt: new Date(20_000)
 		});
 	});
 
@@ -114,6 +114,39 @@ describe('timer alert scheduler', () => {
 
 		expect(send).toHaveBeenCalledOnce();
 		expect(repository.getJob(userId, id)).toMatchObject({ state: 'sent' });
+	});
+
+	it('does not replay a Test alert after a process restart', () => {
+		const db = createTestDb();
+		const userId = db.select({ id: users.id }).from(users).get()!.id;
+		const repository = createTimerAlertRepository(db);
+		const subscription = repository.upsertSubscription({
+			userId,
+			endpoint: 'https://fcm.googleapis.com/fcm/send/test-restart-subscription',
+			p256dh: 'public-key',
+			auth: 'auth-secret'
+		});
+		const id = 'a989d984-6469-4cbf-a2da-7b7814fe6201';
+		repository.createTest({
+			id,
+			userId,
+			subscriptionId: subscription.id,
+			deadline: new Date(20_000),
+			title: 'Timer test alert',
+			body: 'Did it make a sound?',
+			navigate: '/'
+		});
+		const scheduler = createTimerAlertScheduler({
+			repository,
+			send: vi.fn(async () => ({ outcome: 'sent' as const })),
+			now: () => new Date(20_500)
+		});
+
+		expect(scheduler.recover()).toEqual({ recovered: 0, expired: 0 });
+		expect(repository.getJob(userId, id)).toMatchObject({
+			state: 'failed',
+			lastError: 'process-restart'
+		});
 	});
 
 	it('retries a transient provider failure inside the stale window', async () => {

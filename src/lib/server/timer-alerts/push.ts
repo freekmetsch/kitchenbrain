@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import type { ClaimedTimerAlert } from './repository';
 import type { TimerAlertSendResult, TimerAlertSender } from './scheduler';
+import { TIMER_ALERT_DELIVERY_WINDOW_SECONDS } from './constants';
 
 export type TimerAlertVapidConfig = {
 	publicKey: string;
@@ -40,7 +41,7 @@ export function createWebPushSender(
 				},
 				payload,
 				{
-					TTL: 60,
+					TTL: TIMER_ALERT_DELIVERY_WINDOW_SECONDS,
 					urgency: 'high',
 					topic: job.id.replaceAll('-', '').slice(0, 32)
 				}

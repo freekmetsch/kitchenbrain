@@ -74,8 +74,7 @@ export function parseTimerAlertPushPayload(value: unknown): TimerAlertPushPayloa
 }
 
 export function buildTimerNotification(
-	payload: TimerAlertPushPayload,
-	foregroundVisible: boolean
+	payload: TimerAlertPushPayload
 ): { title: string; options: TimerNotificationOptions } {
 	const { notification } = payload;
 	return {
@@ -84,13 +83,51 @@ export function buildTimerNotification(
 			body: notification.body,
 			tag: notification.tag,
 			renotify: notification.renotify,
-			silent: foregroundVisible || notification.silent,
+			silent: false,
 			requireInteraction: notification.requireInteraction,
 			timestamp: notification.timestamp,
 			data: notification.data,
-			...(foregroundVisible ? {} : { vibrate: [200, 100, 200, 100, 200] })
+			vibrate: [200, 100, 200, 100, 200]
 		}
 	};
+}
+
+export function buildDeclarativeTimerNotification(
+	value: unknown
+): { title: string; options: TimerNotificationOptions } | null {
+	if (value == null || typeof value !== 'object') return null;
+	const notification = value as Record<string, unknown>;
+	const rawData = notification.data;
+	if (rawData == null || typeof rawData !== 'object' || Array.isArray(rawData)) return null;
+	const data = rawData as Record<string, unknown>;
+	if (
+		typeof notification.title !== 'string' ||
+		notification.title.length === 0 ||
+		typeof data.timerJobId !== 'string' ||
+		typeof data.navigate !== 'string' ||
+		!validNavigate(data.navigate)
+	) {
+		return null;
+	}
+	return buildTimerNotification({
+		web_push: 8030,
+		mutable: true,
+		notification: {
+			title: notification.title,
+			body: typeof notification.body === 'string' ? notification.body : '',
+			navigate: data.navigate,
+			tag:
+				typeof notification.tag === 'string' && notification.tag.length > 0
+					? notification.tag
+					: `cook-timer-${data.timerJobId}`,
+			renotify: notification.renotify === true,
+			silent: false,
+			requireInteraction: notification.requireInteraction === true,
+			timestamp:
+				typeof notification.timestamp === 'number' ? notification.timestamp : Date.now(),
+			data: { timerJobId: data.timerJobId, navigate: data.navigate }
+		}
+	});
 }
 
 function validNavigate(value: string): boolean {

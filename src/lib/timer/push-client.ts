@@ -15,6 +15,21 @@ export type TimerPushState = {
 	subscriptionId?: string;
 };
 
+export type TimerTestStage =
+	| 'provider-accepted'
+	| 'worker-received'
+	| 'notification-shown'
+	| 'display-failed'
+	| 'unconfirmed'
+	| 'rate-limited'
+	| 'failed';
+
+export type TimerTestResult = {
+	id?: string;
+	stage: TimerTestStage;
+	displayError?: string | null;
+};
+
 type BrowserPushSubscription = {
 	endpoint: string;
 	toJSON(): {
@@ -32,6 +47,7 @@ type TimerPushClientAdapters = {
 	getSubscription(): Promise<BrowserPushSubscription | null>;
 	subscribe(applicationServerKey: ArrayBuffer): Promise<BrowserPushSubscription>;
 	deviceLabel(): string;
+	sleep(delayMs: number): Promise<void>;
 };
 
 export type TimerPushScheduleInput = {
@@ -148,17 +164,62 @@ export function createTimerPushClient(
 			}
 		},
 
-		async sendTest(): Promise<boolean> {
-			if (!subscriptionId) return false;
+		async sendTest(
+			onUpdate?: (result: TimerTestResult) => void
+		): Promise<TimerTestResult> {
+			if (!subscriptionId) return { stage: 'failed' };
 			try {
 				const response = await adapters.fetch(`${base}/api/timer-alerts/test`, {
 					method: 'POST',
 					headers: { 'content-type': 'application/json' },
 					body: JSON.stringify({ subscriptionId })
 				});
-				return response.ok;
+				if (response.status === 429) return { stage: 'rate-limited' };
+				if (!response.ok) return { stage: 'failed' };
+				const accepted = (await response.json()) as { id?: unknown; stage?: unknown };
+				if (
+					typeof accepted.id !== 'string' ||
+					accepted.stage !== 'provider-accepted'
+				) {
+					return { stage: 'failed' };
+				}
+				let current: TimerTestResult = {
+					id: accepted.id,
+					stage: 'provider-accepted'
+				};
+				onUpdate?.(current);
+				for (let attempt = 0; attempt < 15; attempt += 1) {
+					if (attempt > 0) await adapters.sleep(1_000);
+					const statusResponse = await adapters.fetch(
+						`${base}/api/timer-alerts/jobs/${encodeURIComponent(accepted.id)}`
+					);
+					if (!statusResponse.ok) continue;
+					const value = (await statusResponse.json()) as {
+						stage?: unknown;
+						displayError?: unknown;
+					};
+					if (!isTimerTestStage(value.stage)) continue;
+					const next: TimerTestResult = {
+						id: accepted.id,
+						stage: value.stage,
+						displayError:
+							typeof value.displayError === 'string' ? value.displayError : null
+					};
+					if (next.stage !== current.stage) onUpdate?.(next);
+					current = next;
+					if (
+						current.stage === 'notification-shown' ||
+						current.stage === 'display-failed' ||
+						current.stage === 'failed'
+					) {
+						return current;
+					}
+				}
+				const unconfirmed = { id: accepted.id, stage: 'unconfirmed' as const };
+				onUpdate?.(unconfirmed);
+				return unconfirmed;
 			} catch {
-				return false;
+				return { stage: 'failed' };
 			}
 		},
 
@@ -240,8 +301,19 @@ function defaultAdapters(): TimerPushClientAdapters {
 				: /Android/.test(navigator.userAgent)
 					? 'Android device'
 					: 'Browser device';
-		}
+		},
+		sleep: (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs))
 	};
+}
+
+function isTimerTestStage(value: unknown): value is TimerTestStage {
+	return (
+		value === 'provider-accepted' ||
+		value === 'worker-received' ||
+		value === 'notification-shown' ||
+		value === 'display-failed' ||
+		value === 'failed'
+	);
 }
 
 function base64UrlToBuffer(value: string): ArrayBuffer {
