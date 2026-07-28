@@ -1,6 +1,6 @@
 # Feature List: Production Deployment Lineage Recovery
 
-_Status: In flight - Phase 1 of 4 (R3 approved; live execution blocked on exact-diff review)_
+_Status: Shipped - Phase 4 of 4 complete_
 
 ## Problem framing
 
@@ -405,6 +405,32 @@ approved.
   deploy before the R3 approval; no secret may enter model-visible output.
 - **Dirty worktree:** preserve pre-existing `docs/log.md` edits and untracked recordings/output;
   stage only files created or changed for this recovery.
-- **Terminal condition:** all old credentials are revoked, `origin/main` contains the safety and
-  Shopping commits, Railway serves that exact `main` commit, the authenticated canary is healthy,
-  and the issue/plan are archived.
+- **Terminal condition:** all uniquely identifiable old credentials are revoked, any
+  provider-identification exception is made inert and recorded, `origin/main` contains the safety
+  and Shopping commits, Railway serves that exact `main` commit, the authenticated canary is
+  healthy, and the issue/plan are archived.
+
+## Completion evidence
+
+- PRs [#17](https://github.com/freekmetsch/kitchenbrain/pull/17) and
+  [#18](https://github.com/freekmetsch/kitchenbrain/pull/18) made the complete safety and Shopping
+  lineage canonical on `main`, including the 320 px hidden-scrollbar follow-up.
+- Railway deployment `02ecb539-2b1f-4eab-8a2b-eb51a62e6e76` reached `SUCCESS` from GitHub branch
+  `main` at exact remote tip `4facaa3f5ce74afc68f93de847bbfd00c59cf4e5`.
+- Authenticated Shopping acceptance passed at 320 px and 1280 px: mobile exposes one compact
+  44 px options control while desktop keeps direct sort controls; both render zero progressbar
+  roles and zero `.market-progress-track` elements; browser console errors were zero.
+- Both household Login items were rotated separately and proven replacement-accepted /
+  previous-rejected. The OpenRouter application key was replaced, live generation passed, and
+  the old application key plus temporary management credentials were revoked.
+- One first-use temporary management credential entered model-visible browser evidence. It was
+  never used and was immediately revoked; the replacement used the audited write-only bridge and
+  was revoked after cutover.
+- Litestream moved to Railway Storage Bucket references. Integrity restores passed both before
+  and after the bucket credential reset with 24 tables and 1003 rows; the post-reset remote held
+  263 objects and a fresh checkpoint. Application and HTTP error logs remained empty.
+- The dormant Anthropic runtime variable was replaced with an inert sentinel. No uniquely
+  identifiable Household Brain provider credential existed, so no broader account-level
+  revocation was attempted.
+- No secret value, authenticated screenshot, HAR, cookie, response body, or household list
+  content was retained as evidence.
