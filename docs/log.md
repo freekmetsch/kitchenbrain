@@ -375,3 +375,27 @@ guarded live repair and post-apply verification completed.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md,
 docs/artifacts/archive/2026-07-28-plan-assistant-write-safety.html
+
+## 2026-07-28 | implementation awaiting device verification: Reliable mobile timer sound
+
+Implemented authenticated per-device Web Push backed by durable SQLite timer jobs, restart recovery,
+strict endpoint and ownership checks, subscription rotation, classic/declarative service-worker
+notifications, V3→V4 cook-session recovery, explicit ready/armed/foreground-only/cancel-pending UI,
+and a short foreground alarm. Removed the 12-hour silent media workaround and excluded device
+capabilities from household exports while making them resettable in Settings.
+
+Automated gates, an upgraded-database rehearsal, a production bundle scan, and the production
+dependency audit passed. The issue stays open until VAPID is configured on an always-on beta stage
+and the Android/iPhone locked-background sound matrix passes.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_SOUND.md,
+docs/artifacts/archive/2026-07-28-plan-mobile-timer-sound.html,
+docs/known_issues/current/ISSUE_MOBILE_TIMER_SOUND_20260728-1410.md
+
+## 2026-07-28 | archive-scan | 1 feature list, 1 HTML archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_SOUND.md,
+docs/artifacts/archive/2026-07-28-plan-mobile-timer-sound.html
+
+The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
+validated inline fallback and the repo remains a candidate for the shared archive-script rollout.

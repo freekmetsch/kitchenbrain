@@ -16,14 +16,25 @@
 		done: boolean;
 		// Live remaining seconds while active (worker-driven, second-quantized).
 		remaining?: number | null;
+		alertLabel?: string | null;
+		alertReady?: boolean;
 		onStart: () => void;
 		onReset: () => void;
 	};
-	let { seconds, active, done, remaining = null, onStart, onReset }: Props = $props();
+	let {
+		seconds,
+		active,
+		done,
+		remaining = null,
+		alertLabel = null,
+		alertReady = false,
+		onStart,
+		onReset
+	}: Props = $props();
 </script>
 
 {#if seconds}
-	<div class="pointer-events-auto shrink-0 flex flex-col items-end gap-1">
+	<span class="pointer-events-auto inline-flex shrink-0 flex-col items-end gap-1">
 		{#if done}
 			<button
 				type="button"
@@ -51,6 +62,14 @@
 				<span>{remaining != null ? fmtClock(remaining) : '⏱'}</span>
 				<span class="text-[11px] opacity-70">✕</span>
 			</button>
+			{#if alertLabel}
+				<span
+					class="max-w-44 text-right text-[10px] font-medium leading-tight {alertReady
+						? 'text-success'
+						: 'text-warning'}"
+					role="status">{alertLabel}</span
+				>
+			{/if}
 		{/if}
-	</div>
+	</span>
 {/if}

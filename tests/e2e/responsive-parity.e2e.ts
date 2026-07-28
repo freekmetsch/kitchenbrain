@@ -340,6 +340,16 @@ for (const viewport of VIEWPORTS) {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
+		await expect(
+			page.getByText(
+				'Background timer alerts are unavailable on this server. Keep this cooking view open.',
+				{ exact: true }
+			)
+		).toBeVisible();
+		await page.getByRole('button', { name: 'Start timer for 1:00' }).click();
+		await expect(page.getByText('Keep this cooking view open', { exact: true })).toBeVisible();
+		await page.getByRole('button', { name: 'Cancel timer' }).click();
+
 		const firstStep = page.getByRole('button', {
 			name: 'Read step 1: Simmer until ready.'
 		});

@@ -1,4 +1,13 @@
-import { sqliteTable, text, integer, real, unique, index, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
+import {
+	sqliteTable,
+	text,
+	integer,
+	real,
+	unique,
+	index,
+	foreignKey,
+	type AnySQLiteColumn
+} from 'drizzle-orm/sqlite-core';
 import type { BenchSheetRating, StoredCookModeRecipe } from '$lib/types';
 import type { RecipeSourceSnapshot } from '$lib/recipe_source_snapshot';
 import type { MachineActor } from '$lib/actors';
@@ -45,6 +54,68 @@ export const sessions = sqliteTable('sessions', {
 	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
+
+export const pushSubscriptions = sqliteTable(
+	'push_subscriptions',
+	{
+		id: text('id').primaryKey(),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		endpoint: text('endpoint').notNull(),
+		p256dh: text('p256dh').notNull(),
+		auth: text('auth').notNull(),
+		deviceLabel: text('device_label'),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+		lastUsedAt: integer('last_used_at', { mode: 'timestamp' }).notNull()
+	},
+	(t) => [
+		unique('push_subscriptions_endpoint_unique').on(t.endpoint),
+		unique('push_subscriptions_id_user_unique').on(t.id, t.userId),
+		index('push_subscriptions_user_idx').on(t.userId)
+	]
+);
+
+export type TimerAlertJobState =
+	| 'scheduled'
+	| 'claimed'
+	| 'sent'
+	| 'cancelled'
+	| 'failed'
+	| 'expired';
+
+export const timerAlertJobs = sqliteTable(
+	'timer_alert_jobs',
+	{
+		id: text('id').primaryKey(),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		subscriptionId: text('subscription_id').notNull(),
+		deadline: integer('deadline', { mode: 'timestamp' }).notNull(),
+		title: text('title').notNull(),
+		body: text('body').notNull(),
+		navigate: text('navigate').notNull(),
+		state: text('state').notNull().default('scheduled').$type<TimerAlertJobState>(),
+		attemptCount: integer('attempt_count').notNull().default(0),
+		nextAttemptAt: integer('next_attempt_at', { mode: 'timestamp' }).notNull(),
+		claimedAt: integer('claimed_at', { mode: 'timestamp' }),
+		sentAt: integer('sent_at', { mode: 'timestamp' }),
+		lastError: text('last_error'),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+	},
+	(t) => [
+		foreignKey({
+			name: 'timer_alert_jobs_subscription_owner_fk',
+			columns: [t.subscriptionId, t.userId],
+			foreignColumns: [pushSubscriptions.id, pushSubscriptions.userId]
+		}).onDelete('cascade'),
+		index('timer_alert_jobs_due_idx').on(t.state, t.nextAttemptAt),
+		index('timer_alert_jobs_user_idx').on(t.userId)
+	]
+);
 
 export const inventoryItems = sqliteTable('inventory_items', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
