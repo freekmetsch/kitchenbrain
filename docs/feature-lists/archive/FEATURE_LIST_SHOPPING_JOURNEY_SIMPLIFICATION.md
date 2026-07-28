@@ -1,6 +1,6 @@
 # Feature List: Shopping Journey Simplification
 
-_Status: Design refinement ready - 2026-07-28 (Source Board selected; round-two treatment awaiting review)_
+_Status: Shipped - 2026-07-28_
 
 ## Problem framing
 
@@ -185,8 +185,7 @@ one source receives full attention at a time.
 
 ## Chosen approach
 
-Lock **Source Board** as the interaction model. Recommend **Direction A — Source Ledger** as the
-round-two default.
+Lock **Source Board** as the interaction model and **Direction A — Source Ledger** as its treatment.
 
 Source Ledger preserves the chosen source-led hierarchy without turning a long phone list into a
 stack of padded cards or a horizontal browsing task. It also resolves Source Board's shared-item
@@ -200,8 +199,8 @@ more than one recipe live in Shared, and everything appears once. The kitchen pa
 Shopping                                      AH connected
 ‹  Tue 28 Jul — Mon 3 Aug · Delivery Tue 28 Jul        ›
 
+[ SHOPPING RULES · 2 off list                         Review › ]
 [ All ][ Weekly items ][ Recipe A ][ Recipe B … ]
-[ Rules · 2 off list ]
 
 AH activity  ✓  7 sent to order · 12:43        Details ›
 
@@ -238,8 +237,9 @@ LONG FAMILY AUBERGINE TRAYBAKE
 
 ### Global rules sheet
 
-- A direct `Rules` control is always visible when recipe sources exist; an off-list count is a
-  secondary warning, not a List options badge.
+- A full-width green `Shopping rules` control sits directly below the week selector and above the
+  source pills whenever recipe sources exist. Its off-list count is secondary warning copy, not a
+  List options badge.
 - The sheet starts with `Not on this list` when exclusions exist, then allows `All recipe rules`.
 - Each rule row shows need and buy-as state. Tapping the row expands the same editor in place;
   there is no second sheet.
@@ -515,10 +515,6 @@ semantics. The routed independent Opus check was unavailable because its session
 19:50 Europe/Amsterdam; no outside findings were accepted. No R3 stage gate is required.
 
 ## Open Questions
-
-> **Q: Which Source Board treatment should implementation use?** — Default: Source Ledger.
-> Reason: it keeps source ownership explicit without the card padding or horizontal navigation
-> cost of the other round-two treatments.
 
 > **Q: When should a passed delivery advance the default week?** — Default: keep the current run
 > through the delivery date and advance the next Amsterdam calendar day. Reason: the household may

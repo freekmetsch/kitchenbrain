@@ -135,8 +135,9 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingName} bought` })
 	).toBeVisible();
 
-	await page.getByRole('button', { name: `Actions for ${fixture.shoppingName}` }).click();
-	await page.getByRole('button', { name: /Edit shopping rule/ }).click();
+	await page
+		.getByRole('button', { name: `Edit shopping rule for ${fixture.shoppingName}` })
+		.click();
 
 	const ruleDialog = page.getByRole('dialog').filter({
 		has: page.getByRole('heading', { name: 'Edit shopping rule' })
@@ -155,6 +156,27 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 	await expect(page.getByText('Shopping choice saved.', { exact: true })).toBeVisible({
 		timeout: 15_000
 	});
+
+	await page.getByRole('button', { name: /^Shopping rules/ }).click();
+	const rulesDialog = page.getByRole('dialog').filter({
+		has: page.getByRole('heading', { name: 'Manage shopping rules' })
+	});
+	await rulesDialog
+		.getByRole('button', { name: new RegExp(fixture.shoppingName) })
+		.click();
+	await rulesDialog.getByRole('radio', { name: /Every time/ }).check();
+	await rulesDialog.getByLabel('Buy this week').selectOption(fixture.shoppingName);
+	const sourceRestored = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' &&
+			response.url().endsWith('/api/shopping/recipe-choice')
+	);
+	await rulesDialog.getByRole('button', { name: 'Save choice' }).click();
+	expect((await sourceRestored).ok()).toBe(true);
+	await page.keyboard.press('Escape');
+	await expect(
+		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingName} bought` })
+	).toBeVisible();
 });
 
 test('Recipes can be planned, marked made, and frozen without providers', async ({

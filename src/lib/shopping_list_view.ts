@@ -1,26 +1,16 @@
 import type { ShoppingListItem } from '$lib/components/shopping/types';
 
-export const STORE_ROUTE_SECTIONS = [
-	'Fresh',
-	'Bakery',
-	'Chilled',
-	'Pantry',
-	'Frozen',
-	'Household',
-	'Other'
-] as const;
-
-export type StoreRouteSection = (typeof STORE_ROUTE_SECTIONS)[number];
-export type ShoppingListSort = 'list' | 'alpha' | 'store';
 export type ShoppingListFilter =
 	| { kind: 'all' }
 	| { kind: 'meal'; mealName: string }
 	| { kind: 'weekly' };
 
-const sectionIndex = new Map<StoreRouteSection, number>(
-	STORE_ROUTE_SECTIONS.map((section, index) => [section, index])
-);
-const dutchCollator = new Intl.Collator('nl-NL', { sensitivity: 'base', numeric: true });
+export type ShoppingBoardSection<T extends ShoppingListItem = ShoppingListItem> = {
+	kind: 'weekly' | 'shared' | 'meal' | 'other';
+	key: string;
+	mealName: string | null;
+	items: T[];
+};
 
 function signature(value: string): string {
 	return value
@@ -33,132 +23,6 @@ function signature(value: string): string {
 		.filter(Boolean)
 		.sort()
 		.join(' ');
-}
-
-function signatures(values: string[]): Set<string> {
-	return new Set(values.map(signature));
-}
-
-const routeTerms: Record<Exclude<StoreRouteSection, 'Other'>, Set<string>> = {
-	Fresh: signatures([
-		'tomaat',
-		'tomaten',
-		'rode ui',
-		'rode uien',
-		'gele ui',
-		'gele uien',
-		'ui',
-		'uien',
-		'prei',
-		'wortel',
-		'wortels',
-		'paprika',
-		'komkommer',
-		'sla',
-		'spinazie',
-		'appel',
-		'appels',
-		'banaan',
-		'bananen',
-		'citroen',
-		'citroenen',
-		'limoen',
-		'knoflook',
-		'aardappel',
-		'aardappelen',
-		'kipfilet',
-		'gehakt',
-		'zalm'
-	]),
-	Bakery: signatures([
-		'brood',
-		'bruin brood',
-		'wit brood',
-		'volkorenbrood',
-		'stokbrood',
-		'pistolets',
-		'croissants',
-		'wraps',
-		'naan'
-	]),
-	Chilled: signatures([
-		'melk',
-		'yoghurt',
-		'kwark',
-		'boter',
-		'roomboter',
-		'kaas',
-		'eieren',
-		'room',
-		'creme fraiche',
-		'tofu'
-	]),
-	Pantry: signatures([
-		'rijst',
-		'pasta',
-		'spaghetti',
-		'penne',
-		'suiker',
-		'bloem',
-		'meel',
-		'olie',
-		'azijn',
-		'rijstazijn',
-		'bonen',
-		'tomatenblokjes',
-		'bouillon',
-		'zout',
-		'peper'
-	]),
-	Frozen: signatures([
-		'diepvrieserwten',
-		'diepvries spinazie',
-		'ijs',
-		'kroketten'
-	]),
-	Household: signatures([
-		'toiletpapier',
-		'keukenpapier',
-		'afwasmiddel',
-		'wasmiddel',
-		'vuilniszakken',
-		'schoonmaakmiddel'
-	])
-};
-
-function lexicalSection(
-	name: string,
-	allowed: readonly Exclude<StoreRouteSection, 'Other'>[] = [
-		'Bakery',
-		'Chilled',
-		'Household',
-		'Fresh',
-		'Pantry',
-		'Frozen'
-	]
-): StoreRouteSection {
-	const key = signature(name);
-	return allowed.find((section) => routeTerms[section].has(key)) ?? 'Other';
-}
-
-export function resolveStoreRouteSection(item: ShoppingListItem): StoreRouteSection {
-	const forms = new Set(
-		(item.sources ?? [])
-			.filter((source) => source.sourceKind === 'recipe')
-			.map((source) => source.purchaseForm)
-			.filter((form): form is 'fresh' | 'preserved' | 'frozen' | 'dried' =>
-				form != null && form !== 'any'
-			)
-	);
-	if (forms.size > 1) return 'Other';
-	const form = forms.values().next().value;
-	if (form === 'frozen') return 'Frozen';
-	if (form === 'preserved' || form === 'dried') return 'Pantry';
-	if (form === 'fresh') {
-		const refinement = lexicalSection(item.selectedName, ['Bakery', 'Chilled']);
-		return refinement === 'Other' ? 'Fresh' : refinement;
-	}
-	return lexicalSection(item.selectedName);
 }
 
 export function getShoppingFilterOptions(items: ShoppingListItem[]): {
@@ -199,52 +63,91 @@ export function filterShoppingItems<T extends ShoppingListItem>(
 	return items.filter((item) => matchesShoppingFilter(item, filter));
 }
 
-export function sortShoppingItems<T extends ShoppingListItem>(
+function itemMealNames(item: ShoppingListItem): string[] {
+	return [
+		...new Set(
+			(item.sources ?? [])
+				.filter((source) => source.sourceKind === 'recipe')
+				.flatMap((source) => source.mealNames)
+		)
+	];
+}
+
+function hasWeeklySource(item: ShoppingListItem): boolean {
+	return (item.sources ?? []).some((source) => source.sourceKind === 'weekly');
+}
+
+export function groupShoppingBoardItems<T extends ShoppingListItem>(
 	items: T[],
-	sort: ShoppingListSort
-): T[] {
-	if (sort === 'list') return [...items];
-	return items
-		.map((item, index) => ({ item, index }))
-		.sort((left, right) => {
-			if (sort === 'store') {
-				const sectionDifference =
-					sectionIndex.get(resolveStoreRouteSection(left.item))! -
-					sectionIndex.get(resolveStoreRouteSection(right.item))!;
-				if (sectionDifference) return sectionDifference;
-			} else {
-				const nameDifference = dutchCollator.compare(
-					left.item.selectedName,
-					right.item.selectedName
-				);
-				if (nameDifference) return nameDifference;
-			}
-			return left.index - right.index;
-		})
-		.map(({ item }) => item);
+	filter: ShoppingListFilter,
+	mealOrder: string[]
+): ShoppingBoardSection<T>[] {
+	if (filter.kind === 'weekly') {
+		return [{ kind: 'weekly', key: 'weekly', mealName: null, items: [...items] }];
+	}
+	if (filter.kind === 'meal') {
+		return [{
+			kind: 'meal',
+			key: `meal:${filter.mealName}`,
+			mealName: filter.mealName,
+			items: [...items]
+		}];
+	}
+
+	const weekly: T[] = [];
+	const shared: T[] = [];
+	const other: T[] = [];
+	const byMeal = new Map(mealOrder.map((mealName) => [mealName, [] as T[]]));
+
+	for (const item of items) {
+		if (hasWeeklySource(item)) {
+			weekly.push(item);
+			continue;
+		}
+		const mealNames = itemMealNames(item);
+		if (mealNames.length > 1) {
+			shared.push(item);
+			continue;
+		}
+		if (mealNames.length === 1) {
+			const mealItems = byMeal.get(mealNames[0]);
+			if (mealItems) mealItems.push(item);
+			else byMeal.set(mealNames[0], [item]);
+			continue;
+		}
+		other.push(item);
+	}
+
+	return [
+		{ kind: 'weekly' as const, key: 'weekly', mealName: null, items: weekly },
+		...(shared.length
+			? [{ kind: 'shared' as const, key: 'shared', mealName: null, items: shared }]
+			: []),
+		...[...byMeal.entries()]
+			.filter(([, mealItems]) => mealItems.length)
+			.map(([mealName, mealItems]) => ({
+				kind: 'meal' as const,
+				key: `meal:${mealName}`,
+				mealName,
+				items: mealItems
+			})),
+		...(other.length
+			? [{ kind: 'other' as const, key: 'other', mealName: null, items: other }]
+			: [])
+	];
 }
 
 export function projectShoppingStates<T extends ShoppingListItem>(
 	pending: T[],
 	done: T[],
-	filter: ShoppingListFilter,
-	sort: ShoppingListSort
+	filter: ShoppingListFilter
 ): { active: T[]; covered: T[]; done: T[] } {
-	const project = (items: T[]) => sortShoppingItems(filterShoppingItems(items, filter), sort);
+	const project = (items: T[]) => filterShoppingItems(items, filter);
 	return {
 		active: project(pending.filter((item) => !item.covered)),
 		covered: project(pending.filter((item) => item.covered)),
 		done: project(done)
 	};
-}
-
-export function groupShoppingItems<T extends ShoppingListItem>(
-	items: T[]
-): Array<{ section: StoreRouteSection; items: T[] }> {
-	return STORE_ROUTE_SECTIONS.map((section) => ({
-		section,
-		items: items.filter((item) => resolveStoreRouteSection(item) === section)
-	}));
 }
 
 export function shoppingItemKey(item: ShoppingListItem): string {

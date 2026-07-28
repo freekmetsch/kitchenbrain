@@ -562,3 +562,32 @@ archive.
 Touched: docs/feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md,
 docs/artifacts/2026-07-28-design-shotgun-shopping-source-board.html,
 docs/artifacts/archive/2026-07-28-plan-shopping-journey-simplification-round-1.html
+
+## 2026-07-28 | run | Shopping Source Ledger and journey simplification
+
+Shipped the selected Source Ledger with a delivery-aware default week, opaque All/Weekly/recipe
+pills, Weekly-first single-ownership sections, fixed stable list order, direct rule and substitute
+editing, and outcome-first AH activity. Removed header progress copy, the recovery link, List
+options, A-Z, Store Route, the order dropdown, and their dead controller/projection state.
+
+After rebasing onto current `main`, the complete provider-free gate passed 118 test files / 639
+unit tests, all 20 primary authenticated browser stories, Svelte diagnostics, and the production
+build. All 20 secondary-account browser stories also passed. Synthetic AH history covers
+uncertain delivery, issue-first item ordering, mobile and desktop placement, and collapsed
+previous sends without exercising a real provider. Context7 was not used because this internal UI
+change did not alter an external library or API contract.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md,
+docs/artifacts/archive/2026-07-28-design-shotgun-shopping-source-board.html,
+src/lib/components/shopping/ShoppingLists.svelte,
+src/lib/components/shopping/ShoppingRuleEditor.svelte,
+src/lib/components/shopping/PushHistory.svelte
+
+## 2026-07-28 | archive-scan | 1 feature list, 1 HTML archived
+
+Moved the completed Shopping Source Ledger feature list and its terminal decision workspace into
+their archive directories. The repository has no `scripts/archive-scan.ps1`, so the validated
+inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md,
+docs/artifacts/archive/2026-07-28-design-shotgun-shopping-source-board.html

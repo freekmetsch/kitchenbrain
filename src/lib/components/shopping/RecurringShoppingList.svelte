@@ -98,11 +98,6 @@
 	}
 </script>
 
-<button type="button" class="shopping-manager-trigger" onclick={() => void openManager()}>
-	<Icon name="clock" />
-	{m.shopping_manage_weekly_items()}
-</button>
-
 <BottomSheet
 	bind:open
 	title={m.shopping_manage_weekly_items()}
@@ -211,7 +206,6 @@
 </BottomSheet>
 
 <style>
-	.shopping-manager-trigger,
 	.weekly-add,
 	.weekly-back {
 		display: inline-flex;
@@ -224,13 +218,6 @@
 		font-weight: 750;
 	}
 
-	.shopping-manager-trigger {
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 24%, var(--color-base-300));
-		background: var(--color-base-100);
-		color: var(--market-olive-ink, #304b3a);
-	}
-
-	.shopping-manager-trigger :global(svg),
 	.weekly-add :global(svg),
 	.weekly-back :global(svg) {
 		width: 1rem;
@@ -363,9 +350,5 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 
-		.shopping-manager-trigger {
-			width: 100%;
-			justify-content: center;
-		}
 	}
 </style>

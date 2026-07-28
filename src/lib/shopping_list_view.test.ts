@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ShoppingListItem, ShoppingListSource } from '$lib/components/shopping/types';
 import {
-	STORE_ROUTE_SECTIONS,
 	filterShoppingItems,
 	getShoppingFilterOptions,
-	groupShoppingItems,
+	groupShoppingBoardItems,
 	nextVisibleShoppingKey,
 	projectShoppingStates,
-	resolveStoreRouteSection,
-	shoppingItemKey,
-	sortShoppingItems
+	shoppingItemKey
 } from './shopping_list_view';
 
 function source(
@@ -89,70 +86,57 @@ describe('shopping list view projection', () => {
 		const states = projectShoppingStates(
 			[pendingShared, coveredShared, manual],
 			[doneShared],
-			{ kind: 'meal', mealName: 'Soep' },
-			'list'
+			{ kind: 'meal', mealName: 'Soep' }
 		);
 		expect(states.active).toEqual([pendingShared]);
 		expect(states.covered).toEqual([coveredShared]);
 		expect(states.done).toEqual([doneShared]);
 	});
 
-	it('sorts A–Z with Dutch diacritics, stable ties, and original list order as the fallback', () => {
-		const firstA = item('Álgebra', [source({ id: 10, sourceKind: 'manual' })]);
-		const secondA = item('algebra', [source({ id: 11, sourceKind: 'manual' })]);
-		const eel = item('éclair', [source({ id: 12, sourceKind: 'manual' })]);
-		const zebra = item('zebra', [source({ id: 13, sourceKind: 'manual' })]);
-		const original = [zebra, secondA, eel, firstA];
-		expect(sortShoppingItems(original, 'list')).toEqual(original);
-		expect(sortShoppingItems(original, 'alpha')).toEqual([secondA, firstA, eel, zebra]);
-	});
-
-	it('uses unanimous purchase forms conservatively and sends mixed forms to Other', () => {
-		expect(resolveStoreRouteSection(shared)).toBe('Fresh');
-		expect(resolveStoreRouteSection(item('erwten', [
-			source({ id: 20, sourceKind: 'recipe', purchaseForm: 'frozen' }),
-			source({ id: 21, sourceKind: 'recipe', purchaseForm: 'frozen' })
-		]))).toBe('Frozen');
-		expect(resolveStoreRouteSection(item('tomaten', [
-			source({ id: 22, sourceKind: 'recipe', purchaseForm: 'fresh' }),
-			source({ id: 23, sourceKind: 'recipe', purchaseForm: 'preserved' })
-		]))).toBe('Other');
-		expect(resolveStoreRouteSection(item('brood', [
-			source({ id: 24, sourceKind: 'recipe', purchaseForm: 'fresh' })
-		]))).toBe('Bakery');
-		expect(resolveStoreRouteSection(item('melk', [
-			source({ id: 25, sourceKind: 'recipe', purchaseForm: 'fresh' })
-		]))).toBe('Chilled');
-	});
-
-	it('uses only exact Dutch phrases or whole-token signatures and defaults unknowns to Other', () => {
-		expect(resolveStoreRouteSection(item('toiletpapier', [source({ id: 30, sourceKind: 'weekly' })]))).toBe('Household');
-		expect(resolveStoreRouteSection(item('crème fraîche', [source({ id: 31, sourceKind: 'manual' })]))).toBe('Chilled');
-		expect(resolveStoreRouteSection(item('rode uien', [source({ id: 32, sourceKind: 'manual' })]))).toBe('Fresh');
-		expect(resolveStoreRouteSection(item('diepvries spinazie', [source({ id: 33, sourceKind: 'manual' })]))).toBe('Frozen');
-		expect(resolveStoreRouteSection(item('rijstazijn', [source({ id: 34, sourceKind: 'manual' })]))).toBe('Pantry');
-		expect(resolveStoreRouteSection(item('melkchocolade', [source({ id: 35, sourceKind: 'manual' })]))).toBe('Other');
-		expect(resolveStoreRouteSection(item('broodmes', [source({ id: 36, sourceKind: 'manual' })]))).toBe('Other');
-		expect(resolveStoreRouteSection(item('mysterieproduct', [source({ id: 37, sourceKind: 'manual' })]))).toBe('Other');
-	});
-
-	it('returns fixed Store Route groups, keeps stable order, and never mutates canonical items', () => {
-		const other = item('mysterieproduct', [source({ id: 40, sourceKind: 'manual' })]);
-		const bread = item('brood', [source({ id: 41, sourceKind: 'manual' })]);
-		const milk = item('melk', [source({ id: 42, sourceKind: 'manual' })]);
-		const input = [other, milk, bread];
-		const before = structuredClone(input);
-		const groups = groupShoppingItems(sortShoppingItems(input, 'store'));
-		expect(groups.map((group) => group.section)).toEqual(STORE_ROUTE_SECTIONS);
-		expect(groups.flatMap((group) => group.items).map((entry) => entry.name)).toEqual([
-			'brood',
-			'melk',
-			'mysterieproduct'
-		]);
+	it('preserves stable List order without mutating canonical items', () => {
+		const input = [manual, shared, weekly];
+		const before = [...input];
+		const states = projectShoppingStates(input, [], { kind: 'all' });
+		expect(states.active).toEqual(input);
 		expect(input).toEqual(before);
-		expect(groupShoppingItems([other]).filter((group) => group.items.length)).toEqual([
-			{ section: 'Other', items: [other] }
+	});
+
+	it('builds Weekly, Shared, recipe, and other ledger sections without duplicates', () => {
+		const weeklyRecipe = item('boter', [
+			source({ id: 10, sourceKind: 'weekly' }),
+			source({ id: 11, sourceKind: 'recipe', mealNames: ['Soep'] })
 		]);
+		const soupOnly = item('bouillon', [
+			source({ id: 12, sourceKind: 'recipe', mealNames: ['Soep'] })
+		]);
+		const sections = groupShoppingBoardItems(
+			[manual, shared, soupOnly, weeklyRecipe, weekly],
+			{ kind: 'all' },
+			['Soep', 'Pasta']
+		);
+
+		expect(sections.map((section) => section.kind)).toEqual([
+			'weekly',
+			'shared',
+			'meal',
+			'other'
+		]);
+		expect(sections.map((section) => section.items.map((entry) => entry.name))).toEqual([
+			['boter', 'melk'],
+			['tomaten'],
+			['bouillon'],
+			['lucifers']
+		]);
+		expect(sections.flatMap((section) => section.items)).toHaveLength(5);
+	});
+
+	it('keeps filtered rows in one matching source section', () => {
+		expect(
+			groupShoppingBoardItems([weekly], { kind: 'weekly' }, ['Soep'])
+		).toEqual([{ kind: 'weekly', key: 'weekly', mealName: null, items: [weekly] }]);
+		expect(
+			groupShoppingBoardItems([shared], { kind: 'meal', mealName: 'Pasta' }, ['Soep', 'Pasta'])
+		).toEqual([{ kind: 'meal', key: 'meal:Pasta', mealName: 'Pasta', items: [shared] }]);
 	});
 
 	it('selects the next focus target from visible order after a row leaves the state', () => {
