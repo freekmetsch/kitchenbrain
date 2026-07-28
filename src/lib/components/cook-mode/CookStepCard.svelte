@@ -11,6 +11,8 @@
 		timerActive: boolean;
 		timerDone: boolean;
 		timerRemaining?: number | null;
+		timerAlertLabel?: string | null;
+		timerAlertReady?: boolean;
 		palette: BeatPalette;
 		streamName?: string | null;
 		mergeNames?: string[];
@@ -26,6 +28,8 @@
 		timerActive,
 		timerDone,
 		timerRemaining = null,
+		timerAlertLabel = null,
+		timerAlertReady = false,
 		palette,
 		streamName = null,
 		mergeNames = [],
@@ -78,6 +82,8 @@
 			timerActive={timerActive}
 			timerDone={timerDone}
 			timerRemaining={timerRemaining}
+			{timerAlertLabel}
+			{timerAlertReady}
 			onStartTimer={onStartTimer}
 			onResetTimer={onResetTimer}
 		/>

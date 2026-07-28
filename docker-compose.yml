@@ -10,6 +10,11 @@ services:
       AH_TOKEN_FILE: /data/ah_tokens.json
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in .env}
       HOUSEHOLD_USERS: ${HOUSEHOLD_USERS:?set HOUSEHOLD_USERS in .env, e.g. alice:pw1,bob:pw2}
+      # Optional mobile background timer alerts. Generate a stable VAPID pair;
+      # the app can derive the public key when VAPID_PUBLIC_KEY is omitted.
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       # Optional: streaming SQLite backup to an S3-compatible bucket (e.g. Cloudflare R2).
       # Omit all three and the app runs fine without it — see start.sh.
       LITESTREAM_R2_BUCKET: ${LITESTREAM_R2_BUCKET:-}
