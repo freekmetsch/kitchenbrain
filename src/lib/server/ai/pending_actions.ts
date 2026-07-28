@@ -11,6 +11,7 @@
 // multi-instances (a claim would then need a DB-level atomic delete).
 import { randomBytes } from 'crypto';
 import type { WritePrecondition } from '$lib/server/domains/inventory/commands';
+import type { ToolDisplayDiff } from '$lib/tool_display';
 
 export type PendingAction = {
 	userId: number;
@@ -18,12 +19,13 @@ export type PendingAction = {
 	/** Raw tool input, replayed verbatim through the inventory boundary on approve. */
 	args: unknown;
 	/** Exact target state at card time; the boundary re-checks it on commit. */
-	precondition: WritePrecondition;
+	precondition: WritePrecondition | WritePrecondition[];
 	summary: string;
+	diff?: ToolDisplayDiff[];
 	createdAt: number;
 };
 
-const TTL_MS = 5 * 60 * 1000; // approvals go stale after 5 minutes
+const TTL_MS = 10 * 60 * 1000; // enough time to review a capped phone-sized batch
 const store = new Map<string, PendingAction>();
 
 function sweep(now: number): void {

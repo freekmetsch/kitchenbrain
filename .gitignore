@@ -13,3 +13,7 @@ ah_tokens.json.tmp
 data/backups/
 .test-data/
 .idea/
+.codex-tmp/
+*.har
+docs/recordings/
+output/

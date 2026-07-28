@@ -14,11 +14,25 @@ export type ToolDisplayEntityAction = {
 	id: string;
 	intent: 'view' | 'review';
 };
-export type RecipeEnhancementDisplay = {
+export type RecipePatchDisplay = {
 	token: string;
 	recipeSlug: string;
-	additions: Array<{ id: string; name: string; amount: string; unit?: string; reason: string }>;
-	substitutes: Array<{ id: string; ingredientId: string; ingredientName: string; name: string; note?: string; reason: string }>;
+	operations: Array<{
+		id: string;
+		kind: 'add_ingredient' | 'update_ingredient' | 'add_substitute' | 'recipe_field';
+		label: string;
+		before: string | null;
+		after: string;
+		reason: string;
+		evidence?: {
+			key: string;
+			source: 'ah';
+			query: string;
+			productName: string;
+			packageSize: string | null;
+			price: number | null;
+		};
+	}>;
 };
 
 export type ToolDisplay = {
@@ -29,6 +43,8 @@ export type ToolDisplay = {
 	diff?: ToolDisplayDiff[];
 	/** Inventory ops this call produced, for inline undo. Endpoint stays authoritative. */
 	ops?: ToolDisplayOp[];
+	/** Atomic inventory batch to undo together; never render per-row undo for this group. */
+	undoAllOpIds?: number[];
 	itemName?: string;
 	section?: string;
 	/** For kind:'confirm' — the single-use token the Approve card posts back (P5.3). */
@@ -36,7 +52,7 @@ export type ToolDisplay = {
 	/** For kind:'plan' — the ordered step labels; the UI checks them off best-effort
 	 *  as subsequent write-displays in the same turn complete (P5.2). */
 	steps?: string[];
-	recipeEnhancement?: RecipeEnhancementDisplay;
+	recipePatch?: RecipePatchDisplay;
 	/** A validated entity reference. The client derives the app-local route. */
 	entityAction?: ToolDisplayEntityAction;
 };

@@ -145,6 +145,11 @@
 		return op ? op.opId : null;
 	}
 
+	function undoTarget(tool: ToolCall): number | number[] | null {
+		const group = tool.display?.undoAllOpIds;
+		return group?.length ? group : firstUndoableOp(tool);
+	}
+
 	// Best-effort plan check-off (P5.2): count the completed write-displays that
 	// follow this present_plan in the same turn. No rigid step↔tool binding — a
 	// plan of N steps checks off the first min(N, writesDone) rows. Only writes
@@ -159,7 +164,7 @@
 		return n;
 	}
 
-	async function undo(tool: ToolCall, opId: number) {
+	async function undo(tool: ToolCall, opId: number | number[]) {
 		await controller.undo(tool, opId);
 	}
 
@@ -291,7 +296,7 @@
 									</div>
 								{:else if tool.display}
 									{@const d = tool.display}
-									{@const opId = firstUndoableOp(tool)}
+									{@const opId = undoTarget(tool)}
 									{@const entityHref = toolEntityHref(d.entityAction, base)}
 									<div class="flex min-w-0 flex-col gap-1 rounded-md bg-base-100/50 px-2 py-1.5">
 										<div class="flex items-center gap-1.5">
@@ -341,7 +346,9 @@
 												{#if !tool.undo}
 											<button class="btn btn-ghost btn-xs ui-chat-action px-2 text-xs opacity-70 hover:opacity-100" onclick={() => undo(tool, opId)}>
 														<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 015 5v1M3 10l4-4M3 10l4 4" /></svg>
-														{m.chat_tool_undo_button()}
+														{Array.isArray(opId)
+															? m.chat_tool_undo_all_button()
+															: m.chat_tool_undo_button()}
 													</button>
 												{:else if tool.undo === 'undoing'}
 													<span class="text-xs opacity-60 inline-flex items-center gap-1"><Spinner size="xs" /> {m.chat_tool_undoing_label()}</span>
@@ -379,8 +386,8 @@
 												{/if}
 											</div>
 										{/if}
-										{#if d.kind === 'proposal' && d.recipeEnhancement}
-											<RecipeEnhancementReview proposal={d.recipeEnhancement} />
+										{#if d.kind === 'proposal' && d.recipePatch}
+											<RecipeEnhancementReview proposal={d.recipePatch} />
 										{/if}
 									</div>
 								{:else}

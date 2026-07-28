@@ -43,6 +43,7 @@ const READ_TOOLS = new Set([
 	'suggest_meals',
 	'get_recipe',
 	'search_recipes',
+	'search_ah_products',
 	'generate_shopping_list',
 	'get_freezer_staples',
 	'get_inventory_history'
@@ -141,21 +142,19 @@ export function buildToolDisplay(
 ): ToolDisplay {
 	const result = asObj(rawResult) as Result;
 	if (
-		name === 'propose_recipe_enhancement' &&
-		result.kind === 'recipe_enhancement' &&
+		name === 'propose_recipe_patch' &&
+		result.kind === 'recipe_patch' &&
 		typeof result.token === 'string' &&
 		typeof result.recipeSlug === 'string' &&
-		Array.isArray(result.additions) &&
-		Array.isArray(result.substitutes)
+		Array.isArray(result.operations)
 	) {
 		return {
 			kind: 'proposal',
-			summary: locale === 'nl' ? 'Receptideeën controleren' : 'Review recipe ideas',
-			recipeEnhancement: {
+			summary: locale === 'nl' ? 'Receptwijzigingen controleren' : 'Review recipe changes',
+			recipePatch: {
 				token: result.token,
 				recipeSlug: result.recipeSlug,
-				additions: result.additions as NonNullable<ToolDisplay['recipeEnhancement']>['additions'],
-				substitutes: result.substitutes as NonNullable<ToolDisplay['recipeEnhancement']>['substitutes']
+				operations: result.operations as NonNullable<ToolDisplay['recipePatch']>['operations']
 			}
 		};
 	}
@@ -172,12 +171,23 @@ export function buildToolDisplay(
 	// Deferred for approval (P5.3): render an Approve/Cancel card. The client
 	// posts confirmationId to /api/chat/confirm; nothing executed yet.
 	if (result.needs_confirmation === true) {
+		const diff = Array.isArray(result.action_diff)
+			? result.action_diff.filter(
+					(row): row is ToolDisplayDiff =>
+						Boolean(
+							row &&
+								typeof row === 'object' &&
+								typeof (row as ToolDisplayDiff).label === 'string'
+						)
+				)
+			: undefined;
 		return {
 			kind: 'confirm',
 			summary:
 				str(result.action_summary) ??
 				(locale === 'nl' ? 'Deze actie goedkeuren?' : 'Confirm this action?'),
-			confirmationId: str(result.confirmation_id) ?? undefined
+			confirmationId: str(result.confirmation_id) ?? undefined,
+			...(diff?.length ? { diff } : {})
 		};
 	}
 
@@ -208,7 +218,12 @@ export function buildToolDisplay(
 		return {
 			kind: failed > 0 && okCount === 0 ? 'error' : 'write',
 			summary,
-			...(opIds.length ? { ops: opIds.map((id) => ({ opId: id, undoable: true })) } : {})
+			...(opIds.length
+				? {
+						ops: opIds.map((id) => ({ opId: id, undoable: true })),
+						undoAllOpIds: opIds
+					}
+				: {})
 		};
 	}
 

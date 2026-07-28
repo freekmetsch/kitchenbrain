@@ -124,6 +124,41 @@ describe('updateInventory + undo', () => {
 		expect(current.reviewReason).toContain('undo_conflict');
 	});
 
+	it('rejects an ordinary update to a soft-deleted item without logging a write', () => {
+		const db = createTestDb();
+		const added = addInventory(db, { name: 'Kip', section: 'freezer', qtyNum: 2 }, CTX);
+		const removed = removeInventory(db, { id: added.item.id }, CTX);
+		if (!removed.ok) throw new Error('remove failed');
+		const beforeOps = ops(db).length;
+
+		const result = updateInventory(db, added.item.id, { qtyNum: 99 }, CTX);
+
+		expect(result).toEqual({ ok: false, error: 'Item is deleted and cannot be updated' });
+		expect(item(db, added.item.id).qtyNum).toBe(2);
+		expect(ops(db)).toHaveLength(beforeOps);
+	});
+
+	it('rejects a stale expected snapshot without changing or logging the item', () => {
+		const db = createTestDb();
+		const added = addInventory(db, { name: 'Kip', section: 'freezer', qtyNum: 2 }, CTX);
+		const expectedSnapshot = ops(db)[0].afterSnapshot as Record<string, unknown>;
+		const intervening = updateInventory(db, added.item.id, { qtyNum: 3 }, CTX);
+		if (!intervening.ok) throw new Error('intervening update failed');
+		const beforeOps = ops(db).length;
+
+		expect(() =>
+			updateInventory(
+				db,
+				added.item.id,
+				{ qtyNum: 99 },
+				CTX,
+				{ itemId: added.item.id, expectedSnapshot }
+			)
+		).toThrow('changed since the approval');
+		expect(item(db, added.item.id).qtyNum).toBe(3);
+		expect(ops(db)).toHaveLength(beforeOps);
+	});
+
 	it('treats before-less update ops as display-only (legacy rows)', () => {
 		const db = createTestDb();
 		const added = addInventory(db, { name: 'Kip', section: 'freezer' }, CTX);

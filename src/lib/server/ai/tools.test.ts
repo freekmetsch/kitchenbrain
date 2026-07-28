@@ -24,6 +24,17 @@ describe('recipe continuity tool contracts', () => {
 		expect(properties).not.toHaveProperty('add_ingredients');
 		expect(properties).not.toHaveProperty('remove_ingredient_names');
 		expect(properties).not.toHaveProperty('set_ingredient_substitutes');
-		expect(tool('propose_recipe_enhancement')).toBeDefined();
+		expect(properties).not.toHaveProperty('notes');
+		expect(properties).not.toHaveProperty('directions');
+		expect(properties).not.toHaveProperty('servings');
+		expect(tool('propose_recipe_patch')).toBeDefined();
+	});
+
+	it('exposes AH search as a bounded read-only tool', () => {
+		const search = tool('search_ah_products');
+		const properties = (search.input_schema.properties ?? {}) as Record<string, unknown>;
+		expect(properties).toHaveProperty('queries');
+		expect(properties).not.toHaveProperty('basket');
+		expect(properties).not.toHaveProperty('quantity');
 	});
 });

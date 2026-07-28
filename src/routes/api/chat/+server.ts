@@ -29,6 +29,7 @@ import { APP_TIME_ZONE } from '$lib/week';
 import { getLocale } from '$lib/paraglide/runtime';
 import { m } from '$lib/paraglide/messages';
 import { beginChatTurn } from '$lib/server/ai/chat_activity';
+import { createTurnSafetyState } from '$lib/server/ai/turn_safety';
 
 // Vision upload hard caps (Stage 4b / P5.4). Images arrive as multipart/form-data
 // (no base64 +33% on the wire); the client downscales to ≤1568px before sending,
@@ -224,7 +225,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				createdThisTurn: new Set<number>(),
 				destructiveCount: 0,
 				visionTurn: hasImages,
-				locale
+				locale,
+				safety: createTurnSafetyState()
 			};
 
 			try {

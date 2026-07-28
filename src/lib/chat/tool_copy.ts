@@ -90,6 +90,8 @@ export function toolStartSummary(
 				return 'Recept opzoeken…';
 			case 'search_recipes':
 				return 'Recepten zoeken…';
+			case 'search_ah_products':
+				return 'Producten bij AH zoeken…';
 			case 'generate_shopping_list':
 				return 'Boodschappenlijst maken…';
 			case 'add_recipe':
@@ -100,8 +102,8 @@ export function toolStartSummary(
 				return 'Recept importeren…';
 			case 'edit_recipe':
 				return 'Recept bewerken…';
-			case 'propose_recipe_enhancement':
-				return 'Receptideeën voorbereiden…';
+			case 'propose_recipe_patch':
+				return 'Receptwijzigingen voorbereiden…';
 			case 'log_meal':
 				return 'Maaltijd vastleggen…';
 			default:
@@ -152,6 +154,8 @@ export function toolStartSummary(
 			return 'Looking up the recipe…';
 		case 'search_recipes':
 			return 'Searching recipes…';
+		case 'search_ah_products':
+			return 'Searching AH products…';
 		case 'generate_shopping_list':
 			return 'Building the shopping list…';
 		case 'add_recipe':
@@ -162,8 +166,8 @@ export function toolStartSummary(
 			return 'Importing the recipe…';
 		case 'edit_recipe':
 			return 'Editing the recipe…';
-		case 'propose_recipe_enhancement':
-			return 'Preparing recipe ideas…';
+		case 'propose_recipe_patch':
+			return 'Preparing recipe changes…';
 		case 'log_meal':
 			return 'Logging the meal…';
 		default:
@@ -184,6 +188,10 @@ export function readToolSummary(name: string, rawResult: unknown, locale: ChatLo
 				return count === null
 					? 'Recepten doorzocht'
 					: `${count} ${plural('recept', 'recepten')} gevonden`;
+			case 'search_ah_products':
+				return count === null
+					? 'AH-producten doorzocht'
+					: `${count} AH-${plural('product', 'producten')} gevonden`;
 			case 'get_recipe':
 				return result.found === false ? 'Geen recept gevonden' : 'Recept geladen';
 			case 'get_meal_plan':
@@ -212,6 +220,10 @@ export function readToolSummary(name: string, rawResult: unknown, locale: ChatLo
 			return count === null ? 'Checked inventory' : `Found ${count} item${count === 1 ? '' : 's'}`;
 		case 'search_recipes':
 			return count === null ? 'Searched recipes' : `Found ${count} recipe${count === 1 ? '' : 's'}`;
+		case 'search_ah_products':
+			return count === null
+				? 'Searched AH products'
+				: `Found ${count} AH product${count === 1 ? '' : 's'}`;
 		case 'get_recipe':
 			return result.found === false ? 'No recipe found' : 'Loaded the recipe';
 		case 'get_meal_plan':

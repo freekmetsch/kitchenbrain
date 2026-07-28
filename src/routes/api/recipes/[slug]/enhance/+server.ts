@@ -12,8 +12,7 @@ const BodySchema = z.discriminatedUnion('action', [
 	z.object({
 		action: z.literal('apply'),
 		token: z.string().min(20).max(256),
-		additions: z.array(z.object({ id: z.string().uuid(), need: z.enum(['required', 'optional', 'stocked']) })).max(20),
-		substituteIds: z.array(z.string().uuid()).max(30)
+		operationIds: z.array(z.string().uuid()).max(30)
 	})
 ]);
 
@@ -32,8 +31,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 		return json(
 			applyRecipeEnhancementForApp({
 				...body,
-				userId: locals.user.id,
-				actor: locals.user.username
+				userId: locals.user.id
 			})
 		);
 	} catch (cause) {

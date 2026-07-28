@@ -9,9 +9,9 @@ import { createTestDb, type TestDb } from '$lib/server/test_db';
 import { isoWeekNumber } from '$lib/week';
 import { createMealPlanService } from '$lib/server/workflows/meal-plan';
 import { executeToolCall, isOk } from './index';
-import type { TurnExecutionContext } from '../commit_risk';
 
-const turnCtx = (): TurnExecutionContext => ({ createdThisTurn: new Set(), destructiveCount: 0 });
+// These are executor/domain parity tests; chat-turn provenance is covered in turn_safety.test.ts.
+const turnCtx = () => undefined;
 
 const WEEK = '2026-07-01'; // Wednesday fallback when no preference is saved
 

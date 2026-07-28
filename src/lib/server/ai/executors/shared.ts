@@ -1,5 +1,6 @@
 import type { Db } from '$lib/server/db/types';
 import type { WritePrecondition } from '$lib/server/domains/inventory/commands';
+import type { TurnSafetyState } from '$lib/server/ai/turn_safety';
 
 export type { Db as DB } from '$lib/server/db/types';
 
@@ -10,5 +11,6 @@ export type ExecutorFn = (
 	raw: unknown,
 	db: Db,
 	userId: number,
-	precondition?: WritePrecondition
+	precondition?: WritePrecondition | WritePrecondition[],
+	turnSafety?: TurnSafetyState
 ) => Promise<unknown>;

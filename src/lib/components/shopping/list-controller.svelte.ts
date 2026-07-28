@@ -72,6 +72,8 @@ class ShoppingListController {
 	selectedItem = $state<ShoppingListItem | null>(null);
 	rulesOpen = $state(false);
 	rulesScope = $state<'excluded' | 'all'>('all');
+	listOptionsOpen = $state(false);
+	pendingListOptionsAction = $state<'weekly' | 'rules' | null>(null);
 	pendingSource = $state<ShoppingListSource | null>(null);
 	openWeeklyAfterAction = $state(false);
 	actionPending = $state(false);
@@ -218,6 +220,33 @@ class ShoppingListController {
 		this.rulesScope =
 			scope === 'excluded' && this.excludedRecipeSources.length ? 'excluded' : 'all';
 		this.rulesOpen = true;
+	}
+
+	openListOptions() {
+		this.pendingListOptionsAction = null;
+		this.listOptionsOpen = true;
+	}
+
+	openWeeklyAfterListOptions() {
+		this.pendingListOptionsAction = 'weekly';
+		this.listOptionsOpen = false;
+	}
+
+	openRulesAfterListOptions() {
+		this.pendingListOptionsAction = 'rules';
+		this.listOptionsOpen = false;
+	}
+
+	async handleListOptionsClose() {
+		if (this.listOptionsOpen || !this.pendingListOptionsAction) return;
+		const action = this.pendingListOptionsAction;
+		this.pendingListOptionsAction = null;
+		await this.#dependencies.settle();
+		if (action === 'weekly') {
+			await this.#dependencies.openWeeklyManager();
+		} else {
+			this.openRules();
+		}
 	}
 
 	openWeeklyAfterActions() {

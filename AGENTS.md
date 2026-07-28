@@ -43,6 +43,23 @@ This repo is the canonical dev repo for the app — it's what Railway (or any ot
 
 **Windows contributors:** commit `start.sh` with LF line endings only — a CRLF-corrupted shebang breaks `exec ./start.sh` in the container (`./start.sh: not found`). The repo's own git blobs are already clean LF; this only bites if your local `core.autocrlf` rewrites it on checkout and you then deploy from that local working copy directly instead of through git.
 
+### Production delivery truth
+
+- Production is Railway project `a8fd74d7-2c0e-4d95-a310-7c13dc1c7936`, environment
+  `production`, service `household-brain`, sourced from GitHub `freekmetsch/kitchenbrain` branch
+  `main`.
+- A pushed feature branch is not live. "Live" means Railway reports `SUCCESS`, source branch
+  `main`, deployed commit equals the remote `main` tip, and the authenticated canary passes.
+- This public repository has no GitHub CI gate. Merging to `main` initiates the production source
+  deployment, so supervise the deployment through its terminal status and canary.
+- Use `node scripts/production/railway-deployment-truth.mjs` for names-only revision evidence.
+  Never use raw Railway variable/config reads for diagnostics: they can return plaintext values.
+- Production variable writes use `scripts/production/stage-railway-config.ps1`, which accepts only
+  fixed profiles and sends values through stdin with intermediate deploys disabled. Routine code
+  delivery uses the configured GitHub source, never `railway up`.
+- Do not retain authenticated screenshots, HAR files, cookies, `Set-Cookie` headers, response
+  bodies, or household list contents as public evidence.
+
 ## Architecture invariants
 
 **AH push always sources from Dutch fields.** Recipes store ingredients in Dutch (`recipes.ingredients[].name`) alongside an English display/cache translation. Albert Heijn's product search, basket API, and shopping-list derivation must only ever read the Dutch fields — English fields are display data and are not valid AH lookup keys. If you're touching anything under `src/lib/server/ah/` or shopping-list generation, keep this seam intact.

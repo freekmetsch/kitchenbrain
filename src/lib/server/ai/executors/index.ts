@@ -11,8 +11,24 @@ import { mealPlanExecutors } from './meal_plan';
 import { recipeExecutors } from './recipes';
 import { shoppingExecutors } from './shopping';
 import { miscExecutors } from './misc';
+import { ahExecutors } from './ah';
+import {
+	ContractError,
+	authorizeToolCall,
+	createTurnSafetyState,
+	failedCallKey,
+	isPersistentTool,
+	observeToolResult
+} from '$lib/server/ai/turn_safety';
 
-const domainMaps = [inventoryExecutors, mealPlanExecutors, recipeExecutors, shoppingExecutors, miscExecutors];
+const domainMaps = [
+	inventoryExecutors,
+	mealPlanExecutors,
+	recipeExecutors,
+	shoppingExecutors,
+	ahExecutors,
+	miscExecutors
+];
 
 const executors: Record<string, ExecutorFn> = Object.assign({}, ...domainMaps);
 
@@ -32,10 +48,16 @@ export async function executeToolCall(
 	db: DB,
 	userId: number,
 	turnCtx?: TurnExecutionContext,
-	precondition?: WritePrecondition
+	precondition?: WritePrecondition | WritePrecondition[]
 ): Promise<unknown> {
 	const executor = executors[name];
 	if (!executor) return { error: `Unknown tool: ${name}` };
+	const safety = turnCtx
+		? (turnCtx.safety ??= createTurnSafetyState())
+		: undefined;
+	const failureKey = turnCtx ? failedCallKey(name, input) : null;
+	const memoized = failureKey ? safety?.failedCalls.get(failureKey) : undefined;
+	if (memoized !== undefined) return memoized;
 
 	// Photo-derived recipes are review-biased (P5.4): vision hallucinates
 	// quantities, timings, and roles, so a recipe saved on a turn that carried an
@@ -57,26 +79,48 @@ export async function executeToolCall(
 	// instead of executing. The stashed action is committed out-of-band by
 	// POST /api/chat/confirm (which re-enters here with a precondition and no
 	// turnCtx). Non-chat callers pass neither and skip the gate.
+	let authorizedPrecondition = precondition;
+	try {
+		if (turnCtx) {
+			authorizedPrecondition = authorizeToolCall(name, input, db, safety!);
+		}
+	} catch (err) {
+		if (turnCtx && err instanceof ContractError) {
+			safety!.writeLatched = true;
+			const result = {
+				ok: false,
+				error: err.message,
+				contract_error: err.code,
+				write_latched: true
+			};
+			if (failureKey) safety!.failedCalls.set(failureKey, result);
+			return result;
+		}
+		throw err;
+	}
+
 	if (turnCtx) {
-		const decision = classifyCommitRisk(name, input, turnCtx, db);
+		const decision = classifyCommitRisk(name, input, turnCtx, db, authorizedPrecondition);
 		if (decision.risk === 'confirm') {
 			const confirmationId = createPendingAction({
 				userId,
 				toolName: name,
 				args: input,
 				precondition: decision.precondition,
-				summary: decision.summary
+				summary: decision.summary,
+				diff: decision.diff
 			});
 			return {
 				needs_confirmation: true,
 				confirmation_id: confirmationId,
-				action_summary: decision.summary
+				action_summary: decision.summary,
+				...(decision.diff ? { action_diff: decision.diff } : {})
 			};
 		}
 	}
 
 	try {
-		const result = await executor(input, db, userId, precondition);
+		const result = await executor(input, db, userId, authorizedPrecondition, safety);
 		// Track turn context for later risk decisions. Count only committed
 		// destructive work (deferred proposals don't count) and remember what the
 		// agent added this turn so deleting it stays instant.
@@ -86,19 +130,55 @@ export async function executeToolCall(
 				const id = (result as { id?: unknown }).id;
 				if (typeof id === 'number') turnCtx.createdThisTurn.add(id);
 			}
+			if (isPersistentTool(name)) safety!.committedWrites.push(name);
 		}
+		if (turnCtx) observeToolResult(name, result, db, safety!);
 		return result;
 	} catch (err) {
+		if (err instanceof ContractError) {
+			if (!turnCtx) throw err;
+			safety!.writeLatched = true;
+			const result = {
+				ok: false,
+				error: err.message,
+				contract_error: err.code,
+				write_latched: true
+			};
+			if (failureKey) safety!.failedCalls.set(failureKey, result);
+			return result;
+		}
 		// A stale-approval conflict must reach the /confirm handler as a 409,
 		// not be flattened into a generic tool error.
-		if (err instanceof PreconditionConflictError) throw err;
+		if (err instanceof PreconditionConflictError) {
+			if (!turnCtx) throw err;
+			const contract = new ContractError('stale_target', err.message);
+			safety!.writeLatched = true;
+			const result = {
+				ok: false,
+				error: contract.message,
+				contract_error: contract.code,
+				write_latched: true
+			};
+			if (failureKey) safety!.failedCalls.set(failureKey, result);
+			return result;
+		}
 		// ZodError.message is the raw JSON issues array — it ends up user-visible in
 		// the chat error chip AND in the model's tool_result, so flatten it to one
 		// sentence the model can act on (field + what's wrong).
 		if (err instanceof z.ZodError) {
 			const first = err.issues[0];
 			const path = first?.path?.length ? ` for ${first.path.join('.')}` : '';
-			return { error: `Invalid input${path}: ${first?.message ?? 'malformed arguments'}` };
+			const result = {
+				ok: false,
+				error: `Invalid input${path}: ${first?.message ?? 'malformed arguments'}`,
+				contract_error: 'invalid_input',
+				write_latched: Boolean(turnCtx)
+			};
+			if (turnCtx) {
+				safety!.writeLatched = true;
+				if (failureKey) safety!.failedCalls.set(failureKey, result);
+			}
+			return result;
 		}
 		return { error: err instanceof Error ? err.message : 'Tool execution failed' };
 	}

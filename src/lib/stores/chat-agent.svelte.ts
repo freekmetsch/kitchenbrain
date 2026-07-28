@@ -219,14 +219,14 @@ export class ChatAgentController {
 		}, 120);
 	}
 
-	async undo(tool: ChatToolCall, opId: number): Promise<void> {
+	async undo(tool: ChatToolCall, opId: number | number[]): Promise<void> {
 		if (tool.undo === 'undoing' || tool.undo === 'done') return;
 		tool.undo = 'undoing';
 		try {
 			const response = await fetch(`${base}/api/inventory/undo`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ op_id: opId })
+				body: JSON.stringify(Array.isArray(opId) ? { op_ids: opId } : { op_id: opId })
 			});
 			if (response.ok) {
 				tool.undo = 'done';

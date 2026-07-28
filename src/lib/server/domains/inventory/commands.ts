@@ -48,7 +48,7 @@ function assertPrecondition(current: InventoryItem | undefined, precondition: Wr
 		!current ||
 		current.deletedAt ||
 		current.id !== precondition.itemId ||
-		!snapshotsEqual(toSnapshot(current), precondition.expectedSnapshot)
+		!inventorySnapshotsEqual(toSnapshot(current), precondition.expectedSnapshot)
 	) {
 		throw new PreconditionConflictError();
 	}
@@ -111,7 +111,7 @@ function normalizeForCompare(field: string, value: unknown): unknown {
 	return value ?? null;
 }
 
-function snapshotsEqual(a: ItemSnapshot, b: ItemSnapshot): boolean {
+export function inventorySnapshotsEqual(a: ItemSnapshot, b: ItemSnapshot): boolean {
 	return SNAPSHOT_COMPARE_FIELDS.every(
 		(field) => normalizeForCompare(field, a[field]) === normalizeForCompare(field, b[field])
 	);
@@ -330,14 +330,31 @@ export type UpdateInventoryResult =
 	| { ok: true; item: InventoryItem; opId: number | null }
 	| { ok: false; error: string };
 
+export type UpdateInventoryBatchItem = {
+	id: number;
+	input: UpdateInventoryInput;
+	precondition: WritePrecondition;
+};
+
+export type UpdateInventoryBatchResult = {
+	ok: true;
+	results: Array<{ item: InventoryItem; opId: number | null }>;
+	opIds: number[];
+};
+
 export function updateInventory(
 	db: DbOrTx,
 	id: number,
 	input: UpdateInventoryInput,
-	ctx: WriteCtx
+	ctx: WriteCtx,
+	precondition?: WritePrecondition
 ): UpdateInventoryResult {
 		const before = readInventoryItem(db, id);
 		if (!before) return { ok: false as const, error: 'Item not found' };
+		if (before.deletedAt) {
+			return { ok: false as const, error: 'Item is deleted and cannot be updated' };
+		}
+		if (precondition) assertPrecondition(before, precondition);
 
 		const updates: Record<string, unknown> = { updatedAt: new Date() };
 		if (input.name !== undefined) updates.name = input.name.trim();
@@ -417,6 +434,36 @@ export function updateInventory(
 			after: toSnapshot(item)
 		});
 		return { ok: true as const, item, opId };
+}
+
+/** Apply a preconditioned 2-10 item batch inside the caller's transaction. */
+export function updateInventoryBatch(
+	db: DbOrTx,
+	updates: UpdateInventoryBatchItem[],
+	ctx: WriteCtx
+): UpdateInventoryBatchResult {
+	if (updates.length < 2 || updates.length > 10) {
+		throw new PreconditionConflictError('Inventory batches must contain between 2 and 10 items.');
+	}
+	if (new Set(updates.map((update) => update.id)).size !== updates.length) {
+		throw new PreconditionConflictError('An inventory batch cannot target an item twice.');
+	}
+	const results = updates.map((update) => {
+		const result = updateInventory(
+			db,
+			update.id,
+			update.input,
+			ctx,
+			update.precondition
+		);
+		if (!result.ok) throw new PreconditionConflictError(result.error);
+		return { item: result.item, opId: result.opId };
+	});
+	return {
+		ok: true,
+		results,
+		opIds: results.map((result) => result.opId).filter((id): id is number => id !== null)
+	};
 }
 
 export type RemoveInventoryTarget = { id?: number; name?: string; section?: Section };
@@ -508,6 +555,49 @@ function restoreUpdatesFromSnapshot(snapshot: ItemSnapshot): Record<string, unkn
 	return updates;
 }
 
+export type RestoreInventoryResult = {
+	item: InventoryItem;
+	opId: number | null;
+};
+
+/**
+ * Internal recovery boundary. Unlike an ordinary update, this can restore a
+ * tombstoned row, but only when its complete current snapshot exactly matches
+ * the supplied expected state.
+ */
+export function restoreInventorySnapshot(
+	db: DbOrTx,
+	itemId: number,
+	expectedSnapshot: ItemSnapshot,
+	restoreSnapshot: ItemSnapshot,
+	ctx: WriteCtx,
+	provenance: unknown
+): RestoreInventoryResult {
+	const current = readInventoryItem(db, itemId);
+	if (
+		!current ||
+		current.id !== itemId ||
+		!inventorySnapshotsEqual(toSnapshot(current), expectedSnapshot)
+	) {
+		throw new PreconditionConflictError('Inventory recovery target changed; nothing was restored.');
+	}
+	const item = db
+		.update(schema.inventoryItems)
+		.set(restoreUpdatesFromSnapshot(restoreSnapshot))
+		.where(eq(schema.inventoryItems.id, itemId))
+		.returning()
+		.get();
+	if (!item) throw new PreconditionConflictError('Inventory recovery target disappeared.');
+	const opId = logOp(db, ctx, {
+		opType: 'update',
+		itemId,
+		before: toSnapshot(current),
+		after: toSnapshot(item),
+		provenance
+	});
+	return { item, opId };
+}
+
 function flagUndoConflict(tx: DbOrTx, ctx: WriteCtx, itemId: number, opId: number): void {
 	const before = readInventoryItem(tx, itemId);
 	if (!before) return;
@@ -555,7 +645,7 @@ export function undoOp(db: DbOrTx, opId: number, ctx: WriteCtx): UndoResult {
 
 		if (op.opType === 'add') {
 			if (!after) return { ok: false as const, error: 'Op is not undoable (no after-state stored)' };
-			if (current.deletedAt || !snapshotsEqual(toSnapshot(current), after)) {
+			if (current.deletedAt || !inventorySnapshotsEqual(toSnapshot(current), after)) {
 				flagUndoConflict(db, ctx, current.id, opId);
 				return { ok: false as const, conflict: true, error: 'Item changed since this op; flagged for review instead' };
 			}
@@ -579,7 +669,7 @@ export function undoOp(db: DbOrTx, opId: number, ctx: WriteCtx): UndoResult {
 			if (!before || !after) {
 				return { ok: false as const, error: 'Op is not undoable (legacy history is display-only)' };
 			}
-			if (current.deletedAt || !snapshotsEqual(toSnapshot(current), after)) {
+			if (current.deletedAt || !inventorySnapshotsEqual(toSnapshot(current), after)) {
 				flagUndoConflict(db, ctx, current.id, opId);
 				return { ok: false as const, conflict: true, error: 'Item changed since this op; flagged for review instead' };
 			}
@@ -619,6 +709,32 @@ export function undoOp(db: DbOrTx, opId: number, ctx: WriteCtx): UndoResult {
 			undoOf: opId
 		});
 		return { ok: true as const, item, opId: newOpId };
+}
+
+export type UndoBatchResult = {
+	ok: true;
+	items: InventoryItem[];
+	opIds: number[];
+};
+
+/**
+ * Undo an explicit operation group inside the caller's transaction. Any
+ * conflict throws so the transaction rolls back earlier compensating writes.
+ */
+export function undoOps(db: DbOrTx, opIds: number[], ctx: WriteCtx): UndoBatchResult {
+	if (opIds.length < 2 || opIds.length > 10 || new Set(opIds).size !== opIds.length) {
+		throw new PreconditionConflictError('Undo all requires 2-10 unique operation IDs.');
+	}
+	const results = opIds.map((opId) => {
+		const result = undoOp(db, opId, ctx);
+		if (!result.ok) throw new PreconditionConflictError(result.error);
+		return result;
+	});
+	return {
+		ok: true,
+		items: results.map((result) => result.item),
+		opIds: results.map((result) => result.opId).filter((id): id is number => id !== null)
+	};
 }
 
 /**
@@ -667,12 +783,14 @@ export function setReviewFlag(
 	db: DbOrTx,
 	itemId: number,
 	reason: string | null,
-	ctx: WriteCtx
+	ctx: WriteCtx,
+	precondition?: WritePrecondition
 ): ReviewFlagResult {
 	return updateInventory(
 		db,
 		itemId,
 		reason === null ? { needsReview: false, reviewReason: null } : { needsReview: true, reviewReason: reason },
-		ctx
+		ctx,
+		precondition
 	);
 }

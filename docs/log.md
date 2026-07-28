@@ -311,3 +311,67 @@ live-provider change shipped.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_DOMAIN_BOUNDARY_REFACTOR.md,
 docs/artifacts/archive/2026-07-27-plan-domain-boundary-refactor.html
+
+## 2026-07-28 | html-artifact | plan: Assistant write safety
+
+Reviewed the latest authenticated assistant history, recorded the six-row wrong-domain inventory
+incident without publishing household content, and created the four-phase recovery, write-safety,
+typed recipe-review, and rollout workspace.
+
+Touched: docs/artifacts/2026-07-28-plan-assistant-write-safety.html,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md
+
+## 2026-07-28 | html-artifact | plan: Shopping mobile density refinement
+
+Planned a mobile-first Shopping control hierarchy: direct meal filters, one list-options
+disclosure for sort and maintenance, state-aware empty chrome, a single available dock action,
+and removal of the Shopping progress track. The review workspace records the 320/375 runtime
+geometry, chosen direction, five R1 tickets, dialog-handoff guardrails, and verification matrix.
+
+Touched: docs/artifacts/2026-07-28-plan-shopping-mobile-density-refinement.html,
+docs/feature-lists/FEATURE_LIST_SHOPPING_MOBILE_DENSITY_REFINEMENT.md
+
+## 2026-07-28 | verified | Assistant write safety before live gate
+
+Implemented snapshot-bound assistant writes, the per-turn contract latch, atomic reviewed inventory
+batches with grouped undo, stable-ID recipe roles, selected typed recipe patches, and bounded
+read-only AH evidence. The live SQLite online backup and exact clone recovery both passed; the
+production data apply remains paused at the required R3 checkpoint. Verification passed 553 unit
+tests, authenticated Chromium, focused 375/1280 recipe-review checks, zero Svelte diagnostics, and
+a production build.
+
+Touched: scripts/recover_assistant_incident.ts,
+src/lib/server/recovery/assistant_incident.ts,
+src/lib/server/ai/turn_safety.ts,
+src/lib/server/ai/recipe_patch.ts,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md
+
+## 2026-07-28 13:10 archive-scan | 1 feature lists, 1 HTMLs archived
+
+Archived the shipped Shopping mobile-density plan and its linked decision workspace. The
+repository has no `scripts/archive-scan.ps1`; the validated inline fallback moved only the
+terminal feature and its artifact.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_MOBILE_DENSITY_REFINEMENT.md,
+docs/artifacts/archive/2026-07-28-plan-shopping-mobile-density-refinement.html
+
+## 2026-07-28 | shipped | Assistant write safety and scoped recovery
+
+Deployed snapshot-bound writes, fail-closed turn safety, atomic reviewed inventory batches,
+stable-ID recipe roles, typed recipe patches, and bounded read-only AH evidence. After the explicit
+R3 approval, the scoped production recovery restored six inventory snapshots and one recipe note,
+created compensating operation IDs 275-280, preserved unrelated data, replicated to Litestream,
+and passed health, runtime-log, and post-apply read-back checks.
+
+Touched: src/lib/server/ai/turn_safety.ts,
+src/lib/server/ai/recipe_patch.ts,
+src/lib/server/recovery/assistant_incident.ts,
+docs/deploys/2026-07.md
+
+## 2026-07-28 13:46 | archive-scan | 1 feature list, 1 HTML archived
+
+Archived the shipped Assistant write-safety execution plan and its decision workspace after the
+guarded live repair and post-apply verification completed.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md,
+docs/artifacts/archive/2026-07-28-plan-assistant-write-safety.html

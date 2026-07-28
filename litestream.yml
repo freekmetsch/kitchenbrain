@@ -1,4 +1,4 @@
-# Litestream v0.5 config (P1.0): stream /data/v2.db to Cloudflare R2.
+# Litestream v0.5 config (P1.0): stream /data/v2.db to a Railway Storage Bucket.
 # Values come from Railway service variables; see start.sh for the
 # fail-open gate when the replica credentials are absent.
 snapshot:

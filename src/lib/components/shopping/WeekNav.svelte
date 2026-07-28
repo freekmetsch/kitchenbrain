@@ -15,7 +15,6 @@
 		deliveryDate?: string | null;
 		remainingCount: number;
 		doneCount: number;
-		totalCount: number;
 		ahConnected: boolean;
 	};
 
@@ -27,11 +26,8 @@
 		deliveryDate = null,
 		remainingCount,
 		doneCount,
-		totalCount,
 		ahConnected
 	}: Props = $props();
-
-	let progress = $derived(totalCount > 0 ? Math.min(100, Math.round((doneCount / totalCount) * 100)) : 0);
 
 	function locale(): string {
 		return getLocale() === 'nl' ? 'nl-NL' : 'en-GB';
@@ -94,18 +90,11 @@
 		</KitchenWeekNavigator>
 
 		<div
-			class="market-progress"
-			role="progressbar"
-			aria-valuemin="0"
-			aria-valuemax="100"
-			aria-valuenow={progress}
+			class="market-run-counts"
 			aria-label={`${m.shopping_items_left({ count: remainingCount })}; ${m.shopping_in_basket_short({ count: doneCount })}`}
 		>
-			<div class="market-progress-copy">
-				<strong>{m.shopping_items_left({ count: remainingCount })}</strong>
-				<span>{m.shopping_in_basket_short({ count: doneCount })}</span>
-			</div>
-			<div class="market-progress-track"><i style={`width: ${progress}%`}></i></div>
+			<strong>{m.shopping_items_left({ count: remainingCount })}</strong>
+			<span>{m.shopping_in_basket_short({ count: doneCount })}</span>
 		</div>
 	</div>
 </KitchenPageHeader>
@@ -184,43 +173,24 @@
 		opacity: 0.5;
 	}
 
-	.market-progress {
-		margin-top: 0.3rem;
-	}
-
-	.market-progress-copy {
+	.market-run-counts {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.75rem;
+		margin-top: 0.3rem;
 	}
 
-	.market-progress-copy strong {
+	.market-run-counts strong {
 		font-family: var(--kitchen-display);
 		font-size: 1.05rem;
 		font-weight: 500;
 		line-height: 1;
 	}
 
-	.market-progress-copy span {
+	.market-run-counts span {
 		color: #d7e0d9;
 		font-size: 0.58rem;
-	}
-
-	.market-progress-track {
-		height: 0.25rem;
-		margin-top: 0.25rem;
-		overflow: hidden;
-		border-radius: 999px;
-		background: rgb(255 255 255 / 18%);
-	}
-
-	.market-progress-track i {
-		display: block;
-		height: 100%;
-		border-radius: inherit;
-		background: #f1c35f;
-		transition: width var(--motion-content) var(--ease-standard);
 	}
 
 	@media (min-width: 48rem) {
@@ -231,14 +201,8 @@
 			gap: 1.5rem;
 		}
 
-		.market-progress {
+		.market-run-counts {
 			margin-top: 0;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.market-progress-track i {
-			transition: none;
 		}
 	}
 </style>
