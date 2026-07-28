@@ -193,13 +193,15 @@ describe('remove_from_inventory', () => {
 	it('pauses for confirmation when deleting pre-existing stock', async () => {
 		const db = createTestDb();
 		const existing = seedItem(db).item;
+		const ctx = turnCtx();
+		await executeToolCall('get_inventory', {}, db, 1, ctx);
 
 		const res = (await executeToolCall(
 			'remove_from_inventory',
 			{ id: existing.id },
 			db,
 			1,
-			turnCtx()
+			ctx
 		)) as ConfirmResult;
 
 		expect(res.needs_confirmation).toBe(true);
@@ -208,7 +210,7 @@ describe('remove_from_inventory', () => {
 		expect(itemById(db, existing.id).deletedAt).toBeNull();
 	});
 
-	it('reports a clean error for an unknown item', async () => {
+	it('rejects an unknown guessed item id as missing provenance', async () => {
 		const db = createTestDb();
 		const res = (await executeToolCall(
 			'remove_from_inventory',
@@ -218,7 +220,7 @@ describe('remove_from_inventory', () => {
 			turnCtx()
 		)) as RemoveResult;
 		expect(res.ok).toBe(false);
-		expect(res.error).toBe('Item not found');
+		expect(res.error).toContain('was not read in this turn');
 	});
 });
 
@@ -226,13 +228,15 @@ describe('update_inventory_item', () => {
 	it('updates fields and verifies the post-state', async () => {
 		const db = createTestDb();
 		const existing = seedItem(db).item;
+		const ctx = turnCtx();
+		await executeToolCall('get_inventory', {}, db, 1, ctx);
 
 		const res = (await executeToolCall(
 			'update_inventory_item',
 			{ id: existing.id, qty_num: 5, section: 'pantry', expiry_date: '2026-08-01' },
 			db,
 			1,
-			turnCtx()
+			ctx
 		)) as UpdateResult;
 
 		expect(isOk(res)).toBe(true);
@@ -244,7 +248,7 @@ describe('update_inventory_item', () => {
 		expect(row.expiryDate).toBe('2026-08-01');
 	});
 
-	it('reports a clean error for an unknown item', async () => {
+	it('rejects an unknown guessed item id as missing provenance', async () => {
 		const db = createTestDb();
 		const res = (await executeToolCall(
 			'update_inventory_item',
@@ -254,7 +258,7 @@ describe('update_inventory_item', () => {
 			turnCtx()
 		)) as UpdateResult;
 		expect(res.ok).toBe(false);
-		expect(res.error).toBe('Item not found');
+		expect(res.error).toContain('was not read in this turn');
 	});
 
 	it('rejects malformed args with a clean error instead of throwing', async () => {
@@ -274,12 +278,14 @@ describe('undo_op', () => {
 	it('reverts an update back to the previous values', async () => {
 		const db = createTestDb();
 		const existing = seedItem(db).item;
+		const ctx = turnCtx();
+		await executeToolCall('get_inventory', {}, db, 1, ctx);
 		const upd = (await executeToolCall(
 			'update_inventory_item',
 			{ id: existing.id, qty_num: 7 },
 			db,
 			1,
-			turnCtx()
+			ctx
 		)) as UpdateResult;
 		expect(itemById(db, existing.id).qtyNum).toBe(7);
 
@@ -288,7 +294,7 @@ describe('undo_op', () => {
 			{ op_id: upd.opId },
 			db,
 			1,
-			turnCtx()
+			ctx
 		)) as UndoResult;
 
 		expect(undo.ok).toBe(true);
@@ -325,30 +331,32 @@ describe('undo_op', () => {
 		)) as RemoveResult;
 		expect(removed.ok).toBe(true);
 		expect(itemById(db, existing.id).deletedAt).not.toBeNull();
+		const ctx = turnCtx();
+		await executeToolCall('get_inventory_history', {}, db, 1, ctx);
 
 		const undo = (await executeToolCall(
 			'undo_op',
 			{ op_id: removed.opId },
 			db,
 			1,
-			turnCtx()
+			ctx
 		)) as UndoResult;
 
 		expect(undo.ok).toBe(true);
 		expect(itemById(db, existing.id).deletedAt).toBeNull();
 	});
 
-	it('reports a clean error for an unknown op id', async () => {
+	it('rejects an unknown guessed op id as missing provenance', async () => {
 		const db = createTestDb();
 		const res = (await executeToolCall('undo_op', { op_id: 999999 }, db, 1, turnCtx())) as UndoResult;
 		expect(res.ok).toBe(false);
-		expect(res.error).toBe('Op not found');
+		expect(res.error).toContain('was not read in this turn');
 	});
 
 	it('requires op_id or item_id', async () => {
 		const db = createTestDb();
 		const res = (await executeToolCall('undo_op', {}, db, 1, turnCtx())) as UndoResult;
 		expect(res.ok).toBe(false);
-		expect(res.error).toBe('Provide op_id (from get_inventory_history) or item_id');
+		expect(res.error).toBe('Provide op_id/op_ids (from get_inventory_history) or item_id');
 	});
 });

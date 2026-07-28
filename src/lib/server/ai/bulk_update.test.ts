@@ -1,16 +1,20 @@
-// R3 stage-gate drill for bulk_update_inventory (P4) — also permanent regression
-// coverage. Drives the REAL executor against a throwaway in-memory DB: proves
-// many-in-one updates commit, partial failure is reported (successes stay
-// committed), and every item stays individually undoable.
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
-import { addInventory } from '$lib/server/workflows/inventory';
+import { addInventory, updateInventory } from '$lib/server/workflows/inventory';
 import { executeToolCall } from './executors';
 import type { TurnExecutionContext } from './commit_risk';
+import { claimPendingAction } from './pending_actions';
+import { createTurnSafetyState } from './turn_safety';
 
-const turnCtx = (): TurnExecutionContext => ({ createdThisTurn: new Set(), destructiveCount: 0 });
+function turnCtx(): TurnExecutionContext {
+	return {
+		createdThisTurn: new Set(),
+		destructiveCount: 0,
+		safety: createTurnSafetyState()
+	};
+}
 
 type BulkResult = {
 	ok: boolean;
@@ -19,11 +23,26 @@ type BulkResult = {
 	op_ids: number[];
 };
 
-function seedFreezer(db: TestDb): number[] {
-	return ['Kipfilet', 'Rundergehakt', 'Zalm', 'Spinazie'].map(
-		(name) =>
-			addInventory(db, { name, section: 'freezer', qtyNum: 1, unit: 'stuks' }, { actor: 'ai', userId: 1 })
-				.item.id
+function seedFreezer(db: TestDb, count = 4): number[] {
+	const names = [
+		'Kip',
+		'Bonen',
+		'Zalm',
+		'Spinazie',
+		'Rijst',
+		'Pasta',
+		'Melk',
+		'Kaas',
+		'Brood',
+		'Eieren',
+		'Boter'
+	];
+	return names.slice(0, count).map((name) =>
+		addInventory(
+			db,
+			{ name, section: 'freezer', qtyNum: 1, unit: 'stuk' },
+			{ actor: 'ai', userId: 1 }
+		).item.id
 	);
 }
 
@@ -31,72 +50,151 @@ function itemById(db: TestDb, id: number) {
 	return db.select().from(schema.inventoryItems).where(eq(schema.inventoryItems.id, id)).get()!;
 }
 
-describe('bulk_update_inventory (R3 drill)', () => {
-	it('reclassifies many items in one call, one undo op each', async () => {
+async function proposeBatch(
+	db: TestDb,
+	updates: Array<Record<string, unknown>>,
+	context = turnCtx()
+) {
+	await executeToolCall('get_inventory', {}, db, 1, context);
+	const proposal = (await executeToolCall(
+		'bulk_update_inventory',
+		{ updates },
+		db,
+		1,
+		context
+	)) as {
+		needs_confirmation?: boolean;
+		confirmation_id?: string;
+		action_diff?: unknown[];
+	};
+	return { proposal, context };
+}
+
+async function applyProposal(db: TestDb, confirmationId: string): Promise<BulkResult> {
+	const action = claimPendingAction(confirmationId, 1);
+	if (!action) throw new Error('pending action missing');
+	return (await executeToolCall(
+		action.toolName,
+		action.args,
+		db,
+		1,
+		undefined,
+		action.precondition
+	)) as BulkResult;
+}
+
+describe('bulk_update_inventory', () => {
+	it('shows every row and writes nothing before approval', async () => {
 		const db = createTestDb();
 		const ids = seedFreezer(db);
+		const beforeOps = db.select().from(schema.inventoryOpsLog).all().length;
 
-		const res = (await executeToolCall(
-			'bulk_update_inventory',
-			{ updates: ids.map((id) => ({ id, category: 'meat', kind: 'ingredient' })) },
+		const { proposal } = await proposeBatch(
 			db,
-			1,
-			turnCtx()
-		)) as BulkResult;
+			ids.map((id) => ({ id, category: 'meat', kind: 'ingredient' }))
+		);
 
-		expect(res.ok).toBe(true);
-		expect(res.updated_count).toBe(4);
-		expect(res.failed_count).toBe(0);
-		expect(res.op_ids).toHaveLength(4);
+		expect(proposal.needs_confirmation).toBe(true);
+		expect(proposal.action_diff).toHaveLength(4);
+		expect(proposal.action_diff?.[0]).toMatchObject({
+			before: 'category: —, kind: —',
+			after: 'category: meat, kind: ingredient'
+		});
+		expect(db.select().from(schema.inventoryOpsLog).all()).toHaveLength(beforeOps);
+		for (const id of ids) expect(itemById(db, id).category).toBeNull();
+	});
+
+	it('commits every reviewed row atomically after approval', async () => {
+		const db = createTestDb();
+		const ids = seedFreezer(db);
+		const { proposal } = await proposeBatch(
+			db,
+			ids.map((id) => ({ id, category: 'meat', kind: 'ingredient' }))
+		);
+
+		const result = await applyProposal(db, proposal.confirmation_id!);
+
+		expect(result).toMatchObject({ ok: true, updated_count: 4, failed_count: 0 });
+		expect(result.op_ids).toHaveLength(4);
 		for (const id of ids) {
-			const it = itemById(db, id);
-			expect(it.category).toBe('meat');
-			expect(it.kind).toBe('ingredient');
+			expect(itemById(db, id)).toMatchObject({ category: 'meat', kind: 'ingredient' });
 		}
 	});
 
-	it('reports partial success and leaves the good writes committed', async () => {
+	it('commits none when one reviewed target drifts', async () => {
 		const db = createTestDb();
 		const ids = seedFreezer(db);
-
-		const res = (await executeToolCall(
-			'bulk_update_inventory',
-			{
-				updates: [
-					{ id: ids[0], qty_num: 5 },
-					{ id: 999999, qty_num: 5 } // nonexistent -> fails
-				]
-			},
+		const { proposal } = await proposeBatch(
 			db,
-			1,
-			turnCtx()
-		)) as BulkResult;
+			ids.map((id) => ({ id, qty_num: 9 }))
+		);
+		updateInventory(db, ids[1], { qtyNum: 7 }, { actor: 'testuser', userId: 1 });
+		const beforeOps = db.select().from(schema.inventoryOpsLog).all().length;
 
-		expect(res.ok).toBe(false);
-		expect(res.updated_count).toBe(1);
-		expect(res.failed_count).toBe(1);
-		expect(itemById(db, ids[0]).qtyNum).toBe(5);
+		await expect(applyProposal(db, proposal.confirmation_id!)).rejects.toThrow(
+			'changed since the approval'
+		);
+		expect(itemById(db, ids[0]).qtyNum).toBe(1);
+		expect(itemById(db, ids[1]).qtyNum).toBe(7);
+		expect(db.select().from(schema.inventoryOpsLog).all()).toHaveLength(beforeOps);
 	});
 
-	it('each bulk change is individually undoable via undo_op', async () => {
+	it('undoes all batch operations in one transaction', async () => {
 		const db = createTestDb();
 		const ids = seedFreezer(db);
+		const { proposal } = await proposeBatch(
+			db,
+			ids.map((id) => ({ id, qty_num: 9 }))
+		);
+		const applied = await applyProposal(db, proposal.confirmation_id!);
 
-		const res = (await executeToolCall(
+		const undo = (await executeToolCall(
+			'undo_op',
+			{ op_ids: applied.op_ids },
+			db,
+			1
+		)) as { ok: boolean; opIds: number[] };
+
+		expect(undo.ok).toBe(true);
+		expect(undo.opIds).toHaveLength(4);
+		for (const id of ids) expect(itemById(db, id).qtyNum).toBe(1);
+	});
+
+	it('undoes none when one batch item changed after approval', async () => {
+		const db = createTestDb();
+		const ids = seedFreezer(db);
+		const { proposal } = await proposeBatch(
+			db,
+			ids.map((id) => ({ id, qty_num: 9 }))
+		);
+		const applied = await applyProposal(db, proposal.confirmation_id!);
+		updateInventory(db, ids[1], { qtyNum: 7 }, { actor: 'testuser', userId: 1 });
+		const beforeOps = db.select().from(schema.inventoryOpsLog).all().length;
+
+		await expect(
+			executeToolCall('undo_op', { op_ids: applied.op_ids }, db, 1)
+		).rejects.toThrow();
+		expect(itemById(db, ids[0]).qtyNum).toBe(9);
+		expect(itemById(db, ids[1]).qtyNum).toBe(7);
+		expect(db.select().from(schema.inventoryOpsLog).all()).toHaveLength(beforeOps);
+	});
+
+	it('refuses batches above the phone-reviewable cap', async () => {
+		const db = createTestDb();
+		const ids = seedFreezer(db, 11);
+		const context = turnCtx();
+		await executeToolCall('get_inventory', {}, db, 1, context);
+		const beforeOps = db.select().from(schema.inventoryOpsLog).all().length;
+
+		const result = await executeToolCall(
 			'bulk_update_inventory',
 			{ updates: ids.map((id) => ({ id, qty_num: 9 })) },
 			db,
 			1,
-			turnCtx()
-		)) as BulkResult;
-		expect(itemById(db, ids[0]).qtyNum).toBe(9);
+			context
+		);
 
-		const undo = (await executeToolCall('undo_op', { op_id: res.op_ids[0] }, db, 1, turnCtx())) as {
-			ok: boolean;
-		};
-		expect(undo.ok).toBe(true);
-		// First item reverted to its seeded qty; the others still show the bulk value.
-		expect(itemById(db, ids[0]).qtyNum).toBe(1);
-		expect(itemById(db, ids[1]).qtyNum).toBe(9);
+		expect(result).toMatchObject({ ok: false, contract_error: 'invalid_input' });
+		expect(db.select().from(schema.inventoryOpsLog).all()).toHaveLength(beforeOps);
 	});
 });

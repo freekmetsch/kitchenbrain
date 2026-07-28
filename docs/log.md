@@ -311,3 +311,27 @@ live-provider change shipped.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_DOMAIN_BOUNDARY_REFACTOR.md,
 docs/artifacts/archive/2026-07-27-plan-domain-boundary-refactor.html
+
+## 2026-07-28 | html-artifact | plan: Assistant write safety
+
+Reviewed the latest authenticated assistant history, recorded the six-row wrong-domain inventory
+incident without publishing household content, and created the four-phase recovery, write-safety,
+typed recipe-review, and rollout workspace.
+
+Touched: docs/artifacts/2026-07-28-plan-assistant-write-safety.html,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md
+
+## 2026-07-28 | verified | Assistant write safety before live gate
+
+Implemented snapshot-bound assistant writes, the per-turn contract latch, atomic reviewed inventory
+batches with grouped undo, stable-ID recipe roles, selected typed recipe patches, and bounded
+read-only AH evidence. The live SQLite online backup and exact clone recovery both passed; the
+production data apply remains paused at the required R3 checkpoint. Verification passed 553 unit
+tests, authenticated Chromium, focused 375/1280 recipe-review checks, zero Svelte diagnostics, and
+a production build.
+
+Touched: scripts/recover_assistant_incident.ts,
+src/lib/server/recovery/assistant_incident.ts,
+src/lib/server/ai/turn_safety.ts,
+src/lib/server/ai/recipe_patch.ts,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md

@@ -125,14 +125,14 @@ export const tools: Anthropic.Tool[] = [
 	{
 		name: 'bulk_update_inventory',
 		description:
-			'Update MANY inventory items in one call — use this instead of many update_inventory_item calls when reclassifying or fixing several items at once (e.g. cleaning up the whole freezer). Each entry needs an id plus the fields to change; every item is updated and undoable individually. Prefer this for any change touching 3+ items.',
+			'Propose one atomic update for 2-10 inventory items. The user reviews every row before anything is written; approval commits all rows or none and exposes Undo all.',
 		input_schema: {
 			type: 'object',
 			properties: {
 				updates: {
 					type: 'array',
-					minItems: 1,
-					maxItems: 100,
+					minItems: 2,
+					maxItems: 10,
 					description: 'One entry per item to change. Only the fields you set are updated.',
 					items: {
 						type: 'object',
@@ -273,6 +273,24 @@ export const tools: Anthropic.Tool[] = [
 		}
 	},
 	{
+		name: 'search_ah_products',
+		description:
+			'Read-only live Albert Heijn product search. Send 1-5 Dutch product queries. Returns at most 5 products per query with current package size and price evidence. Never adds anything to a basket or shopping list. If unavailable, say the AH package size could not be verified.',
+		input_schema: {
+			type: 'object',
+			properties: {
+				queries: {
+					type: 'array',
+					minItems: 1,
+					maxItems: 5,
+					items: { type: 'string' },
+					description: 'Dutch product names only, e.g. "kikkererwten blik" or "verse koriander"'
+				}
+			},
+			required: ['queries']
+		}
+	},
+	{
 		name: 'create_meal_recipe',
 		description:
 			'Combine 2+ existing recipes into a Meal Recipe (e.g. taco night = guacamole + salsa + taco meat). The meal becomes a normal recipe that can be planned, cooked, and shopped; the sub-recipes stay standalone and their edits keep propagating. Use slugs from search_recipes or get_recipe.',
@@ -375,45 +393,76 @@ export const tools: Anthropic.Tool[] = [
 		}
 	},
 	{
-		name: 'propose_recipe_enhancement',
+		name: 'propose_recipe_patch',
 		description:
-			'Prepare reviewable Dutch ingredient additions and alternatives for a saved recipe. This never edits the recipe; the user applies selected ideas in the review card.',
+			'Stage selected before/after recipe corrections for review. Never writes the recipe. Use add_ingredient, update_ingredient (amount/unit/preparation/role/optional), add_substitute, or recipe_field (servings/directions/notes). Ingredient names stay Dutch. Attach AH evidence only with evidence_key returned by search_ah_products in this turn.',
 		input_schema: {
 			type: 'object',
-			properties: { slug: { type: 'string' } },
-			required: ['slug']
+			properties: {
+				slug: { type: 'string' },
+				operations: {
+					type: 'array',
+					minItems: 1,
+					maxItems: 30,
+					items: {
+						type: 'object',
+						properties: {
+							kind: {
+								type: 'string',
+								enum: ['add_ingredient', 'update_ingredient', 'add_substitute', 'recipe_field']
+							},
+							ingredient_id: { type: 'string' },
+							field: { type: 'string', enum: ['servings', 'directions', 'notes'] },
+							after: {
+								description:
+									'For add_ingredient/add_substitute use the typed object; for recipe_field use the new scalar or directions array.'
+							},
+							changes: {
+								type: 'object',
+								description:
+									'For update_ingredient: changed amount, unit, preparation, role, and/or optional fields.'
+							},
+							reason: { type: 'string' },
+							evidence: {
+								type: 'object',
+								properties: { evidence_key: { type: 'string' } },
+								required: ['evidence_key']
+							}
+						},
+						required: ['kind', 'reason']
+					}
+				}
+			},
+			required: ['slug', 'operations']
 		}
 	},
 	{
 		name: 'edit_recipe',
 		description:
-			'Edit recipe servings, steps, notes, or cook-in/serve-fresh roles. Ingredient additions, removals, and alternatives require the recipe enhancement review tool.',
+			'Set cook-in/serve-fresh roles on existing recipe ingredients by stable ingredient ID. All other recipe content changes must use propose_recipe_patch for user review.',
 		input_schema: {
 			type: 'object',
 			properties: {
 				slug: { type: 'string' },
-				servings: { type: 'number' },
 				set_ingredient_roles: {
 					type: 'array',
 					description:
-						"Set the cook_in / serve_fresh role on existing ingredients. Reference each ingredient by its stored (Dutch) name. If a name matches more than one ingredient the recipe is flagged for review instead of guessing.",
+						'Set cook_in / serve_fresh on existing ingredients using IDs returned by get_recipe.',
 					items: {
 						type: 'object',
 						properties: {
-							name: { type: 'string', description: "Ingredient name as stored on the recipe (Dutch)" },
+							ingredient_id: { type: 'string', description: 'Stable ingredient id from get_recipe' },
 							role: {
 								type: 'string',
 								enum: ['cook_in', 'serve_fresh'],
 								description: 'cook_in = ends up in the frozen leftover; serve_fresh = bought fresh the week it is eaten'
 							}
 						},
-						required: ['name', 'role']
+						required: ['ingredient_id', 'role']
 					}
-				},
-				directions: { type: 'array', items: { type: 'string' } },
-				notes: { type: 'string' }
+				}
 			},
-			required: ['slug']
+			required: ['slug', 'set_ingredient_roles']
 		}
 	},
 	{
@@ -534,11 +583,18 @@ export const tools: Anthropic.Tool[] = [
 	{
 		name: 'undo_op',
 		description:
-			'Undo a specific past inventory change by its op_id (from get_inventory_history), applying a compensating op. Refuses with a conflict if the item drifted since — it flags the item for review instead of overwriting. Alternatively pass item_id to undo the latest removal of that item.',
+			'Undo one past inventory change by op_id, or an atomic confirmed batch by all of its op_ids. Refuses the whole operation if any item changed since. Use item_id only for the legacy latest-remove undo.',
 		input_schema: {
 			type: 'object',
 			properties: {
 				op_id: { type: 'number', description: 'History op id to undo (preferred)' },
+				op_ids: {
+					type: 'array',
+					minItems: 2,
+					maxItems: 10,
+					items: { type: 'number' },
+					description: 'Exact operation ids from one confirmed batch; undone all-or-nothing'
+				},
 				item_id: { type: 'number', description: 'Undo the latest removal of this item, if op_id unknown' }
 			},
 			required: []

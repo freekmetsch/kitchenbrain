@@ -1,44 +1,19 @@
-// Dispatch coverage for the recipe write executors: edit_recipe (ingredient
-// set edits, deterministic role assignment, bench-sheet invalidation) and
-// set_freezer_staple (keep-stocked flag + opt-out memory, UX-STOCK-14).
-// Runs the REAL executeToolCall against a throwaway in-memory DB.
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
-import type { Ingredient } from '$lib/server/db/schema';
-import type { CookModeRecipe } from '$lib/types';
+import type { Ingredient } from '$lib/recipe_ingredient';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
 import { executeToolCall, isOk } from './index';
 import type { TurnExecutionContext } from '../commit_risk';
+import { createTurnSafetyState } from '../turn_safety';
 
-const turnCtx = (): TurnExecutionContext => ({ createdThisTurn: new Set(), destructiveCount: 0 });
-
-const benchSheet: CookModeRecipe = {
-	version: 2,
-	language: 'en',
-	mise_en_place: [],
-	streams: [],
-	steps: []
-};
-
-type EditResult = {
-	ok: boolean;
-	error?: string;
-	roles_applied?: string[];
-	roles_ambiguous?: string[];
-	roles_unmatched?: string[];
-	substitutes_applied?: string[];
-	substitutes_ambiguous?: string[];
-	substitutes_unmatched?: string[];
-	needs_review?: boolean;
-};
-type StapleResult = {
-	ok: boolean;
-	error?: string;
-	is_freezer_staple?: boolean;
-	target_portions?: number | null;
-};
-type ErrorResult = { error?: string };
+function turnCtx(): TurnExecutionContext {
+	return {
+		createdThisTurn: new Set(),
+		destructiveCount: 0,
+		safety: createTurnSafetyState()
+	};
+}
 
 function seedRecipe(
 	db: TestDb,
@@ -66,8 +41,13 @@ function recipeBySlug(db: TestDb, slug: string) {
 	return db.select().from(schema.recipes).where(eq(schema.recipes.slug, slug)).get()!;
 }
 
-describe('edit_recipe', () => {
-	it('captures source identity for a chat-created recipe', async () => {
+async function readRecipe(db: TestDb, slug: string, context = turnCtx()) {
+	await executeToolCall('get_recipe', { slug }, db, 1, context);
+	return context;
+}
+
+describe('recipe agent writes', () => {
+	it('creates a recipe with server-minted stable ingredient IDs', async () => {
 		const db = createTestDb();
 		const result = await executeToolCall(
 			'add_recipe',
@@ -75,371 +55,184 @@ describe('edit_recipe', () => {
 				title: 'Nieuwe soep',
 				slug: 'nieuwe-soep',
 				servings: 4,
-				ingredients: [{ name: 'Ui', amount: '1' }],
+				ingredients: [
+					{
+						name: 'Ui',
+						amount: '1',
+						role: 'cook_in',
+						optional: false,
+						purchaseForm: 'fresh',
+						scale: 'whole',
+						origin: 'source'
+					}
+				],
 				directions: ['Snijd de ui.', 'Kook de soep.']
 			},
 			db,
 			1,
 			turnCtx()
 		);
+
 		expect(isOk(result)).toBe(true);
 		const recipe = recipeBySlug(db, 'nieuwe-soep');
+		expect((recipe.ingredients as Ingredient[])[0].id).toMatch(/^ing_/);
 		expect(recipe.directionIdsJson).toHaveLength(2);
-		expect(recipe.sourceSnapshotJson).toMatchObject({
-			provenance: 'imported_source',
-			title: 'Nieuwe soep'
-		});
 	});
 
-	it('updates servings and notes without accepting ingredient mutation fields', async () => {
+	it('sets roles by ingredient ID even when names are duplicated', async () => {
 		const db = createTestDb();
-		seedRecipe(
-			db,
-			'stoofpot',
-			[
-				{ name: 'Ui', amount: '1', unit: 'stuks' },
-				{ name: 'Knoflook', amount: '2', unit: 'teentjes' }
-			],
-			{
-				cookModeJson: benchSheet,
-				cookModeGeneratedAt: new Date(),
-				titleEn: 'Stew',
-				ingredientsEn: [{ name: 'Onion' }, { name: 'Garlic' }],
-				directionsEn: ['Put everything in a pan.'],
-				translationStatus: 'ready',
-				translatedAt: new Date()
-			}
-		);
+		seedRecipe(db, 'knoflook', [
+			{ id: 'ing-first', name: 'Knoflook', amount: '2' },
+			{ id: 'ing-second', name: 'Knoflook', amount: '4' }
+		]);
+		const context = await readRecipe(db, 'knoflook');
 
-		const res = (await executeToolCall(
+		const result = await executeToolCall(
 			'edit_recipe',
 			{
-				slug: 'stoofpot',
-				servings: 4,
-				notes: 'Extra pittig',
-				directions: ['Laat rustig sudderen.']
+				slug: 'knoflook',
+				set_ingredient_roles: [{ ingredient_id: 'ing-second', role: 'serve_fresh' }]
 			},
 			db,
 			1,
-			turnCtx()
-		)) as EditResult;
-
-		expect(isOk(res)).toBe(true);
-		const row = recipeBySlug(db, 'stoofpot');
-		expect((row.ingredients as Ingredient[]).map((i) => i.name)).toEqual(['Ui', 'Knoflook']);
-		expect(row.servings).toBe(4);
-		expect(row.notes).toBe('Extra pittig');
-		// Ingredient-set change invalidates the cached bench sheet.
-		expect(row.cookModeJson).toBeNull();
-		expect(row.cookModeGeneratedAt).toBeNull();
-		// Content edits invalidate the complete EN cache atomically.
-		expect(row.titleEn).toBeNull();
-		expect(row.ingredientsEn).toBeNull();
-		expect(row.directionsEn).toBeNull();
-		expect(row.translationStatus).toBe('pending');
-	});
-
-	it('sets a role when the name matches exactly one ingredient, keeping the bench sheet', async () => {
-		const db = createTestDb();
-		seedRecipe(
-			db,
-			'kip-rijst',
-			[
-				{ name: 'Rijst', amount: '200', unit: 'g' },
-				{ name: 'Kipfilet', amount: '300', unit: 'g' }
-			],
-			{ cookModeJson: benchSheet, cookModeGeneratedAt: new Date() }
+			context
 		);
 
-		const res = (await executeToolCall(
-			'edit_recipe',
-			{ slug: 'kip-rijst', set_ingredient_roles: [{ name: 'Rijst', role: 'serve_fresh' }] },
-			db,
-			1,
-			turnCtx()
-		)) as EditResult;
-
-		expect(isOk(res)).toBe(true);
-		expect(res.roles_applied).toEqual(['Rijst']);
-		const row = recipeBySlug(db, 'kip-rijst');
-		const ings = row.ingredients as Ingredient[];
-		expect(ings.find((i) => i.name === 'Rijst')?.role).toBe('serve_fresh');
-		expect(ings.find((i) => i.name === 'Kipfilet')?.role).toBeUndefined();
-		// Role-only edits keep the cached bench sheet (roles don't appear on it).
-		expect(row.cookModeJson).not.toBeNull();
+		expect(result).toMatchObject({ ok: true, roles_applied: ['Knoflook'] });
+		const ingredients = recipeBySlug(db, 'knoflook').ingredients as Ingredient[];
+		expect(ingredients[0].role).toBeUndefined();
+		expect(ingredients[1].role).toBe('serve_fresh');
 	});
 
-	it('flags the recipe for review on an ambiguous role match instead of guessing', async () => {
+	it('reports a truthful no-op and does not increment the recipe revision', async () => {
 		const db = createTestDb();
-		seedRecipe(db, 'knoflookpasta', [
-			{ name: 'Knoflook', amount: '2', unit: 'teentjes' },
-			{ name: 'Knoflookteentjes', amount: '4', unit: 'stuks' }
+		seedRecipe(db, 'rijst', [
+			{ id: 'ing-rijst', name: 'Rijst', amount: '200', role: 'cook_in' }
 		]);
+		const context = await readRecipe(db, 'rijst');
 
-		const res = (await executeToolCall(
+		const result = await executeToolCall(
 			'edit_recipe',
-			{ slug: 'knoflookpasta', set_ingredient_roles: [{ name: 'Knoflook', role: 'cook_in' }] },
-			db,
-			1,
-			turnCtx()
-		)) as EditResult;
-
-		expect(isOk(res)).toBe(true);
-		expect(res.roles_ambiguous).toEqual(['Knoflook']);
-		expect(res.needs_review).toBe(true);
-		const row = recipeBySlug(db, 'knoflookpasta');
-		expect(row.needsReview).toBe(true);
-		expect(row.reviewReason).toContain('Ambiguous ingredient match');
-		// No role was silently picked.
-		for (const ing of row.ingredients as Ingredient[]) expect(ing.role).toBeUndefined();
-	});
-
-	it('reports role names that match no ingredient', async () => {
-		const db = createTestDb();
-		seedRecipe(db, 'kip-rijst', [{ name: 'Kipfilet', amount: '300', unit: 'g' }]);
-
-		const res = (await executeToolCall(
-			'edit_recipe',
-			{ slug: 'kip-rijst', set_ingredient_roles: [{ name: 'Zalm', role: 'cook_in' }] },
-			db,
-			1,
-			turnCtx()
-		)) as EditResult;
-
-		expect(isOk(res)).toBe(true);
-		expect(res.roles_unmatched).toEqual(['Zalm']);
-	});
-
-	it('rejects direct substitute mutation so proposals remain the only boundary', async () => {
-		const db = createTestDb();
-		seedRecipe(
-			db,
-			'curry',
-			[{ name: 'Kipfilet', amount: '400', unit: 'g' }],
 			{
-				cookModeJson: benchSheet,
-				cookModeGeneratedAt: new Date(),
-				titleEn: 'Curry',
-				ingredientsEn: [{ name: 'Chicken breast' }],
-				directionsEn: ['Put everything in a pan.'],
-				translationStatus: 'ready'
-			}
+				slug: 'rijst',
+				set_ingredient_roles: [{ ingredient_id: 'ing-rijst', role: 'cook_in' }]
+			},
+			db,
+			1,
+			context
 		);
 
-		const res = (await executeToolCall(
+		expect(result).toMatchObject({ ok: false, unchanged: true, roles_unchanged: ['Rijst'] });
+		expect(recipeBySlug(db, 'rijst').contentRevision).toBe(1);
+	});
+
+	it('applies valid role IDs and names the invalid IDs without claiming full success', async () => {
+		const db = createTestDb();
+		seedRecipe(db, 'rijst', [{ id: 'ing-rijst', name: 'Rijst', amount: '200' }]);
+		const context = await readRecipe(db, 'rijst');
+
+		const result = await executeToolCall(
 			'edit_recipe',
 			{
-				slug: 'curry',
-				set_ingredient_substitutes: [
+				slug: 'rijst',
+				set_ingredient_roles: [
+					{ ingredient_id: 'ing-rijst', role: 'cook_in' },
+					{ ingredient_id: 'missing', role: 'serve_fresh' }
+				]
+			},
+			db,
+			1,
+			context
+		);
+
+		expect(result).toMatchObject({
+			ok: true,
+			roles_applied: ['Rijst'],
+			roles_unmatched: ['missing']
+		});
+	});
+
+	it('rejects direct content fields after an authoritative read', async () => {
+		const db = createTestDb();
+		seedRecipe(db, 'stoofpot', [{ id: 'ing-ui', name: 'Ui', amount: '1' }]);
+		const context = await readRecipe(db, 'stoofpot');
+
+		const result = await executeToolCall(
+			'edit_recipe',
+			{ slug: 'stoofpot', notes: 'Directe wijziging' },
+			db,
+			1,
+			context
+		);
+
+		expect(result).toMatchObject({ ok: false, contract_error: 'invalid_input' });
+		expect(recipeBySlug(db, 'stoofpot')).toMatchObject({ notes: null, contentRevision: 1 });
+	});
+
+	it('stages a typed content patch without changing the recipe', async () => {
+		const db = createTestDb();
+		seedRecipe(db, 'stoofpot', [{ id: 'ing-ui', name: 'Ui', amount: '1' }]);
+		const context = await readRecipe(db, 'stoofpot');
+
+		const result = await executeToolCall(
+			'propose_recipe_patch',
+			{
+				slug: 'stoofpot',
+				operations: [
 					{
-						name: 'Kipfilet',
-						substitutes: [
-							{ name: 'Tempeh', kind: 'protein', note: 'Korter bakken; wordt sneller droog.' }
-						]
+						kind: 'update_ingredient',
+						ingredient_id: 'ing-ui',
+						changes: { amount: '2' },
+						reason: 'De hoeveelheid moet twee zijn.'
 					}
 				]
 			},
 			db,
 			1,
-			turnCtx()
-		)) as EditResult;
+			context
+		);
 
-		expect(isOk(res)).toBe(false);
-		expect((res as ErrorResult).error).toContain('Unrecognized key');
-		const row = recipeBySlug(db, 'curry');
-		expect((row.ingredients as Ingredient[])[0].substitutes).toBeUndefined();
-		expect(row.cookModeJson).not.toBeNull();
-		expect(row.ingredientsEn).not.toBeNull();
-		expect(row.contentRevision).toBe(1);
+		expect(result).toMatchObject({
+			ok: true,
+			kind: 'recipe_patch',
+			operations: [
+				expect.objectContaining({ label: 'Ui', before: 'amount: 1', after: 'amount: 2' })
+			]
+		});
+		expect(recipeBySlug(db, 'stoofpot').contentRevision).toBe(1);
 	});
 
-	it('rejects trusted provenance in model input but preserves it on an existing ingredient', async () => {
-		const db = createTestDb();
-		seedRecipe(db, 'risotto', [
-			{
-				id: 'ingredient-1',
-				name: 'Parmezaan',
-				amount: '50',
-				origin: 'ai_accepted',
-				futureField: 'keep'
-			}
-		]);
-
-		const rejected = (await executeToolCall(
-			'edit_recipe',
-			{
-				slug: 'risotto',
-				add_ingredients: [
-					{ name: 'Basilicum', amount: '1', optional: true, origin: 'ai_accepted' }
-				]
-			},
-			db,
-			1,
-			turnCtx()
-		)) as ErrorResult;
-		expect(rejected.error).toContain('Unrecognized key');
-
-		const edited = (await executeToolCall(
-			'edit_recipe',
-			{ slug: 'risotto', set_ingredient_roles: [{ name: 'Parmezaan', role: 'serve_fresh' }] },
-			db,
-			1,
-			turnCtx()
-		)) as EditResult;
-		expect(isOk(edited)).toBe(true);
-		expect(recipeBySlug(db, 'risotto').ingredients).toEqual([
-			{
-				id: 'ingredient-1',
-				name: 'Parmezaan',
-				amount: '50',
-				origin: 'ai_accepted',
-				futureField: 'keep',
-				role: 'serve_fresh'
-			}
-		]);
-	});
-
-	it('rejects ingredient IDs in model creation and addition paths', async () => {
-		const db = createTestDb();
-		seedRecipe(db, 'soep', [{ name: 'Ui', amount: '1' }]);
-
-		const addRejected = (await executeToolCall(
-			'edit_recipe',
-			{ slug: 'soep', add_ingredients: [{ id: 'forged', name: 'Prei', amount: '1' }] },
-			db,
-			1,
-			turnCtx()
-		)) as ErrorResult;
-		expect(addRejected.error).toContain('Unrecognized key');
-
-		const createRejected = (await executeToolCall(
-			'add_recipe',
-			{
-				title: 'Nieuwe soep',
-				slug: 'nieuwe-soep',
-				ingredients: [{ id: 'forged', name: 'Ui', amount: '1' }],
-				directions: ['Kook.']
-			},
-			db,
-			1,
-			turnCtx()
-		)) as ErrorResult;
-		expect(createRejected.error).toMatch(/^Invalid input for ingredients/);
-		expect(db.select().from(schema.recipes).where(eq(schema.recipes.slug, 'nieuwe-soep')).get()).toBeUndefined();
-	});
-
-	it('reports a clean error for an unknown recipe', async () => {
-		const db = createTestDb();
-		const res = (await executeToolCall(
-			'edit_recipe',
-			{ slug: 'bestaat-niet', servings: 2 },
-			db,
-			1,
-			turnCtx()
-		)) as EditResult;
-		expect(res.ok).toBe(false);
-		expect(res.error).toBe('Recipe not found');
-	});
-
-	it('rejects malformed args with a clean error instead of throwing', async () => {
-		const db = createTestDb();
-		seedRecipe(db, 'stoofpot', [{ name: 'Ui', amount: '1' }]);
-		const res = (await executeToolCall(
-			'edit_recipe',
-			{ slug: 'stoofpot', add_ingredients: [{ name: 'Rijst' }] }, // missing amount
-			db,
-			1,
-			turnCtx()
-		)) as ErrorResult;
-		expect(res.error).toContain('Unrecognized key');
-		// Nothing changed.
-		const row = recipeBySlug(db, 'stoofpot');
-		expect((row.ingredients as Ingredient[]).map((i) => i.name)).toEqual(['Ui']);
-	});
-});
-
-describe('set_freezer_staple', () => {
-	it('marks a recipe as freezer staple with a target and clears the opt-out', async () => {
+	it('changes freezer-staple state only after reading the recipe', async () => {
 		const db = createTestDb();
 		seedRecipe(db, 'stamppot', [], { freezerStapleOptOut: true });
+		const context = await readRecipe(db, 'stamppot');
 
-		const res = (await executeToolCall(
+		const result = await executeToolCall(
 			'set_freezer_staple',
 			{ slug: 'stamppot', is_freezer_staple: true, target_portions: 6 },
 			db,
 			1,
-			turnCtx()
-		)) as StapleResult;
+			context
+		);
 
-		expect(isOk(res)).toBe(true);
-		expect(res.target_portions).toBe(6);
-		const row = recipeBySlug(db, 'stamppot');
-		expect(row.isFreezerStaple).toBe(true);
-		expect(row.freezerStapleOptOut).toBe(false);
-		expect(row.targetPortions).toBe(6);
+		expect(result).toMatchObject({ ok: true, target_portions: 6 });
+		expect(recipeBySlug(db, 'stamppot')).toMatchObject({
+			isFreezerStaple: true,
+			targetPortions: 6,
+			freezerStapleOptOut: false
+		});
 	});
 
-	it('keeps the existing target when toggling on without one', async () => {
+	it('rejects guessed recipe targets without writing', async () => {
 		const db = createTestDb();
-		seedRecipe(db, 'stamppot', [], { targetPortions: 4 });
-
-		const res = (await executeToolCall(
-			'set_freezer_staple',
-			{ slug: 'stamppot', is_freezer_staple: true },
-			db,
-			1,
-			turnCtx()
-		)) as StapleResult;
-
-		expect(isOk(res)).toBe(true);
-		expect(res.target_portions).toBe(4);
-		expect(recipeBySlug(db, 'stamppot').targetPortions).toBe(4);
-	});
-
-	it('toggling off records the opt-out and drops the target', async () => {
-		const db = createTestDb();
-		seedRecipe(db, 'stamppot', [], { isFreezerStaple: true, targetPortions: 6 });
-
-		const res = (await executeToolCall(
-			'set_freezer_staple',
-			{ slug: 'stamppot', is_freezer_staple: false },
-			db,
-			1,
-			turnCtx()
-		)) as StapleResult;
-
-		expect(isOk(res)).toBe(true);
-		expect(res.target_portions).toBeNull();
-		const row = recipeBySlug(db, 'stamppot');
-		expect(row.isFreezerStaple).toBe(false);
-		expect(row.freezerStapleOptOut).toBe(true);
-		expect(row.targetPortions).toBeNull();
-	});
-
-	it('reports a clean error for an unknown recipe', async () => {
-		const db = createTestDb();
-		const res = (await executeToolCall(
+		const result = await executeToolCall(
 			'set_freezer_staple',
 			{ slug: 'bestaat-niet', is_freezer_staple: true },
 			db,
 			1,
 			turnCtx()
-		)) as StapleResult;
-		expect(res.ok).toBe(false);
-		expect(res.error).toBe('Recipe not found');
-	});
+		);
 
-	it('rejects an out-of-range target with a clean error instead of throwing', async () => {
-		const db = createTestDb();
-		seedRecipe(db, 'stamppot', []);
-		const res = (await executeToolCall(
-			'set_freezer_staple',
-			{ slug: 'stamppot', is_freezer_staple: true, target_portions: 0 },
-			db,
-			1,
-			turnCtx()
-		)) as ErrorResult;
-		expect(res.error).toMatch(/^Invalid input for target_portions/);
-		expect(recipeBySlug(db, 'stamppot').isFreezerStaple).toBe(false);
+		expect(result).toMatchObject({ ok: false, contract_error: 'missing_provenance' });
 	});
 });

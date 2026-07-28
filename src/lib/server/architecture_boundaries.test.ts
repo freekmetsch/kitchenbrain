@@ -325,8 +325,7 @@ describe('server architecture boundaries', () => {
 			'addProductItems',
 			'addProductsToOrder',
 			'getActiveOrder',
-			'getProductsByIds',
-			'searchProducts'
+			'getProductsByIds'
 		]);
 		const importers = [...productionSourceFiles(serverRoot), ...productionSourceFiles(routesRoot)]
 			.filter((file) =>
@@ -339,5 +338,23 @@ describe('server architecture boundaries', () => {
 			.map(toRepoPath);
 
 		expect(importers).toEqual(['lib/server/workflows/push-shopping-to-ah.ts']);
+	});
+
+	it('allows AH product search only through the basket workflow and read-only agent executor', () => {
+		const importers = [...productionSourceFiles(serverRoot), ...productionSourceFiles(routesRoot)]
+			.filter((file) =>
+				staticImports(file).some(
+					(entry) =>
+						entry.module === '$lib/server/ah/client' &&
+						entry.importedNames.includes('searchProducts')
+				)
+			)
+			.map(toRepoPath)
+			.sort();
+
+		expect(importers).toEqual([
+			'lib/server/ai/executors/ah.ts',
+			'lib/server/workflows/push-shopping-to-ah.ts'
+		]);
 	});
 });

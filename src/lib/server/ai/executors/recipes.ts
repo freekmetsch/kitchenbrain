@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import type { Ingredient } from '$lib/recipe_ingredient';
-import { namesMatch } from '$lib/match';
 import { foodCategoryMatches } from '$lib/food_categories';
 import {
 	scrapeRecipeFromUrl,
@@ -21,19 +20,22 @@ import {
 	listRecipes,
 	MealCompositionError,
 	reviewFields,
-	subRecipesOf,
 	updateCanonicalRecipe,
-	type CanonicalRecipeUpdate
 } from '$lib/server/domains/recipes';
 import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
 import type { DB, ExecutorFn } from './shared';
 import { NewIngredientSchema } from '$lib/recipe_ingredient';
 import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
-import { generateRecipeEnhancement } from '$lib/server/workflows/recipe-enhancement';
 import {
 	kickCookModeForDb,
 	kickTranslationForDb
 } from '$lib/server/workflows/recipe-background';
+import {
+	RecipePatchContractError,
+	stageRecipePatch
+} from '$lib/server/ai/recipe_patch';
+import { PreconditionConflictError } from '$lib/server/domains/inventory/commands';
+import { ContractError } from '$lib/server/ai/turn_safety';
 
 // Pre-generate a bench sheet after a chat-side recipe write, so the recipe is
 // ready by the time it's opened. generateCookMode reads the module-level app
@@ -49,10 +51,30 @@ function kickTranslateIfAppDb(db: DB, slug: string) {
 }
 
 export const recipeExecutors: Record<string, ExecutorFn> = {
-	async propose_recipe_enhancement(raw, db, userId) {
-		const input = z.object({ slug: z.string() }).parse(raw);
-		const proposal = await generateRecipeEnhancement(db, { recipeSlug: input.slug, userId });
-		return { ok: true, kind: 'recipe_enhancement', ...proposal };
+	async propose_recipe_patch(raw, db, userId, _precondition, turnSafety) {
+		const input = z
+			.object({
+				slug: z.string(),
+				operations: z.array(z.unknown()).min(1).max(30)
+			})
+			.strict()
+			.parse(raw);
+		const recipe = getRecipeBySlug(db, input.slug);
+		if (!recipe) return { ok: false, error: 'Recipe not found' };
+		let proposal;
+		try {
+			proposal = stageRecipePatch(recipe, {
+				userId,
+				operations: input.operations,
+				evidence: (key) => turnSafety?.ahEvidence.get(key)
+			});
+		} catch (error) {
+			if (error instanceof RecipePatchContractError) {
+				throw new ContractError(error.code, error.message);
+			}
+			throw error;
+		}
+		return { ok: true, kind: 'recipe_patch', ...proposal };
 	},
 	async get_recipe(raw, db) {
 		const input = z
@@ -194,116 +216,89 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 		};
 	},
 
-	async edit_recipe(raw, db) {
+	async edit_recipe(raw, db, _userId, _precondition, turnSafety) {
 		const input = z
 			.object({
 				slug: z.string(),
-				servings: z.number().optional(),
 				set_ingredient_roles: z
-					.array(z.object({ name: z.string(), role: z.enum(['cook_in', 'serve_fresh']) }))
-					.optional(),
-				directions: z.array(z.string()).optional(),
-				notes: z.string().optional()
+					.array(
+						z.object({
+							ingredient_id: z.string().trim().min(1),
+							role: z.enum(['cook_in', 'serve_fresh'])
+						})
+					)
+					.min(1)
+					.max(50)
 			})
 			.strict()
 			.parse(raw);
 
 		const recipe = getRecipeBySlug(db, input.slug);
 		if (!recipe) return { ok: false, error: 'Recipe not found' };
+		const observedRevision =
+			turnSafety?.recipesBySlug.get(input.slug)?.revision ?? recipe.contentRevision;
+		if (recipe.contentRevision !== observedRevision) {
+			throw new PreconditionConflictError('Recipe changed after it was read.');
+		}
 
 		const ingredients = [...(recipe.ingredients as Ingredient[])];
 
-		// Deterministic role assignment: a name that matches exactly one ingredient sets
-		// its role; a name that matches several is ambiguous → flag the recipe for review
-		// instead of silently picking one (per the Codex critique). Unmatched names are
-		// reported so the agent can relay rather than assume success.
+		// Role writes target migration-backed stable IDs. Names are display data
+		// and can be duplicated, translated, or edited without changing identity.
 		const rolesApplied: string[] = [];
-		const rolesAmbiguous: string[] = [];
 		const rolesUnmatched: string[] = [];
-		if (input.set_ingredient_roles?.length) {
-			for (const { name, role } of input.set_ingredient_roles) {
-				const matchIdxs = ingredients
-					.map((ing, i) => (namesMatch(name, ing.name) ? i : -1))
-					.filter((i) => i >= 0);
-				if (matchIdxs.length === 1) {
-					ingredients[matchIdxs[0]] = { ...ingredients[matchIdxs[0]], role };
-					rolesApplied.push(name);
-				} else if (matchIdxs.length > 1) {
-					rolesAmbiguous.push(name);
-				} else {
-					rolesUnmatched.push(name);
-				}
+		const rolesUnchanged: string[] = [];
+		for (const { ingredient_id, role } of input.set_ingredient_roles) {
+			const index = ingredients.findIndex((ingredient) => ingredient.id === ingredient_id);
+			if (index < 0) {
+				rolesUnmatched.push(ingredient_id);
+				continue;
 			}
+			const ingredient = ingredients[index];
+			if (ingredient.role === role) {
+				rolesUnchanged.push(ingredient.name);
+				continue;
+			}
+			ingredients[index] = { ...ingredient, role };
+			rolesApplied.push(ingredient.name);
 		}
 
-		const updates: CanonicalRecipeUpdate = {
-			ingredients,
-			structureVersion: ingredientStructureVersion(ingredients)
-		};
-		if (input.servings !== undefined) updates.servings = input.servings;
-		if (input.directions !== undefined) updates.directions = input.directions;
-		if (input.notes !== undefined) updates.notes = input.notes;
-		// Only flag on ambiguity — a normal edit must never clear an existing review flag.
-		const ambiguousNames = [...new Set(rolesAmbiguous)];
-		if (ambiguousNames.length) {
-			Object.assign(
-				updates,
-				reviewFields(`Ambiguous ingredient match — edit manually: ${ambiguousNames.join(', ')}`)
-			);
-		}
-		// Direction or ingredient-set changes make the cached bench sheet lie —
-		// clear it and pre-generate a fresh one. Role-only edits keep the cache
-		// (roles don't appear on the sheet; no need to spend a rewrite).
-		const sheetStale = input.directions !== undefined;
-		if (sheetStale) {
-			updates.cookModeJson = null;
-			updates.cookModeGeneratedAt = null;
-		}
-		// English fields are one cache over the complete canonical recipe. Any
-		// content edit (including substitutes) invalidates the whole cache; keeping
-		// a few old EN arrays beside new Dutch fields is how mixed-language recipes
-		// escaped the previous agent edit path. Role-only edits are metadata and do
-		// not affect translation.
-		const translationStale =
-			input.directions !== undefined ||
-			input.notes !== undefined;
-		if (translationStale) {
-			updates.titleEn = null;
-			updates.categoryEn = null;
-			updates.cuisineEn = null;
-			updates.notesEn = null;
-			updates.ingredientsEn = null;
-			updates.directionsEn = null;
-			updates.translationStatus = recipe.language === 'en' ? 'ready' : 'pending';
-			updates.translatedAt = null;
+		if (rolesApplied.length === 0) {
+			return {
+				ok: false,
+				unchanged: true,
+				error:
+					rolesUnmatched.length > 0
+						? 'No ingredient role changed because none of the supplied IDs belong to this recipe.'
+						: 'No ingredient role changed; the selected roles were already set.',
+				...(rolesUnmatched.length ? { roles_unmatched: rolesUnmatched } : {}),
+				...(rolesUnchanged.length ? { roles_unchanged: rolesUnchanged } : {})
+			};
 		}
 
 		const updated = db.transaction((tx) => {
 			const changed = updateCanonicalRecipe(tx, {
 				recipeId: recipe.id,
-				expectedRevision: recipe.contentRevision,
-				changes: updates
+				expectedRevision: observedRevision,
+				changes: {
+					ingredients,
+					structureVersion: ingredientStructureVersion(ingredients)
+				}
 			});
-			if (changed && ('ingredients' in updates || 'servings' in updates)) {
-				reconcileShoppingAfterWrite(tx);
-			}
+			if (changed) reconcileShoppingAfterWrite(tx);
 			return changed;
 		});
-		if (!updated) return { ok: false, error: 'Recipe changed during the edit' };
-		if (sheetStale && subRecipesOf(db, recipe.id).length > 0) {
-			kickCookModeIfAppDb(db, input.slug);
-		}
+		if (!updated) throw new PreconditionConflictError('Recipe changed during the edit.');
 		return {
 			ok: true,
 			slug: input.slug,
 			...(rolesApplied.length ? { roles_applied: rolesApplied } : {}),
-			...(rolesAmbiguous.length ? { roles_ambiguous: rolesAmbiguous } : {}),
 			...(rolesUnmatched.length ? { roles_unmatched: rolesUnmatched } : {}),
-			...(ambiguousNames.length ? { needs_review: true } : {})
+			...(rolesUnchanged.length ? { roles_unchanged: rolesUnchanged } : {})
 		};
 	},
 
-	async set_freezer_staple(raw, db) {
+	async set_freezer_staple(raw, db, _userId, _precondition, turnSafety) {
 		const input = z
 			.object({
 				slug: z.string(),
@@ -313,10 +308,23 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			.parse(raw);
 		const recipe = getRecipeBySlug(db, input.slug);
 		if (!recipe) return { ok: false, error: 'Recipe not found' };
+		const observedRevision =
+			turnSafety?.recipesBySlug.get(input.slug)?.revision ?? recipe.contentRevision;
 
 		// Through the keep-stocked seam: off records the opt-out so the next
 		// freeze doesn't silently re-staple; on clears it (UX-STOCK-14).
-		setFreezerStaple(db, recipe.id, input.is_freezer_staple, input.target_portions);
+		db.transaction((tx) => {
+			const current = getRecipeBySlug(tx, input.slug);
+			if (!current || current.contentRevision !== observedRevision) {
+				throw new PreconditionConflictError('Recipe changed after it was read.');
+			}
+			setFreezerStaple(
+				tx,
+				recipe.id,
+				input.is_freezer_staple,
+				input.target_portions
+			);
+		});
 		return {
 			ok: true,
 			slug: input.slug,

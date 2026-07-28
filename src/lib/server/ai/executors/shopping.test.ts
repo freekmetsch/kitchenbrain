@@ -10,9 +10,9 @@ import { addInventory } from '$lib/server/workflows/inventory';
 import { updateShoppingEntry } from '$lib/server/domains/shopping';
 import { todayIso, weekStartFor } from '$lib/week';
 import { executeToolCall } from './index';
-import type { TurnExecutionContext } from '../commit_risk';
 
-const turnCtx = (): TurnExecutionContext => ({ createdThisTurn: new Set(), destructiveCount: 0 });
+// These are shopping derivation tests; chat-turn provenance is covered separately.
+const turnCtx = () => undefined;
 
 const WEEK = weekStartFor(todayIso(), 2);
 
@@ -51,8 +51,7 @@ async function planMeal(db: TestDb, dinner: string, recipeSlug?: string) {
 		'plan_meal',
 		{ week_start_date: WEEK, dinner, recipe_slug: recipeSlug },
 		db,
-		1,
-		turnCtx()
+		1
 	);
 }
 

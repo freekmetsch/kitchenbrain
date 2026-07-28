@@ -5,6 +5,7 @@ import { inventoryForAi, listInventory } from '$lib/server/domains/inventory/que
 import { recipeIdForSlug } from '$lib/server/domains/inventory/freezer';
 import { dateInputValue, parseDateOnly } from '$lib/inventory_dates';
 import { isoDateSchema } from '$lib/date_schema';
+import type { WritePrecondition } from '$lib/server/domains/inventory/commands';
 import type { DB, ExecutorFn } from './shared';
 
 // One source of truth for the updatable-item fields, shared by update_inventory_item
@@ -28,27 +29,38 @@ const singleUpdateSchema = z.object({
 });
 type SingleUpdateInput = z.infer<typeof singleUpdateSchema>;
 
+function inventoryUpdateInput(input: SingleUpdateInput) {
+	return {
+		qtyText: input.qty_text,
+		qtyNum: input.qty_num,
+		unit: input.unit,
+		section: input.section,
+		expiryDate: input.expiry_date,
+		createdAt:
+			input.created_at !== undefined ? (parseDateOnly(input.created_at) ?? undefined) : undefined,
+		category: input.category,
+		kind: input.kind,
+		foodClass: input.food_class,
+		madeFromRecipeId: input.made_from_recipe_id,
+		recipeStatus: input.recipe_status,
+		isStaple: input.is_staple
+	};
+}
+
 // One item's update + post-state verification, shared so a bulk reclassify runs
 // the exact same write path (and per-item undo op) as a single edit. Returns a
 // self-contained result row so bulk can report partial success.
-function applyInventoryUpdate(db: DB, userId: number, input: SingleUpdateInput) {
+function applyInventoryUpdate(
+	db: DB,
+	userId: number,
+	input: SingleUpdateInput,
+	precondition?: WritePrecondition
+) {
 	const result = createInventoryService(db).update(
 		input.id,
-		{
-			qtyText: input.qty_text,
-			qtyNum: input.qty_num,
-			unit: input.unit,
-			section: input.section,
-			expiryDate: input.expiry_date,
-			createdAt: input.created_at !== undefined ? (parseDateOnly(input.created_at) ?? undefined) : undefined,
-			category: input.category,
-			kind: input.kind,
-			foodClass: input.food_class,
-			madeFromRecipeId: input.made_from_recipe_id,
-			recipeStatus: input.recipe_status,
-			isStaple: input.is_staple
-		},
-		{ actor: 'ai', userId }
+		inventoryUpdateInput(input),
+		{ actor: 'ai', userId },
+		precondition
 	);
 	if (!result.ok) return { ok: false as const, id: input.id, error: result.error };
 	const verified = result.item;
@@ -129,7 +141,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 				createdAt: parseDateOnly(input.created_at)
 			},
 			{ actor: 'ai', userId },
-			precondition
+			Array.isArray(precondition) ? undefined : precondition
 		);
 		if (!result.verified) {
 			return {
@@ -162,7 +174,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 		const result = createInventoryService(db).remove(
 			{ id: input.id, name: input.name, section: input.section },
 			{ actor: 'ai', userId },
-			precondition
+			Array.isArray(precondition) ? undefined : precondition
 		);
 		if (!result.ok) return { ok: false, error: result.error };
 		if (!result.verified) {
@@ -175,29 +187,57 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 		return { ok: true, removed: result.item.name, id: result.item.id, verified: true, opId: result.opId };
 	},
 
-	async update_inventory_item(raw, db, userId) {
-		return applyInventoryUpdate(db, userId, singleUpdateSchema.parse(raw));
+	async update_inventory_item(raw, db, userId, precondition) {
+		return applyInventoryUpdate(
+			db,
+			userId,
+			singleUpdateSchema.parse(raw),
+			Array.isArray(precondition) ? undefined : precondition
+		);
 	},
 
-	async bulk_update_inventory(raw, db, userId) {
+	async bulk_update_inventory(raw, db, userId, preconditions) {
 		// Same fields as a single update, minus the recipe-linking pair.
 		const ItemSchema = singleUpdateSchema.omit({ made_from_recipe_id: true, recipe_status: true });
-		const input = z.object({ updates: z.array(ItemSchema).min(1).max(100) }).parse(raw);
-
-		// Each item runs the same verified write + its own undo op, so a partial
-		// failure leaves the successes committed and individually reversible.
-		const results = input.updates.map((u) => applyInventoryUpdate(db, userId, u));
-		const okResults = results.filter((r) => r.ok);
+		const input = z.object({ updates: z.array(ItemSchema).min(2).max(10) }).parse(raw);
+		if (!Array.isArray(preconditions) || preconditions.length !== input.updates.length) {
+			return {
+				ok: false,
+				error: 'Inventory batches must be reviewed and confirmed before they can be applied.'
+			};
+		}
+		const byId = new Map(preconditions.map((precondition) => [precondition.itemId, precondition]));
+		const batch = createInventoryService(db).updateBatch(
+			input.updates.map((update) => {
+				const precondition = byId.get(update.id);
+				if (!precondition) {
+					throw new Error(`Missing confirmed snapshot for inventory item ${update.id}`);
+				}
+				return {
+					id: update.id,
+					input: inventoryUpdateInput(update),
+					precondition
+				};
+			}),
+			{ actor: 'ai', userId }
+		);
+		const results = batch.results.map((result) => ({
+			ok: true as const,
+			id: result.item.id,
+			updated: inventoryForAi(result.item),
+			verified: true,
+			opId: result.opId
+		}));
 		return {
-			ok: results.every((r) => r.ok),
-			updated_count: okResults.length,
-			failed_count: results.length - okResults.length,
-			op_ids: okResults.map((r) => r.opId).filter((x): x is number => x != null),
+			ok: true,
+			updated_count: results.length,
+			failed_count: 0,
+			op_ids: batch.opIds,
 			results
 		};
 	},
 
-	async link_leftover_recipe(raw, db, userId) {
+	async link_leftover_recipe(raw, db, userId, precondition) {
 		const input = z
 			.object({
 				item_id: z.number(),
@@ -224,24 +264,26 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 		const result = createInventoryService(db).update(
 			input.item_id,
 			{ kind: 'leftover', madeFromRecipeId: recipeId, recipeStatus: status },
-			{ actor: 'ai', userId }
+			{ actor: 'ai', userId },
+			Array.isArray(precondition) ? undefined : precondition
 		);
 		if (!result.ok) return { ok: false, error: result.error };
 		return { ok: true, item: inventoryForAi(result.item), opId: result.opId };
 	},
 
-	async set_staple(raw, db, userId) {
+	async set_staple(raw, db, userId, precondition) {
 		const input = z.object({ item_id: z.number(), is_staple: z.boolean() }).parse(raw);
 		const result = createInventoryService(db).update(
 			input.item_id,
 			{ isStaple: input.is_staple },
-			{ actor: 'ai', userId }
+			{ actor: 'ai', userId },
+			Array.isArray(precondition) ? undefined : precondition
 		);
 		if (!result.ok) return { ok: false, error: result.error };
 		return { ok: true, item: inventoryForAi(result.item), opId: result.opId };
 	},
 
-	async set_review_flag(raw, db, userId) {
+	async set_review_flag(raw, db, userId, precondition) {
 		const input = z
 			.object({
 				item_id: z.number(),
@@ -252,7 +294,8 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 		const result = createInventoryService(db).setReviewFlag(
 			input.item_id,
 			input.flagged ? (input.reason ?? 'flagged_by_ai') : null,
-			{ actor: 'ai', userId }
+			{ actor: 'ai', userId },
+			Array.isArray(precondition) ? undefined : precondition
 		);
 		if (!result.ok) return { ok: false, error: result.error };
 		return { ok: true, item: inventoryForAi(result.item), opId: result.opId };
@@ -260,13 +303,21 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 
 	async undo_op(raw, db, userId) {
 		const input = z
-			.object({ op_id: z.number().optional(), item_id: z.number().optional() })
+			.object({
+				op_id: z.number().optional(),
+				op_ids: z.array(z.number().int().positive()).min(2).max(10).optional(),
+				item_id: z.number().optional()
+			})
 			.parse(raw);
-		if (input.op_id === undefined && input.item_id === undefined) {
-			return { ok: false, error: 'Provide op_id (from get_inventory_history) or item_id' };
+		if (input.op_id === undefined && input.op_ids === undefined && input.item_id === undefined) {
+			return { ok: false, error: 'Provide op_id/op_ids (from get_inventory_history) or item_id' };
 		}
 		const ctx = { actor: 'ai' as const, userId };
 		const inventory = createInventoryService(db);
+		if (input.op_ids) {
+			const result = inventory.undoMany(input.op_ids, ctx);
+			return { ok: true, items: result.items.map(inventoryForAi), opIds: result.opIds };
+		}
 		const result =
 			input.op_id !== undefined
 				? inventory.undo(input.op_id, ctx)
