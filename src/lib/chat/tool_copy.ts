@@ -80,6 +80,8 @@ export function toolStartSummary(
 				return 'Maaltijdplan lezen…';
 			case 'plan_meal':
 				return meal ? `${meal} inplannen…` : 'Maaltijd inplannen…';
+			case 'propose_meal_plan':
+				return 'Maaltijdplan voorbereiden…';
 			case 'remove_meal':
 				return 'Maaltijd verwijderen…';
 			case 'mark_meal_cooked':
@@ -144,6 +146,8 @@ export function toolStartSummary(
 			return 'Reading the meal plan…';
 		case 'plan_meal':
 			return meal ? `Planning ${meal}…` : 'Planning a meal…';
+		case 'propose_meal_plan':
+			return 'Preparing the meal plan…';
 		case 'remove_meal':
 			return 'Removing the meal…';
 		case 'mark_meal_cooked':

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb, type TestDb } from '$lib/server/test_db';
@@ -184,7 +184,13 @@ function tokenFor(
 
 describe('pushShoppingToAh', () => {
 	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.setSystemTime(NOW);
 		clearAhPreviewTokensForTest();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
 	});
 
 	it('pins a unanimous recipe preference and never leaks it to a neutral source', async () => {

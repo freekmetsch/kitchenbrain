@@ -22,4 +22,17 @@ describe('assistant system prompt contracts', () => {
 		);
 		expect(systemPrompt).toContain('If fewer than three valid forms are evidenced, do not fake a group');
 	});
+
+	it('is assertive inside a requested household outcome without becoming autonomous', () => {
+		expect(systemPrompt).toContain('Assertive preparation, not autonomous initiation');
+		expect(systemPrompt).toContain(
+			'Do not ask whether you should perform a safe read, comparison, Shopping reconciliation, or read-only AH preview'
+		);
+		expect(systemPrompt).toContain(
+			'Never start household work merely because the app opened'
+		);
+		expect(systemPrompt).toContain(
+			'Use `propose_meal_plan` instead of direct meal-plan writes'
+		);
+	});
 });

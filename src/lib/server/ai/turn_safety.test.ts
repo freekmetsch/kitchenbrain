@@ -299,3 +299,64 @@ describe('current-turn AH evidence', () => {
 		});
 	});
 });
+
+describe('meal-plan proposal provenance', () => {
+	it('requires the exact target week and linked recipes to be read in the current turn', async () => {
+		const db = createTestDb();
+		const recipe = seedRecipe(db);
+		const input = {
+			week_start_date: '2026-07-29',
+			title: 'Volgende week',
+			recommendation: {
+				why_now: 'De week is leeg.',
+				evidence: ['Stoofpot staat in de receptencatalogus.'],
+				confidence: 'high',
+				uncertainty: null,
+				consequence: 'Plant één maaltijd.',
+				alternatives: ['Niet plannen.']
+			},
+			operations: [
+				{
+					kind: 'add',
+					dinner: 'Stoofpot',
+					recipe_slug: recipe.slug,
+					planned_date: '2026-07-31',
+					servings: 4,
+					source: 'fresh',
+					note: null,
+					reason: 'Vult vrijdag.'
+				}
+			]
+		};
+
+		const rejected = await executeToolCall(
+			'propose_meal_plan',
+			input,
+			db,
+			1,
+			turn()
+		);
+		expect(rejected).toMatchObject({
+			ok: false,
+			contract_error: 'missing_provenance'
+		});
+
+		const context = turn();
+		await executeToolCall(
+			'get_meal_plan',
+			{ week_start_date: '2026-07-29' },
+			db,
+			1,
+			context
+		);
+		await executeToolCall('get_recipe', { slug: recipe.slug }, db, 1, context);
+		const staged = await executeToolCall(
+			'propose_meal_plan',
+			input,
+			db,
+			1,
+			context
+		);
+		expect(staged).toMatchObject({ ok: true, kind: 'meal_plan_proposal' });
+	});
+});

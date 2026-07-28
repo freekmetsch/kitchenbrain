@@ -6,9 +6,11 @@ function tool(name: string) {
 }
 
 describe('recipe continuity tool contracts', () => {
-	it('lets chat preserve occasion portions when planning', () => {
-		const properties = tool('plan_meal').input_schema.properties ?? {};
-		expect(properties).toHaveProperty('servings');
+	it('routes every conversational plan edit through the reviewed proposal', () => {
+		const names = tools.map((candidate) => candidate.name);
+		expect(names).not.toContain('plan_meal');
+		expect(names).not.toContain('remove_meal');
+		expect(JSON.stringify(tool('propose_meal_plan'))).toContain('servings');
 	});
 
 	it('requires rich ingredients for recipe creation', () => {
@@ -49,5 +51,24 @@ describe('recipe continuity tool contracts', () => {
 		expect(JSON.stringify(productChoices)).toContain('evidence_key');
 		expect(JSON.stringify(productChoices)).not.toContain('product_id');
 		expect(JSON.stringify(productChoices)).toContain('Canonical purchase-form category');
+	});
+
+	it('stages one reviewed meal-plan bundle with a complete recommendation envelope', () => {
+		const proposal = tool('propose_meal_plan').input_schema as {
+			properties?: Record<string, { required?: string[]; items?: { oneOf?: unknown[] } }>;
+		};
+		expect(proposal.properties?.recommendation?.required).toEqual(
+			expect.arrayContaining([
+				'why_now',
+				'evidence',
+				'confidence',
+				'uncertainty',
+				'consequence',
+				'alternatives'
+			])
+		);
+		expect(proposal.properties?.operations?.items?.oneOf).toHaveLength(3);
+		expect(JSON.stringify(proposal)).toContain('meal_id');
+		expect(JSON.stringify(proposal)).toContain('recipe_slug');
 	});
 });

@@ -183,42 +183,6 @@ export const tools: Anthropic.Tool[] = [
 		}
 	},
 	{
-		name: 'plan_meal',
-		description:
-			'Add a dinner to a specific week in the meal plan. When frozen portions of the recipe are on hand and the user wants to use them, set source to freezer — the shopping list then only includes the recipe\'s serve_fresh sides for that meal.',
-		input_schema: {
-			type: 'object',
-			properties: {
-				week_start_date: { type: 'string', description: 'ISO date inside the target planning week' },
-				dinner: { type: 'string' },
-				recipe_slug: { type: 'string', description: 'Optional: link to a recipe by slug' },
-				servings: {
-					type: 'number',
-					description: 'Portions for this occasion. Defaults to the linked recipe yield when omitted.'
-				},
-				source: {
-					type: 'string',
-					enum: ['fresh', 'freezer'],
-					description:
-						'fresh (default) = cook the recipe that week; freezer = serve stocked frozen portions (requires recipe_slug; only serve_fresh sides get shopped)'
-				},
-				note: { type: 'string' }
-			},
-			required: ['week_start_date', 'dinner']
-		}
-	},
-	{
-		name: 'remove_meal',
-		description: 'Remove a planned dinner from the meal plan.',
-		input_schema: {
-			type: 'object',
-			properties: {
-				id: { type: 'number' }
-			},
-			required: ['id']
-		}
-	},
-	{
 		name: 'mark_meal_cooked',
 		description:
 			'Mark a planned meal as cooked and record the date. For a meal planned with source=freezer the result reminds you to deduct the eaten portions from the linked freezer leftover (use update_inventory_item / remove_from_inventory after confirming how many portions were eaten).',
@@ -241,6 +205,117 @@ export const tools: Anthropic.Tool[] = [
 				count: { type: 'number', description: 'Number of suggestions desired (default 5)' }
 			},
 			required: []
+		}
+	},
+	{
+		name: 'propose_meal_plan',
+		description:
+			'Stage one adjustable meal-plan review after reading the target week and relevant recipes. This writes nothing. Include the complete recommendation, all add/update/remove operations, and every safe preparation step already resolved. The user chooses rows before one atomic apply; Shopping reconciliation commits in the same transaction.',
+		input_schema: {
+			type: 'object',
+			properties: {
+				week_start_date: {
+					type: 'string',
+					description: 'ISO date inside the target planning week'
+				},
+				title: { type: 'string' },
+				recommendation: {
+					type: 'object',
+					properties: {
+						why_now: { type: 'string' },
+						evidence: {
+							type: 'array',
+							minItems: 1,
+							maxItems: 12,
+							items: { type: 'string' }
+						},
+						confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+						uncertainty: {
+							type: ['string', 'null'],
+							description: 'What remains unknown; null only when no material uncertainty remains'
+						},
+						consequence: { type: 'string' },
+						alternatives: {
+							type: 'array',
+							minItems: 1,
+							maxItems: 8,
+							items: { type: 'string' }
+						}
+					},
+					required: [
+						'why_now',
+						'evidence',
+						'confidence',
+						'uncertainty',
+						'consequence',
+						'alternatives'
+					]
+				},
+				operations: {
+					type: 'array',
+					minItems: 1,
+					maxItems: 14,
+					items: {
+						oneOf: [
+							{
+								type: 'object',
+								properties: {
+									kind: { type: 'string', enum: ['add'] },
+									dinner: { type: 'string' },
+									recipe_slug: { type: ['string', 'null'] },
+									planned_date: { type: ['string', 'null'] },
+									servings: { type: ['number', 'null'] },
+									source: { type: 'string', enum: ['fresh', 'freezer'] },
+									note: { type: ['string', 'null'] },
+									reason: { type: 'string' }
+								},
+								required: [
+									'kind',
+									'dinner',
+									'recipe_slug',
+									'planned_date',
+									'servings',
+									'source',
+									'note',
+									'reason'
+								]
+							},
+							{
+								type: 'object',
+								properties: {
+									kind: { type: 'string', enum: ['update'] },
+									meal_id: { type: 'number' },
+									changes: {
+										type: 'object',
+										properties: {
+											week_start_date: { type: 'string' },
+											dinner: { type: 'string' },
+											recipe_slug: { type: ['string', 'null'] },
+											planned_date: { type: ['string', 'null'] },
+											servings: { type: ['number', 'null'] },
+											source: { type: 'string', enum: ['fresh', 'freezer'] },
+											note: { type: ['string', 'null'] }
+										},
+										required: []
+									},
+									reason: { type: 'string' }
+								},
+								required: ['kind', 'meal_id', 'changes', 'reason']
+							},
+							{
+								type: 'object',
+								properties: {
+									kind: { type: 'string', enum: ['remove'] },
+									meal_id: { type: 'number' },
+									reason: { type: 'string' }
+								},
+								required: ['kind', 'meal_id', 'reason']
+							}
+						]
+					}
+				}
+			},
+			required: ['week_start_date', 'title', 'recommendation', 'operations']
 		}
 	},
 	{

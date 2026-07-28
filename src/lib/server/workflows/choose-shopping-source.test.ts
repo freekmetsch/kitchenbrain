@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
 import { materializeShoppingWeek } from './reconcile-shopping';
@@ -8,6 +8,15 @@ import {
 } from './choose-shopping-source';
 
 const WEEK = '2026-07-22';
+
+beforeEach(() => {
+	vi.useFakeTimers();
+	vi.setSystemTime(new Date('2026-07-27T12:00:00.000Z'));
+});
+
+afterEach(() => {
+	vi.useRealTimers();
+});
 
 function setup() {
 	const db = createTestDb();

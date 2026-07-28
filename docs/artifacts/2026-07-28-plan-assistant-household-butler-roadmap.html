@@ -1,0 +1,1193 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="data:," />
+	<title>The Household Butler — roadmap review</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--ink: #211f1a;
+			--muted: #706b60;
+			--paper: #f1eddf;
+			--paper-deep: #e4dcc8;
+			--sheet: #fffdf6;
+			--line: #cbc1aa;
+			--green: #234c3d;
+			--green-soft: #dfeae2;
+			--wine: #7d332f;
+			--wine-soft: #f3dfda;
+			--gold: #b58025;
+			--gold-soft: #f5e8c9;
+			--blue: #345d6c;
+			--blue-soft: #dfebee;
+			--shadow: 0 18px 52px rgba(61, 49, 28, .13);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		}
+		* { box-sizing: border-box; }
+		html { background: var(--paper); color: var(--ink); scroll-behavior: smooth; }
+		body { margin: 0; min-height: 100vh; }
+		button, input, select, textarea { font: inherit; }
+		button, select, input[type="radio"] { cursor: pointer; }
+		a { color: var(--green); text-underline-offset: 3px; overflow-wrap: anywhere; }
+		:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+		.skip-link {
+			position: fixed;
+			left: 12px;
+			top: -80px;
+			z-index: 100;
+			padding: 10px 14px;
+			background: var(--ink);
+			color: white;
+		}
+		.skip-link:focus { top: 12px; }
+		.page {
+			width: min(1320px, calc(100% - 28px));
+			margin: 0 auto;
+			padding: 22px 0 80px;
+		}
+		.masthead {
+			position: relative;
+			overflow: hidden;
+			display: grid;
+			grid-template-columns: minmax(0, 1.45fr) minmax(280px, .55fr);
+			gap: clamp(26px, 6vw, 80px);
+			padding: clamp(28px, 6vw, 72px);
+			background:
+				linear-gradient(110deg, rgba(255,253,246,.96), rgba(248,241,224,.9)),
+				repeating-linear-gradient(0deg, transparent 0 35px, rgba(35,76,61,.04) 35px 36px);
+			border: 1px solid var(--line);
+			border-radius: 30px 30px 12px 12px;
+			box-shadow: var(--shadow);
+		}
+		.masthead::after {
+			content: "";
+			position: absolute;
+			right: -90px;
+			bottom: -150px;
+			width: 370px;
+			height: 370px;
+			border: 54px solid rgba(125,51,47,.07);
+			border-radius: 50%;
+			pointer-events: none;
+		}
+		.kicker {
+			margin: 0 0 12px;
+			color: var(--wine);
+			font-size: .75rem;
+			font-weight: 850;
+			letter-spacing: .15em;
+			text-transform: uppercase;
+		}
+		h1, h2 {
+			font-family: Georgia, "Times New Roman", serif;
+			font-weight: 500;
+			letter-spacing: -.035em;
+		}
+		h1 {
+			margin: 0;
+			max-width: 850px;
+			font-size: clamp(2.6rem, 7vw, 6.2rem);
+			line-height: .92;
+		}
+		.lede {
+			max-width: 780px;
+			margin: 24px 0 0;
+			color: var(--muted);
+			font-size: clamp(1rem, 2vw, 1.22rem);
+			line-height: 1.65;
+		}
+		.mast-note {
+			position: relative;
+			z-index: 1;
+			align-self: end;
+			padding: 22px;
+			background: var(--green);
+			color: white;
+			border-radius: 18px 18px 5px 18px;
+		}
+		.mast-note strong { display: block; font: 500 1.5rem/1.05 Georgia, serif; }
+		.mast-note p { margin: 10px 0 0; color: #dce8e0; line-height: 1.5; }
+		.mast-note a { color: white; }
+		.stats {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			border: 1px solid var(--line);
+			border-top: 0;
+			background: rgba(255,253,246,.82);
+		}
+		.stat {
+			min-height: 116px;
+			padding: 22px;
+			border-right: 1px solid var(--line);
+		}
+		.stat:last-child { border-right: 0; }
+		.stat b { display: block; color: var(--wine); font: 500 2.2rem/1 Georgia, serif; }
+		.stat span { display: block; margin-top: 7px; color: var(--muted); line-height: 1.35; }
+		.anchor-nav {
+			position: sticky;
+			top: 0;
+			z-index: 20;
+			display: flex;
+			gap: 6px;
+			overflow-x: auto;
+			padding: 10px 0;
+			background: color-mix(in srgb, var(--paper) 92%, transparent);
+			backdrop-filter: blur(10px);
+		}
+		.anchor-nav a {
+			flex: 0 0 auto;
+			padding: 8px 12px;
+			border: 1px solid var(--line);
+			border-radius: 999px;
+			background: var(--sheet);
+			color: var(--ink);
+			font-size: .82rem;
+			text-decoration: none;
+			overflow-wrap: normal;
+		}
+		.section {
+			margin-top: 20px;
+			padding: clamp(22px, 4vw, 42px);
+			background: rgba(255,253,246,.92);
+			border: 1px solid var(--line);
+			border-radius: 12px 28px 12px 28px;
+		}
+		.section > header {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(220px, .45fr);
+			gap: 24px;
+			align-items: end;
+			margin-bottom: 28px;
+			padding-bottom: 18px;
+			border-bottom: 1px solid var(--line);
+		}
+		h2 { margin: 0; font-size: clamp(2rem, 5vw, 3.7rem); line-height: 1; }
+		h3 { margin: 0; font-size: 1.05rem; }
+		.section-intro { margin: 0; color: var(--muted); line-height: 1.6; }
+		.repertoire {
+			display: grid;
+			grid-template-columns: 230px minmax(0, 1fr);
+			gap: 0;
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			overflow: hidden;
+		}
+		.repertoire + .repertoire { margin-top: 10px; }
+		.repertoire h3 {
+			padding: 18px;
+			background: var(--green);
+			color: white;
+			font-family: Georgia, serif;
+			font-weight: 500;
+		}
+		.repertoire ul {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 10px 28px;
+			margin: 0;
+			padding: 18px 24px 20px 42px;
+		}
+		.repertoire li { color: var(--muted); line-height: 1.45; }
+		.repertoire li::marker { color: var(--gold); }
+		.truth-strip {
+			margin-top: 22px;
+			padding: 18px 20px;
+			background: var(--gold-soft);
+			border-left: 5px solid var(--gold);
+			line-height: 1.6;
+		}
+		.loops {
+			display: grid;
+			gap: 10px;
+		}
+		.loop {
+			display: grid;
+			grid-template-columns: 92px minmax(190px, .7fr) 34px minmax(0, 1.3fr);
+			gap: 16px;
+			align-items: center;
+			padding: 20px;
+			border: 1px solid var(--line);
+			background: var(--sheet);
+		}
+		.loop-rank {
+			color: var(--wine);
+			font: 500 2.4rem/1 Georgia, serif;
+		}
+		.loop strong { display: block; margin-bottom: 5px; }
+		.loop p { margin: 0; color: var(--muted); line-height: 1.5; }
+		.arrow { color: var(--gold); font-size: 1.8rem; text-align: center; }
+		.contract {
+			display: grid;
+			grid-template-columns: repeat(6, minmax(0, 1fr));
+			gap: 0;
+			border: 1px solid var(--line);
+		}
+		.contract div {
+			position: relative;
+			min-height: 154px;
+			padding: 20px 16px;
+			border-right: 1px solid var(--line);
+		}
+		.contract div:last-child { border-right: 0; }
+		.contract b {
+			display: grid;
+			place-items: center;
+			width: 30px;
+			height: 30px;
+			margin-bottom: 13px;
+			border-radius: 50%;
+			background: var(--wine-soft);
+			color: var(--wine);
+		}
+		.contract strong { display: block; margin-bottom: 7px; }
+		.contract span { color: var(--muted); font-size: .86rem; line-height: 1.45; }
+		.decision-layout {
+			display: grid;
+			grid-template-columns: minmax(0, 1.3fr) minmax(330px, .7fr);
+			gap: 18px;
+			align-items: start;
+		}
+		.decisions { display: grid; gap: 10px; }
+		.decision {
+			padding: 20px;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			background: var(--sheet);
+		}
+		.decision h3 { font-family: Georgia, serif; font-size: 1.25rem; font-weight: 500; }
+		.decision > p { margin: 8px 0 14px; color: var(--muted); line-height: 1.5; }
+		.choice {
+			display: grid;
+			grid-template-columns: 22px 1fr;
+			gap: 10px;
+			padding: 10px 0;
+			border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+		}
+		.choice input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--green); }
+		.choice strong, .choice small { display: block; }
+		.choice small { margin-top: 3px; color: var(--muted); line-height: 1.4; }
+		.note, .follow-up {
+			width: 100%;
+			margin-top: 10px;
+			padding: 10px 12px;
+			border: 1px solid var(--line);
+			border-radius: 7px;
+			background: white;
+			color: var(--ink);
+			resize: vertical;
+		}
+		.recommendation {
+			position: sticky;
+			top: 58px;
+			padding: 24px;
+			background: var(--green);
+			color: white;
+			border-radius: 22px 8px 22px 8px;
+		}
+		.recommendation h3 {
+			font: 500 1.8rem/1.05 Georgia, serif;
+		}
+		.recommendation p, .recommendation li { color: #dce8e0; line-height: 1.55; }
+		.recommendation ul { padding-left: 20px; }
+		.recommendation .mini {
+			margin-top: 16px;
+			padding-top: 16px;
+			border-top: 1px solid rgba(255,255,255,.24);
+			font-size: .84rem;
+		}
+		.ledger-tools {
+			display: grid;
+			grid-template-columns: minmax(180px, 1.4fr) repeat(2, minmax(140px, .45fr)) auto;
+			gap: 10px;
+			margin-bottom: 12px;
+		}
+		.control {
+			width: 100%;
+			min-height: 44px;
+			padding: 9px 11px;
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			background: white;
+			color: var(--ink);
+		}
+		.button {
+			min-height: 44px;
+			padding: 9px 15px;
+			border: 1px solid var(--green);
+			border-radius: 8px;
+			background: var(--green);
+			color: white;
+			font-weight: 750;
+		}
+		.button.secondary { background: transparent; color: var(--green); }
+		.ledger-summary {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			margin: 0 0 12px;
+			color: var(--muted);
+			font-size: .87rem;
+		}
+		.pill {
+			padding: 4px 9px;
+			border: 1px solid var(--line);
+			border-radius: 999px;
+			background: var(--sheet);
+		}
+		.idea-list {
+			display: grid;
+			gap: 6px;
+		}
+		.idea {
+			display: grid;
+			grid-template-columns: 62px minmax(0, 1fr) minmax(155px, .28fr);
+			gap: 16px;
+			padding: 16px;
+			border: 1px solid var(--line);
+			border-left: 5px solid var(--line);
+			background: var(--sheet);
+		}
+		.idea[data-status="first"] { border-left-color: var(--wine); background: linear-gradient(90deg, var(--wine-soft), var(--sheet) 18%); }
+		.idea[data-status="wave1"] { border-left-color: var(--gold); }
+		.idea[data-status="next"] { border-left-color: var(--green); }
+		.idea[data-status="later"] { border-left-color: var(--blue); }
+		.idea[data-status="park"] { border-left-color: #8c887e; }
+		.idea[data-status="exclude"] { opacity: .58; border-left-color: #aaa; }
+		.rank {
+			color: var(--wine);
+			font: 500 2rem/1 Georgia, serif;
+			text-align: center;
+		}
+		.rank small { display: block; margin-top: 4px; color: var(--muted); font: 700 .64rem/1.2 Inter, sans-serif; letter-spacing: .04em; }
+		.idea-title { margin: 0; font-size: 1.03rem; }
+		.idea-summary { margin: 5px 0 8px; color: var(--muted); line-height: 1.48; }
+		.meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--muted); font-size: .74rem; }
+		.meta span { padding: 3px 7px; border-radius: 999px; background: var(--paper); }
+		.idea-controls { display: grid; align-content: start; gap: 8px; }
+		.idea-controls label { color: var(--muted); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+		.idea select { min-height: 42px; }
+		.idea details { margin-top: 8px; }
+		.idea summary { color: var(--green); font-size: .82rem; font-weight: 700; }
+		.idea details p { margin: 8px 0 0; color: var(--muted); font-size: .83rem; line-height: 1.45; }
+		.idea-note { min-height: 68px; margin-top: 8px; font-size: .85rem; }
+		.empty-ledger {
+			padding: 34px;
+			border: 1px dashed var(--line);
+			text-align: center;
+			color: var(--muted);
+		}
+		.handoff-grid {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(320px, .48fr);
+			gap: 18px;
+		}
+		.prompt {
+			width: 100%;
+			min-height: 460px;
+			padding: 16px;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			background: #1f231f;
+			color: #edf2eb;
+			font: .82rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+			resize: vertical;
+		}
+		.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+		.save-state {
+			margin-top: 10px;
+			color: var(--muted);
+			font-size: .84rem;
+			line-height: 1.45;
+		}
+		.handoff-help {
+			padding: 22px;
+			background: var(--gold-soft);
+			border-radius: 8px 20px 8px 20px;
+		}
+		.handoff-help h3 { font: 500 1.5rem/1.1 Georgia, serif; }
+		.handoff-help ol { padding-left: 22px; }
+		.handoff-help li { margin: 10px 0; line-height: 1.5; }
+		.source-note {
+			margin: 20px 4px 0;
+			color: var(--muted);
+			font-size: .83rem;
+			line-height: 1.55;
+		}
+		@media (max-width: 980px) {
+			.masthead, .section > header, .decision-layout, .handoff-grid { grid-template-columns: 1fr; }
+			.mast-note { max-width: 560px; }
+			.contract { grid-template-columns: repeat(3, 1fr); }
+			.contract div:nth-child(3) { border-right: 0; }
+			.contract div:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+			.recommendation { position: static; }
+			.ledger-tools { grid-template-columns: 1fr 1fr; }
+		}
+		@media (max-width: 700px) {
+			.page { width: min(100% - 16px, 1320px); padding-top: 8px; }
+			.masthead { padding: 28px 22px; border-radius: 22px 22px 8px 8px; }
+			.stats { grid-template-columns: repeat(2, 1fr); }
+			.stat:nth-child(2) { border-right: 0; }
+			.stat:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+			.repertoire { grid-template-columns: 1fr; }
+			.repertoire ul { grid-template-columns: 1fr; }
+			.loop { grid-template-columns: 52px minmax(0, 1fr); }
+			.loop .arrow { display: none; }
+			.loop > p { grid-column: 2; }
+			.contract { grid-template-columns: 1fr; }
+			.contract div { min-height: 0; border-right: 0; border-bottom: 1px solid var(--line); }
+			.contract div:last-child { border-bottom: 0; }
+			.ledger-tools { grid-template-columns: 1fr; }
+			.idea { grid-template-columns: 46px minmax(0, 1fr); gap: 12px; padding: 14px 11px; }
+			.idea-controls { grid-column: 2; }
+			.rank { font-size: 1.6rem; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			html { scroll-behavior: auto; }
+		}
+	</style>
+</head>
+<body>
+	<a class="skip-link" href="#decisions">Skip to decisions</a>
+	<main class="page">
+		<section class="masthead">
+			<div>
+				<p class="kicker">Keukenbrein · product direction</p>
+				<h1>The household butler</h1>
+				<p class="lede">
+					A complete inventory of what the Assistant already does, followed by 75 ranked ways
+					to make it observant, assertive, and trustworthy. Shape the first slice, promote or
+					drop any idea, and leave comments directly beside the decision.
+				</p>
+			</div>
+			<aside class="mast-note">
+				<strong>Default direction</strong>
+				<p>Build one shared trust foundation, then complete Plan → Shop before widening the Assistant.</p>
+				<p><a href="../feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md">Open the authoritative Markdown plan</a></p>
+			</aside>
+		</section>
+
+		<div class="stats" aria-label="Roadmap summary">
+			<div class="stat"><b>28</b><span>agent tools already exposed</span></div>
+			<div class="stat"><b>75</b><span>ranked next ideas</span></div>
+			<div class="stat"><b>4</b><span>complete household loops</span></div>
+			<div class="stat"><b>1</b><span>Assistant surface: home</span></div>
+		</div>
+
+		<nav class="anchor-nav" aria-label="Workspace sections">
+			<a href="#today">Today</a>
+			<a href="#direction">Direction</a>
+			<a href="#decisions">Decisions</a>
+			<a href="#ideas">75 ideas</a>
+			<a href="#handoff">Generated handoff</a>
+		</nav>
+
+		<section class="section" id="today">
+			<header>
+				<h2>What it can do today</h2>
+				<p class="section-intro">The Assistant is not small. Its weakness is that the abilities stop at operations instead of finishing recognizable household jobs.</p>
+			</header>
+
+			<div class="repertoire">
+				<h3>Conversation</h3>
+				<ul>
+					<li>Keep per-user history and retain an in-flight turn or draft across navigation.</li>
+					<li>Stream, stop, retry interrupted turns, and fall back once after provider failure.</li>
+					<li>Reply in English or Dutch while keeping recipe ingredient lookup names Dutch.</li>
+					<li>Read up to two transient photos without storing them in chat history.</li>
+					<li>Use an explicit shared household profile, configurable models, and daily spend caps.</li>
+					<li>Show plans, compact tool activity, confirmations, proposals, links, and undo receipts.</li>
+				</ul>
+			</div>
+			<div class="repertoire">
+				<h3>Stock & freezer</h3>
+				<ul>
+					<li>Search freezer/pantry by category, age, expiry, storage section, and sort.</li>
+					<li>Add, merge, remove, update, and review 2–10 atomic inventory changes.</li>
+					<li>Classify stock, flag uncertainty, link leftovers, and set staple/freezer targets.</li>
+					<li>Explain inventory history, attribute actors, and undo safe single or batch changes.</li>
+				</ul>
+			</div>
+			<div class="repertoire">
+				<h3>Plans & meals</h3>
+				<ul>
+					<li>Read weeks, add/remove meals, mark cooked, and log a rating or note.</li>
+					<li>Suggest meals from stock overlap, stale freezer items, repeats, recent history, and frozen portions.</li>
+					<li>Distinguish fresh cooking from serving freezer stock and derive only fresh-side shopping needs.</li>
+					<li>Respect configurable repeat windows, suggestion counts, servings, and recipe yields.</li>
+				</ul>
+			</div>
+			<div class="repertoire">
+				<h3>Recipes</h3>
+				<ul>
+					<li>Find/search recipes; save from text, dictation, photo, screenshot, or URL.</li>
+					<li>Combine existing recipes into one live meal composition.</li>
+					<li>Stage typed corrections and current AH product-form choices for selective review.</li>
+					<li>Set stable ingredient roles and maintain translation/cook-mode background caches.</li>
+				</ul>
+			</div>
+			<div class="repertoire">
+				<h3>Shopping & AH</h3>
+				<ul>
+					<li>Derive a week list from planned recipe ingredients minus stock.</li>
+					<li>Preserve source provenance, optional ingredients, substitutions, and fresh-side rules.</li>
+					<li>Search bounded live AH evidence with Dutch queries, package size, price, and current product forms.</li>
+					<li>The app can preview/push to AH, but chat cannot yet control the ordinary list or final push.</li>
+				</ul>
+			</div>
+			<div class="repertoire">
+				<h3>Trust</h3>
+				<ul>
+					<li>Require an exact current read before persistent writes and reject stale targets.</li>
+					<li>Latch later writes after a contract/provenance failure.</li>
+					<li>Confirm destructive inventory changes and review recipe content before apply.</li>
+					<li>Claim completion only after a committed tool result; keep external AH search read-only.</li>
+				</ul>
+			</div>
+
+			<div class="truth-strip">
+				<strong>The first obvious seam:</strong> a person can say “add milk to the list,” but
+				the Assistant has no ordinary Shopping read/write tools. Similar seams exist for moving
+				a meal, starting a timer, finishing the cooking bookkeeping, and noticing what needs attention.
+			</div>
+		</section>
+
+		<section class="section" id="direction">
+			<header>
+				<h2>From tools to service</h2>
+				<p class="section-intro">The roadmap is organized as four completed loops over one trust contract. This is the difference between “the agent called a tool” and “the household job is done.”</p>
+			</header>
+
+			<div class="loops">
+				<div class="loop">
+					<span class="loop-rank">01</span>
+					<div><strong>Stock → Shopping</strong><p>“We are out,” “used the last,” “bought this.”</p></div>
+					<span class="arrow" aria-hidden="true">→</span>
+					<p>Keep stock and the one Shopping list in agreement, with one reviewed outcome and receipt.</p>
+				</div>
+				<div class="loop">
+					<span class="loop-rank">02</span>
+					<div><strong>Plan → Shop</strong><p>“Sort next week and get us ready.”</p></div>
+					<span class="arrow" aria-hidden="true">→</span>
+					<p>Compare meals, edit days/servings, reconcile the list, resolve conflicts, preview AH, then confirm push.</p>
+				</div>
+				<div class="loop">
+					<span class="loop-rank">03</span>
+					<div><strong>Cook → Close</strong><p>“We cooked it; two went in the freezer.”</p></div>
+					<span class="arrow" aria-hidden="true">→</span>
+					<p>Timers, cooked state, rating, stock use, frozen portions, and Shopping all finish together.</p>
+				</div>
+				<div class="loop">
+					<span class="loop-rank">04</span>
+					<div><strong>Notice → Decide</strong><p>“What should I deal with?”</p></div>
+					<span class="arrow" aria-hidden="true">→</span>
+					<p>A bounded zero-spend brief explains a few useful cues without spamming chat or notifications.</p>
+				</div>
+			</div>
+
+			<h3 style="margin:30px 0 12px;font-family:Georgia,serif;font-size:1.45rem;font-weight:500;">The Butler contract</h3>
+			<div class="contract">
+				<div><b>1</b><strong>Notice locally</strong><span>SQLite facts and deterministic rules first; no model spend on home load.</span></div>
+				<div><b>2</b><strong>Explain why</strong><span>Evidence, why now, confidence, and missing information stay visible.</span></div>
+				<div><b>3</b><strong>Recommend</strong><span>One assertive default plus alternatives and “not now.”</span></div>
+				<div><b>4</b><strong>Bundle</strong><span>Finish related domains together instead of leaving remembered follow-ups.</span></div>
+				<div><b>5</b><strong>Gate</strong><span>Consequence decides review. External and destructive work always stops.</span></div>
+				<div><b>6</b><strong>Learn explicitly</strong><span>Save scoped preferences only after a visible choice with edit/forget.</span></div>
+			</div>
+		</section>
+
+		<section class="section" id="decisions">
+			<header>
+				<h2>Shape the first slice</h2>
+				<p class="section-intro">Recommendations are preselected. Changing the first loop also retags its ideas as “First slice”; every idea remains individually editable below.</p>
+			</header>
+
+			<div class="decision-layout">
+				<div class="decisions">
+					<section class="decision">
+						<h3>1. Which loop should be built first?</h3>
+						<p>The shared capability/action foundation is always first. This chooses the first complete user outcome.</p>
+						<label class="choice"><input type="radio" name="firstLoop" value="planShop" checked /><span><strong>Plan → Shop (recommended)</strong><small>Largest weekly decision reduction; reuses the strongest existing recipe, stock, Shopping, and AH seams.</small></span></label>
+						<label class="choice"><input type="radio" name="firstLoop" value="stockShop" /><span><strong>Stock → Shopping</strong><small>Smaller and immediately natural: “out of,” “used last,” and “bought.”</small></span></label>
+						<label class="choice"><input type="radio" name="firstLoop" value="cookClose" /><span><strong>Cook → Close</strong><small>Closes timers, meal logs, portions, leftovers, and reconciliation.</small></span></label>
+						<label class="choice"><input type="radio" name="firstLoop" value="noticeDecide" /><span><strong>Notice → Decide</strong><small>Proves initiative first, but depends on action envelopes to finish suggestions.</small></span></label>
+						<textarea class="note" data-decision-note="firstLoop" rows="2" placeholder="Comment on the first loop"></textarea>
+					</section>
+
+					<section class="decision">
+						<h3>2. How proactive at first?</h3>
+						<p>Initiative is per domain, but the first default still establishes the product’s personality.</p>
+						<label class="choice"><input type="radio" name="initiative" value="notice" checked /><span><strong>Notice (recommended)</strong><small>Show a few in-app cues; do not prepare writes or notify.</small></span></label>
+						<label class="choice"><input type="radio" name="initiative" value="quiet" /><span><strong>Quiet</strong><small>Respond only when asked until manually changed.</small></span></label>
+						<label class="choice"><input type="radio" name="initiative" value="prepare" /><span><strong>Prepare</strong><small>Build review cards automatically but write nothing.</small></span></label>
+						<textarea class="note" data-decision-note="initiative" rows="2" placeholder="Comment on initiative"></textarea>
+					</section>
+
+					<section class="decision">
+						<h3>3. Include fridge in the first wave?</h3>
+						<p>A fridge completes intuitive food/expiry language but is an honest R3 schema sweep.</p>
+						<label class="choice"><input type="radio" name="fridge" value="include" checked /><span><strong>Include as its own ticket (recommended)</strong><small>Do it comprehensively after the action foundation.</small></span></label>
+						<label class="choice"><input type="radio" name="fridge" value="next" /><span><strong>Move to Next</strong><small>Ship the agent layer without expanding inventory locations yet.</small></span></label>
+						<label class="choice"><input type="radio" name="fridge" value="exclude" /><span><strong>Exclude</strong><small>Keep freezer and pantry as the permanent product boundary.</small></span></label>
+						<textarea class="note" data-decision-note="fridge" rows="2" placeholder="Comment on fridge scope"></textarea>
+					</section>
+
+					<section class="decision">
+						<h3>4. How may it learn preferences?</h3>
+						<p>This decides whether convenience remains explainable.</p>
+						<label class="choice"><input type="radio" name="learning" value="explicit" checked /><span><strong>Explicit proposal cards (recommended)</strong><small>Ask “Save this?”, show scope, source, and forget path.</small></span></label>
+						<label class="choice"><input type="radio" name="learning" value="manual" /><span><strong>Settings only</strong><small>No suggestion to save; every preference is entered manually.</small></span></label>
+						<label class="choice"><input type="radio" name="learning" value="inferAsk" /><span><strong>Infer, then always ask</strong><small>Repeated choices may trigger a proposal, but never save without approval.</small></span></label>
+						<textarea class="note" data-decision-note="learning" rows="2" placeholder="Comment on preference learning"></textarea>
+					</section>
+
+					<section class="decision">
+						<h3>5. May anything auto-apply initially?</h3>
+						<p>“Act” is deliberately separate from being proactive.</p>
+						<label class="choice"><input type="radio" name="automatic" value="review" checked /><span><strong>No; reviewed one-tap actions (recommended)</strong><small>Earn automation after real household use.</small></span></label>
+						<label class="choice"><input type="radio" name="automatic" value="undoable" /><span><strong>Only designated undoable actions</strong><small>Allow narrow low-risk writes with immediate receipts.</small></span></label>
+						<label class="choice"><input type="radio" name="automatic" value="quietOnly" /><span><strong>Keep Quiet/Notice only</strong><small>Do not design Act yet.</small></span></label>
+						<textarea class="note" data-decision-note="automatic" rows="2" placeholder="Comment on automatic actions"></textarea>
+					</section>
+
+					<section class="decision">
+						<h3>6. Where should proactive help live?</h3>
+						<p>The floating/contextual Assistant was deliberately retired.</p>
+						<label class="choice"><input type="radio" name="surface" value="brief" checked /><span><strong>Brief above chat on / (recommended)</strong><small>One Assistant surface; suggestions stay outside transcript history.</small></span></label>
+						<label class="choice"><input type="radio" name="surface" value="separate" /><span><strong>Separate section on /</strong><small>Still one route, but a stronger split between service board and conversation.</small></span></label>
+						<label class="choice"><input type="radio" name="surface" value="chat" /><span><strong>Chat summary only</strong><small>Simpler, but proactive cues become transcript-like and harder to dismiss.</small></span></label>
+						<textarea class="note" data-decision-note="surface" rows="2" placeholder="Comment on surface"></textarea>
+					</section>
+
+					<section class="decision">
+						<h3>7. Proactive notifications now?</h3>
+						<p>Push creates real attention cost and needs durable staleness semantics.</p>
+						<label class="choice"><input type="radio" name="notifications" value="inApp" checked /><span><strong>In-app only (recommended)</strong><small>Prove the brief is useful before asking for attention.</small></span></label>
+						<label class="choice"><input type="radio" name="notifications" value="optIn" /><span><strong>Optional digest</strong><small>Design an explicit opt-in after the in-app brief.</small></span></label>
+						<label class="choice"><input type="radio" name="notifications" value="never" /><span><strong>No Butler notifications</strong><small>Reserve push for user-started timers only.</small></span></label>
+						<textarea class="note" data-decision-note="notifications" rows="2" placeholder="Comment on notifications"></textarea>
+					</section>
+				</div>
+
+				<aside class="recommendation">
+					<h3>Recommended first delivery</h3>
+					<p>Capability registry + action bundle, then a complete Plan → Shop loop.</p>
+					<ul>
+						<li>Compare and select a week.</li>
+						<li>Edit days, servings, and fresh/freezer source.</li>
+						<li>Reconcile one Shopping list.</li>
+						<li>Resolve source/product conflicts.</li>
+						<li>Preview AH and confirm the exact push.</li>
+					</ul>
+					<p class="mini">Opening the app spends nothing. No automatic write. No notification. No silent preference. No second Assistant entry point.</p>
+				</aside>
+			</div>
+		</section>
+
+		<section class="section" id="ideas">
+			<header>
+				<h2>The ranked service ledger</h2>
+				<p class="section-intro">Most likely to be useful first. Statuses and notes save locally. “First slice” is execution scope; everything else remains inert until promoted.</p>
+			</header>
+
+			<div class="ledger-tools">
+				<label><span class="kicker" style="display:block;margin-bottom:5px;">Search</span><input id="idea-search" class="control" type="search" placeholder="Search ideas, moments, or domains" /></label>
+				<label><span class="kicker" style="display:block;margin-bottom:5px;">Status</span><select id="status-filter" class="control"><option value="">All statuses</option><option value="first">First slice</option><option value="wave1">Wave 1</option><option value="next">Next</option><option value="later">Later</option><option value="park">Park</option><option value="exclude">Exclude</option></select></label>
+				<label><span class="kicker" style="display:block;margin-bottom:5px;">Domain</span><select id="domain-filter" class="control"><option value="">All domains</option></select></label>
+				<button id="show-first" class="button secondary" type="button">Show first slice</button>
+			</div>
+			<div id="ledger-summary" class="ledger-summary" aria-live="polite"></div>
+			<div id="idea-list" class="idea-list"></div>
+			<noscript><p class="empty-ledger">JavaScript is required for the editable ledger and generated handoff. The authoritative Markdown contains all 75 ideas.</p></noscript>
+		</section>
+
+		<section class="section" id="handoff">
+			<header>
+				<h2>Carry your steering forward</h2>
+				<p class="section-intro">The generated prompt contains every decision, every idea disposition, and your notes verbatim. The next agent reads the Markdown plan, never this HTML.</p>
+			</header>
+
+			<label for="follow-up"><strong>Anything missing, a new idea, or a cross-cutting instruction</strong></label>
+			<textarea id="follow-up" class="follow-up" rows="4" placeholder="Write freely. This is copied verbatim into the handoff."></textarea>
+
+			<div class="handoff-grid" style="margin-top:18px;">
+				<div>
+					<label for="prompt"><strong>Generated prompt</strong></label>
+					<textarea id="prompt" class="prompt" readonly></textarea>
+					<div class="actions">
+						<button id="copy" class="button" type="button">Copy prompt</button>
+						<button id="reset" class="button secondary" type="button">Reset defaults</button>
+					</div>
+					<div id="save-state" class="save-state" role="status" aria-live="polite">Defaults loaded.</div>
+				</div>
+				<aside class="handoff-help">
+					<h3>How to use this</h3>
+					<ol>
+						<li>Choose the first loop and product posture.</li>
+						<li>Promote, defer, or exclude any of the 75 ideas.</li>
+						<li>Add comments beside the exact idea they answer.</li>
+						<li>Copy the prompt and send it back. The plan will be reconciled before implementation.</li>
+					</ol>
+					<p><strong>Untouched defaults are valid:</strong> Plan → Shop first, Notice only, explicit preferences, reviewed actions, in-app brief, no proactive push.</p>
+				</aside>
+			</div>
+		</section>
+
+		<p class="source-note">
+			This is a temporary decision workspace. Source truth and execution state live in
+			<a href="../feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md">FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md</a>.
+			No household data, credentials, model output, or live AH content is embedded here.
+		</p>
+	</main>
+
+	<script>
+		(() => {
+			"use strict";
+
+			const artifactPath = "docs/artifacts/2026-07-28-plan-assistant-household-butler-roadmap.html";
+			const storageKey = `artifact:${artifactPath}:v1`;
+			const statusLabels = {
+				first: "First slice",
+				wave1: "Wave 1",
+				next: "Next",
+				later: "Later",
+				park: "Park",
+				exclude: "Exclude"
+			};
+			const ideas = [
+				{r:1,id:"BTL-001",t:"Conversational Shopping control",d:"Shopping",e:"M",risk:"R2",lane:"wave1",s:"“Add milk,” “remove coriander,” “make it two,” and “mark bread bought” operate on the authoritative week list with source-aware confirmations.",dep:"Existing Shopping service plus action-bundle review."},
+				{r:2,id:"BTL-002",t:"“We’re out of…” bundle",d:"Stock + Shopping",e:"M",risk:"R2",lane:"wave1",s:"One request updates known stock when appropriate and adds the missing item to Shopping; ambiguous quantity produces one review.",dep:"Authoritative Shopping controls and cross-domain bundle."},
+				{r:3,id:"BTL-003",t:"Whole-week meal proposal",d:"Planning",e:"L",risk:"R2",lane:"first",s:"Show a selectable week with meal reasons, days, servings, fresh/freezer source, and conflicts before one apply.",dep:"Meal-plan update command and proposal surface."},
+				{r:4,id:"BTL-004",t:"Finish-the-week pipeline",d:"Planning + Shopping + AH",e:"L",risk:"R2",lane:"first",s:"Continue an approved plan through list reconciliation, missing-role review, AH preview, and an explicit ready-to-push state.",dep:"Week proposal, Shopping controls, and exact AH preview."},
+				{r:5,id:"BTL-005",t:"“What should we eat tonight?”",d:"Planning",e:"M",risk:"R1",lane:"first",s:"Recommend one default plus two alternatives using time, on-hand coverage, stale stock, repeat rotation, and freezer readiness.",dep:"Existing suggestion context; comparable recommendation envelope."},
+				{r:6,id:"BTL-006",t:"Conversational meal-plan edits",d:"Planning",e:"M",risk:"R2",lane:"first",s:"Move a meal, set its day, change servings/batch, switch fresh/freezer, add a note, or replace it without remove-and-recreate drift.",dep:"Exact meal-plan update command and stale-state checks."},
+				{r:7,id:"BTL-007",t:"After-cook checkout",d:"Cooking + Stock + Planning",e:"L",risk:"R2",lane:"wave1",s:"“We cooked this” stages mark-cooked, rating, actual portions, stock deductions, frozen leftovers, and Shopping reconciliation as one finish.",dep:"Action bundle with honest atomicity/compensation receipt."},
+				{r:8,id:"BTL-008",t:"Exact cook-from-stock answers",d:"Recipes + Stock",e:"M",risk:"R1",lane:"wave1",s:"Compare recipes by complete or near-complete coverage and show the exact missing items, not a generic suggestion.",dep:"Existing recipe and inventory projections."},
+				{r:9,id:"BTL-009",t:"Butler Brief",d:"Cross-domain",e:"L",risk:"R3",lane:"wave1",s:"On opening home, show at most a few high-value cues: expiring food, plan gaps, low freezer targets, unresolved Shopping, and unfinished actions.",dep:"Zero-spend household snapshot, recommendation envelope, durable dismissal if selected."},
+				{r:10,id:"BTL-010",t:"Use-it-up rescue",d:"Stock + Recipes",e:"M",risk:"R1",lane:"wave1",s:"Turn expiring or long-frozen ingredients into a ranked rescue meal or recipe adjustment, with the item and urgency visible.",dep:"Existing age/expiry signals and recommendation envelope."},
+				{r:11,id:"BTL-011",t:"AH preview and push from Assistant",d:"Shopping + AH",e:"L",risk:"R2",lane:"first",s:"Render the existing product/conflict preview in chat and require a final external-action confirmation before pushing exactly that revision.",dep:"Shopping controls, preview fingerprint, push-history duplicate protection."},
+				{r:12,id:"BTL-012",t:"Assistant timer controls",d:"Cooking",e:"M",risk:"R2",lane:"wave1",s:"“Start ten minutes for pasta,” extend, rename, or cancel via a client-action card connected to the persistent timer coordinator.",dep:"Validated client-action display; browser coordinator stays authoritative."},
+				{r:13,id:"BTL-013",t:"“I bought…” reconciliation",d:"Shopping + Stock",e:"L",risk:"R2",lane:"wave1",s:"Mark list rows bought and offer a reviewed stock intake with quantities/storage instead of re-entering groceries.",dep:"Shopping controls and bulk stock intake."},
+				{r:14,id:"BTL-014",t:"Cross-domain action bundle + Undo",d:"Trust foundation",e:"L",risk:"R3",lane:"first",s:"Replace a descriptive checklist with exact staged operations, preconditions, consequence summary, commit receipt, and atomic or compensating rollback.",dep:"Capability registry; server-owned staging and explicit atomicity class."},
+				{r:15,id:"BTL-015",t:"Fridge as first-class stock",d:"Stock",e:"L",risk:"R3",lane:"wave1",s:"Add fridge alongside freezer/pantry so milk, produce, open packs, and near-term expiry participate in grounded Assistant flows.",dep:"One complete append-only inventory-zone migration and wide caller sweep."},
+				{r:16,id:"BTL-016",t:"Butler tray with dismiss/snooze/act",d:"Cross-domain",e:"L",risk:"R3",lane:"next",s:"Keep proactive suggestions and unfinished jobs out of transcript history while preserving deliberate triage and return paths.",dep:"Butler Brief and durable suggestion state."},
+				{r:17,id:"BTL-017",t:"Per-domain initiative dial",d:"Trust",e:"M",risk:"R3",lane:"next",s:"Set Quiet, Notice, Prepare, or approved Act separately for Shopping, planning, stock, and cooking.",dep:"Permission receipts and enforcement in every entry path."},
+				{r:18,id:"BTL-018",t:"Why/confidence/consequence on proposals",d:"Trust",e:"M",risk:"R2",lane:"next",s:"Every suggestion exposes facts used, missing evidence, confidence, and exact consequence in one consistent disclosure.",dep:"Shared recommendation envelope and review primitive."},
+				{r:19,id:"BTL-019",t:"“What changed since I last looked?”",d:"Household",e:"L",risk:"R3",lane:"next",s:"Summarize household changes since this user’s last visit across stock, plans, recipes, and Shopping, attributed to the real actor.",dep:"Cross-domain action history and per-user last-seen marker."},
+				{r:20,id:"BTL-020",t:"Shopping source explanations",d:"Shopping",e:"M",risk:"R1",lane:"next",s:"Answer “Why is this here?” from meals, recipe ingredients, manual entries, recurring rules, or substitutions.",dep:"Existing source provenance exposed through Shopping reads."},
+				{r:21,id:"BTL-021",t:"Grocery unpack from photo or voice",d:"Stock + Vision",e:"L",risk:"R2",lane:"next",s:"Parse a bag/counter photo or dictated haul into a reviewed bulk stock intake, merging existing items safely.",dep:"Transient vision plus bulk inventory confirmation."},
+				{r:22,id:"BTL-022",t:"“I used the last…” bundle",d:"Stock + Shopping",e:"M",risk:"R2",lane:"next",s:"Decrement or remove stock and add a replacement to Shopping in one reversible, source-aware action.",dep:"Stock-to-Shopping action bundle."},
+				{r:23,id:"BTL-023",t:"Freezer refill proposal",d:"Freezer + Planning",e:"M",risk:"R1",lane:"next",s:"Compare keep-stocked targets with current portions and stage a batch-cook plan that fits the coming week.",dep:"Existing freezer targets and week proposal."},
+				{r:24,id:"BTL-024",t:"Pantry par levels",d:"Stock + Shopping",e:"L",risk:"R3",lane:"next",s:"Extend staple from a boolean to explicit target quantities and prepare refill suggestions only when below target.",dep:"Additive stock-target schema and Shopping bundle."},
+				{r:25,id:"BTL-025",t:"Leftover follow-through",d:"Freezer + Planning",e:"M",risk:"R2",lane:"next",s:"After a freezer meal is marked cooked, ask eaten portions and close the oldest linked stock without a second remembered request.",dep:"After-cook workflow and oldest-first consume service."},
+				{r:26,id:"BTL-026",t:"Comparable meal-choice cards",d:"Planning",e:"M",risk:"R1",lane:"next",s:"Present three meal options with on-hand items, missing items, age pressure, effort, repeat distance, and freezer effect.",dep:"Recommendation envelope and existing suggestion facts."},
+				{r:27,id:"BTL-027",t:"One-time versus saved substitutions",d:"Recipes + Preferences",e:"L",risk:"R3",lane:"next",s:"Choose this cook, this week, this recipe, or durable household scope before a substitution persists.",dep:"Typed substitution proposal and preference receipts."},
+				{r:28,id:"BTL-028",t:"One-time versus saved AH choice",d:"AH + Preferences",e:"M",risk:"R2",lane:"next",s:"Choose this push, ingredient, recipe, or household scope when selecting a Shopping product.",dep:"Recipe-product preference work and scope picker."},
+				{r:29,id:"BTL-029",t:"Quantity and duplicate conflict resolver",d:"Shopping",e:"L",risk:"R2",lane:"next",s:"Detect incompatible units, duplicate manual/recipe sources, and suspicious totals before AH preview.",dep:"Source-aware Shopping read and proposal review."},
+				{r:30,id:"BTL-030",t:"Missed-meal rollover",d:"Planning + Shopping",e:"M",risk:"R2",lane:"next",s:"Notice uncooked past meals and offer move, drop, or keep while reconciling their Shopping sources.",dep:"Meal update command and Shopping reconciliation."},
+				{r:31,id:"BTL-031",t:"“Cook this” handoff",d:"Planning + Cooking",e:"M",risk:"R1",lane:"next",s:"Turn a meal suggestion into an opened recipe/cook mode with chosen servings, source, and pre-cook actions ready.",dep:"Validated recipe link and selected meal context."},
+				{r:32,id:"BTL-032",t:"Hands-busy voice mode",d:"Cooking",e:"L",risk:"R2",lane:"next",s:"Large minimal controls for read-next, repeat, timer, and “what now?” while cooking; no free-running microphone.",dep:"Cook-mode state and explicit voice activation."},
+				{r:33,id:"BTL-033",t:"Step-aware timer suggestions",d:"Cooking",e:"M",risk:"R1",lane:"next",s:"Parse timed recipe steps and offer named timers at the right step, requiring one tap to start.",dep:"Cook-step projection and timer client action."},
+				{r:34,id:"BTL-034",t:"Cooking rescue",d:"Cooking",e:"M",risk:"R1",lane:"next",s:"Ground “too salty,” “too thin,” or “not browning” help in the active recipe, step, and elapsed context with safety cautions.",dep:"Explicit active-cook context without restoring a global bubble."},
+				{r:35,id:"BTL-035",t:"Defrost planner",d:"Freezer + Cooking",e:"M",risk:"R2",lane:"next",s:"Notice freezer food needed soon and prepare a timed move-to-fridge cue with completion check.",dep:"Planned source, freezer stock, and durable reminder semantics."},
+				{r:36,id:"BTL-036",t:"Prep-ahead splitter",d:"Cooking",e:"M",risk:"R1",lane:"later",s:"Turn a recipe or week into “do tonight / finish tomorrow” steps and optional reminder cards.",dep:"Recipe steps and reminder action contract."},
+				{r:37,id:"BTL-037",t:"Learn actual cook time explicitly",d:"Recipes + Feedback",e:"M",risk:"R2",lane:"later",s:"After cooking, compare predicted and actual duration and offer a recipe metadata correction for review.",dep:"Cook session timing and recipe patch."},
+				{r:38,id:"BTL-038",t:"Tiny post-meal feedback",d:"Preferences",e:"M",risk:"R3",lane:"later",s:"Capture liked, effort, kid response, and “make again” with one-tap answers that influence ranking only after explicit save.",dep:"Typed feedback fields and preference controls."},
+				{r:39,id:"BTL-039",t:"Preference proposals",d:"Preferences",e:"L",risk:"R3",lane:"later",s:"When repeated explicit choices suggest a useful rule, ask “Save this?” with scope and evidence instead of silently learning.",dep:"Preference proposal contract and auditable evidence."},
+				{r:40,id:"BTL-040",t:"Preference center",d:"Trust + Preferences",e:"M",risk:"R3",lane:"later",s:"List what the Butler may use, where it came from, its scope, and controls to edit or forget it.",dep:"Typed preference/permission store and data controls."},
+				{r:41,id:"BTL-041",t:"Attendance-aware portions",d:"Planning",e:"L",risk:"R3",lane:"later",s:"Say who is eating a meal and derive portions without turning household members into tenants or roles.",dep:"Explicit household-person planning context."},
+				{r:42,id:"BTL-042",t:"Adult/kid serving variations",d:"Recipes + Household",e:"L",risk:"R3",lane:"later",s:"Store explicit serving notes or optional variants without polluting ingredient taxonomy or silently changing the canonical recipe.",dep:"Scoped recipe variation model."},
+				{r:43,id:"BTL-043",t:"Dietary/allergen guardrails",d:"Safety + Planning",e:"L",risk:"R3",lane:"later",s:"Use explicitly entered per-person constraints to flag conflicts before suggestion or apply; never infer allergies.",dep:"High-integrity explicit profile and conflict rules."},
+				{r:44,id:"BTL-044",t:"Guest/crowd planning",d:"Planning",e:"M",risk:"R2",lane:"later",s:"One-off occasion flow for headcount, scaled food, components, make-ahead work, and Shopping.",dep:"Scaling and week/action proposal."},
+				{r:45,id:"BTL-045",t:"Effort/energy-aware meals",d:"Planning",e:"M",risk:"R1",lane:"later",s:"Let “very little energy,” “20 minutes,” or “one pan” shape ranking with clear evidence and no permanent assumption.",dep:"Recipe effort metadata or transparent inference."},
+				{r:46,id:"BTL-046",t:"Variety balance",d:"Planning",e:"M",risk:"R1",lane:"later",s:"Explain a week’s category and repeat balance and offer swaps without treating diversity rules as preferences until accepted.",dep:"Existing categories, cook history, and proposal card."},
+				{r:47,id:"BTL-047",t:"Budget-aware week",d:"Planning + AH",e:"L",risk:"R2",lane:"later",s:"Use current AH evidence to compare plan cost ranges and propose cheaper swaps under an explicit budget/quality rule.",dep:"Bounded AH evidence and explicit budget preference."},
+				{r:48,id:"BTL-048",t:"Package-waste optimizer",d:"Planning + Shopping",e:"L",risk:"R2",lane:"later",s:"Coordinate recipes so opened packs and package sizes are reused during the week while showing assumptions.",dep:"Package evidence and cross-recipe quantity reasoning."},
+				{r:49,id:"BTL-049",t:"AH bonus check on demand",d:"AH",e:"M",risk:"R1",lane:"later",s:"For saved staples or a planned week, show relevant current bonus evidence when asked; no background price surveillance.",dep:"Existing live AH search and explicit query."},
+				{r:50,id:"BTL-050",t:"Receipt/photo reconciliation",d:"Shopping + Vision",e:"L",risk:"R2",lane:"later",s:"Review a receipt photo against pushed or bought rows and propose stock additions or unresolved mismatches.",dep:"Transient vision, push history, and reviewed stock intake."},
+				{r:51,id:"BTL-051",t:"Expiry confidence",d:"Stock",e:"L",risk:"R3",lane:"later",s:"Distinguish known dates, rough estimates, opened-on dates, and unknowns; ask only when uncertainty changes a recommendation.",dep:"Typed date-confidence model and migration."},
+				{r:52,id:"BTL-052",t:"Freezer label capture",d:"Freezer + Vision",e:"M",risk:"R2",lane:"later",s:"Dictate or photograph freezer labels to capture dish, portions, frozen date, and recipe link in one reviewed intake.",dep:"Transient vision and leftover linking."},
+				{r:53,id:"BTL-053",t:"Resolve the stock review queue",d:"Stock",e:"M",risk:"R2",lane:"later",s:"Batch similar unclassified or uncertain items into concise proposals instead of one red dot at a time.",dep:"Existing review flags and bulk update."},
+				{r:54,id:"BTL-054",t:"Orphan-leftover repair",d:"Freezer + Recipes",e:"M",risk:"R2",lane:"later",s:"Suggest likely recipe links, no-recipe, or add-later for unresolved leftovers with explicit confidence.",dep:"Recipe search and exact leftover reads."},
+				{r:55,id:"BTL-055",t:"Recipe health review",d:"Recipes",e:"L",risk:"R2",lane:"later",s:"Surface missing roles, uncertain quantities, absent servings, weak directions, or stale flags as one selective queue.",dep:"Recipe quality rules and existing patch review."},
+				{r:56,id:"BTL-056",t:"Source-page update diff",d:"Recipes",e:"L",risk:"R2",lane:"later",s:"Re-fetch an imported recipe on demand and stage meaningful source changes without overwriting household edits.",dep:"Source snapshot and revision-aware diff."},
+				{r:57,id:"BTL-057",t:"Recipe transformation modes",d:"Recipes",e:"M",risk:"R2",lane:"later",s:"“Make it faster, cheaper, less cleanup, or freezer-friendly” produces a typed proposal with trade-offs.",dep:"Recipe patch and explicit transformation goal."},
+				{r:58,id:"BTL-058",t:"On-hand substitution proposal",d:"Recipes + Stock",e:"M",risk:"R2",lane:"later",s:"Compare saved or plausible substitutes with stock and stage a one-cook swap with safety cautions.",dep:"Stock match, substitute data, and temporary scope."},
+				{r:59,id:"BTL-059",t:"Meal component composer",d:"Recipes",e:"M",risk:"R2",lane:"later",s:"Detect that a main lacks a useful side or sauce and compose an existing or new sub-recipe only after selection.",dep:"Meal composition and recipe search."},
+				{r:60,id:"BTL-060",t:"Smart scaling for guests and batches",d:"Recipes + Shopping",e:"M",risk:"R2",lane:"later",s:"Explain linear, whole, and fixed ingredient effects, package consequences, and freezer yield before apply.",dep:"Existing scaling semantics and Shopping preview."},
+				{r:61,id:"BTL-061",t:"Low-energy or sick-day rescue",d:"Planning",e:"S",risk:"R1",lane:"later",s:"Prioritize ready freezer meals, pantry-safe options, and the fewest actions for a one-off survival mode.",dep:"Existing stock and meal suggestion facts."},
+				{r:62,id:"BTL-062",t:"Away mode",d:"Household + Planning",e:"M",risk:"R3",lane:"later",s:"Explicitly mark dates away, pause relevant suggestions, clear or roll plans, and avoid refill pressure.",dep:"Durable bounded occasion state."},
+				{r:63,id:"BTL-063",t:"Pantry emergency plan",d:"Stock + Planning",e:"S",risk:"R1",lane:"later",s:"Build meals from durable pantry/freezer stock during illness, disruption, or no-shopping days.",dep:"Current stock and recipe coverage."},
+				{r:64,id:"BTL-064",t:"Manually triggered household routines",d:"Cross-domain",e:"L",risk:"R3",lane:"later",s:"Save explicit templates such as Taco night or freezer top-up and invoke them on demand; no automatic schedule.",dep:"Action bundles plus user-authored template schema."},
+				{r:65,id:"BTL-065",t:"Repeat a successful week",d:"Planning",e:"M",risk:"R2",lane:"later",s:"Copy a past plan with fresh dates, current stock, servings, and conflict review instead of replaying old writes.",dep:"Historical plan read and new week proposal."},
+				{r:66,id:"BTL-066",t:"Explain household state",d:"Cross-domain",e:"M",risk:"R1",lane:"park",s:"Answer “Why are we low on portions?” or “What is blocking Shopping?” from provenance and history, separating fact from inference.",dep:"Household snapshot and cross-domain provenance."},
+				{r:67,id:"BTL-067",t:"Cross-domain action history",d:"Trust",e:"L",risk:"R3",lane:"park",s:"Extend the inventory timeline into a privacy-bounded household ledger of plan, recipe, Shopping, preference, and Assistant changes.",dep:"Typed actor/action log and migration."},
+				{r:68,id:"BTL-068",t:"Durable unfinished-task recovery",d:"Reliability",e:"L",risk:"R3",lane:"park",s:"Preserve a failed or interrupted multi-step job as resumable with completed, blocked, and not-started operations.",dep:"Durable action bundle receipts."},
+				{r:69,id:"BTL-069",t:"Anomaly scout",d:"Integrity",e:"L",risk:"R2",lane:"park",s:"Deterministically flag impossible quantities, duplicate links, stale plans, missing roles, or suspicious outcomes and offer repairs.",dep:"Cross-domain integrity rules and recommendation envelope."},
+				{r:70,id:"BTL-070",t:"What-if sandbox",d:"Planning",e:"L",risk:"R2",lane:"park",s:"Ask “What if we cook double?” or “skip Tuesday?” and see stock, list, and AH consequences with zero writes.",dep:"Pure dry-run projections across domains."},
+				{r:71,id:"BTL-071",t:"Opt-in digest",d:"Notifications",e:"L",risk:"R3",lane:"park",s:"Summarize the Butler Brief through existing push infrastructure at a chosen cadence; default remains in-app.",dep:"Proven useful brief plus durable scheduling/staleness."},
+				{r:72,id:"BTL-072",t:"Prep/defrost reminders",d:"Cooking + Notifications",e:"L",risk:"R3",lane:"park",s:"Turn approved prep or defrost steps into durable notifications with completion and stale-state handling.",dep:"Reminder schema and existing push infrastructure."},
+				{r:73,id:"BTL-073",t:"Household handoff note",d:"Household",e:"L",risk:"R3",lane:"park",s:"Leave a bounded in-app note tied to a meal, list, or action for the other seeded user and show acknowledgment.",dep:"Cross-user household note model without tenant features."},
+				{r:74,id:"BTL-074",t:"Occasion signals",d:"Integrations",e:"XL",risk:"R3",lane:"park",s:"With explicit opt-in, use calendar or weather signals to shape one-off suggestions without making either authoritative.",dep:"New integration research, privacy boundary, and failure path."},
+				{r:75,id:"BTL-075",t:"Retailer-neutral shopping adapter",d:"Architecture",e:"XL",risk:"R3",lane:"park",s:"Generalize preview/push behind the AH seam only when a second real retailer is needed; keep Dutch AH behavior intact.",dep:"A real second retailer requirement; no speculative abstraction."}
+			];
+
+			const firstSliceSets = {
+				planShop: ["BTL-003","BTL-004","BTL-005","BTL-006","BTL-011","BTL-014"],
+				stockShop: ["BTL-001","BTL-002","BTL-013","BTL-014","BTL-015"],
+				cookClose: ["BTL-007","BTL-012","BTL-014"],
+				noticeDecide: ["BTL-009","BTL-014"]
+			};
+			const decisionInfo = {
+				firstLoop: {
+					question: "Which household loop should be the first implementation slice?",
+					recommendation: "Plan → Shop",
+					rationale: "It removes the most weekly decision work and reuses the strongest existing recipe, stock, Shopping, and AH seams.",
+					uncertainty: "Stock → Shopping is smaller and may prove the action-bundle contract faster.",
+					options: {planShop:"Plan → Shop",stockShop:"Stock → Shopping",cookClose:"Cook → Close",noticeDecide:"Notice → Decide"}
+				},
+				initiative: {
+					question: "How proactive should the Butler be at first?",
+					recommendation: "Notice",
+					rationale: "A bounded in-app brief demonstrates initiative without presuming permission or attention.",
+					uncertainty: "Even a short brief may feel noisy until real household use establishes useful thresholds.",
+					options: {notice:"Notice — in-app cues, no prepared writes",quiet:"Quiet — respond only when asked",prepare:"Prepare — automatically build review cards, write nothing"}
+				},
+				fridge: {
+					question: "Should fridge support remain in Wave 1?",
+					recommendation: "Include as its own R3 ticket",
+					rationale: "Many intuitive stock and expiry requests are incomplete without a fridge.",
+					uncertainty: "It is a wide schema/caller sweep and can ship after the first loop without blocking the agent foundation.",
+					options: {include:"Include as its own R3 wide-sweep ticket",next:"Move fridge to Next",exclude:"Exclude fridge permanently"}
+				},
+				learning: {
+					question: "How may the Butler learn durable preferences?",
+					recommendation: "Explicit proposal cards",
+					rationale: "Visible scope, source, edit, and forget preserve trust while still reducing repeated choices.",
+					uncertainty: "Repeated-choice detection can itself feel like inference; Settings-only is stricter.",
+					options: {explicit:"Explicit proposal cards",manual:"Settings entry only",inferAsk:"Infer a possible preference, but always ask before save"}
+				},
+				automatic: {
+					question: "Should anything auto-apply in the first delivery?",
+					recommendation: "No; reviewed one-tap actions",
+					rationale: "Trust should be earned per domain after real household use.",
+					uncertainty: "A few reversible list actions may prove safe enough for designated Act later.",
+					options: {review:"No auto-apply; reviewed one-tap actions",undoable:"Only explicitly designated undoable actions",quietOnly:"Do not design Act yet"}
+				},
+				surface: {
+					question: "Where should proactive suggestions live?",
+					recommendation: "Butler Brief above chat on /",
+					rationale: "It preserves the single Assistant surface and keeps suggestions out of conversation history.",
+					uncertainty: "A visually separate section on the same route may better distinguish service from chat.",
+					options: {brief:"Brief above chat on /",separate:"Separate service section on /",chat:"Chat summary only"}
+				},
+				notifications: {
+					question: "Should the first delivery send proactive push notifications?",
+					recommendation: "In-app only",
+					rationale: "Notifications add attention cost and need durable scheduling and staleness semantics.",
+					uncertainty: "A later opt-in digest may fit the household’s low-hands-on preference if the brief proves valuable.",
+					options: {inApp:"In-app only",optIn:"Design an optional digest",never:"Never use Butler push notifications"}
+				}
+			};
+
+			const defaultIdeaState = Object.fromEntries(ideas.map((idea) => [idea.id, {status: idea.lane, note: ""}]));
+			const defaults = {
+				decisions: {firstLoop:"planShop",initiative:"notice",fridge:"include",learning:"explicit",automatic:"review",surface:"brief",notifications:"inApp"},
+				decisionNotes: {firstLoop:"",initiative:"",fridge:"",learning:"",automatic:"",surface:"",notifications:""},
+				ideas: defaultIdeaState,
+				followUp: ""
+			};
+			let state = structuredClone(defaults);
+			const ideaList = document.getElementById("idea-list");
+			const ledgerSummary = document.getElementById("ledger-summary");
+			const saveState = document.getElementById("save-state");
+			const prompt = document.getElementById("prompt");
+			const search = document.getElementById("idea-search");
+			const statusFilter = document.getElementById("status-filter");
+			const domainFilter = document.getElementById("domain-filter");
+
+			function cloneDefaults() {
+				return JSON.parse(JSON.stringify(defaults));
+			}
+
+			function normalizeState(raw) {
+				const next = cloneDefaults();
+				if (!raw || typeof raw !== "object") return next;
+				for (const key of Object.keys(next.decisions)) {
+					if (raw.decisions?.[key] && decisionInfo[key].options[raw.decisions[key]]) next.decisions[key] = raw.decisions[key];
+					if (typeof raw.decisionNotes?.[key] === "string") next.decisionNotes[key] = raw.decisionNotes[key];
+				}
+				for (const idea of ideas) {
+					const saved = raw.ideas?.[idea.id];
+					if (saved && statusLabels[saved.status]) next.ideas[idea.id].status = saved.status;
+					if (saved && typeof saved.note === "string") next.ideas[idea.id].note = saved.note;
+				}
+				if (typeof raw.followUp === "string") next.followUp = raw.followUp;
+				return next;
+			}
+
+			function save(message) {
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state));
+					saveState.textContent = message || "Saved locally.";
+				} catch {
+					saveState.textContent = "Changes work for this session but could not be saved locally.";
+				}
+				prompt.value = buildPrompt();
+			}
+
+			function syncFirstSlice(loop) {
+				const wanted = new Set(firstSliceSets[loop] || []);
+				for (const idea of ideas) {
+					if (state.ideas[idea.id].status === "first" && !wanted.has(idea.id)) {
+						state.ideas[idea.id].status = idea.r <= 15 ? "wave1" : idea.lane;
+					}
+					if (wanted.has(idea.id)) state.ideas[idea.id].status = "first";
+				}
+			}
+
+			function renderDecisionControls() {
+				for (const [key, value] of Object.entries(state.decisions)) {
+					const radio = document.querySelector(`input[name="${key}"][value="${value}"]`);
+					if (radio) radio.checked = true;
+					const note = document.querySelector(`[data-decision-note="${key}"]`);
+					if (note) note.value = state.decisionNotes[key] || "";
+				}
+				document.getElementById("follow-up").value = state.followUp;
+			}
+
+			function ideaMatches(idea) {
+				const q = search.value.trim().toLocaleLowerCase();
+				const current = state.ideas[idea.id];
+				if (statusFilter.value && current.status !== statusFilter.value) return false;
+				if (domainFilter.value && idea.d !== domainFilter.value) return false;
+				if (!q) return true;
+				return `${idea.id} ${idea.t} ${idea.s} ${idea.d} ${idea.dep}`.toLocaleLowerCase().includes(q);
+			}
+
+			function renderIdeas() {
+				ideaList.replaceChildren();
+				const visible = ideas.filter(ideaMatches);
+				for (const idea of visible) {
+					const current = state.ideas[idea.id];
+					const article = document.createElement("article");
+					article.className = "idea";
+					article.dataset.status = current.status;
+
+					const rank = document.createElement("div");
+					rank.className = "rank";
+					rank.innerHTML = `${idea.r}<small>${idea.id}</small>`;
+
+					const body = document.createElement("div");
+					const title = document.createElement("h3");
+					title.className = "idea-title";
+					title.textContent = idea.t;
+					const summary = document.createElement("p");
+					summary.className = "idea-summary";
+					summary.textContent = idea.s;
+					const meta = document.createElement("div");
+					meta.className = "meta";
+					meta.innerHTML = `<span>${idea.d}</span><span>Effort ${idea.e}</span><span>${idea.risk}</span><span>Default ${statusLabels[idea.lane]}</span>`;
+					const details = document.createElement("details");
+					const detailsSummary = document.createElement("summary");
+					detailsSummary.textContent = "Dependencies, uncertainty, and comment";
+					const dependency = document.createElement("p");
+					dependency.textContent = `Dependency / uncertainty: ${idea.dep}`;
+					const note = document.createElement("textarea");
+					note.className = "note idea-note";
+					note.rows = 2;
+					note.placeholder = `Comment on ${idea.id}`;
+					note.setAttribute("aria-label", `Comment on rank ${idea.r}, ${idea.t}`);
+					note.value = current.note;
+					note.addEventListener("input", () => {
+						state.ideas[idea.id].note = note.value;
+						save();
+					});
+					details.append(detailsSummary, dependency, note);
+					body.append(title, summary, meta, details);
+
+					const controls = document.createElement("div");
+					controls.className = "idea-controls";
+					const label = document.createElement("label");
+					label.htmlFor = `status-${idea.id}`;
+					label.textContent = "Roadmap status";
+					const select = document.createElement("select");
+					select.id = `status-${idea.id}`;
+					select.className = "control";
+					select.setAttribute("aria-label", `Roadmap status for rank ${idea.r}, ${idea.t}`);
+					for (const [value, text] of Object.entries(statusLabels)) {
+						const option = document.createElement("option");
+						option.value = value;
+						option.textContent = text;
+						option.selected = current.status === value;
+						select.append(option);
+					}
+					select.addEventListener("change", () => {
+						state.ideas[idea.id].status = select.value;
+						save(`${idea.id} set to ${statusLabels[select.value]}.`);
+						renderIdeas();
+					});
+					controls.append(label, select);
+					article.append(rank, body, controls);
+					ideaList.append(article);
+				}
+				if (!visible.length) {
+					const empty = document.createElement("div");
+					empty.className = "empty-ledger";
+					empty.textContent = "No ideas match these filters.";
+					ideaList.append(empty);
+				}
+				const counts = Object.fromEntries(Object.keys(statusLabels).map((key) => [key, 0]));
+				for (const idea of ideas) counts[state.ideas[idea.id].status]++;
+				ledgerSummary.innerHTML = [
+					`<span class="pill">${visible.length} shown</span>`,
+					...Object.entries(statusLabels).map(([key, label]) => `<span class="pill">${label}: ${counts[key]}</span>`)
+				].join("");
+			}
+
+			function buildPrompt() {
+				const lines = [
+					"Load docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md and continue the $plan → $run workflow from that authoritative Markdown source.",
+					"",
+					"Task: reconcile the product feedback below into the Markdown plan first. Then execute only ideas marked First slice after the active assistant recipe-options delivery is closed or explicitly parked. Do not treat this HTML as plan state.",
+					"",
+					"Accepted architecture unless explicitly overridden below:",
+					"- Keep / as the only Assistant surface; do not restore the retired floating/contextual bubble.",
+					"- Reuse current SvelteKit, SQLite, domain services, provider seam, tool loop, and push infrastructure; add no automatic memory store.",
+					"- Derive Butler Brief candidates deterministically with zero provider spend on home load.",
+					"- Every recommendation shows why now, evidence, confidence/uncertainty, consequence, and alternatives.",
+					"- Durable preferences require an explicit scoped save with edit/forget; ordinary chat is not memory.",
+					"- Every persistent tool is registered with its read/write, precondition, confirmation, undo, external-effect, and display contract.",
+					"- Multi-domain bundles declare atomicity before approval. Use one transaction where possible; otherwise use preflight plus compensating operations and a truthful partial/blocked receipt.",
+					"- Destructive, ambiguous, paid, and external AH actions always require review. AH lookups and pushes use Dutch recipe ingredient fields only.",
+					"- Append-only migrations and the beta R3 schema split/stage gate apply. Preserve unrelated worktree changes.",
+					""
+				];
+				for (const key of Object.keys(decisionInfo)) {
+					const info = decisionInfo[key];
+					const selected = state.decisions[key];
+					lines.push(`Decision: ${info.question}`);
+					lines.push(`Selected outcome: ${info.options[selected]}.`);
+					lines.push(`Recommendation: ${info.recommendation}.`);
+					lines.push(`Rationale: ${info.rationale}`);
+					lines.push(`Uncertainty: ${info.uncertainty}`);
+					lines.push(`Available options: ${Object.values(info.options).join(" / ")}`);
+					const note = state.decisionNotes[key].trim();
+					if (note) {
+						lines.push("User note (verbatim):");
+						lines.push(note);
+					} else {
+						lines.push("User note: none.");
+					}
+					lines.push("");
+				}
+				lines.push("All 75 idea dispositions, in source rank order:");
+				for (const idea of ideas) {
+					const current = state.ideas[idea.id];
+					lines.push(`${idea.r}. ${idea.id} — ${idea.t}`);
+					lines.push(`Status: ${statusLabels[current.status]} (source default: ${statusLabels[idea.lane]}).`);
+					lines.push(`Scope/value: ${idea.s}`);
+					lines.push(`Domain and size: ${idea.d}; effort ${idea.e}; risk ${idea.risk}.`);
+					lines.push(`Dependency/uncertainty: ${idea.dep}`);
+					if (current.note.trim()) {
+						lines.push(`User note for ${idea.id} (verbatim):`);
+						lines.push(current.note);
+					} else {
+						lines.push(`User note for ${idea.id}: none.`);
+					}
+				}
+				lines.push("");
+				if (state.followUp.trim()) {
+					lines.push("Additional requested follow-up work (verbatim):");
+					lines.push(state.followUp);
+				} else {
+					lines.push("Additional requested follow-up work: none.");
+				}
+				lines.push("");
+				lines.push("Proceed forward-only. First update the authoritative Markdown so its Wave 1, tickets, open questions, and resume pack match these selections. Then use $run for only the First slice. Non-selected ideas remain inert and must create no callers, schemas, or migrations.");
+				return lines.join("\n");
+			}
+
+			function load() {
+				let loaded = null;
+				try {
+					const raw = localStorage.getItem(storageKey);
+					if (raw) loaded = JSON.parse(raw);
+				} catch {
+					saveState.textContent = "Local save is unavailable; the workspace still works for this session.";
+				}
+				state = normalizeState(loaded);
+				renderDecisionControls();
+				renderIdeas();
+				prompt.value = buildPrompt();
+			}
+
+			for (const key of Object.keys(decisionInfo)) {
+				document.querySelectorAll(`input[name="${key}"]`).forEach((input) => {
+					input.addEventListener("change", () => {
+						state.decisions[key] = input.value;
+						if (key === "firstLoop") {
+							syncFirstSlice(input.value);
+							renderIdeas();
+						}
+						if (key === "fridge") {
+							state.ideas["BTL-015"].status = input.value === "include" ? "wave1" : input.value === "next" ? "next" : "exclude";
+							renderIdeas();
+						}
+						save("Decision saved locally.");
+					});
+				});
+				const note = document.querySelector(`[data-decision-note="${key}"]`);
+				note.addEventListener("input", () => {
+					state.decisionNotes[key] = note.value;
+					save();
+				});
+			}
+
+			document.getElementById("follow-up").addEventListener("input", (event) => {
+				state.followUp = event.target.value;
+				save();
+			});
+			search.addEventListener("input", renderIdeas);
+			statusFilter.addEventListener("change", renderIdeas);
+			domainFilter.addEventListener("change", renderIdeas);
+			document.getElementById("show-first").addEventListener("click", () => {
+				statusFilter.value = "first";
+				search.value = "";
+				domainFilter.value = "";
+				renderIdeas();
+				document.getElementById("ideas").scrollIntoView({block:"start"});
+			});
+			document.getElementById("reset").addEventListener("click", () => {
+				state = cloneDefaults();
+				search.value = "";
+				statusFilter.value = "";
+				domainFilter.value = "";
+				try { localStorage.removeItem(storageKey); } catch {}
+				renderDecisionControls();
+				renderIdeas();
+				save("Defaults restored.");
+			});
+			document.getElementById("copy").addEventListener("click", async () => {
+				try {
+					await navigator.clipboard.writeText(prompt.value);
+					saveState.textContent = "Prompt copied.";
+				} catch {
+					prompt.focus();
+					prompt.select();
+					saveState.textContent = "Clipboard access failed. The prompt is selected; copy it manually.";
+				}
+			});
+
+			for (const domain of [...new Set(ideas.map((idea) => idea.d))].sort()) {
+				const option = document.createElement("option");
+				option.value = domain;
+				option.textContent = domain;
+				domainFilter.append(option);
+			}
+			load();
+		})();
+	</script>
+</body>
+</html>

@@ -19,6 +19,7 @@
 	} from '$lib/stores/chat-agent.svelte';
 	import { MOTION_MICRO_MS } from '$lib/motion';
 	import RecipeEnhancementReview from '$lib/components/chat/RecipeEnhancementReview.svelte';
+	import MealPlanReview from '$lib/components/chat/MealPlanReview.svelte';
 	import { toolEntityHref } from '$lib/tool_display';
 
 	let { controller }: { controller: ChatAgentController } = $props();
@@ -41,12 +42,22 @@
 		string,
 		{ operationIds: string[]; productSelections: Record<string, string> }
 	>();
-	let latestProposalTokens = $derived.by(() => {
+	let latestRecipeProposalTokens = $derived.by(() => {
 		const latest = new Map<string, string>();
 		for (const message of messages) {
 			for (const tool of message.toolCalls ?? []) {
 				const proposal = tool.display?.recipePatch;
 				if (proposal) latest.set(proposal.recipeSlug, proposal.token);
+			}
+		}
+		return latest;
+	});
+	let latestMealPlanProposalTokens = $derived.by(() => {
+		const latest = new Map<string, string>();
+		for (const message of messages) {
+			for (const tool of message.toolCalls ?? []) {
+				const proposal = tool.display?.mealPlanProposal;
+				if (proposal) latest.set(proposal.weekStartDate, proposal.token);
 			}
 		}
 		return latest;
@@ -485,12 +496,20 @@
 										{#if d.kind === 'proposal' && d.recipePatch}
 											<RecipeEnhancementReview
 												proposal={d.recipePatch}
-												isLatest={latestProposalTokens.get(d.recipePatch.recipeSlug) === d.recipePatch.token}
+												isLatest={latestRecipeProposalTokens.get(d.recipePatch.recipeSlug) === d.recipePatch.token}
 												initialSelection={proposalSelection(d.recipePatch.recipeSlug)}
 												onSelectionChange={(selection) =>
 													saveProposalSelection(d.recipePatch!.recipeSlug, selection)}
 												onFindDifferent={(input) =>
 													controller.findDifferentRecipeProducts(input)}
+											/>
+										{/if}
+										{#if d.kind === 'proposal' && d.mealPlanProposal}
+											<MealPlanReview
+												proposal={d.mealPlanProposal}
+												isLatest={latestMealPlanProposalTokens.get(
+													d.mealPlanProposal.weekStartDate
+												) === d.mealPlanProposal.token}
 											/>
 										{/if}
 									</div>

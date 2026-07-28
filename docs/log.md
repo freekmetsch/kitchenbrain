@@ -431,6 +431,17 @@ Touched: docs/artifacts/2026-07-28-plan-assistant-recipe-options-chat-density.ht
 docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
 docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md
 
+## 2026-07-28 | html-artifact | plan: Assistant household butler roadmap
+
+Inventoried the Assistant's 28 current tools and safety/presentation seams, then shaped 75 ranked
+household-service ideas around four complete loops: Stock → Shopping, Plan → Shop, Cook → Close,
+and Notice → Decide. The decision workspace lets Freek choose the first loop, set the initial
+initiative and preference posture, promote/defer/exclude every idea, attach exact comments, and
+copy a forward-only handoff prompt.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+docs/artifacts/2026-07-28-plan-assistant-household-butler-roadmap.html
+
 ## 2026-07-28 | run | Assistant recipe product choices and dense chat
 
 Implemented three distinct, recipe-scoped AH product choices with opaque server evidence, atomic
@@ -591,3 +602,33 @@ inline fallback was used.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md,
 docs/artifacts/archive/2026-07-28-design-shotgun-shopping-source-board.html
+
+## 2026-07-29 | run | Assistant Plan → Shop First slice
+
+Implemented the six selected First-slice ideas from the authoritative Butler roadmap. A
+user-requested outcome now produces one adjustable meal-plan review with a complete trust
+envelope; Apply commits the selected plan and Shopping reconciliation atomically, prepares a
+read-only AH review, and keeps the exact AH push behind a separate final confirmation. Direct
+model add/remove meal tools are retired in favor of the reviewed proposal path. No schema,
+automatic memory, routine, Butler Brief, notification, or background provider turn was added.
+
+The complete provider-free gate passed 122 test files / 659 unit tests, all 21 primary
+authenticated browser stories, Svelte diagnostics, and the production build. All 21
+secondary-account browser stories also passed. The Plan → Shop story covers 375 and 1280 px,
+selective adjustment, zero push during Apply, explicit external confirmation, and local Undo
+truth.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+docs/artifacts/2026-07-28-plan-assistant-household-butler-roadmap.html,
+src/lib/server/ai/capability_registry.ts,
+src/lib/server/ai/meal_plan_proposal.ts,
+src/lib/server/workflows/meal-plan-proposal.ts,
+src/lib/components/chat/MealPlanReview.svelte,
+src/lib/components/chat/AssistantAhReview.svelte,
+src/routes/api/meal-plan/proposal/+server.ts
+
+## 2026-07-29 00:40 archive-scan | no archive this pass
+
+No terminal feature list was present in the root lane. The active Butler roadmap remains in
+place because its later Wave 1 opportunity queue is unfinished. The repository still has no
+`scripts/archive-scan.ps1`, so it remains a candidate for the shared archive-script rollout.
