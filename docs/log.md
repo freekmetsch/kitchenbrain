@@ -461,3 +461,21 @@ src/lib/server/ai/final_iteration_text.ts,
 src/routes/api/chat/+server.ts,
 docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
 docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md
+
+## 2026-07-28 | run | Varied assistant recipe-option matrix
+
+Expanded the bounded live-provider canary from one ingredient family to nine varied scenarios,
+including a five-candidate reveal pool, optional and multi-ingredient recipes, and an insufficient
+catalog negative control. Iterative failures led to one-proposal-per-turn, canonical product-form
+labels, distinct first-visible forms, and explicit stage-or-refuse guidance. The final matrix
+passed in 31 provider calls / 205,449 tokens / a reported $0.05; the complete repository gate then
+passed 609 unit tests, all 20 primary browser stories, Svelte diagnostics, and the production
+build. Required Opus review attempts were unavailable; no independent findings were accepted.
+
+Touched: scripts/canary/recipe-options-live.ts,
+src/lib/server/ai/prompts/system.md,
+src/lib/server/ai/prompt_contract.test.ts,
+src/lib/server/ai/tools.ts,
+src/lib/server/ai/tools.test.ts,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md

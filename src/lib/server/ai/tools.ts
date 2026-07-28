@@ -542,7 +542,7 @@ export const tools: Anthropic.Tool[] = [
 										form_label: {
 											type: 'string',
 											description:
-												'A meaningfully distinct form, e.g. whole block, freshly grated, grated powder'
+												'Canonical purchase-form category, e.g. whole block, freshly grated, or grated powder. Products with the same form must use the same label regardless of brand, size, cultivar, or marketing wording, and cannot both be candidates.'
 										},
 										distinction: {
 											type: 'string',

@@ -1,6 +1,6 @@
 # Assistant recipe product choices and dense chat
 
-_Status: In flight - Phase 5 of 5 (implementation, mainline integration, and live provider canary verified; draft PR #21 open; production promotion pending)_
+_Status: In flight - Phase 5 of 5 (implementation, mainline integration, and varied live-provider matrix verified; draft PR #21 open; production promotion pending)_
 
 Related issue:
 `docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md`
@@ -658,18 +658,25 @@ a separately authorized bounded live provider canary.
 
 #### Execution evidence — 2026-07-28
 
-The bounded live provider canary passed five synthetic, provider-backed scenarios through the real
-agent loop and production tool schemas without reading household data, calling AH, applying a
-preference, or pushing a basket. It covered balanced results, a three-block package-size trap,
-powder-first ordering, mixed-language instructions, and card-not-prose behavior. Across 15
-provider calls and 89,203 tokens, the configured `z-ai/glm-5` model put block, fresh-grated, and
-powder choices in the first three visible positions every time. Reported provider cost was $0.02.
+The bounded live-provider canary now passes nine synthetic scenarios through the configured
+`z-ai/glm-5` agent loop and production tool schemas without reading household data, calling AH,
+applying a preference, or pushing a basket. The final matrix covered a Parmesan package-size trap,
+a five-candidate tomato pool for “Show more”, fresh/frozen/creamed spinach, mixed-language tofu,
+powder-first chili, optional parsley, a two-ingredient coconut curry, card-not-prose behavior, and
+an insufficient garlic catalog that must not produce a fake complete group. Its final pass used
+31 provider calls and 205,449 tokens at a reported $0.05.
 
-The first canary pass also exposed proposal-final narration as long as 641 characters. The
-follow-up refinement now preserves a concise one-line model ending but replaces multi-line or
-over-180-character proposal narration with the localized card-ready fallback. The stricter canary
-confirmed that behavior in two of five scenarios. Its fixed 1Password-backed wrapper suppresses
-child output and writes only a sanitized local report.
+Iterative passes exposed three model-level failure modes that the original cheese-only fixture
+could not reveal: staging a second proposal after a valid first card, treating brand/cultivar
+variants as distinct product forms, and declining in prose despite having evidence for three
+forms. The prompt and tool contract now require one complete proposal, canonical purchase-form
+labels, three distinct first-visible forms, and a stage-or-refuse boundary. The matrix also
+retains the earlier final-prose guard: multi-line or over-180-character proposal narration becomes
+the localized card-ready fallback. Its fixed 1Password-backed wrapper suppresses child output and
+writes only a sanitized local report. The required independent Opus review for the prompt change
+was invoked repeatedly; earlier attempts returned a provider session-limit response and the final
+post-reset attempt timed out after three minutes. No independent findings were accepted, so the
+draft PR and R3 production gate remain the review boundary.
 
 ## Risk tier and audit findings
 
@@ -868,7 +875,7 @@ dropping data, which makes the R3 cost proportionate.
 > creating a new external service is not implied by this plan.
 
 > **Resolved 2026-07-28:** Freek authorized an extensive live provider canary during `$run`.
-> Five synthetic scenarios ran through the configured model under fixed call, token, cost, and
+> Nine synthetic scenarios ran through the configured model under fixed call, token, cost, and
 > timeout limits. No chat-history row, preference Apply, AH request, or basket push occurred.
 
 ## Resume pack
@@ -879,12 +886,13 @@ surface substantially wider and denser.
 
 **Current state:** all ARO tickets are implemented on draft PR #21 and integrated with current
 `main`. Migration 0024 is append-only; fresh/upgraded database proof, the primary and secondary
-browser paths, responsive inspection, bundle scan, 607 unit tests, all 20 primary browser stories,
-Svelte diagnostics, and the production build pass. A five-scenario live provider canary passed
-with three distinct first-visible product forms in every scenario and no household-data, AH,
-Apply, or basket mutation. The names-only Railway verifier reports `SUCCESS`, branch `main`, and
-deployed-commit equality for the current pre-feature production revision. The feature itself is
-not deployed.
+browser paths, responsive inspection, bundle scan, 609 unit tests, all 20 primary browser stories,
+Svelte diagnostics, and the production build pass. A nine-scenario live-provider matrix passed
+with three distinct first-visible product forms in every eligible scenario, a complete
+two-ingredient proposal, a five-item local reveal pool, and a correct no-proposal outcome when
+only two forms existed. It used no household data, AH request, Apply action, or basket mutation.
+The names-only Railway verifier reports `SUCCESS`, branch `main`, and deployed-commit equality for
+the current pre-feature production revision. The feature itself is not deployed.
 
 **First command:** `$run`.
 

@@ -48,5 +48,6 @@ describe('recipe continuity tool contracts', () => {
 		expect(productChoices?.items?.properties).toHaveProperty('candidates');
 		expect(JSON.stringify(productChoices)).toContain('evidence_key');
 		expect(JSON.stringify(productChoices)).not.toContain('product_id');
+		expect(JSON.stringify(productChoices)).toContain('Canonical purchase-form category');
 	});
 });
