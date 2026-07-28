@@ -242,6 +242,75 @@ describe('validateImportFile', () => {
 			}
 		]);
 	});
+
+	it('round-trips household and recipe-specific AH product preferences', () => {
+		const validation = validateImportFile(
+			emptyFile({
+				recipes: [
+					baseRecipe({
+						id: 7,
+						ingredients: [{ id: 'ingredient-cheese', name: 'Parmezaanse kaas', amount: '50' }]
+					})
+				],
+				ah_favorites: [
+					{
+						nameKey: 'knoflook',
+						productId: 'ah-garlic',
+						productName: 'AH Knoflook',
+						createdAt: NOW
+					}
+				],
+				recipe_ah_preferences: [
+					{
+						recipeId: 7,
+						ingredientId: 'ingredient-cheese',
+						productId: 'ah-cheese-block',
+						productName: 'AH Parmigiano Reggiano stuk',
+						variantLabel: 'Heel stuk',
+						selectedAt: NOW
+					}
+				]
+			})
+		);
+		expect(validation.ok).toBe(true);
+		if (!validation.ok) return;
+		const db = createTestDb();
+		expect(importBootstrap(db, validation.data).ok).toBe(true);
+		expect(db.select().from(schema.ahFavorites).get()).toMatchObject({
+			nameKey: 'knoflook',
+			productId: 'ah-garlic'
+		});
+		expect(db.select().from(schema.recipeAhPreferences).get()).toMatchObject({
+			recipeId: 7,
+			ingredientId: 'ingredient-cheese',
+			productId: 'ah-cheese-block'
+		});
+	});
+
+	it('rejects a recipe AH preference for an unknown ingredient', () => {
+		const validation = validateImportFile(
+			emptyFile({
+				recipes: [
+					baseRecipe({
+						id: 7,
+						ingredients: [{ id: 'ingredient-cheese', name: 'Parmezaanse kaas', amount: '50' }]
+					})
+				],
+				recipe_ah_preferences: [
+					{
+						recipeId: 7,
+						ingredientId: 'missing',
+						productId: 'ah-cheese-block',
+						productName: 'AH Parmigiano Reggiano stuk',
+						variantLabel: 'Heel stuk',
+						selectedAt: NOW
+					}
+				]
+			})
+		);
+		expect(validation.ok).toBe(false);
+		if (!validation.ok) expect(validation.error).toMatch(/missing ingredient/i);
+	});
 });
 
 describe('isBootstrapEligible / importBootstrap', () => {

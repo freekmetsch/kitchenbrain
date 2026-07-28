@@ -5,7 +5,7 @@ import { createTestDb } from '$lib/server/test_db';
 import { addInventory, updateInventory } from '$lib/server/workflows/inventory';
 import type { TurnExecutionContext } from './commit_risk';
 import { executeToolCall } from './executors';
-import { createTurnSafetyState, observeToolResult } from './turn_safety';
+import { createTurnSafetyState } from './turn_safety';
 
 function turn(): TurnExecutionContext {
 	return {
@@ -196,28 +196,15 @@ describe('current-turn AH evidence', () => {
 			.get();
 		const context = turn();
 		await executeToolCall('get_recipe', { slug: recipe.slug }, db, 1, context);
-		observeToolResult(
-			'search_ah_products',
-			{
-				ok: true,
-				searches: [
-					{
-						query: 'wortel',
-						available: true,
-						products: [
-							{
-								evidence_key: 'ah-result-1',
-								name: 'AH Winterpeen',
-								package_size: '1 kg',
-								price: 1.49
-							}
-						]
-					}
-				]
-			},
-			db,
-			context.safety!
-		);
+		context.safety!.ahEvidence.set('ah-result-1', {
+			key: 'ah-result-1',
+			source: 'ah',
+			query: 'wortel',
+			productId: 'ah-winterpeen',
+			productName: 'AH Winterpeen',
+			packageSize: '1 kg',
+			price: 1.49
+		});
 
 		const result = await executeToolCall(
 			'propose_recipe_patch',

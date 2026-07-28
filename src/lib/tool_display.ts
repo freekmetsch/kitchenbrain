@@ -17,6 +17,8 @@ export type ToolDisplayEntityAction = {
 export type RecipePatchDisplay = {
 	token: string;
 	recipeSlug: string;
+	recipeRevision?: number;
+	status?: 'active' | 'applying' | 'superseded' | 'applied' | 'expired';
 	operations: Array<{
 		id: string;
 		kind: 'add_ingredient' | 'update_ingredient' | 'add_substitute' | 'recipe_field';
@@ -32,6 +34,20 @@ export type RecipePatchDisplay = {
 			packageSize: string | null;
 			price: number | null;
 		};
+	}>;
+	productChoices?: Array<{
+		id: string;
+		ingredientId: string;
+		label: string;
+		reason: string;
+		candidates: Array<{
+			id: string;
+			formLabel: string;
+			distinction?: string;
+			productName: string;
+			packageSize: string | null;
+			price: number | null;
+		}>;
 	}>;
 };
 

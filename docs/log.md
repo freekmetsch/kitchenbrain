@@ -375,3 +375,28 @@ guarded live repair and post-apply verification completed.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md,
 docs/artifacts/archive/2026-07-28-plan-assistant-write-safety.html
+
+## 2026-07-28 | html-artifact | plan: Assistant recipe product choices and dense chat
+
+Diagnosed the latest production assistant trace, false multi-option promise, proposal lifecycle,
+tool-retry leakage, and stacked chat width caps. Planned three distinct recipe-scoped AH product
+choices, bounded show/find-more behavior, additive preference persistence, strict mixed-source
+shopping conflicts, single-use proposal apply, wider responsive chat, and compact tool activity.
+The independent Opus critique's eight P1 gaps were integrated before the plan was marked GO.
+
+Touched: docs/artifacts/2026-07-28-plan-assistant-recipe-options-chat-density.html,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md
+
+## 2026-07-28 | run | Assistant recipe product choices and dense chat
+
+Implemented three distinct, recipe-scoped AH product choices with opaque server evidence, atomic
+preference apply, strict mixed-source shopping conflicts, bounded replacement, compact tool
+activity, final-only assistant prose, and a wider responsive chat review. Fresh and upgraded
+database proofs, the secondary account flow, the client-bundle marker scan, and the complete
+provider-free `npm test` gate passed. Production remains intentionally unpromoted because the
+deployment-lineage recovery plan and its required names-only verification command are absent.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md,
+drizzle/0023_gray_snowbird.sql

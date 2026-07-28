@@ -84,16 +84,21 @@
 		let text = 0;
 		let excluded = 0;
 		let unconfirmed = 0;
+		let unresolved = 0;
 		for (const it of ahItems ?? []) {
 			const d = decisions[it.ref];
-			if (!d || d.mode === 'exclude') excluded++;
+			if (!d) {
+				if (it.requiresExplicitDecision) unresolved++;
+				else excluded++;
+			}
+			else if (d.mode === 'exclude') excluded++;
 			else if (d.mode === 'product' && it.candidates[d.pick]) {
 				products++;
 				if (it.incompatibleQuantities && !d.quantityConfirmed) unconfirmed++;
 			}
 			else text++;
 		}
-		return { products, text, excluded, unconfirmed };
+		return { products, text, excluded, unconfirmed, unresolved };
 	});
 
 	export async function openAhModal() {
@@ -144,12 +149,14 @@
 			const nextBonus: Record<string, boolean> = {};
 			const nextFavorites: Record<string, string> = {};
 			for (const it of previewItems) {
-				nextDecisions[it.ref] = {
-					mode: it.status === 'product' ? 'product' : 'freetext',
-					pick: 0,
-					qty: it.candidates[0]?.qty ?? 1,
-					quantityConfirmed: !it.incompatibleQuantities
-				};
+				if (!it.requiresExplicitDecision) {
+					nextDecisions[it.ref] = {
+						mode: it.status === 'product' ? 'product' : 'freetext',
+						pick: 0,
+						qty: it.candidates[0]?.qty ?? 1,
+						quantityConfirmed: !it.incompatibleQuantities
+					};
+				}
 				if (it.status === 'product') nextBonus[it.sourceName] = it.candidates[0]?.isBonus ?? false;
 				const fav = it.candidates.find((c) => c.isFavorite);
 				if (fav) nextFavorites[it.term] = fav.id;
@@ -240,6 +247,11 @@
 
 	function toggleExclude(ref: string, item: PreviewItem) {
 		const cur = decisions[ref];
+		if (item.requiresExplicitDecision && cur?.mode === 'exclude') {
+			const { [ref]: _removed, ...remaining } = decisions;
+			decisions = remaining;
+			return;
+		}
 		const back: Decision =
 			item.status === 'product'
 				? {
@@ -259,6 +271,10 @@
 
 	async function confirmPush() {
 		if (!ahItems || !previewToken) return;
+		if (pushSummary.unresolved > 0) {
+			ahError = m.shopping_ah_preference_resolution_required();
+			return;
+		}
 		const pushDecisions = ahItems.map((item) => {
 			const decision = decisions[item.ref];
 			const product = decision?.mode === 'product' ? item.candidates[decision.pick] : null;
@@ -455,7 +471,7 @@
 				type="button"
 				class="btn btn-primary min-h-11"
 				onclick={confirmPush}
-				disabled={ahPushing || pushSummary.unconfirmed > 0 || (pushSummary.products === 0 && pushSummary.text === 0)}
+				disabled={ahPushing || pushSummary.unconfirmed > 0 || pushSummary.unresolved > 0 || (pushSummary.products === 0 && pushSummary.text === 0)}
 			>
 				{#if ahPushing}
 					<Spinner size="xs" />

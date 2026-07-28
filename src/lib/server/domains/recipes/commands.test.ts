@@ -11,7 +11,7 @@ function seedRecipe(db: ReturnType<typeof createTestDb>) {
 		.values({
 			slug: 'soep',
 			title: 'Soep',
-			ingredients: [{ name: 'ui', amount: '1' }],
+			ingredients: [{ id: 'ingredient-ui', name: 'ui', amount: '1' }],
 			directions: ['Snijd de ui.'],
 			directionIdsJson: ['direction_1'],
 			createdAt: now,
@@ -54,5 +54,32 @@ describe('recipe commands', () => {
 		expect(
 			db.select().from(schema.recipes).where(eq(schema.recipes.id, recipe.id)).get()?.title
 		).toBe('Soep');
+	});
+
+	it('prunes recipe product preferences when canonical ingredients disappear', () => {
+		const db = createTestDb();
+		const recipe = seedRecipe(db);
+		db.insert(schema.recipeAhPreferences)
+			.values({
+				recipeId: recipe.id,
+				ingredientId: 'ingredient-ui',
+				productId: 'ah-ui',
+				productName: 'AH Ui',
+				variantLabel: 'Los',
+				selectedAt: new Date()
+			})
+			.run();
+
+		db.transaction((tx) => {
+			expect(
+				updateCanonicalRecipe(tx, {
+					recipeId: recipe.id,
+					expectedRevision: recipe.contentRevision,
+					changes: { ingredients: [] }
+				})
+			).toBeDefined();
+		});
+
+		expect(db.select().from(schema.recipeAhPreferences).all()).toEqual([]);
 	});
 });

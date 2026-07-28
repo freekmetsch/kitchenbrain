@@ -61,7 +61,7 @@
 
 <svelte:head><title>{m.nav_home()}</title></svelte:head>
 
-<div class="mx-auto flex h-full w-full max-w-2xl flex-col">
+<div class="mx-auto flex h-full w-full max-w-5xl flex-col">
 	{#if showExpiring && data.expiring && data.expiring.length > 0}
 	<div class="px-3 pt-3 shrink-0">
 		<div class="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">

@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, notInArray, sql } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
 import { reconcileDirectionIds } from '$lib/recipe_source_snapshot';
@@ -70,7 +70,7 @@ export function updateCanonicalRecipe(
 			changes.directions
 		);
 	}
-	return db
+	const updated = db
 		.update(schema.recipes)
 		.set({
 			...changes,
@@ -85,6 +85,22 @@ export function updateCanonicalRecipe(
 		)
 		.returning()
 		.get();
+	if (updated && changes.ingredients) {
+		const ingredientIds = changes.ingredients.flatMap((ingredient) =>
+			ingredient.id ? [ingredient.id] : []
+		);
+		db.delete(schema.recipeAhPreferences)
+			.where(
+				ingredientIds.length
+					? and(
+							eq(schema.recipeAhPreferences.recipeId, options.recipeId),
+							notInArray(schema.recipeAhPreferences.ingredientId, ingredientIds)
+						)
+					: eq(schema.recipeAhPreferences.recipeId, options.recipeId)
+			)
+			.run();
+	}
+	return updated;
 }
 
 export function updateCookModeCache(

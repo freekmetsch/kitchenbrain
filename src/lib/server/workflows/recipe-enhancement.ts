@@ -5,6 +5,7 @@ import {
 } from '$lib/server/ai/recipe_enhancement';
 import {
 	applyRecipePatch,
+	getRecipePatchStatus,
 	stageRecipePatch
 } from '$lib/server/ai/recipe_patch';
 import type { Db } from '$lib/server/db/types';
@@ -59,6 +60,7 @@ export function applyRecipeEnhancementForApp(input: {
 	token: string;
 	userId: number;
 	operationIds: string[];
+	productSelections?: Array<{ groupId: string; candidateId: string }>;
 }) {
 	return applyRecipeEnhancement(appDb, input);
 }
@@ -69,7 +71,16 @@ export function applyRecipeEnhancement(
 		token: string;
 		userId: number;
 		operationIds: string[];
+		productSelections?: Array<{ groupId: string; candidateId: string }>;
 	}
 ) {
 	return applyRecipePatch(db, input);
+}
+
+export function getRecipeEnhancementStatusForApp(input: {
+	token: string;
+	userId: number;
+	recipeSlug: string;
+}) {
+	return getRecipePatchStatus(input);
 }

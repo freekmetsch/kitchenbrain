@@ -29,6 +29,21 @@ export class ContractError extends Error {
 }
 
 export type RecipeObservation = { id: number; slug: string; revision: number };
+export type AhSearchDisplayProduct = {
+	evidence_key: string;
+	name: string;
+	package_size: string | null;
+	price: number | null;
+	unit_price: string | null;
+	bonus: boolean;
+	previously_bought: boolean;
+	category: string | null;
+};
+export type AhSearchDisplayResult = {
+	query: string;
+	available: boolean;
+	products: AhSearchDisplayProduct[];
+};
 
 export type TurnSafetyState = {
 	inventory: Map<number, ItemSnapshot>;
@@ -37,6 +52,8 @@ export type TurnSafetyState = {
 	recipesBySlug: Map<string, RecipeObservation>;
 	inventoryOperations: Set<number>;
 	ahEvidence: Map<string, RecipePatchEvidence>;
+	ahSearchCache: Map<string, AhSearchDisplayResult>;
+	recipeChoiceReplacement?: { token: string; groupId: string };
 	writeLatched: boolean;
 	failedCalls: Map<string, unknown>;
 	committedWrites: string[];
@@ -50,6 +67,7 @@ export function createTurnSafetyState(): TurnSafetyState {
 		recipesBySlug: new Map(),
 		inventoryOperations: new Set(),
 		ahEvidence: new Map(),
+		ahSearchCache: new Map(),
 		writeLatched: false,
 		failedCalls: new Map(),
 		committedWrites: []
@@ -244,27 +262,6 @@ export function observeToolResult(
 		}
 		return;
 	}
-	if (name === 'search_ah_products' && Array.isArray(result.searches)) {
-		for (const searchResult of result.searches) {
-			const searchRow = record(searchResult);
-			const query = str(searchRow?.query);
-			if (!query || !Array.isArray(searchRow?.products)) continue;
-			for (const product of searchRow.products) {
-				const row = record(product);
-				const key = str(row?.evidence_key);
-				const productName = str(row?.name);
-				if (!key || !productName) continue;
-				state.ahEvidence.set(key, {
-					key,
-					source: 'ah',
-					query,
-					productName,
-					packageSize: str(row?.package_size) ?? null,
-					price: typeof row?.price === 'number' ? row.price : null
-				});
-			}
-		}
-	}
 }
 
 function requireInventory(
@@ -372,6 +369,21 @@ export function authorizeToolCall(
 						'missing_provenance',
 						'Retailer evidence must come from search_ah_products in this turn.'
 					);
+				}
+			}
+		}
+		if (Array.isArray(input.product_choices)) {
+			for (const group of input.product_choices) {
+				const candidates = record(group)?.candidates;
+				if (!Array.isArray(candidates)) continue;
+				for (const candidate of candidates) {
+					const key = str(record(candidate)?.evidence_key);
+					if (key && !state.ahEvidence.has(key)) {
+						throw new ContractError(
+							'missing_provenance',
+							'Retailer evidence must come from search_ah_products in this turn.'
+						);
+					}
 				}
 			}
 		}

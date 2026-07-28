@@ -4,6 +4,7 @@ import { sumCompatibleQuantities } from '$lib/recipe_scale';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
 type WeekEntry = typeof schema.shoppingWeekEntries.$inferSelect;
+export type RecipeAhPreference = typeof schema.recipeAhPreferences.$inferSelect;
 type DB = DbOrTx;
 
 export function getShoppingWeekEntry(
@@ -37,6 +38,31 @@ export function getActiveShoppingEntryBySource(
 
 export function listAhFavorites(db: DB) {
 	return db.select().from(schema.ahFavorites).all();
+}
+
+export function listRecipeAhPreferences(db: DB) {
+	return db.select().from(schema.recipeAhPreferences).all();
+}
+
+export function listRecipeAhPreferencesForSources(
+	db: DB,
+	sources: Array<{ recipeId: number | null; ingredientId: string | null }>
+) {
+	const recipeIds = [...new Set(sources.flatMap((source) => source.recipeId == null ? [] : [source.recipeId]))];
+	if (recipeIds.length === 0) return [];
+	const rows = db
+		.select()
+		.from(schema.recipeAhPreferences)
+		.where(inArray(schema.recipeAhPreferences.recipeId, recipeIds))
+		.all();
+	const sourceKeys = new Set(
+		sources.flatMap((source) =>
+			source.recipeId == null || !source.ingredientId
+				? []
+				: [`${source.recipeId}\u0000${source.ingredientId}`]
+		)
+	);
+	return rows.filter((row) => sourceKeys.has(`${row.recipeId}\u0000${row.ingredientId}`));
 }
 
 export function listRecentShoppingPushes(

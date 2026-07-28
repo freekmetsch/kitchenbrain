@@ -2,9 +2,10 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import path from 'node:path';
+import bcrypt from 'bcryptjs';
 import type { TestInfo } from '@playwright/test';
 import { isoWeekNumber, todayIso, weekStartFor } from '../../src/lib/week';
-import type { TestAccountName } from './config';
+import { TEST_ACCOUNTS, type TestAccountName } from './config';
 
 const E2E_WEEK_START_DAY = 2;
 
@@ -58,6 +59,88 @@ export const KITCHEN_FIXTURES = {
 	primary: fixtureForAccount('primary'),
 	secondary: fixtureForAccount('secondary')
 } as const satisfies Record<TestAccountName, KitchenFixture>;
+
+function chatProposal(
+	fixture: KitchenFixture,
+	token: string,
+	version: 'old' | 'new'
+) {
+	const suffix = `${fixture.account}-${version}`;
+	return {
+		kind: 'proposal',
+		summary: version === 'old' ? 'Prepared an earlier review.' : 'Prepared the latest review.',
+		recipePatch: {
+			token,
+			recipeSlug: fixture.recipeSlug,
+			recipeRevision: 1,
+			operations: [
+				{
+					id: `notes-${suffix}`,
+					kind: 'recipe_field',
+					label: 'notes',
+					before: null,
+					after: 'Taste before serving.',
+					reason: 'Keep the finish explicit.'
+				}
+			],
+			productChoices: [
+				{
+					id: `tomato-form-${suffix}`,
+					ingredientId: `e2e-${fixture.account}-tomatoes`,
+					label: fixture.shoppingName,
+					reason: 'Choose the form that suits this recipe.',
+					candidates: [
+						['whole', 'Whole peeled', 'AH Pomodori pelati', '400 g', 1.29],
+						['diced', 'Diced', 'AH Tomatenblokjes', '400 g', 0.89],
+						['passata', 'Smooth passata', 'AH Passata di pomodoro', '500 g', 1.49],
+						['cherry', 'Whole cherry', 'Mutti Pomodorini', '400 g', 2.49],
+						['crushed', 'Coarsely crushed', 'Mutti Polpa', '400 g', 2.19],
+						['pulp', 'Concentrated pulp', 'AH Tomatenpulp', '390 g', 1.19]
+					].map(([id, formLabel, productName, packageSize, price]) => ({
+						id: `${id}-${suffix}`,
+						formLabel,
+						productName,
+						packageSize,
+						price
+					}))
+				},
+				...(version === 'new'
+					? [
+							{
+								id: `cheese-form-${suffix}`,
+								ingredientId: `e2e-${fixture.account}-cheese`,
+								label: 'Parmezaanse kaas',
+								reason: 'Texture and convenience differ by product form.',
+								candidates: [
+									{
+										id: `block-${suffix}`,
+										formLabel: 'Whole block',
+										productName: 'AH Parmigiano Reggiano 30+ stuk',
+										packageSize: '200 g',
+										price: 5.99
+									},
+									{
+										id: `grated-${suffix}`,
+										formLabel: 'Freshly grated',
+										productName: 'AH Parmigiano Reggiano geraspt',
+										packageSize: '100 g',
+										price: 3.49
+									},
+									{
+										id: `powder-${suffix}`,
+										formLabel: 'Shelf-stable powder',
+										productName: 'Parmesello strooikaas',
+										packageSize: '150 g',
+										price: 2.79
+									}
+								]
+							}
+						]
+					: [])
+			]
+		}
+	};
+}
 
 export function kitchenFixtureFor(testInfo: TestInfo): KitchenFixture {
 	return testInfo.project.name.endsWith('secondary')
@@ -116,9 +199,25 @@ export function seedKitchenFixtures(databasePath: string): void {
 			'fresh', @sortOrder, @now
 		)
 	`);
+	const insertUser = sqlite.prepare(`
+		INSERT INTO users (username, password_hash, creds_version, created_at)
+		VALUES (@username, @passwordHash, 1, @now)
+	`);
+	const insertChatMessage = sqlite.prepare(`
+		INSERT INTO chat_messages (user_id, role, content, tool_calls, created_at)
+		VALUES (@userId, @role, @content, @toolCalls, @createdAt)
+	`);
 
 	const seed = sqlite.transaction(() => {
 		Object.values(KITCHEN_FIXTURES).forEach((fixture, index) => {
+			const account = TEST_ACCOUNTS[fixture.account];
+			const userId = Number(
+				insertUser.run({
+					username: account.username,
+					passwordHash: bcrypt.hashSync(account.password, 4),
+					now
+				}).lastInsertRowid
+			);
 			const ingredients = [
 				{
 					id: `e2e-${fixture.account}-tomatoes`,
@@ -229,6 +328,87 @@ export function seedKitchenFixtures(databasePath: string): void {
 				recipeSlug: fixture.recipeSlug,
 				sortOrder: index,
 				now
+			});
+			const oldToken = `e2e-${fixture.account}-recipe-patch-old`;
+			const newToken = `e2e-${fixture.account}-recipe-patch-new`;
+			insertChatMessage.run({
+				userId,
+				role: 'user',
+				content: 'Offer different AH product forms for this recipe.',
+				toolCalls: null,
+				createdAt: now - 4
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'assistant',
+				content: 'Choose a product form above.',
+				toolCalls: JSON.stringify([
+					{
+						id: `read-old-${fixture.account}`,
+						name: 'get_recipe',
+						input: { slug: fixture.recipeSlug },
+						result: { ok: true },
+						display: { kind: 'read', summary: 'Checked the recipe.' }
+					},
+					{
+						id: `search-old-${fixture.account}`,
+						name: 'search_ah_products',
+						input: { queries: ['tomaten', 'kaas'] },
+						result: { ok: true },
+						display: { kind: 'read', summary: 'Checked two AH searches.' }
+					},
+					{
+						id: `proposal-old-${fixture.account}`,
+						name: 'propose_recipe_patch',
+						input: {},
+						result: { ok: true },
+						display: chatProposal(fixture, oldToken, 'old')
+					}
+				]),
+				createdAt: now - 3
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'user',
+				content: 'Find different options.',
+				toolCalls: null,
+				createdAt: now - 2
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'assistant',
+				content: 'Choose one option for each ingredient.',
+				toolCalls: JSON.stringify([
+					{
+						id: `read-new-${fixture.account}`,
+						name: 'get_recipe',
+						input: { slug: fixture.recipeSlug },
+						result: { ok: true },
+						display: { kind: 'read', summary: 'Checked the recipe.' }
+					},
+					{
+						id: `contract-new-${fixture.account}`,
+						name: 'propose_recipe_patch',
+						input: {},
+						result: { contract_error: 'invalid_input' },
+						display: { kind: 'error', summary: 'Adjusted the proposal contract.' }
+					},
+					{
+						id: `search-new-${fixture.account}`,
+						name: 'search_ah_products',
+						input: { queries: ['tomaten', 'parmezaanse kaas'] },
+						result: { ok: true },
+						display: { kind: 'read', summary: 'Checked two AH searches.' }
+					},
+					{
+						id: `proposal-new-${fixture.account}`,
+						name: 'propose_recipe_patch',
+						input: {},
+						result: { ok: true },
+						display: chatProposal(fixture, newToken, 'new')
+					}
+				]),
+				createdAt: now - 1
 			});
 		});
 	});

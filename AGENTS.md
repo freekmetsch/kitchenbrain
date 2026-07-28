@@ -2,6 +2,9 @@
 
 Self-hosted grocery, meal-plan, recipe, and freezer-inventory PWA with an AI chat assistant and an Albert Heijn (Dutch supermarket) basket-push integration. Single-household app: no multi-tenancy, no SaaS layer, no signup flow — users are seeded from an env var.
 
+The household users are Freek and Ylfa. This is product context, not an authorization or credential
+source; runtime accounts remain seeded from `HOUSEHOLD_USERS`.
+
 This file is the root of the repo; the app itself lives in this directory (SvelteKit).
 
 ## App stage

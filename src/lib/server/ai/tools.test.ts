@@ -37,4 +37,16 @@ describe('recipe continuity tool contracts', () => {
 		expect(properties).not.toHaveProperty('basket');
 		expect(properties).not.toHaveProperty('quantity');
 	});
+
+	it('types recipe operations and opaque product-choice candidates separately', () => {
+		const proposal = tool('propose_recipe_patch').input_schema as {
+			properties?: Record<string, { items?: { oneOf?: unknown[]; properties?: Record<string, unknown> } }>;
+		};
+		const operations = proposal.properties?.operations;
+		const productChoices = proposal.properties?.product_choices;
+		expect(operations?.items?.oneOf).toHaveLength(4);
+		expect(productChoices?.items?.properties).toHaveProperty('candidates');
+		expect(JSON.stringify(productChoices)).toContain('evidence_key');
+		expect(JSON.stringify(productChoices)).not.toContain('product_id');
+	});
 });

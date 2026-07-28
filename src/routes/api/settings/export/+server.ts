@@ -9,7 +9,9 @@ import {
 	mealSubRecipes,
 	shoppingListOverrides,
 	recurringShoppingItems,
-	shoppingWeekEntries
+	shoppingWeekEntries,
+	ahFavorites,
+	recipeAhPreferences
 } from '$lib/server/db/schema';
 import { isNull } from 'drizzle-orm';
 
@@ -31,7 +33,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 		meal_sub_recipes: db.select().from(mealSubRecipes).all(),
 		shopping_overrides: db.select().from(shoppingListOverrides).all(),
 		recurring_shopping_items: db.select().from(recurringShoppingItems).all(),
-		shopping_week_entries: db.select().from(shoppingWeekEntries).all()
+		shopping_week_entries: db.select().from(shoppingWeekEntries).all(),
+		ah_favorites: db.select().from(ahFavorites).all(),
+		recipe_ah_preferences: db.select().from(recipeAhPreferences).all()
 	};
 
 	const filename = `household-brain-export-${new Date().toISOString().slice(0, 10)}.json`;

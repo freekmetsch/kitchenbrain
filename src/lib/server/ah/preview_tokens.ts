@@ -10,6 +10,7 @@ export type AhPreviewBinding = {
 	unit: string | null;
 	incompatibleQuantities?: boolean;
 	quantitySummary?: string | null;
+	preferenceSignature?: string;
 	offeredProducts: Array<{ id: string; name: string }>;
 };
 

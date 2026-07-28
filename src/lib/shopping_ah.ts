@@ -25,6 +25,8 @@ export type PreviewProduct = {
 	pricePerCount: number | null;
 	/** Household favorite for this ingredient name — pinned to the top, wins over ranking and the AI pick. */
 	isFavorite?: boolean;
+	/** Explicit preference saved for every contributing recipe source. */
+	isRecipePreference?: boolean;
 };
 
 /**
@@ -56,6 +58,10 @@ export type PreviewItem = {
 	candidates: PreviewProduct[];
 	/** Best candidate shares no word with the term — AH resolved a pure synonym. */
 	lowConfidence: boolean;
+	/** No default is allowed until the household explicitly picks product/text/exclude. */
+	requiresExplicitDecision?: boolean;
+	preferenceState?: 'recipe' | 'unresolved' | 'unavailable';
+	preferenceLabel?: string;
 };
 
 // --- Push request: the modal's resolved per-item decisions ----------------

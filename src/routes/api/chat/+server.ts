@@ -30,6 +30,8 @@ import { getLocale } from '$lib/paraglide/runtime';
 import { m } from '$lib/paraglide/messages';
 import { beginChatTurn } from '$lib/server/ai/chat_activity';
 import { createTurnSafetyState } from '$lib/server/ai/turn_safety';
+import { getRecipePatchReplacementContext } from '$lib/server/ai/recipe_patch';
+import { FinalIterationText } from '$lib/server/ai/final_iteration_text';
 
 // Vision upload hard caps (Stage 4b / P5.4). Images arrive as multipart/form-data
 // (no base64 +33% on the wire); the client downscales to ≤1568px before sending,
@@ -113,6 +115,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const images: VisionImage[] = [];
 	let message = '';
 	let isRetry = false;
+	let replacementContext: ReturnType<typeof getRecipePatchReplacementContext> = null;
 	const contentType = request.headers.get('content-type') ?? '';
 	if (contentType.includes('multipart/form-data')) {
 		let form: FormData;
@@ -149,9 +152,31 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const body = (raw ?? {}) as {
 			message?: unknown;
 			retry?: unknown;
+			recipeChoiceFollowUp?: unknown;
 		};
 		message = typeof body.message === 'string' ? body.message : '';
 		isRetry = body.retry === true;
+		if (body.recipeChoiceFollowUp !== undefined) {
+			const followUp =
+				body.recipeChoiceFollowUp &&
+				typeof body.recipeChoiceFollowUp === 'object'
+					? (body.recipeChoiceFollowUp as Record<string, unknown>)
+					: {};
+			if (
+				typeof followUp.token !== 'string' ||
+				typeof followUp.groupId !== 'string'
+			) {
+				throw error(400, 'Invalid recipe product-choice follow-up');
+			}
+			replacementContext = getRecipePatchReplacementContext({
+				token: followUp.token,
+				groupId: followUp.groupId,
+				userId: user.id
+			});
+			if (!replacementContext) {
+				throw error(409, 'Recipe product choices expired; generate a new proposal');
+			}
+		}
 	}
 
 	const hasImages = images.length > 0;
@@ -207,9 +232,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const stream = new ReadableStream({
 		async start(controller) {
 			let fullText = '';
+			let streamFailed = false;
 			const allToolCalls: { id: string; name: string; input: unknown; result: unknown; display?: ToolDisplay }[] =
 				[];
 			const messages: Anthropic.MessageParam[] = [...history];
+			if (replacementContext && messages.length > 0) {
+				messages[messages.length - 1] = {
+					role: 'user',
+					content: `${userText}\n\n[Trusted recipe-choice context: read recipe "${replacementContext.recipeSlug}" again, search AH using its Dutch ingredient "${replacementContext.ingredientLabel}", and propose exactly one complete product-choice group for ingredient ID "${replacementContext.ingredientId}". Every product must differ from the previous group; the server enforces the exclusion set. Send operations as an empty array.]`
+				};
+			}
 			// Attach the transient image(s) to THIS turn's user message. history's last
 			// entry is always the just-inserted user text (we inserted it above, then
 			// loaded the window including it), so swap it for a vision message carrying
@@ -221,12 +253,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			// One TurnExecutionContext per chat request drives the commit-risk gate
 			// (just-created tracking + bulk-destructive count) across the tool loop.
 			// visionTurn forces photo-derived recipes to needs_review in the executor.
+			const safety = createTurnSafetyState();
+			if (replacementContext) {
+				safety.recipeChoiceReplacement = {
+					token: replacementContext.token,
+					groupId: replacementContext.groupId
+				};
+			}
 			const turnCtx: TurnExecutionContext = {
 				createdThisTurn: new Set<number>(),
 				destructiveCount: 0,
 				visionTurn: hasImages,
 				locale,
-				safety: createTurnSafetyState()
+				safety
 			};
 
 			try {
@@ -245,6 +284,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				// Resolved lazily on first use, not hoisted alongside chatModel — the
 				// fallback only fires on a provider hiccup, so most turns never pay for it.
 				let fallbackModel: string | null = null;
+				const iterationText = new FinalIterationText();
 				while (true) {
 					if (iterations++ >= MAX_ITERATIONS) break;
 
@@ -268,8 +308,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 								// the plain-text rule); persist and stream the cleaned text.
 								const clean = stripInlineMarkdown(delta);
 								if (!clean) return;
-								fullText += clean;
-								controller.enqueue(sse({ type: 'text', text: clean }));
+								iterationText.append(clean);
 							}
 						});
 					} catch (err) {
@@ -298,7 +337,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					// Run every tool call that fully streamed this turn, regardless of stop
 					// reason — a big batch can hit max_tokens mid-stream but the completed
 					// calls are valid and must run.
-					if (turn.toolCalls.length === 0) break;
+					const completedIteration = iterationText.complete(turn.toolCalls.length);
+					if (completedIteration.done) {
+						fullText += completedIteration.text;
+						if (completedIteration.text) {
+							controller.enqueue(sse({ type: 'text', text: completedIteration.text }));
+						}
+						break;
+					}
 
 					const toolResults: Anthropic.ToolResultBlockParam[] = [];
 					for (const tool of turn.toolCalls) {
@@ -327,12 +373,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					messages.push({ role: 'user', content: toolResults });
 				}
 			} catch (err) {
+				streamFailed = true;
 				if (!request.signal.aborted) {
 					console.error('[chat] stream error:', err);
 					controller.enqueue(
 						sse({ type: 'error', message: m.chat_error_mid_reply() })
 					);
 				}
+			}
+			if (!streamFailed && !request.signal.aborted && !fullText.trim() && allToolCalls.length > 0) {
+				const fallback = allToolCalls.some((tool) => tool.display?.kind === 'proposal')
+					? m.chat_tool_only_proposal_ready()
+					: m.chat_tool_only_complete();
+				fullText = fallback;
+				controller.enqueue(sse({ type: 'text', text: fallback }));
 			}
 
 			// Persist assistant response. A reply that is itself a machine payload
