@@ -632,3 +632,13 @@ src/routes/api/meal-plan/proposal/+server.ts
 No terminal feature list was present in the root lane. The active Butler roadmap remains in
 place because its later Wave 1 opportunity queue is unfinished. The repository still has no
 `scripts/archive-scan.ps1`, so it remains a candidate for the shared archive-script rollout.
+
+## 2026-07-29 | deploy-canary | Assistant Plan → Shop First slice
+
+PR #29 reached exact remote `main` and Railway reported `SUCCESS` for the same feature revision.
+Both household authentication canaries passed without retaining household content. The canary
+performed no household mutation, provider turn, AH lookup, or AH push; the external basket
+boundary remains a deliberate user confirmation.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+docs/deploys/2026-07.md
