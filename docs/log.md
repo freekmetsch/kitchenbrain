@@ -354,3 +354,24 @@ terminal feature and its artifact.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_MOBILE_DENSITY_REFINEMENT.md,
 docs/artifacts/archive/2026-07-28-plan-shopping-mobile-density-refinement.html
+
+## 2026-07-28 | shipped | Assistant write safety and scoped recovery
+
+Deployed snapshot-bound writes, fail-closed turn safety, atomic reviewed inventory batches,
+stable-ID recipe roles, typed recipe patches, and bounded read-only AH evidence. After the explicit
+R3 approval, the scoped production recovery restored six inventory snapshots and one recipe note,
+created compensating operation IDs 275-280, preserved unrelated data, replicated to Litestream,
+and passed health, runtime-log, and post-apply read-back checks.
+
+Touched: src/lib/server/ai/turn_safety.ts,
+src/lib/server/ai/recipe_patch.ts,
+src/lib/server/recovery/assistant_incident.ts,
+docs/deploys/2026-07.md
+
+## 2026-07-28 13:46 | archive-scan | 1 feature list, 1 HTML archived
+
+Archived the shipped Assistant write-safety execution plan and its decision workspace after the
+guarded live repair and post-apply verification completed.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md,
+docs/artifacts/archive/2026-07-28-plan-assistant-write-safety.html

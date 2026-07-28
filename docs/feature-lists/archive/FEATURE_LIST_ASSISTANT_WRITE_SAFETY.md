@@ -1,11 +1,11 @@
 # Assistant Write Safety and Recipe Review
 
-_Status: In flight - implementation and clone recovery verified; live R3 apply gate pending_
+_Status: Shipped - guarded assistant deployed, production incident repaired, and live evidence verified_
 
 ## Safety advisory
 
-Do not use the production assistant for persistent writes until Phase 1 has repaired the known
-incident and Phase 2 has shipped the write guards. Read-only questions remain safe.
+The known production incident is repaired and the server-side write guards are deployed.
+Persistent assistant writes may resume through their normal confirmation and review gates.
 
 ## Problem framing
 
@@ -465,7 +465,7 @@ repair requires an explicit stage/go-no-go gate.
 | Independent critique | Model `opus` (resolved `claude-opus-5`) confirmed snapshot-bound provenance, command-layer tombstone safety, atomic fan-out, and test rewrites. Its proposed op-group migration was rejected because explicit persisted op IDs support transactional Undo all without schema change. Migration `0020` already covers ingredient IDs. |
 | Run-time instruction review | Model `opus` was unavailable after two safe-mode attempts; no findings were accepted. Local contract tests and the full repository gate remain the accepted execution evidence. |
 
-## Execution evidence before the live gate
+## Execution evidence and live repair
 
 - The command, turn-latch, atomic batch/undo, stable recipe-ID, typed patch, AH evidence, and
   scoped-recovery tests pass.
@@ -478,8 +478,21 @@ repair requires an explicit stage/go-no-go gate.
 - The exact clone dry-run was ready for ops `269-274`, inventory message `92`, and recipe message
   `94`. Clone apply created six compensating operations, restored every expected snapshot and the
   recipe note, preserved inventory/recipe counts, and kept the unrelated-row fingerprint equal.
-- Production household rows have not been changed. The next irreversible action remains the
-  explicit beta R3 live-apply gate.
+- Railway deployment `fbbc3ba` passed health, auth-boundary, runtime-log, and capped authenticated
+  provider canaries. The provider canary made exactly one Dutch AH search, staged one typed recipe
+  patch, and stopped with Apply disabled.
+- Immediately before the approved R3 apply, SQLite's online backup API created
+  `assistant-safety-immediate-pre-apply-20260728T114410Z.db` with SHA-256
+  `ef86534d03349665256afe24931d9869ffd31840dd5859e26efa9488707b72e5`.
+- The guarded live transaction restored all six inventory snapshots and the recipe note, created
+  compensating inventory operation IDs `275-280`, advanced the recipe to revision `10`, preserved
+  the 38-item and 8-recipe counts, and kept the unrelated-row fingerprint equal.
+- Independent post-apply inspection returned `ready: false`: none of the six rows still matched the
+  incident-after state and the recipe no longer matched incident revision `9`. Litestream replicated
+  the transaction, `/api/healthz` returned 200, and Railway showed no runtime errors or HTTP 5xx.
+- The post-apply online backup is
+  `assistant-safety-post-apply-20260728T114453Z.db`, SHA-256
+  `e684a06fa736a2fa34cebf89e84e8fc7b4596d1c261db501568c45c65e0a02a7`.
 
 ## Rollout and rollback
 
@@ -508,12 +521,8 @@ repair requires an explicit stage/go-no-go gate.
 
 - **Goal:** repair the 2026-07-28 assistant write incident and make agent writes snapshot-bound,
   atomic where fanned out, review-gated for recipe content, and truthful.
-- **Current state:** implementation and clone recovery are verified on a dedicated branch;
-  production write-capable assistant use remains paused by advisory until deployment and repair.
-- **Next ticket:** AWS-9 rollout and the AWS-2 live apply checkpoint.
-- **Next files:** deployment record and scoped recovery evidence only; implementation files are
-  complete unless deployment verification finds a defect.
-- **Pending verification:** beta deployment, capped no-Apply provider canary, explicit live-repair
-  approval, live read-back, and final archive.
-- **Open decisions:** none before local implementation; the beta R3 action-time gate still pauses
-  immediately before any live repair write.
+- **Current state:** shipped and verified in production; the scoped incident repair is complete.
+- **Next ticket:** none for this feature.
+- **Next files:** none.
+- **Pending verification:** none.
+- **Open decisions:** none.
