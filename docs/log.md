@@ -437,8 +437,10 @@ Implemented three distinct, recipe-scoped AH product choices with opaque server 
 preference apply, strict mixed-source shopping conflicts, bounded replacement, compact tool
 activity, final-only assistant prose, and a wider responsive chat review. Fresh and upgraded
 database proofs, the secondary account flow, the client-bundle marker scan, and the complete
-provider-free `npm test` gate passed. Production remains intentionally unpromoted pending the
-required deployment-lineage verification.
+provider-free `npm test` gate passed. After current-main integration, the gate passed 604 unit
+tests, all 20 primary browser stories, Svelte diagnostics, and the production build. The names-only
+lineage verifier reports exact `main` equality; production remains intentionally unpromoted pending
+draft-PR review and the separately authorized live provider-canary decision.
 
 Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
 docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md,

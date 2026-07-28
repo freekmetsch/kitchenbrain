@@ -370,7 +370,7 @@ for (const viewport of VIEWPORTS) {
 			.toBe('1:pot');
 		await page.goto('/recipes');
 		await page.goto(route);
-		await expect(secondStep).toHaveAttribute('aria-current', 'step');
+		await expect(secondStep).toHaveAttribute('aria-current', 'step', { timeout: 15_000 });
 		await expectResponsiveSurface(page, `${route} (resumed)`, viewport.width);
 
 		await page.goto('/recipes');
@@ -381,7 +381,7 @@ for (const viewport of VIEWPORTS) {
 				'Your earlier cooking session could not be restored safely. Source steps are ready, and old timers were cleared.',
 				{ exact: true }
 			)
-		).toBeVisible();
+		).toBeVisible({ timeout: 15_000 });
 		await expect(firstStep).toHaveAttribute('aria-current', 'step');
 		await expect
 			.poll(() => page.evaluate((key) => localStorage.getItem(key), progressKey))

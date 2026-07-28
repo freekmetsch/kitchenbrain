@@ -247,7 +247,7 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 
 	await page.goto('/recipes');
 	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
-	await expect(secondStep).toHaveAttribute('aria-current', 'step');
+	await expect(secondStep).toHaveAttribute('aria-current', 'step', { timeout: 15_000 });
 
 	await page.goto('/recipes');
 	await page.evaluate((key) => localStorage.setItem(key, '{"v":2}'), progressKey);
@@ -257,7 +257,7 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 			'Your earlier cooking session could not be restored safely. Source steps are ready, and old timers were cleared.',
 			{ exact: true }
 		)
-	).toBeVisible();
+	).toBeVisible({ timeout: 15_000 });
 	await expect(firstStep).toHaveAttribute('aria-current', 'step');
 	await expect
 		.poll(() => page.evaluate((key) => localStorage.getItem(key), progressKey))

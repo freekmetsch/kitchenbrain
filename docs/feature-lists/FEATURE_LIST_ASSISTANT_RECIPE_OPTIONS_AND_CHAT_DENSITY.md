@@ -1,6 +1,6 @@
 # Assistant recipe product choices and dense chat
 
-_Status: In flight - Phase 5 of 5 (implementation verified; production promotion blocked on deployment-lineage recovery)_
+_Status: In flight - Phase 5 of 5 (implementation and mainline integration verified; draft PR #21 open; production promotion pending)_
 
 Related issue:
 `docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md`
@@ -142,7 +142,7 @@ The desired behavior is now explicit:
 | Tool rendering | Every read, error, write, confirmation, and proposal renders as a separate card. | Aggregate non-actionable activity while leaving writes, confirmations, and proposals first-class. |
 | Chat width | Home rail is `max-w-2xl`; all bubbles share `max-w-[85%]`. | Use one wider rail and role-specific bubble widths. |
 | Existing browser loop | `assistant-safety.e2e.ts` covers two fixed rows at 375 and 1280 px and asserts only no overflow. | Extend the correct seam with realistic choice groups, lifecycle, density, and width assertions. |
-| Production delivery | Railway production deploys only from GitHub `main`; the repository has no GitHub CI gate, and an active lineage-recovery plan is restoring exact-revision delivery truth. | Implementation may proceed, but promotion waits for lineage recovery, names-only revision proof, terminal Railway success, and authenticated canary. |
+| Production delivery | Railway production deploys only from GitHub `main`; the repository has no GitHub CI gate, and deployment-lineage recovery restored names-only exact-revision proof. | Feature promotion still requires merge to `main`, terminal Railway success at that exact commit, and authenticated canary. |
 
 ## Diagnosis and feedback loop
 
@@ -828,8 +828,8 @@ dropping data, which makes the R3 cost proportionate.
    assumption. Verify one preference-only apply and one combined recipe-patch apply.
 5. Verify the same preference appears at the top of an AH preview for that recipe; do not push the
    basket in the assistant canary.
-6. Do not promote until the active deployment-lineage recovery has restored the configured GitHub
-   `main` source path and exact-revision inspection.
+6. Confirm the recovered deployment lineage still reports the configured GitHub `main` source path
+   and exact-revision equality before promotion.
 7. Promote through `main`, supervise Railway to terminal `SUCCESS`, and prove deployed commit equals
    remote `main` with `node scripts/production/railway-deployment-truth.mjs`. Never inspect raw
    Railway variables or retain authenticated household content as public evidence.
@@ -863,9 +863,12 @@ dropping data, which makes the R3 cost proportionate.
 ingredient, remember the explicit choice for that recipe only, and make the full chat/review
 surface substantially wider and denser.
 
-**Current state:** production behavior and geometry are diagnosed; `/grill` decisions are resolved;
-the issue and this R3 five-phase execution plan are the only task-owned changes. No application
-code, schema, production data, deployment, model configuration, or secret has changed.
+**Current state:** all ARO tickets are implemented on draft PR #21 and integrated with current
+`main`. Migration 0024 is append-only; fresh/upgraded database proof, the primary and secondary
+browser paths, responsive inspection, bundle scan, 604 unit tests, all 20 primary browser stories,
+Svelte diagnostics, and the production build pass. The names-only Railway verifier reports
+`SUCCESS`, branch `main`, and deployed-commit equality for the current pre-feature production
+revision. No feature deployment, live provider turn, Apply action, or AH basket push has run.
 
 **First command:** `$run`.
 
@@ -886,7 +889,6 @@ code, schema, production data, deployment, model configuration, or secret has ch
 fail on three selectable candidates, supersession, and width/density before changing the proposal
 contract.
 
-**Pending verification:** all ARO tickets; fresh/upgraded migration rehearsal; focused primary and
-secondary browser paths; EN/NL and accessibility checks; `npm test`; isolated pre-production
-canary; deployment-lineage recovery and exact `main` revision proof; optional separately authorized
-live provider canary.
+**Pending verification:** explicit authority for the optional one-turn metered provider canary;
+R3 draft-PR review and merge; Railway `SUCCESS` at the resulting feature commit; and the
+authenticated post-deploy canary. The provider canary must stop before Apply or AH push.
