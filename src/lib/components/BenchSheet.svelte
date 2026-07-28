@@ -2,22 +2,20 @@
 	Inline bench-sheet — recipe page's primary cooking surface.
 
 	Owns: deterministic cooking steps, timer/browser adapters, timer-fire alarm
-	(background media + Web Audio fallback + notification),
+	(foreground Web Audio + durable Web Push scheduling),
 	screen Wake Lock, and after-cooking feedback/log actions.
 
 	Per-instance timer, browser lifecycle, persisted-session, and network state
 	live in focused controllers; rendering stays local here.
 
-	SW setTimeout is unreliable past ~30 s of idle, so wall-clock UI state
-	lives in a dedicated Web Worker. A media track started by the timer tap
-	carries the alarm through normal browser backgrounding; physical-device
-	locked-screen behavior remains a release gate. Wake Lock, Web Audio,
-	vibrate, and SW notifications remain layered fallbacks while mounted.
+	UI state lives in a dedicated Web Worker. An authenticated server deadline
+	and Web Push own background delivery; Wake Lock, Web Audio, and vibration
+	remain foreground enhancements while mounted.
 -->
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
-	import { onDestroy, tick, untrack } from 'svelte';
+	import { onDestroy, onMount, tick, untrack } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type { CookModeDisplayRecipe, StoredCookModeRecipe } from '$lib/types';
@@ -28,7 +26,11 @@
 	import { cookPaletteGraph, fmtClock, paletteFor, type BeatPalette } from './cook-mode/palette';
 	import { localizeCookMode } from './cook-mode/staleness';
 	import { cookStepKey, normalizeCookProgress, selectCookStep } from './cook-mode/cook_progress';
-	import type { FrozenCookRecipe } from './cook-mode/cook_session';
+	import type {
+		CookTimerAlert,
+		CookTimerAlertStatus,
+		FrozenCookRecipe
+	} from './cook-mode/cook_session';
 	import {
 		applySessionSwapsToSteps,
 		toggleCounterIngredient,
@@ -47,6 +49,10 @@
 		CookModeLifecycleController,
 		createCookModeLifecycleBrowserAdapters
 	} from './cook-mode/lifecycle-controller.svelte';
+	import {
+		createTimerPushClient,
+		type TimerPushState
+	} from '$lib/timer/push-client';
 
 	export type BenchSheetController = {
 		resetSession: () => void;
@@ -210,6 +216,13 @@
 	let sessionSwaps = $state<Record<string, SessionIngredientSwap>>({});
 
 	const timers = new CookTimerController();
+	const timerPush = createTimerPushClient();
+	let timerPushState = $state<TimerPushState>({ status: 'checking' });
+	let timerAlerts = $state<Record<number, CookTimerAlert>>({});
+	let timerAlertSetupDismissed = $state(false);
+	let hasCancelPending = $derived(
+		Object.values(timerAlerts).some((alert) => alert.status === 'cancel-pending')
+	);
 	let ingredientNamesById = $derived(
 		Object.fromEntries(
 			activeIngredients.flatMap((ingredient) =>
@@ -223,9 +236,6 @@
 	const lifecycle = new CookModeLifecycleController({
 		timers,
 		subscriberId: `bench-sheet-${untrack(() => recipeSlug)}`,
-		alarmAudioSrc: `${base}/audio/cook-timer-alarm.m4a`,
-		recipeTitle: () => recipeTitle,
-		readAlarmStep: (index) => steps[index],
 		shouldRetryAfterVisibility: () =>
 			requiresPlan && !localizedPlan && !loading && Boolean(loadError) && loadErrorRetryable,
 		retryAfterVisibility: () => network.retryAfterVisibility(),
@@ -239,6 +249,20 @@
 		lifecycle.syncTimerActivity(timers.anyRunning);
 	});
 
+	onMount(() => {
+		void timerPush.inspect().then((state) => {
+			timerPushState = state;
+		});
+		const onServiceWorkerMessage = (event: MessageEvent) => {
+			if (event.data?.type !== 'timer-push-subscription-changed') return;
+			void timerPush.inspect().then((state) => {
+				timerPushState = state;
+			});
+		};
+		navigator.serviceWorker?.addEventListener('message', onServiceWorkerMessage);
+		return () => navigator.serviceWorker?.removeEventListener('message', onServiceWorkerMessage);
+	});
+
 	$effect(() => {
 		if (requiresPlan && !localizedPlan && !loading && !loadError) {
 			void network.loadCookMode();
@@ -247,10 +271,98 @@
 
 	function startTimer(idx: number, seconds: number) {
 		beginSession();
-		lifecycle.startTimer(idx, seconds);
+		const deadline = lifecycle.startTimer(idx, seconds);
+		const step = steps[idx];
+		const action = (step?.timer_action ?? 'Timer').toUpperCase();
+		const location = step?.timer_location ?? '';
+		const jobId = crypto.randomUUID();
+		timerAlerts = {
+			...timerAlerts,
+			[idx]: { jobId, status: 'arming' }
+		};
+		void timerPush
+			.schedule({
+				id: jobId,
+				deadline,
+				durationSeconds: seconds,
+				title: location ? `${action} · ${location}` : action,
+				body: step?.timer_purpose ?? step?.goal ?? recipeTitle,
+				navigate: `/recipes/${recipeSlug}`
+			})
+			.then((result) => {
+				if (timerAlerts[idx]?.jobId !== jobId) return;
+				timerAlerts = {
+					...timerAlerts,
+					[idx]: {
+						jobId,
+						status: result.status === 'armed' ? 'armed' : 'foreground-only'
+					}
+				};
+			});
 	}
 	function cancelTimer(idx: number) {
 		lifecycle.cancelTimer(idx);
+		const alert = timerAlerts[idx];
+		if (!alert) return;
+		if (!alert.jobId) {
+			const next = { ...timerAlerts };
+			delete next[idx];
+			timerAlerts = next;
+			return;
+		}
+		timerAlerts = {
+			...timerAlerts,
+			[idx]: { ...alert, status: 'cancel-pending' }
+		};
+		retryTimerAlertCancellation(idx, alert);
+	}
+
+	async function enableTimerAlerts() {
+		timerPushState = { status: 'checking' };
+		timerPushState = await timerPush.enable();
+		timerAlertSetupDismissed = false;
+	}
+
+	async function sendTimerAlertTest() {
+		if (await timerPush.sendTest()) {
+			toast.success(m.benchsheet_timer_alerts_test_sent());
+		} else {
+			toast.error(m.benchsheet_timer_alerts_test_failed());
+		}
+	}
+
+	function timerAlertMessage(): string {
+		switch (timerPushState.status) {
+			case 'ready':
+				return m.benchsheet_timer_alerts_ready();
+			case 'needs-install':
+				return m.benchsheet_timer_alerts_install();
+			case 'blocked':
+				return m.benchsheet_timer_alerts_blocked();
+			case 'server-unavailable':
+				return m.benchsheet_timer_alerts_unavailable();
+			case 'unsupported':
+				return m.benchsheet_timer_alerts_unsupported();
+			case 'error':
+				return m.benchsheet_timer_alerts_error();
+			default:
+				return m.benchsheet_notif_primer_desc();
+		}
+	}
+
+	function timerAlertLabel(status: CookTimerAlertStatus | undefined): string | null {
+		switch (status) {
+			case 'arming':
+				return m.benchsheet_timer_alert_arming();
+			case 'armed':
+				return m.benchsheet_timer_alert_armed();
+			case 'foreground-only':
+				return m.benchsheet_timer_alert_foreground_only();
+			case 'cancel-pending':
+				return m.benchsheet_timer_alert_cancel_pending();
+			default:
+				return null;
+		}
 	}
 	function currentKeys(cm: CookModeDisplayRecipe | null = cookMode): string[] {
 		return (
@@ -344,6 +456,12 @@
 			servingDraft = saved.servings;
 			counterChecks = saved.counterChecks;
 			sessionSwaps = saved.sessionSwaps;
+			timerAlerts = saved.timerAlerts;
+			for (const [rawIndex, alert] of Object.entries(saved.timerAlerts)) {
+				if (alert.status === 'cancel-pending') {
+					retryTimerAlertCancellation(Number(rawIndex), alert);
+				}
+			}
 			const ends: Record<number, number> = {};
 			const order: number[] = [];
 			for (const idx of saved.timerOrder ?? []) {
@@ -368,12 +486,13 @@
 	function saveProgress() {
 		if (!cookMode || !sessionStarted || !frozenRecipe) return;
 		sessionStorage.save({
-			v: 3,
+			v: 4,
 			sig: frozenRecipe.signature,
 			frozenViewLang: activeViewLang,
 			currentStepKey,
 			timerEnds: timers.ends,
 			timerOrder: timers.order,
+			timerAlerts,
 			servings: servingDraft,
 			frozenRecipe,
 			counterChecks,
@@ -385,7 +504,25 @@
 		sessionStorage.clear();
 	}
 
+	function retryTimerAlertCancellation(index: number, alert: CookTimerAlert) {
+		if (!alert.jobId) return;
+		void timerPush.cancel(alert.jobId).then((result) => {
+			if (
+				result.status === 'cancel-pending' ||
+				timerAlerts[index]?.jobId !== alert.jobId
+			) {
+				return;
+			}
+			const next = { ...timerAlerts };
+			delete next[index];
+			timerAlerts = next;
+		});
+	}
+
 	function resetCookSession() {
+		for (const alert of Object.values(timerAlerts)) {
+			if (alert.jobId) void timerPush.cancel(alert.jobId);
+		}
 		clearProgress();
 		frozenRecipe = null;
 		frozenViewLang = null;
@@ -393,6 +530,7 @@
 		sessionNotice = '';
 		counterChecks = {};
 		sessionSwaps = {};
+		timerAlerts = {};
 		currentStepKey = cookMode ? normalizeCookProgress(currentKeys(cookMode), null).currentKey : null;
 		lifecycle.resetTimers();
 		network.resetCooked();
@@ -577,23 +715,45 @@
 			{/if}
 		</div>
 	{/if}
-	{#if lifecycle.notificationPrimerVisible}
+	{#if hasCancelPending}
 		<div
 			class="px-3 py-2 border-b border-warning/30 bg-warning/10 text-base-content text-[12px] flex items-start gap-2"
-			role="status"
+			role="alert"
 		>
 			<span class="flex-1 leading-snug">
-				{m.benchsheet_notif_primer_desc()}
+				{m.benchsheet_timer_alert_cancel_pending()}
 			</span>
-			<button
-				type="button"
-				class="btn btn-xs btn-warning h-11 min-h-0 shrink-0"
-				onclick={() => lifecycle.acceptNotifications()}>{m.benchsheet_notif_allow_button()}</button
-			>
+		</div>
+	{/if}
+	{#if !timerAlertSetupDismissed}
+		<div
+			class="px-3 py-2 border-b text-[12px] flex items-center gap-2 {timerPushState.status ===
+			'ready'
+				? 'border-success/30 bg-success/10'
+				: 'border-warning/30 bg-warning/10'}"
+			role="status"
+		>
+			{#if timerPushState.status === 'checking'}
+				<Spinner size="xs" />
+			{/if}
+			<span class="min-w-0 flex-1 leading-snug">{timerAlertMessage()}</span>
+			{#if timerPushState.status === 'permission-needed'}
+				<button
+					type="button"
+					class="btn btn-xs btn-warning h-11 min-h-0 shrink-0"
+					onclick={enableTimerAlerts}>{m.benchsheet_notif_allow_button()}</button
+				>
+			{:else if timerPushState.status === 'ready'}
+				<button
+					type="button"
+					class="btn btn-xs btn-success h-11 min-h-0 shrink-0"
+					onclick={sendTimerAlertTest}>{m.benchsheet_timer_alerts_test()}</button
+				>
+			{/if}
 			<button
 				type="button"
 				class="btn btn-xs btn-ghost h-11 min-h-0 shrink-0"
-				onclick={() => lifecycle.dismissNotificationPrimer()}>{m.benchsheet_notif_not_now_button()}</button
+				onclick={() => (timerAlertSetupDismissed = true)}>{m.benchsheet_notif_not_now_button()}</button
 			>
 		</div>
 	{/if}
@@ -650,6 +810,8 @@
 				timerRemaining={timers.snapshot.runningIdxs.has(index)
 					? Math.max(0, Math.ceil((timers.ends[index] - timers.nowSec * 1000) / 1000))
 					: null}
+				timerAlertLabel={timerAlertLabel(timerAlerts[index]?.status)}
+				timerAlertReady={timerAlerts[index]?.status === 'armed'}
 				onSelect={() => selectStep(index)}
 				onStartTimer={() => {
 					const seconds = step.timer_seconds;

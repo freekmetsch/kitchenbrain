@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reliable mobile timer sound — decision workspace</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #f3efe5;
+      --paper: #fffdf7;
+      --ink: #17211d;
+      --muted: #64706a;
+      --line: #d8d0c1;
+      --dark: #101713;
+      --tomato: #b53b2f;
+      --tomato-soft: #f8ded9;
+      --mint: #17664d;
+      --mint-soft: #dcefe6;
+      --blue: #275b8e;
+      --blue-soft: #dfeaf5;
+      --amber: #8a5908;
+      --amber-soft: #f6e8bf;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: inherit; }
+    button, input { font: inherit; }
+    code {
+      color: var(--blue);
+      font: .9em ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 72px; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.45fr .8fr;
+      gap: 30px;
+      padding: clamp(26px, 5vw, 54px);
+      border: 1px solid var(--dark);
+      border-radius: 26px;
+      background: var(--paper);
+      box-shadow: 9px 9px 0 var(--dark);
+    }
+    .kicker {
+      color: var(--tomato);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1 {
+      max-width: 12ch;
+      margin: 12px 0 18px;
+      font-size: clamp(40px, 7vw, 78px);
+      line-height: .94;
+      letter-spacing: -.055em;
+    }
+    .hero p { max-width: 68ch; margin: 0; color: var(--muted); font-size: 18px; }
+    .verdict {
+      display: grid;
+      align-content: space-between;
+      gap: 28px;
+      padding: 23px;
+      border-radius: 20px;
+      background: var(--dark);
+      color: white;
+    }
+    .verdict small { display: block; color: #bac8c1; }
+    .verdict strong { display: block; font-size: 27px; line-height: 1.08; }
+    .risk {
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #ffc47c;
+      color: #392304;
+      font-weight: 850;
+    }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0; }
+    nav a {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 253, 247, .7);
+      text-decoration: none;
+      font-weight: 750;
+    }
+    section { margin-top: 40px; }
+    h2 { margin: 0 0 14px; font-size: clamp(26px, 4vw, 42px); letter-spacing: -.035em; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    p { margin-top: 0; }
+    .lead { max-width: 80ch; color: var(--muted); }
+    .trace, .sequence {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .node {
+      position: relative;
+      min-height: 148px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--paper);
+    }
+    .node::after {
+      content: "→";
+      position: absolute;
+      top: 48%;
+      right: -14px;
+      z-index: 2;
+      color: var(--tomato);
+      font-size: 22px;
+      font-weight: 900;
+    }
+    .node:last-child::after { content: ""; }
+    .node b {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--blue);
+      font-size: 12px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .node p { margin: 0; color: var(--muted); }
+    .node.break {
+      border: 2px solid var(--tomato);
+      background: var(--tomato-soft);
+    }
+    .node.break b { color: var(--tomato); }
+    .cards { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .card {
+      grid-column: span 3;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--paper);
+    }
+    .card p { margin: 0; color: var(--muted); }
+    .stamp {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: var(--tomato);
+      font: 900 12px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+      letter-spacing: .08em;
+    }
+    .option {
+      display: grid;
+      grid-template-columns: 1.1fr 1.4fr .55fr;
+      gap: 18px;
+      align-items: start;
+      padding: 20px 0;
+      border-top: 1px solid var(--line);
+    }
+    .option:last-child { border-bottom: 1px solid var(--line); }
+    .option p { margin: 0; color: var(--muted); }
+    .status {
+      justify-self: end;
+      padding: 6px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .chosen { background: var(--mint-soft); color: var(--mint); }
+    .rejected { background: var(--tomato-soft); color: var(--tomato); }
+    .ticket {
+      grid-column: span 4;
+      min-height: 185px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--paper);
+    }
+    .ticket .id {
+      display: inline-block;
+      margin-bottom: 14px;
+      padding: 5px 8px;
+      border-radius: 7px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font: 850 12px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    .ticket p { margin: 0; color: var(--muted); }
+    .gate {
+      padding: 25px;
+      border: 2px solid var(--amber);
+      border-radius: 20px;
+      background: var(--amber-soft);
+    }
+    .gate h2, .gate h3 { color: var(--amber); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--dark); color: white; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .decision {
+      padding: clamp(22px, 4vw, 36px);
+      border: 2px solid var(--mint);
+      border-radius: 22px;
+      background: var(--mint-soft);
+    }
+    .choice {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: start;
+      margin-top: 12px;
+      padding: 16px;
+      border: 1px solid #9fcbb9;
+      border-radius: 14px;
+      background: rgba(255,255,255,.58);
+      cursor: pointer;
+    }
+    .choice input { margin-top: 5px; accent-color: var(--mint); }
+    .choice strong { display: block; }
+    .choice span { color: #46675a; }
+    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+    .button {
+      min-height: 44px;
+      padding: 10px 15px;
+      border: 1px solid var(--dark);
+      border-radius: 10px;
+      background: var(--dark);
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .button:hover { background: var(--mint); }
+    .copy-status { color: var(--mint); font-weight: 750; }
+    footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 52px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+    }
+    footer a { font-weight: 750; }
+    @media (max-width: 930px) {
+      .hero { grid-template-columns: 1fr; }
+      .trace, .sequence { grid-template-columns: repeat(2, 1fr); }
+      .node::after { display: none; }
+      .card { grid-column: span 6; }
+      .ticket { grid-column: span 6; }
+    }
+    @media (max-width: 620px) {
+      .shell { padding-top: 16px; }
+      .hero { box-shadow: 5px 5px 0 var(--dark); }
+      .trace, .sequence { grid-template-columns: 1fr; }
+      .card, .ticket { grid-column: 1 / -1; }
+      .option { grid-template-columns: 1fr; }
+      .status { justify-self: start; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <div class="kicker">Mobile timer plan · 28 July 2026</div>
+        <h1>The alarm must outlive the page.</h1>
+        <p>
+          Today the cooking page owns the deadline, the sound, and the “backup” notification.
+          The plan moves the deadline to durable SQLite state and uses Web Push for the system
+          alert, while keeping a short audible foreground alarm.
+        </p>
+      </div>
+      <aside class="verdict">
+        <div>
+          <small>Recommendation</small>
+          <strong>SQLite job + Web Push</strong>
+        </div>
+        <div>
+          <div class="risk">R3 · beta stage gate</div>
+          <small>No app code, schema, dependency, secret, or deployment setting changed during planning.</small>
+        </div>
+      </aside>
+    </header>
+
+    <nav aria-label="Workspace sections">
+      <a href="#failure">Failure</a>
+      <a href="#research">Research</a>
+      <a href="#options">Options</a>
+      <a href="#design">Design</a>
+      <a href="#tickets">Tickets</a>
+      <a href="#gate">Device gate</a>
+      <a href="#decision">Decision</a>
+    </nav>
+
+    <section id="failure">
+      <h2>The current fallback is in the same failure domain</h2>
+      <p class="lead">
+        Source tracing shows that the service worker does not own a scheduled deadline. It only
+        receives a message after page JavaScript notices expiry. Mobile suspension can stop the
+        entire chain before any alert exists.
+      </p>
+      <div class="trace" aria-label="Current timer failure path">
+        <article class="node">
+          <b>1 · Tap</b>
+          <p>The page starts a local timer and a 12-hour silent media track.</p>
+        </article>
+        <article class="node">
+          <b>2 · Wait</b>
+          <p>A page Worker or interval keeps checking the wall-clock deadline.</p>
+        </article>
+        <article class="node break">
+          <b>3 · Mobile OS</b>
+          <p>The page, Worker, or media session can be suspended or killed.</p>
+        </article>
+        <article class="node">
+          <b>4 · Fire</b>
+          <p>Only a surviving page tick calls the local alarm method.</p>
+        </article>
+        <article class="node">
+          <b>5 · Notify</b>
+          <p>The page then messages the service worker at expiry.</p>
+        </article>
+        <article class="node break">
+          <b>Result</b>
+          <p>No page tick means no sound, vibration, or notification.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="research">
+      <h2>What the mobile web can honestly do</h2>
+      <div class="cards">
+        <article class="card">
+          <span class="stamp">iOS 16.4+</span>
+          <h3>Home Screen only</h3>
+          <p>Installed web apps can receive standards-based Push and show Lock Screen notifications. Ordinary Safari tabs cannot.</p>
+        </article>
+        <article class="card">
+          <span class="stamp">PUSH API</span>
+          <h3>Page may be inactive</h3>
+          <p>A server push can wake the service-worker path after the cooking page has closed.</p>
+        </article>
+        <article class="card">
+          <span class="stamp">SOUND</span>
+          <h3>Device default</h3>
+          <p>Web notifications cannot choose a custom alarm sound or override silent and Focus settings.</p>
+        </article>
+        <article class="card">
+          <span class="stamp">TIMING</span>
+          <h3>Not an alarm clock</h3>
+          <p>Provider acceptance is not device delivery. Network and power policy can delay or drop the alert.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="options">
+      <h2>Architecture choice</h2>
+      <div class="option">
+        <div><h3>Long silent media</h3></div>
+        <p>Smallest patch, but still page-owned, cannot wake a killed PWA, and cannot restore playback without another gesture.</p>
+        <span class="status rejected">Reject</span>
+      </div>
+      <div class="option">
+        <div><h3>SQLite deadline + Web Push</h3></div>
+        <p>Preserves the PWA and one-process deployment. It creates an independent OS-notification path with explicit readiness and test-alert states.</p>
+        <span class="status chosen">Choose</span>
+      </div>
+      <div class="option">
+        <div><h3>Capacitor native shell</h3></div>
+        <p>Better offline scheduling, but adds iOS/Android projects, signing, stores, native permission/channel rules, and an API-origin/auth decision.</p>
+        <span class="status rejected">Defer</span>
+      </div>
+      <div class="option">
+        <div><h3>Managed sender</h3></div>
+        <p>Adds a third-party account and data boundary while inheriting the same OS delivery and silent-mode limits.</p>
+        <span class="status rejected">Reject</span>
+      </div>
+    </section>
+
+    <section id="design">
+      <h2>The durable path</h2>
+      <p class="lead">One timer alerts one originating device. Missing server configuration degrades to a clearly labelled foreground-only timer instead of blocking cooking.</p>
+      <div class="sequence" aria-label="Proposed timer delivery sequence">
+        <article class="node">
+          <b>1 · Enable</b>
+          <p>An explicit tap requests permission, creates a Push subscription, and offers a test alert.</p>
+        </article>
+        <article class="node">
+          <b>2 · Schedule</b>
+          <p>The timer writes an idempotent UUID job tied to that user and device subscription.</p>
+        </article>
+        <article class="node">
+          <b>3 · Persist</b>
+          <p>SQLite survives navigation, page eviction, and Node process restarts.</p>
+        </article>
+        <article class="node">
+          <b>4 · Claim</b>
+          <p>The always-on Node scheduler atomically claims a due job and rejects stale work.</p>
+        </article>
+        <article class="node">
+          <b>5 · Push</b>
+          <p>An encrypted, high-urgency payload uses short TTL and a stable dedupe topic.</p>
+        </article>
+        <article class="node">
+          <b>6 · Alert</b>
+          <p>The service worker or declarative fallback shows a system notification and returns to cooking on tap.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="tickets">
+      <h2>Six execution tickets</h2>
+      <div class="cards">
+        <article class="ticket">
+          <span class="id">TIMER-SOUND-1 · R1</span>
+          <h3>Contract tests first</h3>
+          <p>Prove the missing independent deadline, restored state, and notification builder at the correct seams.</p>
+        </article>
+        <article class="ticket">
+          <span class="id">TIMER-SOUND-2 · R3</span>
+          <h3>Durable jobs</h3>
+          <p>Add subscriptions, timer jobs, atomic claims, restart recovery, stale expiry, cleanup, and append-only migration.</p>
+        </article>
+        <article class="ticket">
+          <span class="id">TIMER-SOUND-3 · R2</span>
+          <h3>Secure Push API</h3>
+          <p>Add VAPID configuration, owned endpoints, egress protection, quotas, encrypted sending, and dead-subscription cleanup.</p>
+        </article>
+        <article class="ticket">
+          <span class="id">TIMER-SOUND-4 · R2</span>
+          <h3>Receive and return</h3>
+          <p>Handle Push, subscription refresh, visible notifications, dedupe, and notification click-to-focus/open.</p>
+        </article>
+        <article class="ticket">
+          <span class="id">TIMER-SOUND-5 · R2</span>
+          <h3>Cooking lifecycle</h3>
+          <p>Integrate start/cancel/restore, V3→V4 compatibility, honest status copy, and a short foreground alarm.</p>
+        </article>
+        <article class="ticket">
+          <span class="id">TIMER-SOUND-6 · R3</span>
+          <h3>Stage and hear it</h3>
+          <p>Run the full test gate, prove always-on hosting, and complete the physical Android/iPhone matrix.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="gate" class="gate">
+      <h2>The close gate is physical</h2>
+      <p>
+        Desktop automation cannot emulate a phone OS suspending or killing a PWA. The issue stays
+        open until Android Chrome and an iOS 16.4+ Home Screen app each complete ten healthy-network
+        timers with zero missing notifications.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Axis</th><th>Required cases</th><th>Pass meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>App state</td><td>Visible, backgrounded, locked, swiped away</td><td>System alert reaches every healthy case</td></tr>
+          <tr><td>Timer state</td><td>Cancel, reset, reload, restore, two concurrent</td><td>No stale job or unintended duplicate</td></tr>
+          <tr><td>Failure state</td><td>Offline, permission denied, dead subscription, Node restart</td><td>Honest state; no late alert outside grace</td></tr>
+          <tr><td>Sound state</td><td>Normal, silent/Focus, system sound disabled</td><td>Normal sounds; device-controlled silence is explained</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="decision" class="decision">
+      <h2>One choice can change the architecture</h2>
+      <p>
+        The default below is execution-ready. Change it only if “timer sound” means a native,
+        offline, persistent alarm rather than a device-default system notification.
+      </p>
+      <label class="choice">
+        <input type="radio" name="sound-contract" value="web-push" checked>
+        <span>
+          <strong>System notification sound — recommended</strong>
+          Web Push while backgrounded/locked, short foreground alarm, and explicit network/device limits.
+        </span>
+      </label>
+      <label class="choice">
+        <input type="radio" name="sound-contract" value="native">
+        <span>
+          <strong>Persistent native alarm</strong>
+          Stop this plan before <code>$run</code> and re-plan around Capacitor, native local notifications, signing, and releases.
+        </span>
+      </label>
+      <div class="actions">
+        <button class="button" type="button" id="copy-prompt">Copy decision as prompt</button>
+        <span class="copy-status" id="copy-status" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <footer>
+      <span>Canonical artifact: <code>FEATURE_LIST_MOBILE_TIMER_SOUND.md</code></span>
+      <a href="../feature-lists/FEATURE_LIST_MOBILE_TIMER_SOUND.md">Open the implementation plan</a>
+    </footer>
+  </main>
+
+  <script>
+    const storageKey = "mobile-timer-sound-contract";
+    const choices = [...document.querySelectorAll('input[name="sound-contract"]')];
+    const saved = localStorage.getItem(storageKey);
+    if (saved && choices.some((choice) => choice.value === saved)) {
+      choices.forEach((choice) => { choice.checked = choice.value === saved; });
+    }
+    choices.forEach((choice) => {
+      choice.addEventListener("change", () => {
+        if (choice.checked) localStorage.setItem(storageKey, choice.value);
+      });
+    });
+
+    document.getElementById("copy-prompt").addEventListener("click", async () => {
+      const choice = choices.find((item) => item.checked)?.value ?? "web-push";
+      const answer = choice === "native"
+        ? "Use a persistent native alarm contract. Do not execute the Web Push plan; revise it around Capacitor and native local notifications first."
+        : "Use the recommended device-default system notification sound contract: durable SQLite timer jobs plus Web Push, with a short foreground alarm and honest device/network limits.";
+      const prompt = `${answer}\n\nThen execute docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_SOUND.md with $run, preserving the R3 beta stage and physical-device gates.`;
+      const status = document.getElementById("copy-status");
+      try {
+        await navigator.clipboard.writeText(prompt);
+        status.textContent = "Decision copied.";
+      } catch {
+        status.textContent = "Clipboard unavailable; select the decision text manually.";
+      }
+    });
+  </script>
+</body>
+</html>

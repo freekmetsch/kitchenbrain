@@ -18,11 +18,7 @@ function browserAdapters(
 		visibilityState: () => 'visible',
 		requestWakeLock: async () => null,
 		createAudioContext: () => null,
-		createBackgroundAudio: () => null,
 		vibrate: () => {},
-		notificationPermission: () => 'unsupported',
-		requestNotificationPermission: async () => {},
-		postServiceWorkerMessage: async () => {},
 		setInterval: () => 1,
 		clearInterval: () => {},
 		now: () => 1_000,
@@ -38,9 +34,6 @@ function dependencies(
 	return {
 		timers,
 		subscriberId: 'bench-sheet-bean-stew',
-		alarmAudioSrc: '/audio/cook-timer-alarm.m4a',
-		recipeTitle: () => 'Bean stew',
-		readAlarmStep: () => undefined,
 		shouldRetryAfterVisibility: () => false,
 		retryAfterVisibility: vi.fn(),
 		browser
@@ -124,17 +117,9 @@ describe('CookModeLifecycleController', () => {
 		expect(clearInterval).toHaveBeenCalledWith(42);
 	});
 
-	it('keeps timers usable when wake lock, audio, vibration, and notifications fail', async () => {
+	it('keeps timers usable when wake lock, audio, and vibration fail', async () => {
 		let visibilityListener: (() => void) | undefined;
 		let now = 1_000;
-		let notificationPermission: NotificationPermission = 'default';
-		const requestPermission = vi.fn(async () => {
-			notificationPermission = 'granted';
-			throw new Error('notifications blocked');
-		});
-		const postServiceWorkerMessage = vi.fn(async () => {
-			throw new Error('service worker evicted');
-		});
 		const timers = new CookTimerController(now);
 		const deps = dependencies(
 			timers,
@@ -152,27 +137,19 @@ describe('CookModeLifecycleController', () => {
 				vibrate: () => {
 					throw new Error('vibration unavailable');
 				},
-				notificationPermission: () => notificationPermission,
-				requestNotificationPermission: requestPermission,
-				postServiceWorkerMessage,
 				now: () => now
 			})
 		);
-		deps.readAlarmStep = () => ({ timer_action: 'stir', goal: 'Keep stirring' });
 		const lifecycle = new CookModeLifecycleController(deps);
 
 		lifecycle.mount();
 		expect(() => lifecycle.startTimer(0, 10)).not.toThrow();
-		expect(lifecycle.notificationPrimerVisible).toBe(true);
-		await expect(lifecycle.acceptNotifications()).resolves.toBeUndefined();
-		expect(lifecycle.notificationPrimerVisible).toBe(false);
 
 		now = 11_000;
 		expect(() => visibilityListener?.()).not.toThrow();
 		await Promise.resolve();
 
 		expect(timers.snapshot.doneIdxs).toEqual(new Set([0]));
-		expect(postServiceWorkerMessage).toHaveBeenCalledOnce();
 		lifecycle.destroy();
 	});
 
