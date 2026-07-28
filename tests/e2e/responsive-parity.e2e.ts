@@ -399,6 +399,9 @@ test('Shopping keeps its controls to one row at the narrow mobile boundary', asy
 	expect(
 		await filterRail.evaluate((element) => getComputedStyle(element).overflowX)
 	).toBe('auto');
+	expect(
+		await filterRail.evaluate((element) => getComputedStyle(element).scrollbarWidth)
+	).toBe('none');
 	await expect(page.getByRole('progressbar')).toHaveCount(0);
 	await expectResponsiveSurface(page, '/shopping (320px compact controls)', 320);
 });
