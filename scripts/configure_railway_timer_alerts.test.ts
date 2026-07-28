@@ -12,11 +12,16 @@ const options = {
 	subject: 'https://example.com'
 };
 
+function generatePrivateKey(): string {
+	const key = createECDH('prime256v1');
+	key.generateKeys();
+	const scalar = key.getPrivateKey();
+	return Buffer.concat([Buffer.alloc(32 - scalar.length), scalar]).toString('base64url');
+}
+
 describe('Railway timer-alert configuration', () => {
 	it('passes a canonical private scalar through stdin only', () => {
-		const key = createECDH('prime256v1');
-		key.generateKeys();
-		const privateKey = key.getPrivateKey().toString('base64url');
+		const privateKey = generatePrivateKey();
 		const calls: Array<{ args: string[]; input?: Buffer; env: NodeJS.ProcessEnv }> = [];
 		const runner: RailwayRunner = ({ args, input, env }) => {
 			calls.push({ args, input: input ? Buffer.from(input) : undefined, env });
@@ -46,9 +51,7 @@ describe('Railway timer-alert configuration', () => {
 	});
 
 	it('does not expose child output when Railway fails', () => {
-		const key = createECDH('prime256v1');
-		key.generateKeys();
-		const privateKey = key.getPrivateKey().toString('base64url');
+		const privateKey = generatePrivateKey();
 		const secretOutput = Buffer.from(privateKey);
 		const runner: RailwayRunner = () => ({
 			status: 1,

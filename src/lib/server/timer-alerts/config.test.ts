@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { createECDH } from 'node:crypto';
 import { readTimerAlertVapidConfig } from './config';
 
+function generatePrivateKey(): { privateKey: string; publicKey: string } {
+	const key = createECDH('prime256v1');
+	key.generateKeys();
+	const scalar = key.getPrivateKey();
+	return {
+		privateKey: Buffer.concat([Buffer.alloc(32 - scalar.length), scalar]).toString('base64url'),
+		publicKey: key.getPublicKey().toString('base64url')
+	};
+}
+
 describe('timer alert VAPID configuration', () => {
 	it('keeps foreground timers available when configuration is incomplete', () => {
 		expect(
@@ -14,9 +24,7 @@ describe('timer alert VAPID configuration', () => {
 	});
 
 	it('derives the public application-server key from one stored private key', () => {
-		const key = createECDH('prime256v1');
-		key.generateKeys();
-		const privateKey = key.getPrivateKey().toString('base64url');
+		const { privateKey, publicKey } = generatePrivateKey();
 
 		expect(
 			readTimerAlertVapidConfig({
@@ -28,7 +36,7 @@ describe('timer alert VAPID configuration', () => {
 			config: {
 				privateKey,
 				subject: 'https://example.com/contact',
-				publicKey: key.getPublicKey().toString('base64url')
+				publicKey
 			}
 		});
 	});
