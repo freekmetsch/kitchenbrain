@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Production deployment lineage recovery</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4f0e7;
+      --ink: #19231f;
+      --muted: #68736d;
+      --panel: #fffdf8;
+      --line: #d7d0c2;
+      --green: #166b4b;
+      --green-soft: #dff2e8;
+      --orange: #a94d1f;
+      --orange-soft: #fde8dc;
+      --blue: #245a8d;
+      --blue-soft: #e1edf8;
+      --black: #111714;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(25,35,31,.035) 1px, transparent 1px) 0 0 / 28px 28px,
+        var(--paper);
+      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: inherit; }
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 80px; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.5fr .8fr;
+      gap: 30px;
+      padding: clamp(26px, 5vw, 56px);
+      border: 1px solid var(--black);
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow: 9px 9px 0 var(--black);
+    }
+    .kicker { color: var(--orange); font-size: 12px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 12px 0 18px; max-width: 12ch; font-size: clamp(38px, 7vw, 82px); line-height: .94; letter-spacing: -.055em; }
+    .hero p { margin: 0; max-width: 68ch; color: var(--muted); font-size: 18px; }
+    .status {
+      align-self: stretch;
+      display: grid;
+      align-content: space-between;
+      gap: 32px;
+      padding: 22px;
+      border-radius: 20px;
+      background: var(--black);
+      color: #fff;
+    }
+    .status strong { display: block; font-size: 27px; line-height: 1.05; }
+    .status small { color: #bcc8c2; }
+    .risk { width: fit-content; padding: 7px 10px; border-radius: 999px; background: #ffb58e; color: #35150a; font-weight: 850; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 30px 0; }
+    nav a { padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.55); text-decoration: none; font-weight: 700; }
+    section { margin-top: 38px; }
+    h2 { margin: 0 0 15px; font-size: clamp(25px, 4vw, 42px); letter-spacing: -.035em; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    .lead { max-width: 78ch; color: var(--muted); }
+    .cards { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .card {
+      grid-column: span 4;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+    }
+    .card.wide { grid-column: span 6; }
+    .card p { margin: 0; color: var(--muted); }
+    .num { margin-bottom: 12px; font: 900 34px/1 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--blue); }
+    .finding { border-top: 5px solid var(--orange); }
+    .good { border-top: 5px solid var(--green); }
+    .sequence {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .step {
+      position: relative;
+      min-height: 150px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+    }
+    .step::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: -13px;
+      z-index: 2;
+      color: var(--orange);
+      font-size: 22px;
+      font-weight: 900;
+    }
+    .step:last-child::after { content: ""; }
+    .step b { display: block; margin-bottom: 10px; color: var(--orange); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+    .step p { margin: 0; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border: 1px solid var(--line); background: var(--panel); }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--black); color: white; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    code { color: var(--blue); font: .9em ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+    .gate {
+      padding: 24px;
+      border: 2px solid var(--orange);
+      border-radius: 20px;
+      background: var(--orange-soft);
+    }
+    .gate h2 { color: var(--orange); }
+    .gate ul { margin-bottom: 0; }
+    .ticket {
+      grid-column: span 6;
+      display: grid;
+      gap: 10px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+    }
+    .ticket .tag { width: fit-content; padding: 5px 8px; border-radius: 8px; background: var(--blue-soft); color: var(--blue); font: 800 12px/1 ui-monospace, monospace; }
+    .ticket p { margin: 0; color: var(--muted); }
+    .decision {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: 24px;
+      border-radius: 20px;
+      background: var(--green-soft);
+      border: 1px solid #9acdb5;
+    }
+    .decision strong { color: var(--green); font-size: 23px; }
+    .decision span { max-width: 70ch; color: #365849; }
+    footer { margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .card, .card.wide, .ticket { grid-column: 1 / -1; }
+      .sequence { grid-template-columns: repeat(2, 1fr); }
+      .step::after { display: none; }
+    }
+    @media (max-width: 560px) {
+      .shell { padding-top: 16px; }
+      .hero { box-shadow: 5px 5px 0 var(--black); }
+      .sequence { grid-template-columns: 1fr; }
+      .decision { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <div class="kicker">Production recovery plan · 28 July 2026</div>
+        <h1>Make the live build tell the truth.</h1>
+        <p>
+          Shopping is finished; production is stale. The recovery contains exposed credentials,
+          reconciles the complete live-only branch into <code>main</code>, and accepts the rollout
+          only when Railway's serving commit exactly matches source.
+        </p>
+      </div>
+      <aside class="status">
+        <div>
+          <small>Plan readiness</small>
+          <strong>Go with changes</strong>
+        </div>
+        <div>
+          <div class="risk">R3 stage gate required</div>
+          <small>Zero production mutations occurred during planning.</small>
+        </div>
+      </aside>
+    </header>
+
+    <nav aria-label="Sections">
+      <a href="#cause">Cause</a>
+      <a href="#findings">Findings</a>
+      <a href="#sequence">Sequence</a>
+      <a href="#gate">R3 gate</a>
+      <a href="#tickets">Tickets</a>
+      <a href="#proof">Proof</a>
+    </nav>
+
+    <section id="cause">
+      <h2>One failure, three matching signals</h2>
+      <p class="lead">Git ancestry, Railway metadata, and the authenticated DOM all point to the same root cause. There is no cache mystery to solve.</p>
+      <div class="cards">
+        <article class="card good">
+          <div class="num">GIT</div>
+          <h3>Shopping never reached <code>main</code></h3>
+          <p><code>0440545</code> is on the feature branch; production's connected branch remains at <code>52e0a51</code>.</p>
+        </article>
+        <article class="card good">
+          <div class="num">RWY</div>
+          <h3>Production is a manual snapshot</h3>
+          <p>Serving deploy <code>96370ca4</code> succeeded before the Shopping commit and did not come from the connected GitHub branch.</p>
+        </article>
+        <article class="card good">
+          <div class="num">DOM</div>
+          <h3>The old contract is live</h3>
+          <p>One progressbar, one visual track, old mobile tools, and zero <code>List options</code> triggers; no console errors.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="findings">
+      <h2>Risks that change the order</h2>
+      <div class="cards">
+        <article class="card wide finding">
+          <div class="num">P0</div>
+          <h3>Credentials entered diagnostic output</h3>
+          <p>AI, backup, and two household-login credentials must be replaced before the normal application rollout. Values are intentionally absent from every artifact.</p>
+        </article>
+        <article class="card wide finding">
+          <div class="num">P1</div>
+          <h3>Production contains live-only safety code</h3>
+          <p>A Shopping-only cherry-pick could downgrade the next source deployment. The complete branch needs review and promotion as one lineage reconciliation.</p>
+        </article>
+        <article class="card wide">
+          <h3>Rejected: another manual upload</h3>
+          <p>Fast, but it preserves the exact source-versus-runtime drift that caused the report.</p>
+        </article>
+        <article class="card wide">
+          <h3>Rejected: retarget or cherry-pick</h3>
+          <p>A feature branch is not the production contract, and a partial cherry-pick omits currently serving protections.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="sequence">
+      <h2>Canonical source, then bounded cutovers</h2>
+      <p class="lead">Production first returns to the reviewed <code>main</code> lineage. Each credential boundary then moves in its own supervised deployment.</p>
+      <div class="sequence">
+        <article class="step"><b>01 · Freeze</b><h3>Prove recovery</h3><p>Inventory names only, restore the backup, and scan the public branch. No live mutation.</p></article>
+        <article class="step"><b>02 · Approve</b><h3>Open the R3 gate</h3><p>Authorize the exact source, credential, authentication, and bucket operations.</p></article>
+        <article class="step"><b>03 · Prepare</b><h3>Review tooling</h3><p>Add audited Login, provider, and Railway paths; obtain an independent source-diff review.</p></article>
+        <article class="step"><b>04 · Reconcile</b><h3>Deploy exact main</h3><p>Merge the complete reviewed branch and prove the serving commit equals <code>main</code>.</p></article>
+        <article class="step"><b>05 · Rotate</b><h3>Move one boundary</h3><p>Cut over providers, then one household login per deployment, with proof at every step.</p></article>
+        <article class="step"><b>06 · Close</b><h3>Reset and guard</h3><p>Reset bucket credentials, revoke obsolete keys, restore again, and prevent recurrence.</p></article>
+      </div>
+    </section>
+
+    <section id="gate" class="gate">
+      <h2>Hard stop: explicit R3 approval</h2>
+      <p>Before any provider call, password change, Railway variable update, revocation, merge, or deployment, execution must present:</p>
+      <ul>
+        <li>exact live operations and affected consumer/ref names;</li>
+        <li>replacement-first order and bounded verification;</li>
+        <li>rollback before revocation and forward recovery afterward;</li>
+        <li>current SQLite/Litestream recovery evidence;</li>
+        <li>the explicit question to proceed with the production credential and authentication cutover.</li>
+      </ul>
+    </section>
+
+    <section id="tickets">
+      <h2>Executable work</h2>
+      <div class="cards">
+        <article class="ticket"><div class="tag">PDL-0 · R3</div><h3>Containment checkpoint</h3><p>Finish the names-only credential inventory and obtain explicit approval.</p></article>
+        <article class="ticket"><div class="tag">PDL-1 · R2</div><h3>Audited secret path</h3><p>Add reviewed Login-item, provider-producer, 1Password-reference, and failure-closed Railway paths. Independent command review is mandatory.</p></article>
+        <article class="ticket"><div class="tag">PDL-2 · R3</div><h3>Rotate and prove</h3><p>On exact <code>main</code>, rotate OpenRouter with a short-lived management key, move one household Login per deployment, adopt Railway bucket references, and remove or inert the dormant Anthropic value.</p></article>
+        <article class="ticket"><div class="tag">PDL-3 · R2</div><h3>Promote full lineage</h3><p>Review all commits and both account gates, then supervise the no-CI merge of the complete branch to <code>main</code>.</p></article>
+        <article class="ticket"><div class="tag">PDL-4 · R2</div><h3>Deploy exact source</h3><p>Wait for GitHub deployment success, assert commit equality, then run the authenticated Shopping canary.</p></article>
+        <article class="ticket"><div class="tag">PDL-5 · R1/R2</div><h3>Prevent recurrence</h3><p>Define “live” precisely and add a names-only deployment inspector that cannot return variable values.</p></article>
+      </div>
+    </section>
+
+    <section id="proof">
+      <h2>Acceptance matrix</h2>
+      <table>
+        <thead><tr><th>Boundary</th><th>Required evidence</th><th>Failure action</th></tr></thead>
+        <tbody>
+          <tr><td>Secrets</td><td>Exact <code>main</code> uses the new provider/auth credentials; old app and short-lived management keys are revoked; a final backup restore passes</td><td>Stop, retain the old key until proven, or mint a new replacement after revocation</td></tr>
+          <tr><td>Source</td><td>Safety, startup, and Shopping commits are ancestors of <code>origin/main</code>; the serving revision matches it exactly</td><td>Do not merge/deploy a partial lineage</td></tr>
+          <tr><td>Repository gate</td><td><code>npm test</code>, secondary e2e, and <code>git diff --check</code> pass</td><td>Fix forward on the branch</td></tr>
+          <tr><td>Railway</td><td>Status <code>SUCCESS</code>, branch <code>main</code>, deployed commit equals remote tip</td><td>Do not accept browser appearance as proof</td></tr>
+          <tr><td>Shopping mobile</td><td><code>List options</code> present; no progress role/track; compact direct filters</td><td>Rollback code with rotated secrets retained</td></tr>
+          <tr><td>Shopping desktop</td><td>Direct controls preserved; no progress role/track</td><td>Rollback code with rotated secrets retained</td></tr>
+          <tr><td>Privacy</td><td>No secret value, household item, or authenticated screenshot in the public repo</td><td>Remove artifact and treat exposure separately</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <div class="decision">
+        <strong>GO WITH CHANGES</strong>
+        <span>
+          Opus completed the P0/P1 critique with GO WITH CHANGES. Production remains NO-GO until
+          explicit R3 approval; the source-first order, one-account deployments, named rollback,
+          restore proof, management-key lifecycle, and evidence bans are mandatory.
+        </span>
+      </div>
+    </section>
+
+    <footer>
+      Canonical execution source:
+      <code>docs/feature-lists/FEATURE_LIST_PRODUCTION_DEPLOYMENT_LINEAGE_RECOVERY.md</code>.
+      No household data or credential value is embedded in this workspace.
+    </footer>
+  </main>
+</body>
+</html>

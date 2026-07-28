@@ -9,6 +9,8 @@
 		timerActive = false,
 		timerDone = false,
 		timerRemaining = null,
+		timerAlertLabel = null,
+		timerAlertReady = false,
 		onStartTimer = () => {},
 		onResetTimer = () => {}
 	}: {
@@ -18,6 +20,8 @@
 		timerActive?: boolean;
 		timerDone?: boolean;
 		timerRemaining?: number | null;
+		timerAlertLabel?: string | null;
+		timerAlertReady?: boolean;
 		onStartTimer?: () => void;
 		onResetTimer?: () => void;
 	} = $props();
@@ -39,7 +43,7 @@
 				{#if segment.kind === 'action'}<strong class="font-bold text-base-content">{segment.text}</strong>{:else}{segment.text}{/if}
 			{/each}
 			{#if lineIndex === timerLine}
-				<span class="mx-1 inline-flex align-middle"><TimerChip seconds={timerSeconds} active={timerActive} done={timerDone} remaining={timerRemaining} onStart={onStartTimer} onReset={onResetTimer} /></span>
+				<span class="mx-1 inline-flex align-middle"><TimerChip seconds={timerSeconds} active={timerActive} done={timerDone} remaining={timerRemaining} alertLabel={timerAlertLabel} alertReady={timerAlertReady} onStart={onStartTimer} onReset={onResetTimer} /></span>
 			{/if}
 		</p>
 	{/each}

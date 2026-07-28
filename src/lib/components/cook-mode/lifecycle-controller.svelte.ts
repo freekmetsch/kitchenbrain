@@ -1,9 +1,5 @@
 import type { CookTimerController } from './timer-controller.svelte';
-import { BackgroundTimerAudio } from '$lib/timer/background_audio';
-import type {
-	ServiceWorkerFireMessage,
-	TimerWorkerOutbound
-} from '$lib/timer/messages';
+import type { TimerWorkerOutbound } from '$lib/timer/messages';
 
 export type CookModeWakeLock = {
 	release(): Promise<void> | void;
@@ -17,13 +13,6 @@ export type CookModeLifecycleWorker = {
 	terminate(): void;
 };
 
-export type CookModeAlarmAudio = {
-	isActive(index: number): boolean;
-	schedule(index: number, deadline: number): void;
-	stop(index: number): void;
-	stopAll(): void;
-};
-
 export type CookModeAudioContext = {
 	state: string;
 	sampleRate: number;
@@ -35,6 +24,7 @@ export type CookModeAudioContext = {
 		buffer: unknown;
 		connect(destination: unknown): void;
 		start(): void;
+		stop(): void;
 	};
 	resume(): Promise<void>;
 	close(): Promise<void>;
@@ -46,30 +36,16 @@ export type CookModeLifecycleBrowserAdapters = {
 	visibilityState(): DocumentVisibilityState | undefined;
 	requestWakeLock(): Promise<CookModeWakeLock | null>;
 	createAudioContext(): CookModeAudioContext | null;
-	createBackgroundAudio(src: string): CookModeAlarmAudio | null;
 	vibrate(pattern: number[]): void;
-	notificationPermission(): NotificationPermission | 'unsupported';
-	requestNotificationPermission(): Promise<void>;
-	postServiceWorkerMessage(message: ServiceWorkerFireMessage): Promise<void>;
 	setInterval(callback: () => void, delay: number): unknown;
 	clearInterval(handle: unknown): void;
 	now(): number;
 	warn(message: string, error: unknown): void;
 };
 
-export type CookModeAlarmStep = {
-	timer_action?: string | null;
-	timer_location?: string | null;
-	timer_purpose?: string | null;
-	goal?: string | null;
-};
-
 export type CookModeLifecycleDependencies = {
 	timers: CookTimerController;
 	subscriberId: string;
-	alarmAudioSrc: string;
-	recipeTitle(): string;
-	readAlarmStep(index: number): CookModeAlarmStep | undefined;
 	shouldRetryAfterVisibility(): boolean;
 	retryAfterVisibility(): void | Promise<void>;
 	browser: CookModeLifecycleBrowserAdapters;
@@ -118,20 +94,8 @@ export function createCookModeLifecycleBrowserAdapters(
 				? (new AudioContextConstructor() as unknown as CookModeAudioContext)
 				: null;
 		},
-		createBackgroundAudio: (src) =>
-			typeof window === 'undefined' ? null : new BackgroundTimerAudio({ src }),
 		vibrate: (pattern) => {
 			if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern);
-		},
-		notificationPermission: () =>
-			typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
-		requestNotificationPermission: async () => {
-			if (typeof Notification !== 'undefined') await Notification.requestPermission();
-		},
-		postServiceWorkerMessage: async (message) => {
-			if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-			const registration = await navigator.serviceWorker.ready;
-			registration.active?.postMessage(message);
 		},
 		setInterval: (callback, delay) => globalThis.setInterval(callback, delay),
 		clearInterval: (handle) =>
@@ -142,18 +106,15 @@ export function createCookModeLifecycleBrowserAdapters(
 }
 
 export class CookModeLifecycleController {
-	notificationPrimerVisible = $state(false);
-
 	readonly #dependencies: CookModeLifecycleDependencies;
 	#wakeLock: CookModeWakeLock | null = null;
 	#removeVisibilityListener: (() => void) | null = null;
 	#worker: CookModeLifecycleWorker | null = null;
 	#workerSubscribed = false;
 	#fallbackInterval: unknown | null = null;
-	#notificationPrimerShown = false;
-	#backgroundAudio: CookModeAlarmAudio | null = null;
 	#audioContext: CookModeAudioContext | null = null;
 	#alarmBuffer: ReturnType<CookModeAudioContext['createBuffer']> | null = null;
+	#alarmSources = new Map<number, ReturnType<CookModeAudioContext['createBufferSource']>>();
 	#mounted = false;
 	#destroyed = false;
 
@@ -195,52 +156,21 @@ export class CookModeLifecycleController {
 
 	startTimer(index: number, seconds: number): number {
 		this.#ensureAudio();
-		this.#maybeShowNotificationPrimer();
-		const deadline = this.#dependencies.timers.start(
+		return this.#dependencies.timers.start(
 			index,
 			seconds,
 			this.#dependencies.browser.now()
 		);
-		try {
-			this.#backgroundAudio ??= this.#dependencies.browser.createBackgroundAudio(
-				this.#dependencies.alarmAudioSrc
-			);
-			this.#backgroundAudio?.schedule(index, deadline);
-		} catch {
-			this.#backgroundAudio = null;
-		}
-		return deadline;
 	}
 
 	cancelTimer(index: number): void {
-		try {
-			this.#backgroundAudio?.stop(index);
-		} catch {
-			// Web Audio remains available if the background media adapter fails.
-		}
+		this.#stopAlarm(index);
 		this.#dependencies.timers.cancel(index);
 	}
 
 	resetTimers(): void {
 		this.#dependencies.timers.reset(this.#dependencies.browser.now());
-		try {
-			this.#backgroundAudio?.stopAll();
-		} catch {
-			// A failed media cleanup must not prevent session reset.
-		}
-	}
-
-	async acceptNotifications(): Promise<void> {
-		this.notificationPrimerVisible = false;
-		try {
-			await this.#dependencies.browser.requestNotificationPermission();
-		} catch {
-			// The primer stays dismissed so a broken browser does not prompt in a loop.
-		}
-	}
-
-	dismissNotificationPrimer(): void {
-		this.notificationPrimerVisible = false;
+		this.#stopAllAlarms();
 	}
 
 	destroy(): void {
@@ -253,12 +183,7 @@ export class CookModeLifecycleController {
 		this.#worker = null;
 		this.#clearFallbackInterval();
 		this.#releaseWakeLock();
-		try {
-			this.#backgroundAudio?.stopAll();
-		} catch {
-			// Best-effort cleanup for browser media.
-		}
-		this.#backgroundAudio = null;
+		this.#stopAllAlarms();
 		const audioContext = this.#audioContext;
 		this.#audioContext = null;
 		this.#alarmBuffer = null;
@@ -329,74 +254,58 @@ export class CookModeLifecycleController {
 		context: CookModeAudioContext
 	): ReturnType<CookModeAudioContext['createBuffer']> {
 		const sampleRate = context.sampleRate;
-		const beepSamples = Math.round(0.2 * sampleRate);
-		const gapSamples = Math.round(0.1 * sampleRate);
-		const length = Math.round(0.8 * sampleRate);
+		const beepSamples = Math.round(0.4 * sampleRate);
+		const gapSamples = Math.round(0.2 * sampleRate);
+		const length = Math.round(12 * sampleRate);
 		const buffer = context.createBuffer(1, length, sampleRate);
 		const data = buffer.getChannelData(0);
-		for (let beep = 0; beep < 3; beep++) {
+		const beepCount = Math.floor(length / (beepSamples + gapSamples));
+		for (let beep = 0; beep < beepCount; beep++) {
 			const start = beep * (beepSamples + gapSamples);
 			for (let sample = 0; sample < beepSamples; sample++) {
 				const phase = ((sample / sampleRate) * 880) % 1;
-				data[start + sample] = phase < 0.5 ? 0.35 : -0.35;
+				data[start + sample] = phase < 0.5 ? 0.28 : -0.28;
 			}
 		}
 		return buffer;
 	}
 
-	#playAlarm(): void {
+	#playAlarm(index: number): void {
 		if (!this.#audioContext || !this.#alarmBuffer) return;
 		try {
+			this.#stopAlarm(index);
 			const source = this.#audioContext.createBufferSource();
 			source.buffer = this.#alarmBuffer;
 			source.connect(this.#audioContext.destination);
 			source.start();
+			this.#alarmSources.set(index, source);
 		} catch (error) {
 			this.#dependencies.browser.warn('cook-mode alarm playback failed', error);
 		}
 	}
 
 	#fireAlarm(index: number): void {
-		let backgroundAudioActive = false;
-		try {
-			backgroundAudioActive = this.#backgroundAudio?.isActive(index) ?? false;
-		} catch {
-			backgroundAudioActive = false;
-		}
-		if (!backgroundAudioActive) this.#playAlarm();
+		this.#playAlarm(index);
 		try {
 			this.#dependencies.browser.vibrate(VIBRATE_PATTERN);
 		} catch {
 			// Vibration is an optional alarm layer.
 		}
-		void this.#postNotification(index);
 	}
 
-	async #postNotification(index: number): Promise<void> {
+	#stopAlarm(index: number): void {
+		const source = this.#alarmSources.get(index);
+		if (!source) return;
+		this.#alarmSources.delete(index);
 		try {
-			if (this.#dependencies.browser.notificationPermission() !== 'granted') return;
-			const step = this.#dependencies.readAlarmStep(index);
-			if (!step) return;
-			const action = (step.timer_action ?? 'Timer').toUpperCase();
-			const location = step.timer_location ?? '';
-			const title = location ? `${action} · ${location}` : action;
-			await this.#dependencies.browser.postServiceWorkerMessage({
-				type: 'fire',
-				id: String(index),
-				title,
-				body: step.timer_purpose ?? step.goal ?? this.#dependencies.recipeTitle(),
-				vibrate: VIBRATE_PATTERN
-			});
+			source.stop();
 		} catch {
-			// Audio and vibration already handled the alarm attempt.
+			// An already-ended source is effectively stopped.
 		}
 	}
 
-	#maybeShowNotificationPrimer(): void {
-		if (this.#notificationPrimerShown) return;
-		if (this.#dependencies.browser.notificationPermission() !== 'default') return;
-		this.#notificationPrimerShown = true;
-		this.notificationPrimerVisible = true;
+	#stopAllAlarms(): void {
+		for (const index of [...this.#alarmSources.keys()]) this.#stopAlarm(index);
 	}
 
 	async #acquireWakeLock(): Promise<void> {

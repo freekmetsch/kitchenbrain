@@ -340,6 +340,16 @@ for (const viewport of VIEWPORTS) {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
+		await expect(
+			page.getByText(
+				'Background timer alerts are unavailable on this server. Keep this cooking view open.',
+				{ exact: true }
+			)
+		).toBeVisible();
+		await page.getByRole('button', { name: 'Start timer for 1:00' }).click();
+		await expect(page.getByText('Keep this cooking view open', { exact: true })).toBeVisible();
+		await page.getByRole('button', { name: 'Cancel timer' }).click();
+
 		const firstStep = page.getByRole('button', {
 			name: 'Read step 1: Simmer until ready.'
 		});
@@ -399,6 +409,9 @@ test('Shopping keeps its controls to one row at the narrow mobile boundary', asy
 	expect(
 		await filterRail.evaluate((element) => getComputedStyle(element).overflowX)
 	).toBe('auto');
+	expect(
+		await filterRail.evaluate((element) => getComputedStyle(element).scrollbarWidth)
+	).toBe('none');
 	await expect(page.getByRole('progressbar')).toHaveCount(0);
 	await expectResponsiveSurface(page, '/shopping (320px compact controls)', 320);
 });

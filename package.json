@@ -32,7 +32,8 @@
     "shopping:migration:rehearse": "tsx scripts/rehearse_shopping_migration.ts",
     "shopping:rollback:rehearse": "tsx scripts/rehearse_rollback_images.ts",
     "recipes:backfill:dry": "tsx scripts/backfill_recipe_translations.ts",
-    "recipes:backfill": "tsx scripts/backfill_recipe_translations.ts --apply"
+    "recipes:backfill": "tsx scripts/backfill_recipe_translations.ts --apply",
+    "configure:railway-timer-alerts": "tsx scripts/configure_railway_timer_alerts.ts"
   },
   "devDependencies": {
     "@inlang/plugin-message-format": "^4.4.0",
@@ -43,6 +44,7 @@
     "@tailwindcss/vite": "^4.1.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.10",
     "svelte": "^5.56.6",
     "svelte-check": "^4.7.2",
@@ -63,6 +65,7 @@
     "daisyui": "^5.0.0",
     "drizzle-orm": "^0.45.2",
     "sharp": "^0.35.3",
+    "web-push": "^3.6.7",
     "zod": "^4.3.6"
   }
 }

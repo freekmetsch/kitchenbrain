@@ -1,42 +1,15 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index';
-import {
-	inventoryItems,
-	recipes,
-	mealPlanMeals,
-	mealLog,
-	mealSubRecipes,
-	shoppingListOverrides,
-	recurringShoppingItems,
-	shoppingWeekEntries,
-	ahFavorites,
-	recipeAhPreferences
-} from '$lib/server/db/schema';
-import { isNull } from 'drizzle-orm';
+import { buildHouseholdExport } from '$lib/server/settings/export';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
-	const data = {
-		exported_at: new Date().toISOString(),
-		inventory: db
-			.select()
-			.from(inventoryItems)
-			.where(isNull(inventoryItems.deletedAt))
-			.all(),
-		recipes: db.select().from(recipes).all(),
-		meal_plan: db.select().from(mealPlanMeals).all(),
-		meal_log: db.select().from(mealLog).all(),
-		// Meal Recipe composition (ADR 0003) — without this, bootstrap-mode import
-		// can't restore which sub-recipes make up a meal recipe.
-		meal_sub_recipes: db.select().from(mealSubRecipes).all(),
-		shopping_overrides: db.select().from(shoppingListOverrides).all(),
-		recurring_shopping_items: db.select().from(recurringShoppingItems).all(),
-		shopping_week_entries: db.select().from(shoppingWeekEntries).all(),
-		ah_favorites: db.select().from(ahFavorites).all(),
-		recipe_ah_preferences: db.select().from(recipeAhPreferences).all()
-	};
+	// Push endpoints and encryption keys are device capabilities, not household
+	// content. Keeping this export allowlist explicit prevents them from ever
+	// being copied into a backup.
+	const data = buildHouseholdExport(db);
 
 	const filename = `household-brain-export-${new Date().toISOString().slice(0, 10)}.json`;
 
