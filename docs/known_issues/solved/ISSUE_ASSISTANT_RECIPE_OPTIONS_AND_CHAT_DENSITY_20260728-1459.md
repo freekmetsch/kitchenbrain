@@ -1,6 +1,6 @@
 # Issue: Assistant recipe options are not selectable and make chat excessively long
 Created: 2026-07-28 14:59
-Status: AWAITING PRODUCTION VERIFICATION
+Status: RESOLVED
 
 ## Symptom
 
@@ -41,6 +41,7 @@ row, and assistant bubbles and cards use the available width responsively.
 | 2026-07-28 20:15 | Expanded the authorized provider canary to varied ingredients and iterated on every observed failure. | The final nine-scenario `z-ai/glm-5` matrix passed in 31 calls / 205,449 tokens / a reported $0.05. It verified Parmesan, a five-tomato hidden pool, spinach, tofu, chili, optional parsley, two simultaneous curry ingredients, concise card-first prose, and a two-form garlic negative control. Earlier passes exposed duplicate proposal cards, semantic form duplicates, overly strict Dutch-query fixtures, complete tool calls ending at the token limit, and prose refusal despite sufficient evidence. The prompt, tool description, and realistic query-sensitive fixtures now enforce one proposal, canonical form labels, three distinct first-visible forms, stage-or-refuse behavior, and real-route truncation semantics. The complete gate passed 609 unit tests, all 20 primary browser stories, zero Svelte diagnostics, and the production build. Required Opus review attempts were unavailable (provider session limit, then a three-minute timeout); no findings were accepted. | Refresh draft PR #21. Keep R3 review/merge, exact-revision Railway deployment, and authenticated post-deploy verification pending. |
 | 2026-07-28 20:41 | Integrated timer-reliability `main` and proved the combined migration/browser path. | Timer delivery receipts retain migration 0024 and recipe preferences move forward to generated migration 0025. The populated 0023→0024→0025 rehearsal preserved canonical Dutch ingredients and passed foreign-key checks. One full-suite Cook Mode story exceeded its total 30-second test budget once; three desktop stress reruns plus fresh phone/desktop runs passed, so its complete assertions remain and the story receives Playwright's explicit slow-test budget. The final combined gate passed 117 test files / 622 unit tests, all 20 primary browser stories, zero Svelte diagnostics, and the production build. | Push the refreshed draft PR. Keep R3 review/merge, exact-revision Railway deployment, and authenticated post-deploy verification pending. |
 | 2026-07-28 20:48 | Integrated timer hardening follow-up PR #24 and reran the complete gate. | The focused timer/migration/assistant suites passed 34 tests and production tooling remained green. The final current-main gate passed 117 test files / 630 unit tests, all 20 primary browser stories, zero Svelte diagnostics, and the production/service-worker build. | Push the refreshed draft PR and verify it is cleanly mergeable. Production remains blocked on R3 review and post-merge lineage/canary proof. |
+| 2026-07-28 22:42 | Merged reviewed PR #21 and supervised the GitHub-source Railway deployment. | Deployment `81e9cc0d-f998-436c-b5eb-b6a18806657c` reached `SUCCESS` at exact remote-main commit `6ccb48355acee2b349d8786f180ee5f5bd273bad`. The public login boundary had no console errors or failed dynamic requests, and guarded authentication canaries passed for Freek and Ylfa without AH or household-list mutation. | Resolved and archived. |
 
 ## Hypotheses
 
@@ -70,11 +71,28 @@ row, and assistant bubbles and cards use the available width responsively.
 - Ran a bounded nine-scenario live-provider matrix against varied synthetic recipe/catalog
   fixtures and refined proposal uniqueness, semantic form diversity, stage-or-refuse behavior,
   and final prose from its findings.
-- Opened draft PR #21 and integrated current `main`; no production deployment, household-data
-  access, Apply action, AH push, or production data mutation was performed.
+- Merged reviewed PR #21, supervised exact-revision Railway delivery, and passed the public and
+  both-household-account authentication canaries. No AH request, preference Apply, basket push, or
+  household-list mutation was performed.
+
+## Resolution
+
+The typed recipe proposal now offers three distinct verified AH product forms when a complete
+choice group exists, reveals a bounded staged pool, and preserves a valid old proposal if a
+find-different replacement fails. An explicit selection is saved only for the stable ingredient
+inside that recipe. Shopping preview auto-pins only unanimous scoped preferences and requires
+review for mixed, neutral, manual, unavailable, or conflicting sources.
+
+Assistant tool iterations now retain only final prose, routine activity is aggregated, stale
+proposals become inactive, and the chat rail, bubbles, and decision cards use substantially more
+horizontal space. The provider-free suite, varied nine-scenario live-provider matrix, migration
+rehearsals, browser matrix, and production build passed before promotion. Railway then served the
+exact reviewed `main` revision and both household authentication canaries passed.
 
 ## Related Files
 
+- `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
+- `docs/artifacts/archive/2026-07-28-plan-assistant-recipe-options-chat-density.html`
 - `src/lib/server/ai/recipe_patch.ts`
 - `src/lib/server/ai/tools.ts`
 - `src/lib/server/ai/turn_safety.ts`
