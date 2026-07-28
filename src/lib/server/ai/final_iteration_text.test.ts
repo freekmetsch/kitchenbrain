@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FinalIterationText } from './final_iteration_text';
+import { FinalIterationText, finalizeProposalText } from './final_iteration_text';
 
 describe('FinalIterationText', () => {
 	it('discards tool-iteration prose and exposes only the final assistant iteration', () => {
@@ -25,5 +25,23 @@ describe('FinalIterationText', () => {
 		buffer.append('final');
 
 		expect(buffer.complete(0)).toEqual({ done: true, text: 'final' });
+	});
+});
+
+describe('finalizeProposalText', () => {
+	const fallback = 'The review is ready above.';
+
+	it('keeps one concise final sentence', () => {
+		expect(finalizeProposalText('The three choices are ready to review.', fallback)).toBe(
+			'The three choices are ready to review.'
+		);
+	});
+
+	it('replaces overlong proposal narration', () => {
+		expect(finalizeProposalText('x'.repeat(181), fallback)).toBe(fallback);
+	});
+
+	it('replaces multi-line proposal narration', () => {
+		expect(finalizeProposalText('First line.\nSecond line.', fallback)).toBe(fallback);
 	});
 });

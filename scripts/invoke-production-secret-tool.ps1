@@ -9,6 +9,7 @@ param(
         'VerifyFreekAuth',
         'VerifyYlfaAuth',
         'VerifyOpenRouterNew',
+        'RunRecipeOptionsCanary',
         'CapOpenRouterOld',
         'DeleteOpenRouterOld'
     )]
@@ -60,6 +61,8 @@ $railwayStager = Join-Path $PSScriptRoot 'production\stage-railway-config.ps1'
 $openRouterAdmin = Join-Path $PSScriptRoot 'production\openrouter-key-admin.ps1'
 $openRouterCreator = Join-Path $PSScriptRoot 'production\create-openrouter-app-key.ps1'
 $authCanary = Join-Path $PSScriptRoot 'production\verify-production-auth.mjs'
+$recipeOptionsCanary = Join-Path $PSScriptRoot 'canary\recipe-options-live.ts'
+$tsxCli = Join-Path $repoRoot 'node_modules\tsx\dist\cli.mjs'
 
 $childArguments = switch ($Tool) {
     'CreateOpenRouterAppKey' {
@@ -83,6 +86,9 @@ $childArguments = switch ($Tool) {
     'VerifyOpenRouterNew' {
         @('-NoProfile', '-File', $openRouterAdmin, '-Action', 'VerifyNew')
     }
+    'RunRecipeOptionsCanary' {
+        @($tsxCli, $recipeOptionsCanary)
+    }
     'CapOpenRouterOld' {
         @('-NoProfile', '-File', $openRouterAdmin, '-Action', 'CapOld')
     }
@@ -92,21 +98,25 @@ $childArguments = switch ($Tool) {
 }
 
 try {
-    $childScript = if ($Tool -like 'Verify*Auth') {
+    $isNodeTool = $Tool -like 'Verify*Auth' -or $Tool -eq 'RunRecipeOptionsCanary'
+    $childScript = if ($Tool -eq 'RunRecipeOptionsCanary') {
+        $recipeOptionsCanary
+    } elseif ($Tool -like 'Verify*Auth') {
         $childArguments[0]
     } else {
         $childArguments[2]
     }
     if (
         -not (Test-Path -LiteralPath $envTemplate -PathType Leaf) -or
-        -not (Test-Path -LiteralPath $childScript -PathType Leaf)
+        -not (Test-Path -LiteralPath $childScript -PathType Leaf) -or
+        ($Tool -eq 'RunRecipeOptionsCanary' -and -not (Test-Path -LiteralPath $tsxCli -PathType Leaf))
     ) {
         throw 'Production tool input is missing.'
     }
 
     $opPath = Resolve-UniqueApplicationPath 'op'
     $pwshPath = Join-Path $PSHOME 'pwsh.exe'
-    $childExecutable = if ($Tool -like 'Verify*Auth') {
+    $childExecutable = if ($isNodeTool) {
         Resolve-UniqueApplicationPath 'node'
     } else {
         $pwshPath

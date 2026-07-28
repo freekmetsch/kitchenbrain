@@ -445,3 +445,19 @@ draft-PR review and the separately authorized live provider-canary decision.
 Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
 docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md,
 drizzle/0024_lumpy_wallflower.sql
+
+## 2026-07-28 | run | Assistant recipe live-provider canary refinement
+
+Ran five bounded provider-backed scenarios against synthetic recipe and AH-like fixtures. All five
+put block, fresh-grated, and powder products in the first three visible choices without reading
+household data, calling AH, applying a preference, or pushing a basket. Refined proposal turns so
+long or multi-line final narration collapses to the localized card-ready sentence. The complete
+gate then passed 607 unit tests, all 20 primary browser stories, Svelte diagnostics, and the
+production build.
+
+Touched: scripts/canary/recipe-options-live.ts,
+scripts/invoke-production-secret-tool.ps1,
+src/lib/server/ai/final_iteration_text.ts,
+src/routes/api/chat/+server.ts,
+docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
+docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md

@@ -31,7 +31,10 @@ import { m } from '$lib/paraglide/messages';
 import { beginChatTurn } from '$lib/server/ai/chat_activity';
 import { createTurnSafetyState } from '$lib/server/ai/turn_safety';
 import { getRecipePatchReplacementContext } from '$lib/server/ai/recipe_patch';
-import { FinalIterationText } from '$lib/server/ai/final_iteration_text';
+import {
+	FinalIterationText,
+	finalizeProposalText
+} from '$lib/server/ai/final_iteration_text';
 
 // Vision upload hard caps (Stage 4b / P5.4). Images arrive as multipart/form-data
 // (no base64 +33% on the wire); the client downscales to ≤1568px before sending,
@@ -340,9 +343,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					const completedIteration = iterationText.complete(turn.toolCalls.length);
 					if (completedIteration.done) {
 						fullText += completedIteration.text;
-						if (completedIteration.text) {
-							controller.enqueue(sse({ type: 'text', text: completedIteration.text }));
-						}
 						break;
 					}
 
@@ -386,7 +386,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					? m.chat_tool_only_proposal_ready()
 					: m.chat_tool_only_complete();
 				fullText = fallback;
-				controller.enqueue(sse({ type: 'text', text: fallback }));
+			}
+			const hasProposal = allToolCalls.some((tool) => tool.display?.kind === 'proposal');
+			if (!streamFailed && !request.signal.aborted && hasProposal && fullText.trim()) {
+				fullText = finalizeProposalText(fullText, m.chat_tool_only_proposal_ready());
+			}
+			if (!streamFailed && !request.signal.aborted && fullText.trim()) {
+				controller.enqueue(sse({ type: 'text', text: fullText }));
 			}
 
 			// Persist assistant response. A reply that is itself a machine payload

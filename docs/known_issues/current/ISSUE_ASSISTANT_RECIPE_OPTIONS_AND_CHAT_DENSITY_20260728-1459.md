@@ -37,6 +37,7 @@ row, and assistant bubbles and cards use the available width responsively.
 | 2026-07-28 | Finalized the five-phase R3 feature list after critique. | The revised design uses an additive recipe/ingredient preference table, server-bound opaque candidate IDs, transaction-internal validation, single-use proposals, strict mixed-source conflict handling, scoped replacement that preserves the old proposal on failure, and responsive/aggregated chat UI. The plan is GO for `$run`; no application code or production data changed. | Execute `docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md` through `$run`, stage the R3 migration, and keep this issue open until production verification. |
 | 2026-07-28 16:46 | Implemented and verified the accepted plan on `wide-sweep/schema-assistant-recipe-options`. | Added opaque three-to-nine-candidate recipe product groups, atomic recipe-scoped preferences, strict AH source precedence, single-use proposal replacement, final-only assistant prose, compact activity, and responsive mobile/desktop review. `npm test` passed 577 unit tests, 20 primary browser tests, and the production build; the focused secondary-account flow also passed. Fresh and pre-feature database migration tests passed with an empty foreign-key check, and the client-bundle marker scan was clean. | Open the required R3 PR. Keep production promotion and any metered provider canary blocked until deployment-lineage recovery and the names-only exact-revision command are present and verified. |
 | 2026-07-28 17:20 | Integrated draft PR #21 with current `main` and reran the complete gate. | Renumbered the additive preference migration to 0024 after main's timer-alert migration, composed reset/export behavior, and hardened Cook Mode recovery waits exposed by full-suite load. `npm test` passed 111 test files / 604 unit tests, all 20 primary browser stories, zero Svelte diagnostics, and the production build. The names-only Railway verifier reported `SUCCESS`, branch `main`, and exact deployed/remote-main equality for the current pre-feature revision. | Keep the PR draft pending R3 review. Ask for explicit authority before the optional one-turn metered provider canary; stop it before Apply/AH push. After merge, supervise Railway and repeat exact-revision plus authenticated canary proof. |
+| 2026-07-28 19:16 | Ran and tightened the authorized live provider canary, then reran the complete repository gate. | Five synthetic scenarios passed through the configured `z-ai/glm-5` agent loop in 15 calls / 89,203 tokens / a reported $0.02. The first three visible candidates were block, fresh-grated, and powder in every scenario, including block-heavy, powder-first, and mixed-language traps. No household data, live AH request, Apply action, or basket push was used. The canary exposed long final narration, so proposal turns now replace multi-line or over-180-character endings with the localized card-ready fallback. The final gate passed 607 unit tests, all 20 primary browser stories, zero Svelte diagnostics, and the production build. | Update draft PR #21. Production verification still requires review/merge, Railway `SUCCESS` at exact remote `main`, and an authenticated post-deploy canary. |
 
 ## Hypotheses
 
@@ -63,8 +64,10 @@ row, and assistant bubbles and cards use the available width responsively.
 - `/grill` clarification of option diversity, preference scope, and “show more” behavior.
 - Implemented and verified the typed proposal, additive recipe preference table, strict shopping
   precedence, replacement lifecycle, final-only prose, and responsive decision surface.
-- Opened draft PR #21 and integrated current `main`; no production deployment, provider spend,
-  Apply action, AH push, or production data mutation was performed.
+- Ran a bounded five-scenario live provider canary against synthetic recipe/catalog fixtures and
+  refined proposal-final prose from its findings.
+- Opened draft PR #21 and integrated current `main`; no production deployment, household-data
+  access, Apply action, AH push, or production data mutation was performed.
 
 ## Related Files
 
