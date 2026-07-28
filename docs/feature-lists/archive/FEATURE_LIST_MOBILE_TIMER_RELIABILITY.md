@@ -425,16 +425,16 @@ only code/deploy owner until that threshold is crossed.
 > Default: yes. Reliability is the stated priority. Start fail-loud and add deduplication only after
 > the physical matrix proves it necessary and a matching timer can positively acknowledge that it
 > already sounded.
-
+>
 > **Q: Should this create a separate Railway staging service and database?**
 > Default: no. Use production-beta as the controlled household stage because there are two known
 > users, the migration is additive, the previous app can ignore it, and production truth/canary
 > tooling already exists. Stop before the device matrix and preserve rollback readiness.
-
+>
 > **Q: How late is still useful?**
 > Default: five minutes. Sixty seconds is too easy to miss during ordinary sleep/connectivity
 > transitions; longer than five minutes risks a confusing stale kitchen alarm.
-
+>
 > **Q: Should native Android work start in parallel?**
 > Default: no. The current code contains two proven defects and no receipt evidence. Fixing them is
 > lower cost and produces the measurements needed to scope native work responsibly.
@@ -479,6 +479,6 @@ First command:
 
 `npm run test:unit -- src/lib/timer/notification.test.ts src/lib/components/cook-mode/lifecycle-controller.test.ts src/lib/server/timer-alerts/service.test.ts src/lib/server/timer-alerts/scheduler.test.ts`
 
-Handoff: run `$run docs/feature-lists/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md` from the isolated
+Handoff: run `$run docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md` from the isolated
 branch/worktree. Execute the R3 checkpoint before migration deployment and the production-beta
 checkpoint before physical device tests.

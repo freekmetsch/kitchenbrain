@@ -218,10 +218,11 @@ export class CookModeLifecycleController {
 	}
 
 	#tick(time: number): void {
-		for (const index of this.#dependencies.timers.tick(time)) {
+		const fired = this.#dependencies.timers.tick(time);
+		for (const index of fired) {
 			this.#fireAlarm(index);
 		}
-		this.#dependencies.onTimerStateChange?.();
+		if (fired.length > 0) this.#dependencies.onTimerStateChange?.();
 		this.syncTimerActivity(this.#dependencies.timers.anyRunning);
 	}
 

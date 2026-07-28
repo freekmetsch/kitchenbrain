@@ -160,9 +160,15 @@ self.addEventListener('notificationclick', (event) => {
 			(client) => new URL(client.url).origin === self.location.origin
 		);
 		if (existing && 'focus' in existing) {
-			if ('navigate' in existing) await existing.navigate(destination);
-			await existing.focus();
-			return;
+			try {
+				await existing.focus();
+				if ('navigate' in existing) {
+					await existing.navigate(destination);
+					return;
+				}
+			} catch {
+				// A client loaded before this worker activated may reject navigation.
+			}
 		}
 		await self.clients.openWindow(destination);
 	})();

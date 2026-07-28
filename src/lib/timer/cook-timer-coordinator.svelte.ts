@@ -46,6 +46,7 @@ export type CookTimerCoordinatorPushClient = Pick<
 type CookTimerCoordinatorOptions = {
 	browser: CookTimerCoordinatorBrowserAdapters;
 	storage?: CookTimerCoordinatorStorage | null;
+	storageKey?: string;
 	push?: CookTimerCoordinatorPushClient;
 	uuid?: () => string;
 };
@@ -109,14 +110,19 @@ export class CookTimerSession {
 	attachView(
 		shouldRetryAfterVisibility: () => boolean,
 		retryAfterVisibility: () => void | Promise<void>
-	): void {
+	): () => void {
 		this.#shouldRetryAfterVisibility = shouldRetryAfterVisibility;
 		this.#retryAfterVisibility = retryAfterVisibility;
-	}
-
-	detachView(): void {
-		this.#shouldRetryAfterVisibility = () => false;
-		this.#retryAfterVisibility = () => {};
+		return () => {
+			if (
+				this.#shouldRetryAfterVisibility !== shouldRetryAfterVisibility ||
+				this.#retryAfterVisibility !== retryAfterVisibility
+			) {
+				return;
+			}
+			this.#shouldRetryAfterVisibility = () => false;
+			this.#retryAfterVisibility = () => {};
+		};
 	}
 
 	start(index: number, seconds: number, metadata: TimerMetadata): number {
@@ -210,11 +216,29 @@ export class CookTimerSession {
 
 	reset(): void {
 		this.timerStateInitialized = true;
-		for (const alert of Object.values(this.alerts)) {
-			if (alert.jobId) void this.#push.cancel(alert.jobId);
+		const pending: Record<number, CookTimerAlert> = {};
+		for (const [rawIndex, alert] of Object.entries(this.alerts)) {
+			if (!alert.jobId) continue;
+			const index = Number(rawIndex);
+			pending[index] = { ...alert, status: 'cancel-pending' };
+			void this.#push
+				.cancel(alert.jobId)
+				.then((result) => {
+					if (
+						result.status !== 'cancelled' ||
+						this.alerts[index]?.jobId !== alert.jobId
+					) {
+						return;
+					}
+					const alerts = { ...this.alerts };
+					delete alerts[index];
+					this.alerts = alerts;
+					this.#onChange();
+				})
+				.catch(() => {});
 		}
 		this.metadata = {};
-		this.alerts = {};
+		this.alerts = pending;
 		this.#lifecycle.resetTimers();
 		if (this.#mounted) this.#lifecycle.syncTimerActivity(false);
 		this.#onChange();
@@ -273,15 +297,18 @@ export class CookTimerCoordinator {
 
 	readonly #browser: CookTimerCoordinatorBrowserAdapters;
 	readonly #storage: CookTimerCoordinatorStorage | null;
+	readonly #storageKey: string;
 	readonly #push: CookTimerCoordinatorPushClient;
 	readonly #uuid: () => string;
 	#mounted = false;
 	#destroyed = false;
+	#pushRequestToken = 0;
 	#removeServiceWorkerListener: (() => void) | null = null;
 
 	constructor(options: CookTimerCoordinatorOptions) {
 		this.#browser = options.browser;
 		this.#storage = options.storage ?? null;
+		this.#storageKey = options.storageKey ?? 'cook-timer-registry:v1';
 		this.#push = options.push ?? createTimerPushClient();
 		this.#uuid = options.uuid ?? (() => crypto.randomUUID());
 		this.#restore();
@@ -328,15 +355,19 @@ export class CookTimerCoordinator {
 	}
 
 	async inspectPush(): Promise<TimerPushState> {
+		const token = ++this.#pushRequestToken;
 		this.pushState = { status: 'checking' };
-		this.pushState = await this.#push.inspect();
-		return this.pushState;
+		const state = await this.#push.inspect();
+		if (token === this.#pushRequestToken) this.pushState = state;
+		return state;
 	}
 
 	async enablePush(): Promise<TimerPushState> {
+		const token = ++this.#pushRequestToken;
 		this.pushState = { status: 'checking' };
-		this.pushState = await this.#push.enable();
-		return this.pushState;
+		const state = await this.#push.enable();
+		if (token === this.#pushRequestToken) this.pushState = state;
+		return state;
 	}
 
 	sendTest(onUpdate?: (result: TimerTestResult) => void): Promise<TimerTestResult> {
@@ -346,6 +377,7 @@ export class CookTimerCoordinator {
 	destroy(): void {
 		if (this.#destroyed) return;
 		this.#destroyed = true;
+		this.#pushRequestToken += 1;
 		this.#removeServiceWorkerListener?.();
 		this.#removeServiceWorkerListener = null;
 		for (const session of Object.values(this.sessions)) session.destroy();
@@ -354,7 +386,7 @@ export class CookTimerCoordinator {
 	#persist(): void {
 		try {
 			this.#storage?.setItem(
-				'cook-timer-registry:v1',
+				this.#storageKey,
 				JSON.stringify({
 					v: 1,
 					sessions: Object.values(this.sessions).map((session) => ({
@@ -374,7 +406,7 @@ export class CookTimerCoordinator {
 	#restore(): void {
 		let raw: unknown;
 		try {
-			const saved = this.#storage?.getItem('cook-timer-registry:v1');
+			const saved = this.#storage?.getItem(this.#storageKey);
 			if (!saved) return;
 			raw = JSON.parse(saved);
 		} catch {
@@ -394,10 +426,7 @@ export class CookTimerCoordinator {
 		const sessions: Record<string, CookTimerSession> = {};
 		for (const value of registry.sessions) {
 			const restored = readPersistedSession(value, now);
-			if (!restored || sessions[restored.identity.key]) {
-				this.#clearPersisted();
-				return;
-			}
+			if (!restored || sessions[restored.identity.key]) continue;
 			const session = new CookTimerSession(
 				restored.identity,
 				this.#browser,
@@ -414,7 +443,7 @@ export class CookTimerCoordinator {
 
 	#clearPersisted(): void {
 		try {
-			this.#storage?.removeItem('cook-timer-registry:v1');
+			this.#storage?.removeItem(this.#storageKey);
 		} catch {
 			// Invalid optional persistence does not affect the live coordinator.
 		}

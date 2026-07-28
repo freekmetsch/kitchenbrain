@@ -235,7 +235,7 @@
 	let steps = $derived(
 		applySessionSwapsToSteps(cookMode?.steps ?? [], sessionSwaps, ingredientNamesById)
 	);
-	timerSession.attachView(
+	const detachTimerView = timerSession.attachView(
 		() =>
 			requiresPlan && !localizedPlan && !loading && Boolean(loadError) && loadErrorRetryable,
 		() => network.retryAfterVisibility()
@@ -516,7 +516,7 @@
 	onDestroy(() => {
 		if (timerTestCooldownHandle) clearTimeout(timerTestCooldownHandle);
 		network.destroy();
-		timerSession.detachView();
+		detachTimerView();
 	});
 
 	let projectedIngredients = $derived(

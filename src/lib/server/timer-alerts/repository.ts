@@ -195,18 +195,17 @@ export function createTimerAlertRepository(db: Db) {
 			});
 		},
 
-		createTest(input: TimerAlertScheduleInput): void {
-			const now = input.deadline;
+		createTest(input: TimerAlertScheduleInput, createdAt = new Date()): void {
 			db.insert(timerAlertJobs)
 				.values({
 					...input,
 					kind: 'test',
 					state: 'claimed',
 					attemptCount: 0,
-					nextAttemptAt: now,
-					claimedAt: now,
-					createdAt: now,
-					updatedAt: now
+					nextAttemptAt: input.deadline,
+					claimedAt: createdAt,
+					createdAt,
+					updatedAt: createdAt
 				})
 				.run();
 		},

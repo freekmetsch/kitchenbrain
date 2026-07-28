@@ -134,4 +134,26 @@ describe('timer alert service', () => {
 			lastError: 'sender-error'
 		});
 	});
+
+	it('removes a gone subscription and its cascaded test evidence', async () => {
+		const db = createTestDb();
+		const userId = db.select({ id: users.id }).from(users).get()!.id;
+		const repository = createTimerAlertRepository(db);
+		const service = createTimerAlertService({
+			repository,
+			send: async () => ({ outcome: 'gone' }),
+			publicKey: 'public-vapid-key',
+			now: () => new Date(20_000)
+		});
+		const subscription = service.subscribe(userId, {
+			endpoint: 'https://fcm.googleapis.com/fcm/send/gone-subscription',
+			keys: { p256dh: `B${'A'.repeat(86)}`, auth: 'A'.repeat(22) }
+		});
+
+		await expect(service.sendTest(userId, subscription.id)).rejects.toMatchObject({
+			code: 'unavailable'
+		});
+		expect(db.select().from(timerAlertJobs).get()).toBeUndefined();
+		expect(repository.getSubscription(userId, subscription.id)).toBeUndefined();
+	});
 });
