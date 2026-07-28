@@ -418,3 +418,44 @@ docs/artifacts/archive/2026-07-28-plan-mobile-timer-sound.html
 
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
+
+## 2026-07-28 | html-artifact | plan: Mobile timer reliability
+
+Reopened the shipped mobile-timer issue after the Android device check. Production evidence proves
+timer jobs and provider acceptance; the new plan fixes origin-wide notification silencing, keeps
+foreground timers alive across in-app navigation, records worker/display receipts, extends the
+late-delivery window, and uses a measured two-phone gate before considering a native Android
+companion.
+
+Touched: docs/artifacts/2026-07-28-plan-mobile-timer-reliability.html,
+docs/feature-lists/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md,
+docs/known_issues/current/ISSUE_MOBILE_TIMER_SOUND_20260728-1410.md
+
+## 2026-07-28 | implementation awaiting device verification: Mobile timer reliability
+
+Moved timer ownership into the persistent app shell, made valid Test and timer notifications
+audible by default, added privacy-bounded worker/display receipts and truthful Test states, and
+extended the useful push window to five minutes. An authenticated browser regression caught and
+fixed a restore transaction that erased the registry on a second reload.
+
+The 0023→0024 upgrade preserved existing jobs and rollback-readable `sent_at`; SQLite integrity and
+foreign keys passed. The full CI-mode repository gate passed 594 unit tests, authenticated browser
+flows, and the production/service-worker build. The primary and secondary household-account timer
+flows passed, the production dependency audit found zero vulnerabilities, and the client bundle
+scan found no capability material. The known issue remains open for Freek's and Ylfa's Android
+screen-off checks.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md,
+docs/artifacts/archive/2026-07-28-plan-mobile-timer-reliability.html,
+docs/known_issues/current/ISSUE_MOBILE_TIMER_SOUND_20260728-1410.md,
+drizzle/0024_sparkling_spirit.sql,
+src/lib/timer/cook-timer-coordinator.svelte.ts,
+src/service-worker.ts
+
+## 2026-07-28 | archive-scan | 1 feature list, 1 HTML archived
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_RELIABILITY.md,
+docs/artifacts/archive/2026-07-28-plan-mobile-timer-reliability.html
+
+The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
+validated inline fallback.

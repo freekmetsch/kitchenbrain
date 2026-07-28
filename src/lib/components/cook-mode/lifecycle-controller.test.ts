@@ -41,7 +41,7 @@ function dependencies(
 }
 
 describe('CookModeLifecycleController', () => {
-	it('ticks timers, retries generation, and reacquires wake lock when the page becomes visible', async () => {
+	it('ticks timers and does not reacquire wake lock after the final timer expires', async () => {
 		let visibilityListener: (() => void) | undefined;
 		let now = 1_000;
 		let releaseWakeLock: (() => void) | undefined;
@@ -79,8 +79,8 @@ describe('CookModeLifecycleController', () => {
 
 		expect(timers.snapshot.doneIdxs).toEqual(new Set([0]));
 		expect(deps.retryAfterVisibility).toHaveBeenCalledOnce();
-		expect(requestWakeLock).toHaveBeenCalledTimes(2);
-		expect(wakeLocks).toHaveLength(2);
+		expect(requestWakeLock).toHaveBeenCalledOnce();
+		expect(wakeLocks).toHaveLength(1);
 		lifecycle.destroy();
 	});
 

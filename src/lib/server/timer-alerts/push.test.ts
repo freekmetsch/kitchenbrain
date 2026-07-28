@@ -74,7 +74,7 @@ describe('Web Push timer sender', () => {
 			}
 		});
 		expect(options).toMatchObject({
-			TTL: 60,
+			TTL: 5 * 60,
 			urgency: 'high',
 			topic: '4bb16cdff1bb48c785ddc6a86aeb01b4'
 		});

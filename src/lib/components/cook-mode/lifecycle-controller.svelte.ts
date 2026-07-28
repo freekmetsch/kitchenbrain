@@ -48,6 +48,7 @@ export type CookModeLifecycleDependencies = {
 	subscriberId: string;
 	shouldRetryAfterVisibility(): boolean;
 	retryAfterVisibility(): void | Promise<void>;
+	onTimerStateChange?(): void;
 	browser: CookModeLifecycleBrowserAdapters;
 };
 
@@ -128,7 +129,7 @@ export class CookModeLifecycleController {
 		this.#removeVisibilityListener = this.#dependencies.browser.listenVisibility(() => {
 			this.#onVisibilityChange();
 		});
-		void this.#acquireWakeLock();
+		if (this.#dependencies.timers.anyRunning) void this.#acquireWakeLock();
 	}
 
 	syncTimerActivity(running: boolean): void {
@@ -136,8 +137,10 @@ export class CookModeLifecycleController {
 		if (!running) {
 			this.#unsubscribeWorker();
 			this.#clearFallbackInterval();
+			this.#releaseWakeLock();
 			return;
 		}
+		if (this.#mounted && !this.#wakeLock) void this.#acquireWakeLock();
 		this.#ensureWorker();
 		if (this.#worker) {
 			this.#clearFallbackInterval();
@@ -156,21 +159,25 @@ export class CookModeLifecycleController {
 
 	startTimer(index: number, seconds: number): number {
 		this.#ensureAudio();
-		return this.#dependencies.timers.start(
+		const deadline = this.#dependencies.timers.start(
 			index,
 			seconds,
 			this.#dependencies.browser.now()
 		);
+		this.#dependencies.onTimerStateChange?.();
+		return deadline;
 	}
 
 	cancelTimer(index: number): void {
 		this.#stopAlarm(index);
 		this.#dependencies.timers.cancel(index);
+		this.#dependencies.onTimerStateChange?.();
 	}
 
 	resetTimers(): void {
 		this.#dependencies.timers.reset(this.#dependencies.browser.now());
 		this.#stopAllAlarms();
+		this.#dependencies.onTimerStateChange?.();
 	}
 
 	destroy(): void {
@@ -202,7 +209,9 @@ export class CookModeLifecycleController {
 		if (this.#dependencies.shouldRetryAfterVisibility()) {
 			void this.#dependencies.retryAfterVisibility();
 		}
-		if (!this.#wakeLock) void this.#acquireWakeLock();
+		if (this.#dependencies.timers.anyRunning && !this.#wakeLock) {
+			void this.#acquireWakeLock();
+		}
 		if (this.#audioContext?.state === 'suspended') {
 			void this.#audioContext.resume().catch(() => {});
 		}
@@ -212,6 +221,8 @@ export class CookModeLifecycleController {
 		for (const index of this.#dependencies.timers.tick(time)) {
 			this.#fireAlarm(index);
 		}
+		this.#dependencies.onTimerStateChange?.();
+		this.syncTimerActivity(this.#dependencies.timers.anyRunning);
 	}
 
 	#ensureWorker(): void {
