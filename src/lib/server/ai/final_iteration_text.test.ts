@@ -26,6 +26,15 @@ describe('FinalIterationText', () => {
 
 		expect(buffer.complete(0)).toEqual({ done: true, text: 'final' });
 	});
+
+	it('abandons a partial failed iteration before a fallback retry', () => {
+		const buffer = new FinalIterationText();
+		buffer.append('abandoned partial answer');
+		buffer.discard();
+		buffer.append('clean fallback answer');
+
+		expect(buffer.complete(0)).toEqual({ done: true, text: 'clean fallback answer' });
+	});
 });
 
 describe('finalizeProposalText', () => {

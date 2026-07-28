@@ -315,10 +315,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 							}
 						});
 					} catch (err) {
-						// One automatic retry on the fallback model if the primary errors before
-						// any text streamed on iteration 1 (a provider hiccup). If GLM-5 fails
-						// consistently, flip CHAT_MODEL in config.
+						// One automatic retry on the fallback model when the first provider
+						// iteration fails before a final answer is accepted. Buffered partial
+						// text belongs to the failed attempt and must not prefix the fallback.
 						if (!request.signal.aborted && !usedFallback && iterations === 1 && !fullText) {
+							iterationText.discard();
 							usedFallback = true;
 							iterations--;
 							continue;

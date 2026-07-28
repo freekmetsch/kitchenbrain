@@ -1,6 +1,6 @@
 # Assistant recipe product choices and dense chat
 
-_Status: In flight - Phase 5 of 5 (implementation, mainline integration, and varied live-provider matrix verified; draft PR #21 open; production promotion pending)_
+_Status: In flight - Phase 5 of 5 (implementation, varied live-provider matrix, and branch review verified; draft PR #21 open; production promotion pending)_
 
 Related issue:
 `docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md`
@@ -687,6 +687,21 @@ and the production build. One Cook Mode
 multi-navigation story exceeded its 30-second total budget once under full-suite load; three
 consecutive desktop reruns and fresh phone/desktop runs passed, so the complete story keeps all
 assertions and is explicitly marked slow rather than weakening its waits.
+
+The 2026-07-28 wrap review traced spec fit, repository invariants, maintainability, and the critical
+test seams across the complete `origin/main...HEAD` diff. It found one P2 chat-truth defect: a
+primary provider failure after buffered partial text could prefix that abandoned fragment to the
+automatic fallback answer. The buffer now has an explicit discard operation used before fallback,
+and a red-green regression proves only the clean fallback survives. No P0/P1 issue or remaining P2
+code defect was found. The required safe-mode Opus verification timed out after four minutes, so no
+independent findings were accepted.
+
+Post-repair isolated gates passed zero Svelte diagnostics, all 117 Vitest files / 631 tests, a fresh
+20-story authenticated Chromium run, and the production build. Two composed `npm test` attempts
+each encountered the same launch-only Playwright failure before the Stock story opened; that exact
+story and the subsequent fresh full Playwright run passed. The workstation's ignored `dev.db`
+contains an abandoned draft-branch 0023 migration and was intentionally left untouched; gates used
+an isolated in-memory unit database while Playwright recreated its fixed test database.
 
 ## Risk tier and audit findings
 

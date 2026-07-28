@@ -13,9 +13,13 @@ export class FinalIterationText {
 		this.current += delta;
 	}
 
+	discard(): void {
+		this.current = '';
+	}
+
 	complete(toolCallCount: number): CompletedAgentIteration {
 		const text = this.current;
-		this.current = '';
+		this.discard();
 
 		if (toolCallCount > 0) {
 			return { done: false, text: '' };
