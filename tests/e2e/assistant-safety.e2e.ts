@@ -17,6 +17,155 @@ const CHAT_VIEWPORTS = [
 	{ name: 'desktop', width: 1280, height: 900 }
 ] as const;
 
+test('Plan → Shop review is adjustable, atomic, and keeps the AH push behind final confirmation', async ({
+	page
+}, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	const proposalToken = `e2e-${fixture.account}-meal-plan-proposal`;
+	const selectedRequests: string[][] = [];
+	let ahPushRequests = 0;
+
+	await page.route('**/api/meal-plan/proposal*', async (route) => {
+		if (route.request().method() === 'GET') {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ status: 'active' })
+			});
+			return;
+		}
+		if (route.request().method() === 'POST') {
+			const body = route.request().postDataJSON() as {
+				token: string;
+				operationIds: string[];
+			};
+			expect(body.token).toBe(proposalToken);
+			selectedRequests.push(body.operationIds);
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					ok: true,
+					receipt: {
+						status: 'committed',
+						atomicity: 'atomic',
+						undoToken: proposalToken
+					},
+					shopping: { ready: 1, blocked: [{ id: 17, name: 'verse kruiden' }] },
+					next: {
+						kind: 'ah_review',
+						externalEffect: 'read-only',
+						previewToken: `e2e-${fixture.account}-ah-preview`,
+						items: [
+							{
+								ref: 'entries:17',
+								sourceName: 'linzen',
+								term: 'linzen',
+								amount: '400',
+								unit: 'g',
+								incompatibleQuantities: false,
+								quantitySources: [],
+								status: 'product',
+								candidates: [
+									{
+										id: 'ah-linzen',
+										name: 'AH Linzen',
+										price: 1.19,
+										regularPrice: 1.19,
+										isBonus: false,
+										bonusMechanism: null,
+										salesUnitSize: '400 g',
+										unitPrice: '€2.98/kg',
+										imageUrl: null,
+										isPreviouslyBought: true,
+										qty: 1,
+										pricePerCount: null
+									}
+								],
+								lowConfidence: false
+							}
+						]
+					}
+				})
+			});
+			return;
+		}
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ ok: true, status: 'rejected' })
+		});
+	});
+	await page.route('**/api/shopping/ah-push', async (route) => {
+		ahPushRequests += 1;
+		const body = route.request().postDataJSON() as { previewToken: string };
+		expect(body.previewToken).toBe(`e2e-${fixture.account}-ah-preview`);
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				productsPushed: 1,
+				freetextPushed: 0,
+				destination: 'list',
+				accountName: 'Test household',
+				markedBoughtRefs: [],
+				failed: [],
+				uncertain: false
+			})
+		});
+	});
+
+	for (const viewport of VIEWPORTS) {
+		const pushCountBeforeReview = ahPushRequests;
+		await page.setViewportSize(viewport);
+		await page.goto('/');
+		const review = page.locator('section[aria-label="Review meal plan"]');
+		await expect(review).toBeVisible();
+		await expect(
+			review.getByRole('heading', {
+				name: 'A practical week from what is already available'
+			})
+		).toBeVisible();
+		await expect(review.getByText('Why now', { exact: true })).toBeVisible();
+		await expect(review.getByText('What will change', { exact: true })).toBeVisible();
+		await expect(review.getByText('Confidence: medium', { exact: true })).toBeVisible();
+		await expect(review.getByText(/Atomic: the selected meals and Shopping reconciliation/)).toBeVisible();
+		await expect(review.getByText(/Nothing is sent until you press Send to AH/)).toBeVisible();
+
+		const changes = review.getByRole('checkbox');
+		await expect(changes).toHaveCount(2);
+		await expect(changes.nth(0)).toBeChecked();
+		await expect(changes.nth(1)).toBeChecked();
+		await changes.nth(1).click();
+		await expect(changes.nth(1)).not.toBeChecked();
+		await expect(review.getByText('1 selected', { exact: true })).toBeVisible();
+		expect(ahPushRequests).toBe(pushCountBeforeReview);
+
+		await review.getByRole('button', { name: 'Apply selected' }).click();
+		await expect(review.getByText('Plan and Shopping list updated.', { exact: true })).toBeVisible();
+		await expect(
+			review.getByText('Shopping sources still needing review: 1.', { exact: true })
+		).toBeVisible();
+		await expect(review.getByText(/Product choices are prepared from the Dutch Shopping sources/)).toBeVisible();
+		await expect(review.getByText('AH Linzen', { exact: true })).toBeVisible();
+		expect(ahPushRequests).toBe(pushCountBeforeReview);
+		expect(selectedRequests.at(-1)).toEqual([`e2e-${fixture.account}-meal-add`]);
+
+		const send = review.getByRole('button', { name: 'Send to AH' });
+		await expect(send).toBeEnabled();
+		await send.click();
+		await expect(review.getByText('AH is external and will not be undone.', { exact: true })).toBeVisible();
+		await expect(review.getByRole('button', { name: 'Undo plan + Shopping' })).toBeVisible();
+		expect(ahPushRequests).toBe(pushCountBeforeReview + 1);
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth > document.documentElement.clientWidth
+			),
+			`Plan → Shop review must not overflow horizontally at ${viewport.width}px`
+		).toBe(false);
+	}
+});
+
 test('Recipe patch review stays selective and responsive at phone and desktop', async ({
 	page
 }, testInfo) => {

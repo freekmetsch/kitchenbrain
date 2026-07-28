@@ -10,6 +10,13 @@ import {
 	type WritePrecondition
 } from '$lib/server/domains/inventory/commands';
 import type { RecipePatchEvidence } from '$lib/server/ai/recipe_patch';
+import {
+	ASSISTANT_CAPABILITIES,
+	isPersistentCapability
+} from '$lib/server/ai/capability_registry';
+import { listMealsForWeek } from '$lib/server/domains/meal-plan/queries';
+import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import { weekStartFor } from '$lib/week';
 
 export type ContractErrorCode =
 	| 'invalid_input'
@@ -48,6 +55,7 @@ export type AhSearchDisplayResult = {
 export type TurnSafetyState = {
 	inventory: Map<number, ItemSnapshot>;
 	meals: Map<number, string>;
+	mealWeeks: Map<string, string>;
 	recipesById: Map<number, RecipeObservation>;
 	recipesBySlug: Map<string, RecipeObservation>;
 	inventoryOperations: Set<number>;
@@ -63,6 +71,7 @@ export function createTurnSafetyState(): TurnSafetyState {
 	return {
 		inventory: new Map(),
 		meals: new Map(),
+		mealWeeks: new Map(),
 		recipesById: new Map(),
 		recipesBySlug: new Map(),
 		inventoryOperations: new Set(),
@@ -74,29 +83,14 @@ export function createTurnSafetyState(): TurnSafetyState {
 	};
 }
 
-export const PERSISTENT_TOOLS = new Set([
-	'add_to_inventory',
-	'remove_from_inventory',
-	'update_inventory_item',
-	'bulk_update_inventory',
-	'plan_meal',
-	'remove_meal',
-	'mark_meal_cooked',
-	'generate_shopping_list',
-	'create_meal_recipe',
-	'add_recipe',
-	'edit_recipe',
-	'add_recipe_from_url',
-	'log_meal',
-	'link_leftover_recipe',
-	'set_staple',
-	'set_freezer_staple',
-	'set_review_flag',
-	'undo_op'
-]);
+export const PERSISTENT_TOOLS = new Set(
+	Object.entries(ASSISTANT_CAPABILITIES)
+		.filter(([, capability]) => capability.access === 'write')
+		.map(([name]) => name)
+);
 
 export function isPersistentTool(name: string): boolean {
-	return PERSISTENT_TOOLS.has(name);
+	return isPersistentCapability(name);
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -234,6 +228,16 @@ export function observeToolResult(
 		);
 		return;
 	}
+	if (name === 'suggest_meals') {
+		observeRecipeSlugs(
+			db,
+			state,
+			nestedRecords(result, 'recipes')
+				.map((recipe) => str(recipe.slug))
+				.filter((slug): slug is string => Boolean(slug))
+		);
+		return;
+	}
 	if (name === 'get_freezer_staples') {
 		const rows = Array.isArray(result.freezer_staples)
 			? result.freezer_staples
@@ -249,6 +253,13 @@ export function observeToolResult(
 	}
 	if (name === 'get_meal_plan') {
 		for (const week of nestedRecords(result, 'weeks')) {
+			const observedWeek = str(week.week_start);
+			if (observedWeek) {
+				state.mealWeeks.set(
+					observedWeek,
+					fingerprint(listMealsForWeek(db, observedWeek))
+				);
+			}
 			for (const meal of nestedRecords(week, 'meals')) {
 				const id = num(meal.id);
 				if (id === undefined) continue;
@@ -262,6 +273,24 @@ export function observeToolResult(
 		}
 		return;
 	}
+}
+
+function requireMealWeek(db: Db, state: TurnSafetyState, date: string): string {
+	const week = weekStartFor(date, getWeekStartDay(db));
+	const observed = state.mealWeeks.get(week);
+	if (!observed) {
+		throw new ContractError(
+			'missing_provenance',
+			`Meal-plan week ${week} was not read in this turn. Read the week before proposing changes.`
+		);
+	}
+	if (fingerprint(listMealsForWeek(db, week)) !== observed) {
+		throw new ContractError(
+			'stale_target',
+			`Meal-plan week ${week} changed after it was read. Read it again before proposing changes.`
+		);
+	}
+	return week;
 }
 
 function requireInventory(
@@ -358,6 +387,23 @@ export function authorizeToolCall(
 	state: TurnSafetyState
 ): WritePrecondition | WritePrecondition[] | undefined {
 	const input = record(rawInput);
+	if (name === 'propose_meal_plan' && input) {
+		const weekStartDate = str(input.week_start_date);
+		if (weekStartDate) requireMealWeek(db, state, weekStartDate);
+		if (Array.isArray(input.operations)) {
+			for (const rawOperation of input.operations) {
+				const operation = record(rawOperation);
+				if (!operation) continue;
+				const mealId = num(operation.meal_id);
+				if (mealId !== undefined) requireMeal(db, state, mealId);
+				const changes = record(operation.changes);
+				const recipeSlug =
+					str(operation.recipe_slug) ?? str(changes?.recipe_slug);
+				if (recipeSlug) requireRecipe(db, state, { slug: recipeSlug });
+			}
+		}
+		return undefined;
+	}
 	if (name === 'propose_recipe_patch' && input) {
 		const slug = str(input.slug);
 		if (slug) requireRecipe(db, state, { slug });

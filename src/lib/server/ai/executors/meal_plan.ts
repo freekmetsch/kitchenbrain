@@ -3,7 +3,48 @@ import { isoDateSchema } from '$lib/date_schema';
 import { todayIso } from '$lib/week';
 import { createMealPlanService } from '$lib/server/workflows/meal-plan';
 import { getMealSuggestionContext } from '$lib/server/workflows/meal-plan-suggestions';
+import { stageMealPlanProposal } from '$lib/server/ai/meal_plan_proposal';
 import type { ExecutorFn } from './shared';
+
+const MealPlanProposalOperationSchema = z.discriminatedUnion('kind', [
+	z
+		.object({
+			kind: z.literal('add'),
+			dinner: z.string(),
+			recipe_slug: z.string().nullable(),
+			planned_date: isoDateSchema.nullable(),
+			servings: z.number().int().positive().max(99).nullable(),
+			source: z.enum(['fresh', 'freezer']),
+			note: z.string().nullable(),
+			reason: z.string()
+		})
+		.strict(),
+	z
+		.object({
+			kind: z.literal('update'),
+			meal_id: z.number().int().positive(),
+			changes: z
+				.object({
+					week_start_date: isoDateSchema.optional(),
+					dinner: z.string().optional(),
+					recipe_slug: z.string().nullable().optional(),
+					planned_date: isoDateSchema.nullable().optional(),
+					servings: z.number().int().positive().max(99).nullable().optional(),
+					source: z.enum(['fresh', 'freezer']).optional(),
+					note: z.string().nullable().optional()
+				})
+				.strict(),
+			reason: z.string()
+		})
+		.strict(),
+	z
+		.object({
+			kind: z.literal('remove'),
+			meal_id: z.number().int().positive(),
+			reason: z.string()
+		})
+		.strict()
+]);
 
 export const mealPlanExecutors: Record<string, ExecutorFn> = {
 	async get_meal_plan(raw, db) {
@@ -97,6 +138,90 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			weekStartDate: input.week_start_date,
 			count: input.count
 		});
+	},
+
+	async propose_meal_plan(raw, db, userId) {
+		const input = z
+			.object({
+				week_start_date: isoDateSchema,
+				title: z.string(),
+				recommendation: z
+					.object({
+						why_now: z.string(),
+						evidence: z.array(z.string()).min(1).max(12),
+						confidence: z.enum(['high', 'medium', 'low']),
+						uncertainty: z.string().nullable(),
+						consequence: z.string(),
+						alternatives: z.array(z.string()).min(1).max(8)
+					})
+					.strict(),
+				operations: z.array(MealPlanProposalOperationSchema).min(1).max(14)
+			})
+			.strict()
+			.parse(raw);
+		const proposal = stageMealPlanProposal(db, {
+			userId,
+			weekStartDate: input.week_start_date,
+			title: input.title,
+			recommendation: {
+				whyNow: input.recommendation.why_now,
+				evidence: input.recommendation.evidence,
+				confidence: input.recommendation.confidence,
+				uncertainty: input.recommendation.uncertainty,
+				consequence: input.recommendation.consequence,
+				alternatives: input.recommendation.alternatives
+			},
+			operations: input.operations.map((operation) => {
+				if (operation.kind === 'add') {
+					return {
+						kind: operation.kind,
+						dinner: operation.dinner,
+						recipeSlug: operation.recipe_slug,
+						plannedDate: operation.planned_date,
+						servings: operation.servings,
+						source: operation.source,
+						note: operation.note,
+						reason: operation.reason
+					};
+				}
+				if (operation.kind === 'remove') {
+					return {
+						kind: operation.kind,
+						mealId: operation.meal_id,
+						reason: operation.reason
+					};
+				}
+				return {
+					kind: operation.kind,
+					mealId: operation.meal_id,
+					changes: {
+						...(operation.changes.week_start_date
+							? { weekStartDate: operation.changes.week_start_date }
+							: {}),
+						...(operation.changes.dinner !== undefined
+							? { dinner: operation.changes.dinner }
+							: {}),
+						...(operation.changes.recipe_slug !== undefined
+							? { recipeSlug: operation.changes.recipe_slug }
+							: {}),
+						...(operation.changes.planned_date !== undefined
+							? { plannedDate: operation.changes.planned_date }
+							: {}),
+						...(operation.changes.servings !== undefined
+							? { servings: operation.changes.servings }
+							: {}),
+						...(operation.changes.source !== undefined
+							? { source: operation.changes.source }
+							: {}),
+						...(operation.changes.note !== undefined
+							? { note: operation.changes.note }
+							: {})
+					},
+					reason: operation.reason
+				};
+			})
+		});
+		return { ok: true, kind: 'meal_plan_proposal', ...proposal };
 	},
 
 	async log_meal(raw, db) {

@@ -144,6 +144,57 @@ describe('plan_meal', () => {
 	});
 });
 
+describe('propose_meal_plan', () => {
+	it('returns one server-staged review and writes no meal before approval', async () => {
+		const db = createTestDb();
+		seedRecipe(db, 'linzencurry');
+
+		const result = (await executeToolCall(
+			'propose_meal_plan',
+			{
+				week_start_date: WEEK,
+				title: 'Volgende week',
+				recommendation: {
+					why_now: 'De week is leeg.',
+					evidence: ['Linzencurry past bij de voorraad.'],
+					confidence: 'high',
+					uncertainty: null,
+					consequence: 'Plant één maaltijd.',
+					alternatives: ['Niet plannen.']
+				},
+				operations: [
+					{
+						kind: 'add',
+						dinner: 'Linzencurry',
+						recipe_slug: 'linzencurry',
+						planned_date: '2026-07-03',
+						servings: 4,
+						source: 'fresh',
+						note: null,
+						reason: 'Goede voorraaddekking.'
+					}
+				]
+			},
+			db,
+			1,
+			turnCtx()
+		)) as {
+			ok: boolean;
+			kind: string;
+			token: string;
+			operations: unknown[];
+		};
+
+		expect(result).toMatchObject({
+			ok: true,
+			kind: 'meal_plan_proposal',
+			token: expect.any(String),
+			operations: [expect.objectContaining({ kind: 'add', label: 'Linzencurry' })]
+		});
+		expect(allMeals(db)).toHaveLength(0);
+	});
+});
+
 describe('remove_meal', () => {
 	it('removes a planned meal', async () => {
 		const db = createTestDb();

@@ -142,6 +142,52 @@ function chatProposal(
 	};
 }
 
+function chatMealPlanProposal(fixture: KitchenFixture) {
+	return {
+		kind: 'proposal',
+		summary: 'Review meal plan',
+		mealPlanProposal: {
+			token: `e2e-${fixture.account}-meal-plan-proposal`,
+			status: 'active',
+			title: 'A practical week from what is already available',
+			weekStartDate: fixture.weekStart,
+			atomicity: {
+				kind: 'atomic',
+				consequence: 'The selected meals and Shopping reconciliation commit together.'
+			},
+			recommendation: {
+				whyNow: 'The week has open days and the freezer already covers one dinner.',
+				evidence: [
+					`${fixture.recipeTitle} has not been cooked recently.`,
+					'One freezer meal is ready and two fresh dinners use current stock.'
+				],
+				confidence: 'medium',
+				uncertainty: 'Fresh herb stock is not known.',
+				consequence: 'Adds three dinners and refreshes Shopping for the selected meals.',
+				alternatives: ['Keep Friday open.', 'Use the freezer meal on Thursday instead.']
+			},
+			operations: [
+				{
+					id: `e2e-${fixture.account}-meal-add`,
+					kind: 'add',
+					label: fixture.recipeTitle,
+					before: null,
+					after: `${fixture.weekStart} · fresh · 4 servings`,
+					reason: 'Uses current stock and improves recipe rotation.'
+				},
+				{
+					id: `e2e-${fixture.account}-meal-update`,
+					kind: 'update',
+					label: 'Freezer chili',
+					before: 'Saturday · fresh · 2 servings',
+					after: 'Friday · freezer · 4 servings',
+					reason: 'Uses a ready freezer meal on the busiest day.'
+				}
+			]
+		}
+	};
+}
+
 export function kitchenFixtureFor(testInfo: TestInfo): KitchenFixture {
 	return testInfo.project.name.endsWith('secondary')
 		? KITCHEN_FIXTURES.secondary
@@ -349,6 +395,28 @@ export function seedKitchenFixtures(databasePath: string): void {
 			});
 			const oldToken = `e2e-${fixture.account}-recipe-patch-old`;
 			const newToken = `e2e-${fixture.account}-recipe-patch-new`;
+			insertChatMessage.run({
+				userId,
+				role: 'user',
+				content: 'Make next week practical and get the shopping work ready.',
+				toolCalls: null,
+				createdAt: now - 6
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'assistant',
+				content: 'The review is ready above.',
+				toolCalls: JSON.stringify([
+					{
+						id: `meal-plan-proposal-${fixture.account}`,
+						name: 'propose_meal_plan',
+						input: {},
+						result: { ok: true },
+						display: chatMealPlanProposal(fixture)
+					}
+				]),
+				createdAt: now - 5
+			});
 			insertChatMessage.run({
 				userId,
 				role: 'user',

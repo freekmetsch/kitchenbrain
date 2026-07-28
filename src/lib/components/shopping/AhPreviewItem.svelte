@@ -25,6 +25,7 @@
 		onToggleFavorite: (cand: PreviewItem['candidates'][number], idx: number) => void;
 		onDemoteToText: () => void;
 		onToggleExpanded: () => void;
+		showFavorite?: boolean;
 	};
 	let {
 		item,
@@ -37,7 +38,8 @@
 		onQuantityConfirm,
 		onToggleFavorite,
 		onDemoteToText,
-		onToggleExpanded
+		onToggleExpanded,
+		showFavorite = true
 	}: Props = $props();
 
 	// `dec` is always seeded by the preview, but stay defensive like the page
@@ -137,15 +139,17 @@
 					{expanded ? m.shopping_ah_hide_options() : m.shopping_ah_other_options({ count: item.candidates.length - 1 })}
 				</button>
 			{/if}
-			<button
-				type="button"
-				class="flex min-h-11 min-w-11 items-center justify-center text-base leading-none {favoriteId === sel.id ? 'text-warning' : 'text-base-content/35'}"
-				aria-pressed={favoriteId === sel.id}
-				aria-label={favoriteId === sel.id ? m.shopping_ah_unpin_favorite_aria({ name: sel.name }) : m.shopping_ah_pin_favorite_aria({ name: sel.name })}
-				onclick={() => onToggleFavorite(sel, pick)}
-			>
-				{favoriteId === sel.id ? '★' : '☆'}
-			</button>
+			{#if showFavorite}
+				<button
+					type="button"
+					class="flex min-h-11 min-w-11 items-center justify-center text-base leading-none {favoriteId === sel.id ? 'text-warning' : 'text-base-content/35'}"
+					aria-pressed={favoriteId === sel.id}
+					aria-label={favoriteId === sel.id ? m.shopping_ah_unpin_favorite_aria({ name: sel.name }) : m.shopping_ah_pin_favorite_aria({ name: sel.name })}
+					onclick={() => onToggleFavorite(sel, pick)}
+				>
+					{favoriteId === sel.id ? '★' : '☆'}
+				</button>
+			{/if}
 			<button type="button" class="min-h-11 text-base-content/50" onclick={() => onDemoteToText()}>{m.shopping_ah_send_as_text()}</button>
 		</div>
 		{#if expanded}
@@ -175,15 +179,17 @@
 								{formatPrice(cand.price)}
 							</span>
 						</button>
-						<button
-							type="button"
-							class="btn btn-ghost btn-xs h-11 w-11 shrink-0 px-0 text-base {favoriteId === cand.id ? 'text-warning' : 'text-base-content/30'}"
-							aria-label={favoriteId === cand.id ? m.shopping_ah_unpin_favorite_aria({ name: cand.name }) : m.shopping_ah_pin_favorite_aria({ name: cand.name })}
-							aria-pressed={favoriteId === cand.id}
-							onclick={() => onToggleFavorite(cand, idx)}
-						>
-							{favoriteId === cand.id ? '★' : '☆'}
-						</button>
+						{#if showFavorite}
+							<button
+								type="button"
+								class="btn btn-ghost btn-xs h-11 w-11 shrink-0 px-0 text-base {favoriteId === cand.id ? 'text-warning' : 'text-base-content/30'}"
+								aria-label={favoriteId === cand.id ? m.shopping_ah_unpin_favorite_aria({ name: cand.name }) : m.shopping_ah_pin_favorite_aria({ name: cand.name })}
+								aria-pressed={favoriteId === cand.id}
+								onclick={() => onToggleFavorite(cand, idx)}
+							>
+								{favoriteId === cand.id ? '★' : '☆'}
+							</button>
+						{/if}
 					</li>
 				{/each}
 			</ul>

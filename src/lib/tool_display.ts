@@ -51,6 +51,40 @@ export type RecipePatchDisplay = {
 	}>;
 };
 
+export type MealPlanProposalDisplay = {
+	token: string;
+	status:
+		| 'active'
+		| 'applying'
+		| 'applied'
+		| 'undone'
+		| 'rejected'
+		| 'superseded'
+		| 'expired';
+	title: string;
+	weekStartDate: string;
+	atomicity: {
+		kind: 'atomic' | 'compensating';
+		consequence: string;
+	};
+	recommendation: {
+		whyNow: string;
+		evidence: string[];
+		confidence: 'high' | 'medium' | 'low';
+		uncertainty: string | null;
+		consequence: string;
+		alternatives: string[];
+	};
+	operations: Array<{
+		id: string;
+		kind: 'add' | 'update' | 'remove';
+		label: string;
+		before: string | null;
+		after: string;
+		reason: string;
+	}>;
+};
+
 export type ToolDisplay = {
 	kind: 'read' | 'write' | 'error' | 'confirm' | 'plan' | 'proposal';
 	/** One human-readable sentence — never JSON. */
@@ -69,6 +103,7 @@ export type ToolDisplay = {
 	 *  as subsequent write-displays in the same turn complete (P5.2). */
 	steps?: string[];
 	recipePatch?: RecipePatchDisplay;
+	mealPlanProposal?: MealPlanProposalDisplay;
 	/** A validated entity reference. The client derives the app-local route. */
 	entityAction?: ToolDisplayEntityAction;
 };

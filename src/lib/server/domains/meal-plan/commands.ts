@@ -41,6 +41,15 @@ export type UpdateMealPlanMetadataInput = Partial<{
 	servings: number | null;
 }>;
 
+export type UpdateMealPlanInput = UpdateMealPlanMetadataInput &
+	Partial<{
+		weekStartDate: string;
+		weekNumber: number;
+		dinner: string;
+		recipeSlug: string | null;
+		note: string | null;
+	}>;
+
 export type MealPlanMutationResult =
 	| { ok: true; meal: MealPlanMeal }
 	| { ok: false; code: 'not_found' | 'source_requires_recipe'; error: string };
@@ -50,16 +59,25 @@ export function updateMealPlanMetadata(
 	id: number,
 	input: UpdateMealPlanMetadataInput
 ): MealPlanMutationResult {
-	if (input.source === 'freezer') {
-		const current = getMealPlanMeal(db, id);
-		if (!current) return { ok: false, code: 'not_found', error: 'Meal not found' };
-		if (!current.recipeSlug) {
-			return {
-				ok: false,
-				code: 'source_requires_recipe',
-				error: 'Only meals linked to a recipe can be served from the freezer'
-			};
-		}
+	return updateMealPlanMeal(db, id, input);
+}
+
+export function updateMealPlanMeal(
+	db: DbOrTx,
+	id: number,
+	input: UpdateMealPlanInput
+): MealPlanMutationResult {
+	const current = getMealPlanMeal(db, id);
+	if (!current) return { ok: false, code: 'not_found', error: 'Meal not found' };
+	const nextRecipeSlug =
+		input.recipeSlug === undefined ? current.recipeSlug : input.recipeSlug;
+	const nextSource = input.source ?? current.source;
+	if (nextSource === 'freezer' && !nextRecipeSlug) {
+		return {
+			ok: false,
+			code: 'source_requires_recipe',
+			error: 'Only meals linked to a recipe can be served from the freezer'
+		};
 	}
 	const meal = db
 		.update(schema.mealPlanMeals)

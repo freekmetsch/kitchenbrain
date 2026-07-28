@@ -142,6 +142,47 @@ export function buildToolDisplay(
 ): ToolDisplay {
 	const result = asObj(rawResult) as Result;
 	if (
+		name === 'propose_meal_plan' &&
+		result.kind === 'meal_plan_proposal' &&
+		typeof result.token === 'string' &&
+		typeof result.title === 'string' &&
+		typeof result.weekStartDate === 'string' &&
+		Array.isArray(result.operations) &&
+		result.recommendation &&
+		typeof result.recommendation === 'object' &&
+		result.atomicity &&
+		typeof result.atomicity === 'object'
+	) {
+		return {
+			kind: 'proposal',
+			summary: locale === 'nl' ? 'Maaltijdplan controleren' : 'Review meal plan',
+			mealPlanProposal: {
+				token: result.token,
+				status:
+					result.status === 'active' ||
+					result.status === 'applying' ||
+					result.status === 'applied' ||
+					result.status === 'undone' ||
+					result.status === 'rejected' ||
+					result.status === 'superseded' ||
+					result.status === 'expired'
+						? result.status
+						: 'active',
+				title: result.title,
+				weekStartDate: result.weekStartDate,
+				atomicity: result.atomicity as NonNullable<
+					ToolDisplay['mealPlanProposal']
+				>['atomicity'],
+				recommendation: result.recommendation as NonNullable<
+					ToolDisplay['mealPlanProposal']
+				>['recommendation'],
+				operations: result.operations as NonNullable<
+					ToolDisplay['mealPlanProposal']
+				>['operations']
+			}
+		};
+	}
+	if (
 		name === 'propose_recipe_patch' &&
 		result.kind === 'recipe_patch' &&
 		typeof result.token === 'string' &&
