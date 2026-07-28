@@ -1,4 +1,4 @@
-import * as webpush from 'web-push';
+import webpush from 'web-push';
 import type { ClaimedTimerAlert } from './repository';
 import type { TimerAlertSendResult, TimerAlertSender } from './scheduler';
 
