@@ -321,8 +321,9 @@ and a short foreground alarm. Removed the 12-hour silent media workaround and ex
 capabilities from household exports while making them resettable in Settings.
 
 Automated gates, an upgraded-database rehearsal, a production bundle scan, and the production
-dependency audit passed. The issue stays open until VAPID is configured on an always-on beta stage
-and the Android/iPhone locked-background sound matrix passes.
+dependency audit passed. The issue stays open until VAPID is configured on the always-on
+production-beta service and the locked/background sound matrix passes on Freek's and Ylfa's
+Android devices.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_MOBILE_TIMER_SOUND.md,
 docs/artifacts/archive/2026-07-28-plan-mobile-timer-sound.html,
