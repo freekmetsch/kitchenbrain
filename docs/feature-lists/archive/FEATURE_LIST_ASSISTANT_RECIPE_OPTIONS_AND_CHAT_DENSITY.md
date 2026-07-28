@@ -1,9 +1,9 @@
 # Assistant recipe product choices and dense chat
 
-_Status: In flight - Phase 5 of 5 (implementation, varied live-provider matrix, and branch review verified; draft PR #21 open; production promotion pending)_
+_Status: Shipped - 2026-07-28 (Phase 5 of 5 complete; PR #21 merged and exact-revision production canaries passed)_
 
 Related issue:
-`docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md`
+`docs/known_issues/solved/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md`
 
 ## Recommendation
 
@@ -703,6 +703,15 @@ story and the subsequent fresh full Playwright run passed. The workstation's ign
 contains an abandoned draft-branch 0023 migration and was intentionally left untouched; gates used
 an isolated in-memory unit database while Playwright recreated its fixed test database.
 
+PR #21 was promoted through GitHub `main` as merge commit
+`6ccb48355acee2b349d8786f180ee5f5bd273bad`. Railway deployment
+`81e9cc0d-f998-436c-b5eb-b6a18806657c` reached terminal `SUCCESS`, and the names-only verifier
+reported branch `main`, deployed commit equal to remote `main`, and `exactMain: true`. The public
+root redirected cleanly to the login boundary with no browser console errors or failed dynamic
+requests. The guarded Freek and Ylfa authentication canaries both passed. No authenticated
+screenshot, response body, AH action, preference Apply, or household-list mutation was retained or
+performed.
+
 ## Risk tier and audit findings
 
 Overall risk is **R3** because the selected design adds persistent schema and changes how a chosen
@@ -909,28 +918,28 @@ dropping data, which makes the R3 cost proportionate.
 ingredient, remember the explicit choice for that recipe only, and make the full chat/review
 surface substantially wider and denser.
 
-**Current state:** all ARO tickets are implemented on draft PR #21 and integrated with current
-`main`. Migration 0025 is append-only; fresh/upgraded database proof, the primary and secondary
-browser paths, responsive inspection, bundle scan, 630 unit tests, all 20 primary browser stories,
-Svelte diagnostics, and the production build pass. A nine-scenario live-provider matrix passed
-with three distinct first-visible product forms in every eligible scenario, a complete
-two-ingredient proposal, a five-item local reveal pool, and a correct no-proposal outcome when
-only two forms existed. It used no household data, AH request, Apply action, or basket mutation.
-The names-only Railway verifier reports `SUCCESS`, branch `main`, and deployed-commit equality for
-the current pre-feature production revision. The feature itself is not deployed.
+**Current state:** shipped. PR #21 merged to `main` as
+`6ccb48355acee2b349d8786f180ee5f5bd273bad`; Railway reached terminal `SUCCESS` at that exact
+remote-main commit. Migration 0025 is append-only; fresh/upgraded database proof, primary and
+secondary browser paths, responsive inspection, bundle scan, 631 unit tests, all 20 primary
+browser stories, Svelte diagnostics, and the production build pass. A nine-scenario live-provider
+matrix passed with three distinct first-visible product forms in every eligible scenario, a
+complete two-ingredient proposal, a five-item local reveal pool, and a correct no-proposal outcome
+when only two forms existed. It used no household data, AH request, Apply action, or basket
+mutation. The public production browser probe and guarded Freek/Ylfa authentication canaries also
+passed without AH or household-list mutation.
 
-**First command:** `$run`.
+**First command:** none; this plan is complete and archived.
 
 **First files:**
 
-- `docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md`
+- `docs/known_issues/solved/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md`
 - `scripts/production/railway-deployment-truth.mjs`
 - `scripts/production/verify-production-auth.mjs`
 - `scripts/invoke-production-secret-tool.ps1`
 
-**First implementation move:** complete the R3 review and merge draft PR #21, supervise Railway to
-terminal `SUCCESS`, and prove that production serves the exact remote-`main` commit before the
-authenticated post-deploy canary.
+**First implementation move:** none; implementation, promotion, and production verification are
+complete.
 
-**Pending verification:** R3 draft-PR review and merge; Railway `SUCCESS` at the resulting feature
-commit; exact remote-main/deployed-commit equality; and the authenticated post-deploy canary.
+**Pending verification:** none for this feature. Normal household use remains the ongoing
+observational check for retailer-catalog drift.
