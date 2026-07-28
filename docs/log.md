@@ -537,3 +537,15 @@ src/lib/server/db/recipe_ah_preferences_migration.test.ts,
 tests/e2e/responsive-parity.e2e.ts,
 docs/feature-lists/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md,
 docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY_20260728-1459.md
+
+## 2026-07-28 | html-artifact | plan: Shopping journey simplification
+
+Audited the authenticated Shopping journey and compared three responsive interface directions
+with equivalent synthetic content. Selected Run Rail: fully opaque All/Weekly/recipe pills with
+List order fixed beside them, Weekly-first grouping, direct revision-bound rule/substitute editing,
+delivery-aware default week selection, complete Store Route removal, and outcome-first AH
+activity. The decision workspace preserves four user-facing defaults and generates a paste-ready
+`/run` handoff without household content.
+
+Touched: docs/feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md,
+docs/artifacts/2026-07-28-plan-shopping-journey-simplification.html
