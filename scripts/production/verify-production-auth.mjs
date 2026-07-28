@@ -32,7 +32,7 @@ async function attempt(username, password) {
 		},
 		body: new URLSearchParams({ username, password })
 	});
-	return response.status;
+	return response.headers.has('set-cookie');
 }
 
 try {
@@ -45,9 +45,9 @@ try {
 		throw new Error('invalid canary inputs');
 	}
 
-	const currentStatus = await attempt(config.username, config.current);
-	const previousStatus = await attempt(config.username, config.previous);
-	if (currentStatus !== 303 || previousStatus !== 400) {
+	const currentAccepted = await attempt(config.username, config.current);
+	const previousAccepted = await attempt(config.username, config.previous);
+	if (!currentAccepted || previousAccepted) {
 		throw new Error('unexpected authentication result');
 	}
 	process.stdout.write(`PRODUCTION-AUTH-CANARY-SUCCESS:${account}\n`);
