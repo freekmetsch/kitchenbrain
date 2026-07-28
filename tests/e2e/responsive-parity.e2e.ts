@@ -178,6 +178,10 @@ for (const viewport of VIEWPORTS) {
 		await page.goto('/shopping');
 		await page.waitForLoadState('networkidle');
 
+		await expect(page.getByRole('progressbar')).toHaveCount(0);
+		await expect(page.locator('.market-progress-track')).toHaveCount(0);
+		await expect(page.getByText(/\d+ left$/).first()).toBeVisible();
+		await expect(page.getByText(/\d+ in basket$/).first()).toBeVisible();
 		await expect(page.getByText(fixture.longShoppingNames[0], { exact: true })).toBeVisible();
 		await expect(
 			page.getByText(fixture.longShoppingNames[fixture.longShoppingNames.length - 1], {
@@ -188,6 +192,60 @@ for (const viewport of VIEWPORTS) {
 			fixture.longShoppingNames.length
 		);
 		await expectResponsiveSurface(page, '/shopping (long)', viewport.width);
+
+		const shoppingControls = page.getByRole('region', { name: 'Shopping list controls' });
+		const desktopSort = shoppingControls.getByRole('combobox', { name: 'Sort shopping list' });
+		const listOptions = page.getByRole('button', { name: 'List options' });
+		if (viewport.name === 'phone') {
+			await expect(listOptions).toBeVisible();
+			await expect(desktopSort).toBeHidden();
+			const controlsBox = await shoppingControls.boundingBox();
+			expect(controlsBox?.height).toBeLessThanOrEqual(46);
+			const firstRowBox = await page.locator('.market-run-row').first().boundingBox();
+			expect(firstRowBox?.y).toBeLessThan(300);
+
+			await listOptions.click();
+			let dialog = page.getByRole('dialog').filter({
+				has: page.getByRole('heading', { name: 'List options' })
+			});
+			await expect(dialog).toBeVisible();
+			await expect(page.locator('dialog[open]')).toHaveCount(1);
+			const mobileSort = dialog.getByRole('combobox', { name: 'Sort shopping list' });
+			await mobileSort.selectOption('alpha');
+			await expect(mobileSort).toHaveValue('alpha');
+			await mobileSort.selectOption('list');
+
+			await dialog.getByRole('button', { name: 'Manage weekly items' }).click();
+			dialog = page.getByRole('dialog').filter({
+				has: page.getByRole('heading', { name: 'Manage weekly items' })
+			});
+			await expect(dialog).toBeVisible();
+			await expect(page.locator('dialog[open]')).toHaveCount(1);
+			await page.keyboard.press('Escape');
+			await expect(listOptions).toBeFocused();
+
+			await listOptions.click();
+			dialog = page.getByRole('dialog').filter({
+				has: page.getByRole('heading', { name: 'List options' })
+			});
+			await dialog.getByRole('button', { name: 'Manage shopping rules' }).click();
+			dialog = page.getByRole('dialog').filter({
+				has: page.getByRole('heading', { name: 'Manage shopping rules' })
+			});
+			await expect(dialog).toBeVisible();
+			await expect(page.locator('dialog[open]')).toHaveCount(1);
+			await page.keyboard.press('Escape');
+			await expect(listOptions).toBeFocused();
+		} else {
+			await expect(listOptions).toBeHidden();
+			await expect(desktopSort).toBeVisible();
+			await expect(
+				shoppingControls.getByRole('button', { name: 'Manage weekly items' })
+			).toBeVisible();
+			await expect(
+				shoppingControls.getByRole('button', { name: 'Manage shopping rules' })
+			).toBeVisible();
+		}
 
 		const mealFilter = page
 			.getByRole('toolbar', { name: 'Filter shopping list' })
@@ -238,6 +296,35 @@ for (const viewport of VIEWPORTS) {
 		await page.goto(`/shopping?week=${nextWeek(fixture.weekStart)}`);
 		await page.waitForLoadState('networkidle');
 		await expect(page.getByText(/^(No meals planned yet|Nothing needed)$/)).toBeVisible();
+		await expect(
+			page.getByRole('region', { name: 'Shopping list controls' })
+		).toHaveCount(0);
+		const emptyListOptions = page.getByRole('button', { name: 'List options' });
+		await expect(emptyListOptions).toBeVisible();
+		const emptyDock = page.locator('.shopping-market-dock');
+		await expect(emptyDock.getByRole('button', { name: 'Add item' })).toBeVisible();
+		const emptyAhAction = emptyDock.getByRole('button', { name: 'Review AH order' });
+		if (viewport.name === 'phone') {
+			await expect(emptyAhAction).toBeHidden();
+			await emptyListOptions.click();
+			let emptyDialog = page.getByRole('dialog').filter({
+				has: page.getByRole('heading', { name: 'List options' })
+			});
+			await expect(
+				emptyDialog.getByRole('combobox', { name: 'Sort shopping list' })
+			).toHaveCount(0);
+			await emptyDialog.getByRole('button', { name: 'Manage weekly items' }).click();
+			emptyDialog = page.getByRole('dialog').filter({
+				has: page.getByRole('heading', { name: 'Manage weekly items' })
+			});
+			await expect(emptyDialog).toBeVisible();
+			await expect(page.locator('dialog[open]')).toHaveCount(1);
+			await page.keyboard.press('Escape');
+			await expect(emptyListOptions).toBeFocused();
+		} else {
+			await expect(emptyAhAction).toBeVisible();
+			await expect(emptyAhAction).toBeDisabled();
+		}
 		await expectResponsiveSurface(page, '/shopping (empty week)', viewport.width);
 	});
 
@@ -292,3 +379,26 @@ for (const viewport of VIEWPORTS) {
 		await expectResponsiveSurface(page, `${route} (recovered)`, viewport.width);
 	});
 }
+
+test('Shopping keeps its controls to one row at the narrow mobile boundary', async ({ page }) => {
+	await page.setViewportSize({ width: 320, height: 900 });
+	await page.goto('/shopping');
+	await page.waitForLoadState('networkidle');
+
+	const controls = page.getByRole('region', { name: 'Shopping list controls' });
+	const options = page.getByRole('button', { name: 'List options' });
+	const filterRail = page.getByRole('toolbar', { name: 'Filter shopping list' });
+	const controlsBox = await controls.boundingBox();
+	const optionsBox = await options.boundingBox();
+	const firstRowBox = await page.locator('.market-run-row').first().boundingBox();
+
+	expect(controlsBox?.height).toBeLessThanOrEqual(46);
+	expect(optionsBox?.width).toBeGreaterThanOrEqual(44);
+	expect(optionsBox?.height).toBeGreaterThanOrEqual(44);
+	expect(firstRowBox?.y).toBeLessThan(300);
+	expect(
+		await filterRail.evaluate((element) => getComputedStyle(element).overflowX)
+	).toBe('auto');
+	await expect(page.getByRole('progressbar')).toHaveCount(0);
+	await expectResponsiveSurface(page, '/shopping (320px compact controls)', 320);
+});

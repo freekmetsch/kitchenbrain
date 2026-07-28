@@ -25,7 +25,6 @@
 	let pending = $derived(items.filter((item) => !item.bought));
 	let done = $derived(items.filter((item) => item.bought));
 	let visibleToBuyCount = $derived(pending.filter((item) => !item.covered).length);
-	let totalRunCount = $derived(visibleToBuyCount + done.length);
 	let emptyState = $derived(data.emptyState === 'no_meals' ? ('no_meals' as const) : ('nothing_needed' as const));
 
 	$effect(() => {
@@ -134,7 +133,6 @@
 		deliveryDate={data.deliveryDate}
 		remainingCount={visibleToBuyCount}
 		doneCount={done.length}
-		totalCount={totalRunCount}
 		ahConnected={data.ah.connected}
 	/>
 
@@ -229,7 +227,11 @@
 		</aside>
 	</div>
 
-	<div class="shopping-market-dock" aria-label={m.shopping_heading()}>
+	<div
+		class:single-action={visibleToBuyCount === 0}
+		class="shopping-market-dock"
+		aria-label={m.shopping_heading()}
+	>
 		<button type="button" class="market-add-action" onclick={() => addItemForm?.openAddModal()}>
 			<Icon name="plus" />
 			{m.shopping_additem_submit_aria()}
@@ -378,6 +380,16 @@
 		padding: 0 0.7rem;
 		font-size: 0.75rem;
 		font-weight: 800;
+	}
+
+	@media (max-width: 47.999rem) {
+		.shopping-market-dock.single-action {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.shopping-market-dock.single-action .market-ah-action {
+			display: none;
+		}
 	}
 
 	.market-add-action {

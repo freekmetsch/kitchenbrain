@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="data:," />
+	<title>Shopping mobile density refinement</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #f7f3e9;
+			--card: #fffdf7;
+			--ink: #243128;
+			--muted: #68736b;
+			--line: #d9d2c4;
+			--olive: #334638;
+			--olive-2: #49614f;
+			--honey: #d3a046;
+			--terra: #a84d2a;
+			--soft: #edf0e7;
+			--warn: #fff2dc;
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			background:
+				radial-gradient(circle at 92% 0, rgb(211 160 70 / 16%), transparent 28rem),
+				var(--paper);
+			color: var(--ink);
+		}
+		a { color: inherit; }
+		.wrap { width: min(1120px, calc(100% - 2rem)); margin: 0 auto; }
+		.hero {
+			overflow: hidden;
+			padding: 4rem 0 3.25rem;
+			background:
+				radial-gradient(circle at 88% 0, rgb(255 255 255 / 12%), transparent 19rem),
+				linear-gradient(135deg, #293b30, var(--olive-2));
+			color: white;
+		}
+		.eyebrow {
+			margin: 0 0 .7rem;
+			color: #f1c96e;
+			font-size: .72rem;
+			font-weight: 850;
+			letter-spacing: .13em;
+			text-transform: uppercase;
+		}
+		h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; }
+		h1 { max-width: 780px; margin: 0; font-size: clamp(2.25rem, 7vw, 4.8rem); line-height: .98; letter-spacing: -.045em; }
+		.lede { max-width: 720px; margin: 1.2rem 0 0; color: #dce5de; font-size: 1.04rem; line-height: 1.65; }
+		.status { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
+		.pill { border: 1px solid rgb(255 255 255 / 22%); border-radius: 999px; padding: .42rem .7rem; background: rgb(255 255 255 / 8%); font-size: .72rem; font-weight: 760; }
+		main { padding: 2.2rem 0 4rem; }
+		section + section { margin-top: 2.6rem; }
+		.section-head { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+		h2 { margin: 0; font-size: clamp(1.55rem, 4vw, 2.25rem); font-weight: 600; letter-spacing: -.025em; }
+		.kicker { max-width: 600px; margin: .45rem 0 0; color: var(--muted); line-height: 1.55; }
+		.grid { display: grid; gap: 1rem; }
+		.metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+		.metric, .card {
+			border: 1px solid var(--line);
+			border-radius: 1rem;
+			background: color-mix(in srgb, var(--card) 96%, transparent);
+			box-shadow: 0 10px 30px rgb(39 57 45 / 7%);
+		}
+		.metric { padding: 1.1rem; }
+		.metric small { color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+		.metric strong { display: block; margin-top: .55rem; font-family: Georgia, "Times New Roman", serif; font-size: 2rem; font-weight: 500; }
+		.metric p { margin: .35rem 0 0; color: var(--muted); font-size: .82rem; line-height: 1.45; }
+		.metric.target { border-color: color-mix(in srgb, var(--olive) 38%, var(--line)); background: var(--soft); }
+		.compare { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.phone-card { padding: 1rem; }
+		.phone-card h3 { margin: 0 0 .7rem; font-size: 1.15rem; }
+		.phone {
+			width: min(100%, 360px);
+			margin: 0 auto;
+			overflow: hidden;
+			border: 1px solid #bdb7aa;
+			border-radius: 1.5rem;
+			background: #fbf8ef;
+			box-shadow: inset 0 0 0 5px #ede8dc;
+		}
+		.phone-head { height: 112px; padding: .75rem; background: linear-gradient(135deg, #293b30, var(--olive-2)); color: white; }
+		.phone-title { font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; }
+		.phone-week { height: 44px; margin-top: .55rem; border: 1px solid rgb(255 255 255 / 22%); border-radius: .65rem; opacity: .8; }
+		.phone-body { padding: .75rem; }
+		.control-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+		.control, .filters, .options, .notice, .row {
+			display: flex;
+			min-height: 44px;
+			align-items: center;
+			border: 1px solid var(--line);
+			border-radius: .7rem;
+			background: white;
+			font-size: .7rem;
+			font-weight: 760;
+		}
+		.control { justify-content: center; padding: .4rem; }
+		.stack { display: grid; gap: .4rem; }
+		.filters { gap: .35rem; padding: .25rem; overflow: hidden; }
+		.chip { flex: 0 0 auto; border-radius: 999px; padding: .55rem .7rem; background: #f5f2ea; }
+		.chip.active { background: var(--olive); color: white; }
+		.compact-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4rem; }
+		.options { width: 44px; justify-content: center; color: var(--olive); }
+		.notice { margin-top: .5rem; justify-content: space-between; padding: 0 .7rem; border-color: #e7b97b; background: var(--warn); color: #7b4b18; }
+		.list { margin-top: .5rem; overflow: hidden; border: 1px solid var(--line); border-radius: .8rem; }
+		.row { min-height: 50px; border: 0; border-bottom: 1px solid #ece7dd; border-radius: 0; padding: 0 .65rem; gap: .55rem; }
+		.row:last-child { border-bottom: 0; }
+		.check { width: 24px; height: 24px; flex: 0 0 auto; border: 1px solid #aaa89f; border-radius: 50%; }
+		.row span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.saving { margin-top: .7rem; color: var(--olive); font-size: .74rem; font-weight: 800; text-align: center; }
+		.flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+		.flow .card { position: relative; padding: 1rem; }
+		.step { display: inline-grid; width: 1.6rem; height: 1.6rem; place-items: center; border-radius: 50%; background: var(--olive); color: white; font-size: .7rem; font-weight: 850; }
+		.flow h3 { margin: .8rem 0 .35rem; font-size: 1.05rem; }
+		.flow p { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.5; }
+		.tickets { display: grid; gap: .65rem; }
+		.ticket { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; align-items: start; gap: 1rem; padding: 1rem 1.1rem; }
+		.ticket-id { color: var(--olive); font-size: .72rem; font-weight: 900; letter-spacing: .06em; }
+		.ticket h3 { margin: 0; font-family: inherit; font-size: .92rem; }
+		.ticket p { margin: .28rem 0 0; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+		.risk { border-radius: 999px; padding: .35rem .55rem; background: var(--soft); color: var(--olive); font-size: .68rem; font-weight: 850; }
+		.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 1rem; background: var(--card); }
+		table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+		th, td { padding: .8rem; border-bottom: 1px solid #ebe5da; text-align: left; vertical-align: top; line-height: 1.45; }
+		th { color: var(--muted); font-size: .67rem; letter-spacing: .07em; text-transform: uppercase; }
+		tr:last-child td { border-bottom: 0; }
+		.callout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .85rem; padding: 1rem; border: 1px solid color-mix(in srgb, var(--honey) 55%, var(--line)); border-radius: 1rem; background: #fff8e8; }
+		.callout strong { color: #744c13; }
+		.callout p { margin: .2rem 0 0; color: #765f3b; font-size: .82rem; line-height: 1.5; }
+		.footer { margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; line-height: 1.55; }
+		.footer a { color: var(--olive); font-weight: 800; overflow-wrap: anywhere; }
+		@media (max-width: 800px) {
+			.metrics, .compare, .flow { grid-template-columns: 1fr; }
+			.ticket { grid-template-columns: 1fr auto; }
+			.ticket-id { grid-column: 1 / -1; }
+			.hero { padding: 2.6rem 0 2.3rem; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			* { scroll-behavior: auto !important; }
+		}
+	</style>
+</head>
+<body>
+	<header class="hero">
+		<div class="wrap">
+			<p class="eyebrow">Shipped · 28 July 2026</p>
+			<h1>Let the shopping list start sooner.</h1>
+			<p class="lede">Keep the frequent filter and check-off actions in reach. Move occasional sorting and maintenance into one named mobile disclosure. Empty weeks stop advertising controls that cannot do useful work.</p>
+			<div class="status" aria-label="Plan status">
+				<span class="pill">R1 · localized UI</span>
+				<span class="pill">4 execution tickets</span>
+				<span class="pill">No schema or AH behavior change</span>
+				<span class="pill">Verified and shipped</span>
+			</div>
+		</div>
+	</header>
+
+	<main class="wrap">
+		<section aria-labelledby="evidence-title">
+			<div class="section-head">
+				<div>
+					<h2 id="evidence-title">The list rows are not the dense part.</h2>
+					<p class="kicker">Runtime evidence came from the isolated authenticated fixture with long item names and one collapsed notice. The 50px rows stayed compact and usable; the setup chrome consumed the first half of a narrow screen.</p>
+				</div>
+			</div>
+			<div class="grid metrics">
+				<article class="metric">
+					<small>375px populated</small>
+					<strong>373px</strong>
+					<p>First checkable row. The controls alone occupy 148px.</p>
+				</article>
+				<article class="metric">
+					<small>320px populated</small>
+					<strong>425px</strong>
+					<p>First row after the controls restack to 198px.</p>
+				</article>
+				<article class="metric target">
+					<small>Acceptance target</small>
+					<strong>&lt; 300px</strong>
+					<p>Keep the shared header and 44px targets; recover space through priority.</p>
+				</article>
+			</div>
+		</section>
+
+		<section aria-labelledby="direction-title">
+			<div class="section-head">
+				<div>
+					<h2 id="direction-title">Chosen direction: one direct row, one disclosure.</h2>
+					<p class="kicker">Meal filters remain visible because they change the current run. Sort, weekly items, and shopping rules remain available but stop competing with every checkable item.</p>
+				</div>
+			</div>
+			<div class="grid compare">
+				<article class="card phone-card">
+					<h3>Before · equal-weight setup</h3>
+					<div class="phone" aria-label="Current mobile composition diagram">
+						<div class="phone-head"><div class="phone-title">Shopping</div><div class="phone-week"></div></div>
+						<div class="phone-body">
+							<div class="stack">
+								<div class="filters"><span class="chip active">All</span><span class="chip">Meal one</span><span class="chip">Meal two</span></div>
+								<div class="control-row"><div class="control">List order</div><div class="control">Weekly items</div></div>
+								<div class="control-row"><div class="control">Shopping rules</div></div>
+							</div>
+							<div class="notice"><span>Shopping notes</span><span>1</span></div>
+							<div class="list"><div class="row"><i class="check"></i><span>First shopping item</span></div><div class="row"><i class="check"></i><span>Second shopping item</span></div></div>
+						</div>
+					</div>
+					<p class="saving">Three setup rows before the notice and list</p>
+				</article>
+				<article class="card phone-card">
+					<h3>After · repeated task first</h3>
+					<div class="phone" aria-label="Proposed mobile composition diagram">
+						<div class="phone-head"><div class="phone-title">Shopping</div><div class="phone-week"></div></div>
+						<div class="phone-body">
+							<div class="compact-controls">
+								<div class="filters"><span class="chip active">All</span><span class="chip">Meal one</span><span class="chip">Meal two</span></div>
+								<div class="options" aria-label="List options">•••</div>
+							</div>
+							<div class="notice"><span>Shopping notes</span><span>1</span></div>
+							<div class="list"><div class="row"><i class="check"></i><span>First shopping item</span></div><div class="row"><i class="check"></i><span>Second shopping item</span></div><div class="row"><i class="check"></i><span>Third shopping item</span></div></div>
+						</div>
+					</div>
+					<p class="saving">One 44px row; roughly 102–157px returned to the list</p>
+				</article>
+			</div>
+		</section>
+
+		<section aria-labelledby="journey-title">
+			<div class="section-head">
+				<div>
+					<h2 id="journey-title">The compact journey keeps every capability.</h2>
+					<p class="kicker">Progressive disclosure changes priority, not ownership or behavior.</p>
+				</div>
+			</div>
+			<div class="grid flow">
+				<article class="card"><span class="step">1</span><h3>Shop and filter</h3><p>Check rows and switch meal filters directly in the page.</p></article>
+				<article class="card"><span class="step">2</span><h3>Open list options</h3><p>A pinned, named 44px control stays outside the scrollable chip rail.</p></article>
+				<article class="card"><span class="step">3</span><h3>Sort or maintain</h3><p>Choose List order, A–Z, Store route, weekly items, or shopping rules.</p></article>
+				<article class="card"><span class="step">4</span><h3>Hand off safely</h3><p>The options sheet closes before a weekly or rule owner opens, preserving focus.</p></article>
+			</div>
+		</section>
+
+		<section aria-labelledby="tickets-title">
+			<div class="section-head">
+				<div>
+					<h2 id="tickets-title">Five bounded tickets.</h2>
+					<p class="kicker">State sequencing lands before composition; browser proof closes the plan.</p>
+				</div>
+			</div>
+			<div class="tickets">
+				<article class="card ticket"><span class="ticket-id">SHOP-MOB-1</span><div><h3>Own list-options transitions in the controller</h3><p>One open dialog, safe cancel, close-before-open weekly/rule handoffs, per-instance tests.</p></div><span class="risk">R1 · S</span></article>
+				<article class="card ticket"><span class="ticket-id">SHOP-MOB-2</span><div><h3>Replace stacked mobile tools with one row</h3><p>Direct filter rail, pinned options, shared overflow treatment, desktop parity, bilingual copy.</p></div><span class="risk">R1 · M</span></article>
+				<article class="card ticket"><span class="ticket-id">SHOP-MOB-3</span><div><h3>Remove inert chrome from no-list states</h3><p>Recovery first, secondary maintenance access, and a single available Add dock action.</p></div><span class="risk">R1 · S</span></article>
+				<article class="card ticket"><span class="ticket-id">SHOP-MOB-4</span><div><h3>Remove the Shopping progress track</h3><p>Keep the left and basket counts while removing the percentage data flow, visual track, and progressbar semantic at every viewport.</p></div><span class="risk">R1 · S</span></article>
+				<article class="card ticket"><span class="ticket-id">SHOP-MOB-5</span><div><h3>Lock density and access into browser coverage</h3><p>320/375 geometry, state matrix, focus, themes, languages, reduced motion, progress-track absence, and desktop checks.</p></div><span class="risk">R1 · M</span></article>
+			</div>
+		</section>
+
+		<section aria-labelledby="risks-title">
+			<div class="section-head">
+				<div>
+					<h2 id="risks-title">The only meaningful new risk is dialog handoff.</h2>
+					<p class="kicker">The plan reuses the project’s native-dialog sheet and existing controller sequencing pattern. It does not touch shopping data or AH boundaries.</p>
+				</div>
+			</div>
+			<div class="table-wrap">
+				<table>
+					<thead><tr><th>Risk</th><th>Guardrail</th><th>Proof</th></tr></thead>
+					<tbody>
+						<tr><td>Options and owner sheets stack</td><td>Controller closes, settles, then opens the destination</td><td>Assert exactly one <code>dialog[open]</code> and focus inside it</td></tr>
+						<tr><td>Tools become hard to find</td><td>Pinned 44px trigger with a visible label where width permits</td><td>320px pointer and keyboard journey</td></tr>
+						<tr><td>Empty cleanup removes recovery</td><td>Secondary List options action stays in the recovery card</td><td>No-meals, nothing-needed, and excluded-rule states</td></tr>
+						<tr><td>Desktop inherits mobile taps</td><td>Explicit breakpoint contract; current direct tools remain</td><td>768px and 1280px parity checks</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<section aria-labelledby="gate-title">
+			<div class="callout">
+				<span class="step">✓</span>
+				<div>
+					<strong id="gate-title">Execution: shipped</strong>
+					<p>The mobile controls now occupy one 44px row, the first checkable item begins at 262px, and the progress track is gone on mobile and desktop. Focused checks, the complete primary gate, and secondary-account browser coverage passed.</p>
+				</div>
+			</div>
+		</section>
+
+		<footer class="footer">
+			Authoritative plan:
+			<a href="../../feature-lists/archive/FEATURE_LIST_SHOPPING_MOBILE_DENSITY_REFINEMENT.md">FEATURE_LIST_SHOPPING_MOBILE_DENSITY_REFINEMENT.md</a>.
+			The feature is shipped and archived.
+		</footer>
+	</main>
+</body>
+</html>

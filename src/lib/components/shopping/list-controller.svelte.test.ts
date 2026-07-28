@@ -215,6 +215,46 @@ describe('shopping list controller', () => {
 		expect(test.openWeeklyManager).toHaveBeenCalledTimes(1);
 	});
 
+	it('keeps list options isolated per instance and cancels without a handoff', async () => {
+		const first = harness([item('tomatoes', 1, [source(1, 'recipe')])]);
+		const second = harness([item('milk', 2, [source(2, 'weekly')])]);
+
+		first.controller.openListOptions();
+
+		expect(first.controller.listOptionsOpen).toBe(true);
+		expect(second.controller.listOptionsOpen).toBe(false);
+
+		first.controller.listOptionsOpen = false;
+		await first.controller.handleListOptionsClose();
+
+		expect(first.settle).not.toHaveBeenCalled();
+		expect(first.openWeeklyManager).not.toHaveBeenCalled();
+		expect(first.controller.rulesOpen).toBe(false);
+	});
+
+	it('opens weekly items or shopping rules only after list options closes', async () => {
+		const weekly = harness([item('milk', 1, [source(1, 'weekly')])]);
+
+		weekly.controller.openListOptions();
+		weekly.controller.openWeeklyAfterListOptions();
+		expect(weekly.controller.listOptionsOpen).toBe(false);
+		expect(weekly.openWeeklyManager).not.toHaveBeenCalled();
+
+		await weekly.controller.handleListOptionsClose();
+		expect(weekly.settle).toHaveBeenCalledTimes(1);
+		expect(weekly.openWeeklyManager).toHaveBeenCalledTimes(1);
+
+		const rules = harness([item('tomatoes', 2, [source(2, 'recipe')])]);
+		rules.controller.openListOptions();
+		rules.controller.openRulesAfterListOptions();
+		expect(rules.controller.listOptionsOpen).toBe(false);
+		expect(rules.controller.rulesOpen).toBe(false);
+
+		await rules.controller.handleListOptionsClose();
+		expect(rules.settle).toHaveBeenCalledTimes(1);
+		expect(rules.controller.rulesOpen).toBe(true);
+	});
+
 	it('coordinates empty, filtered-empty, active, covered-only, and complete modes', () => {
 		const test = harness();
 		expect(test.controller.viewMode).toBe('empty');

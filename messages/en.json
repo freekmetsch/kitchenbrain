@@ -608,6 +608,7 @@
 	"shopping_to_buy_heading": "To buy ({count})",
 	"shopping_in_stock_chip": "{count} in stock",
 	"shopping_list_controls": "Shopping list controls",
+	"shopping_list_options": "List options",
 	"shopping_filter_label": "Filter shopping list",
 	"shopping_filter_all": "All",
 	"shopping_filter_weekly": "Weekly",

@@ -321,6 +321,16 @@ typed recipe-review, and rollout workspace.
 Touched: docs/artifacts/2026-07-28-plan-assistant-write-safety.html,
 docs/feature-lists/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md
 
+## 2026-07-28 | html-artifact | plan: Shopping mobile density refinement
+
+Planned a mobile-first Shopping control hierarchy: direct meal filters, one list-options
+disclosure for sort and maintenance, state-aware empty chrome, a single available dock action,
+and removal of the Shopping progress track. The review workspace records the 320/375 runtime
+geometry, chosen direction, five R1 tickets, dialog-handoff guardrails, and verification matrix.
+
+Touched: docs/artifacts/2026-07-28-plan-shopping-mobile-density-refinement.html,
+docs/feature-lists/FEATURE_LIST_SHOPPING_MOBILE_DENSITY_REFINEMENT.md
+
 ## 2026-07-28 | verified | Assistant write safety before live gate
 
 Implemented snapshot-bound assistant writes, the per-turn contract latch, atomic reviewed inventory
@@ -335,3 +345,12 @@ src/lib/server/recovery/assistant_incident.ts,
 src/lib/server/ai/turn_safety.ts,
 src/lib/server/ai/recipe_patch.ts,
 docs/feature-lists/FEATURE_LIST_ASSISTANT_WRITE_SAFETY.md
+
+## 2026-07-28 13:10 archive-scan | 1 feature lists, 1 HTMLs archived
+
+Archived the shipped Shopping mobile-density plan and its linked decision workspace. The
+repository has no `scripts/archive-scan.ps1`; the validated inline fallback moved only the
+terminal feature and its artifact.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_MOBILE_DENSITY_REFINEMENT.md,
+docs/artifacts/archive/2026-07-28-plan-shopping-mobile-density-refinement.html

@@ -608,6 +608,7 @@
 	"shopping_to_buy_heading": "Te kopen ({count})",
 	"shopping_in_stock_chip": "{count} op voorraad",
 	"shopping_list_controls": "Bediening van de boodschappenlijst",
+	"shopping_list_options": "Lijstopties",
 	"shopping_filter_label": "Filter de boodschappenlijst",
 	"shopping_filter_all": "Alles",
 	"shopping_filter_weekly": "Wekelijks",
