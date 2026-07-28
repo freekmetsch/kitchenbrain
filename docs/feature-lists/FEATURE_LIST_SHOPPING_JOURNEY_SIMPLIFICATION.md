@@ -1,6 +1,6 @@
 # Feature List: Shopping Journey Simplification
 
-_Status: Plan ready - 2026-07-28 (awaiting $run)_
+_Status: Design refinement ready - 2026-07-28 (Source Board selected; round-two treatment awaiting review)_
 
 ## Problem framing
 
@@ -86,8 +86,9 @@ No authenticated screenshot or household item/recipe content is retained.
 - Remove the visible “Y left / X in basket” header block while retaining useful basket-section
   counts and accessible mutation announcements.
 - Put `All`, `Weekly items`, then recipe pills in one fully opaque horizontal rail.
-- Keep the List order dropdown fixed in that same horizontal row on phone and desktop.
-- Remove Store Route from types, projection code, messages, UI, tests, and dead grouping CSS.
+- Remove the order dropdown and its controller state. Use the existing stable List order everywhere;
+  do not expose A–Z or Store Route.
+- Remove Store Route and A–Z from projection code, messages, UI, tests, and dead grouping CSS.
 - Make weekly items the first section in All, with one direct Manage action in its section header.
 - Keep mixed weekly/recipe rows single: show them once in Weekly in All, while still matching both
   source filters.
@@ -115,71 +116,83 @@ No authenticated screenshot or household item/recipe content is retained.
 ## Design shotgun
 
 Every direction uses equivalent fictitious content, includes a long recipe name, shows weekly
-items first, removes Store Route and header counts, and covers a partial AH send.
+items first, removes Store Route, A–Z, the order control, and header counts, and covers a partial AH
+send.
 
-### Direction A — Run Rail
+### Round one — interaction model
 
-**Visual thesis:** one crisp source rail and one fixed sort control frame a quiet list; rule state
-appears as compact row metadata and opens directly.
+The first comparison tested Run Rail, Source Board, and Edit Lane. The household selected
+**Source Board** on 2026-07-28 and made List order a fixed behavior rather than a visible choice.
+Run Rail and Edit Lane remain useful comparison evidence, but they are no longer candidates for
+implementation.
 
-- Fully opaque scroll-snap pills: `All`, `Weekly items`, then recipes.
-- List order stays fixed at the right edge of the row; the rail alone scrolls.
-- All view has `Weekly items` first and `Recipes & extras` second.
-- A row shows `Every time · Buy: regular` or `Usually stocked · Buy: alternative` as a direct
-  button. Mixed recipe rows show `2 recipe rules`.
-- A direct `Rules · N off list` control opens the editable rules index.
-- Latest AH activity is a compact status strip above the list on phone and a card in the desktop
-  side rail. Older sends and successful item lines are collapsed.
+### Round two — Source Board treatment
 
-**Strength:** fastest repeated-shopping path with one-tap access to the actual rule controls.
+All three refinements preserve one canonical row per aggregate shopping item. A weekly/recipe item
+appears in Weekly and carries recipe source chips. An item shared only by recipes appears once in a
+Shared section after Weekly. Recipe sections contain only their exclusive rows. Source filters
+continue to show every matching row.
 
-**Trade-off:** row metadata adds one quiet line to recipe-owned items.
+#### Direction A — Source Ledger
 
-**Optimizes:** phone scanning, thumb reach, and frequent small corrections.
+**Visual thesis:** use compact editorial bands rather than cards: a strong source header followed
+by uninterrupted rows, with color and type carrying ownership.
 
-### Direction B — Source Board
+- Weekly, Shared when needed, then recipe sections form one vertical ledger.
+- Section headers use a narrow tinted strip; rows share one quiet surface with thin separators.
+- The source rail filters the board. In All, it also reflects the same section order.
+- Recipe and substitute state remains a direct row action; Weekly owns the only Manage action.
+- Latest AH activity is a bounded strip before the ledger.
 
-**Visual thesis:** turn All into an editorial board with strong Weekly and recipe panels, each
-with its own section-level rule action.
+**Strength:** keeps Source Board provenance while adding the least vertical and visual weight.
 
-- Same source rail and fixed sort, but All renders one framed section per source.
-- Weekly is a tinted lead panel; recipes use distinct section headers.
-- Rule and substitute chips stay inline inside each source section.
-- AH activity becomes a full-width timeline between Weekly and recipe sections.
+**Trade-off:** section boundaries are quieter than framed cards.
 
-**Strength:** source ownership is unmistakable.
+**Optimizes:** repeated phone scanning and long meal plans.
 
-**Trade-off:** shared ingredients either require cross-section references or duplicated-looking
-context, and long plans become vertically heavy.
+#### Direction B — Editorial Cards
 
-**Optimizes:** planning and explaining why an item exists.
+**Visual thesis:** give every source a framed, lightly tinted card with a generous title, count,
+and local actions.
 
-### Direction C — Edit Lane
+- Weekly, Shared, and recipe sources are separate cards with stronger color identity.
+- Recipe cards may be manually collapsed; Weekly starts open.
+- Rule/substitute state stays inline, while card headers make ownership explicit.
+- Desktop uses a two-column board; phone remains a single card stack.
 
-**Visual thesis:** keep the shopping list extremely spare until the household enters an explicit
-Edit choices mode that reveals rules and substitutes across every row.
+**Strength:** strongest source explanation and easiest planning overview.
 
-- The default list shows only checkboxes and item copy.
-- A persistent `Edit choices` action toggles a denser inline form lane.
-- Rules, substitutes, excluded rows, and weekly management are all editable without sheets while
-  the mode is active.
-- AH activity is a bottom drawer opened from the AH action.
+**Trade-off:** card padding and repeated headers create the tallest mobile page.
 
-**Strength:** fastest batch cleanup when many rules need attention.
+**Optimizes:** planning, review, and explaining why an item exists.
 
-**Trade-off:** introduces a mode that can be forgotten, creates two row layouts, and hides current
-  choices during ordinary shopping.
+#### Direction C — Focus Deck
 
-**Optimizes:** occasional bulk maintenance rather than the repeated run.
+**Visual thesis:** turn sources into a horizontal deck on phone and a column board on desktop, so
+one source receives full attention at a time.
+
+- All begins with a compact source index and the Weekly card; adjacent cards are reached by
+  horizontal snap or a source pill.
+- Desktop lays the same cards into columns.
+- Shared remains its own card and every aggregate row still appears once.
+- AH activity stays above the deck rather than becoming another card.
+
+**Strength:** the calmest single-source view and strongest visual separation.
+
+**Trade-off:** horizontal navigation hides later sources and makes full-list scanning slower.
+
+**Optimizes:** focused planning one source at a time.
 
 ## Chosen approach
 
-Choose **Direction A — Run Rail**.
+Lock **Source Board** as the interaction model. Recommend **Direction A — Source Ledger** as the
+round-two default.
 
-It keeps the current one-list architecture and stable item projection, makes the user's requested
-controls visible, and removes navigation without creating an edit mode or duplicating shared
-items across source panels. The kitchen palette and existing 44 px geometry remain; the redesign
-comes from hierarchy, opacity, order, and interaction depth rather than a new visual dialect.
+Source Ledger preserves the chosen source-led hierarchy without turning a long phone list into a
+stack of padded cards or a horizontal browsing task. It also resolves Source Board's shared-item
+problem explicitly: Weekly wins for any recurring aggregate, recipe-only aggregates shared by
+more than one recipe live in Shared, and everything appears once. The kitchen palette and existing
+44 px geometry remain; ownership comes from section headers, source chips, and stable ordering.
 
 ### Phone structure
 
@@ -187,7 +200,7 @@ comes from hierarchy, opacity, order, and interaction depth rather than a new vi
 Shopping                                      AH connected
 ‹  Tue 28 Jul — Mon 3 Aug · Delivery Tue 28 Jul        ›
 
-[ All ][ Weekly items ][ Recipe A ][ Recipe B … ] [List order ▾]
+[ All ][ Weekly items ][ Recipe A ][ Recipe B … ]
 [ Rules · 2 off list ]
 
 AH activity  ✓  7 sent to order · 12:43        Details ›
@@ -196,9 +209,14 @@ WEEKLY ITEMS                                      Manage
 ○ Milk                                  Weekly
 ○ Fruit                                 Weekly
 
-RECIPES & EXTRAS
-○ Tortillas           Every time · Buy: wholegrain  ›
-○ Yoghurt             Usually stocked · Buy: oat     ›
+SHARED
+○ Tomatoes            Weeknight tacos + Traybake     ›
+
+WEEKNIGHT TACOS
+○ Tortillas           Every time · Buy: wholegrain   ›
+
+LONG FAMILY AUBERGINE TRAYBAKE
+○ Yoghurt             Usually stocked · Buy: oat      ›
 
                          [ Add item ] [ Review AH · 5 ]
 ```
@@ -233,7 +251,7 @@ RECIPES & EXTRAS
   this week has zero included recurring rows.
 - In All, any item with a weekly source belongs to the Weekly section and appears once.
 - Mixed weekly/recipe items still match both Weekly and their recipe filters.
-- List order and A–Z sort within Weekly and within the remainder; Weekly stays the first section.
+- Stable List order applies within every section; there is no ordering control or alternate sort.
 - The Weekly section header owns the sole visible Manage action. The recurring manager no longer
   renders a separate toolbar trigger.
 
@@ -268,12 +286,14 @@ RECIPES & EXTRAS
 
 ## Rejected alternatives
 
-- **Source Board:** strongest source explanation, but creates vertical density and complicated
-  ownership for shared rows.
+- **Run Rail:** lighter and faster, but the household selected stronger source ownership over one
+  visually continuous list.
 - **Edit Lane:** strongest batch editing, but adds a mode and hides useful current state during
   the normal shopping run.
 - **Keep List options and shorten its labels:** preserves the extra navigation and does not solve
   direct rule/substitute access.
+- **Keep A–Z behind a smaller order control:** retains state and UI for a secondary choice the
+  household does not use.
 - **Fix Store Route's dictionary:** compounds a product promise without reliable aisle/store
   metadata.
 - **Autosave rule chips:** fewer taps, but a stray selection writes a recipe-owned decision
@@ -286,11 +306,11 @@ RECIPES & EXTRAS
 Add the delivery-aware default-week helper, preserve explicit deep links, delete Store Route and
 its dead classifier/grouping code, and extend pure projection tests before changing the UI.
 
-### Phase 2 — Establish the Run Rail and weekly-first list
+### Phase 2 — Establish the Source Ledger and weekly-first board
 
-Remove header counts and the recovery link. Rebuild the controls as an opaque scroll rail plus a
-fixed sort select. Make Weekly stable and first, group it first in All without duplicates, and
-move weekly management to the section header.
+Remove header counts, the recovery link, and all ordering controls/state. Rebuild the source
+navigation as an opaque scroll rail. Compose All as Weekly, optional Shared, then recipe sections
+without duplicates, and move weekly management to its section header.
 
 ### Phase 3 — Flatten rules and substitutes
 
@@ -322,21 +342,22 @@ viewport, then run the complete responsive/state/language matrix and trim supers
 - **Rollback:** restore today's planning-week resolver and header copy; persisted weekly data is
   untouched.
 
-### SHOP-JS-2 — Delete Store Route and keep sort fixed in the source row
+### SHOP-JS-2 — Delete ordering controls and use List order everywhere
 
-- **Observable behavior:** List order and A–Z are the only sort options, and the selected dropdown
-  stays visible beside the source rail at every supported width.
-- **In:** narrow sort union, remove store classifier/section grouping/messages/options, responsive
-  control-row geometry.
-- **Out:** new aisle data or persistent custom order.
+- **Observable behavior:** Shopping has no order dropdown. Every filter and Source Board section
+  uses the existing stable List order.
+- **In:** remove controller sort state, A–Z and Store Route options, store classifier/section
+  grouping, messages, responsive control geometry, and dead tests/CSS.
+- **Out:** new aisle data, drag ordering, or persistent custom order.
 - **Targets:** `src/lib/shopping_list_view.ts`, its tests,
   `src/lib/components/shopping/list-controller.svelte.ts`,
-  `src/lib/components/shopping/ShoppingLists.svelte`, `shopping_sort_store` and
+  `src/lib/components/shopping/ShoppingLists.svelte`, all `shopping_sort_*` and
   `shopping_store_*` messages, e2e.
 - **Risk:** R1.
-- **Verification:** typecheck catches every `store` caller; list/A–Z stability; 320/375/768/1280
-  row geometry and keyboard access.
-- **Rollback:** restore the old union and option together; do not leave dead classifier callers.
+- **Verification:** typecheck/search catches every sort caller; stable order across filters and
+  sections; 320/375/768/1280 rail geometry and keyboard access.
+- **Rollback:** restore the former sort union and control together; do not leave dead classifier
+  or controller state.
 
 ### SHOP-JS-3 — Rebuild the opaque source rail
 
@@ -354,15 +375,16 @@ viewport, then run the complete responsive/state/language matrix and trim supers
 ### SHOP-JS-4 — Put weekly items first and own management there
 
 - **Observable behavior:** All starts with Weekly items, mixed-source rows appear once, and the
-  Weekly section has the sole direct Manage action.
-- **In:** source-aware partitioning after filtering, per-section sorting, stable Weekly empty
-  state, recurring manager trigger removal.
+  Weekly section has the sole direct Manage action. Recipe-only shared aggregates appear once in
+  Shared; recipe sections contain their exclusive rows.
+- **In:** source-aware partitioning after filtering, stable List order within sections, stable
+  Weekly empty state, optional Shared section, recurring manager trigger removal.
 - **Out:** recurring schema or command changes.
 - **Targets:** `shopping_list_view.ts`, `list-controller.svelte.ts`,
   `ShoppingLists.svelte`, `RecurringShoppingList.svelte`, focused tests/e2e.
 - **Risk:** R2; projection mistakes could hide or duplicate required items.
-- **Verification:** weekly-only, recipe-only, manual, mixed weekly/recipe, done, covered,
-  incompatible quantities, empty weekly, filter transitions, list/A–Z.
+- **Verification:** weekly-only, recipe-only, manual, mixed weekly/recipe, multi-recipe shared,
+  done, covered, incompatible quantities, empty weekly, filter transitions, stable List order.
 - **Rollback:** restore one unsectioned projection and the existing manager trigger.
 
 ### SHOP-JS-5 — Open a rule or substitute directly from its shopping row
@@ -448,8 +470,8 @@ uncertain external-handoff message.
 | P1 | Explicit deep link is overridden | Default resolver runs for `?week=` | Shared or bookmarked week opens elsewhere | High in route test | Branch on a valid explicit query before applying the default | None expected |
 | P1 | Weekly/recipe item appears twice | All is grouped by every source | Household may buy a shared item twice | High in projection test and row keys | Partition items once; weekly ownership wins only for All presentation | Low |
 | P2 | Weekly grouping hides recipe membership | Row moves to Weekly in All | Recipe filter seems incomplete | High in filter tests | Presentation partition follows filtering; mixed rows continue to match both filters | Low |
-| P2 | Removing Store Route leaves hidden callers | Sort union narrows but grouping/messages remain | Type drift or unreachable UI | High at typecheck/search | Delete union, resolver, groups, `shopping_sort_store`, all `shopping_store_*` messages, tests, and CSS in one ticket | None expected |
-| P2 | Fixed sort starves the pill rail | Long localized sort label at 320 px | Only a sliver of source navigation remains | High in geometry tests | Compact fixed width with truncation/accessibility name; rail owns remaining width | Low |
+| P2 | Removing ordering UI leaves hidden state | Controller/default still accepts A–Z or Store Route | Invisible state changes order or dead code survives | High at typecheck/search | Delete the sort state, union, resolver, groups, all `shopping_sort_*` / `shopping_store_*` messages, tests, and CSS in one ticket | None expected |
+| P2 | List order becomes unstable between sections | Partitioning reconstructs rows without preserving their source index | Items jump when filters change | High in pure projection tests | Carry the existing stable List order through partitioning and assert exact keys per section | Low |
 | P1 | Direct row editor writes the wrong source | Aggregate row has several recipes | Wrong recipe need/substitute changes | High with per-source revision tests | Bind every editor to source ID + entry/recipe revision; never infer source from row name | Low |
 | P2 | Failed save loses the selected substitute | Request fails after user edits | User must repeat the change | High in mocked failure e2e | Preserve draft, keep editor open, show inline/toast failure, restore focus | Low |
 | P1 | AH product preference is conflated with a substitute term | New active preference appears in the same shopping row | Dutch lookup or product precedence breaks | Medium without boundary test | Rule editor edits approved Dutch terms only; product IDs remain in AH preview/preferences | Low |
@@ -463,7 +485,7 @@ uncertain external-handoff message.
 | Layer | Required proof |
 | --- | --- |
 | Date/default | before/on/after delivery; week-start/grocery-day permutations; DST/year boundary; null grocery day; explicit query precedence |
-| Pure projection | All/Weekly/recipe filters; Weekly-first partition; mixed-source no duplicates; list/A–Z; done/covered/incompatible quantities |
+| Pure projection | All/Weekly/recipe filters; Weekly-first partition; recipe-only Shared partition; mixed-source no duplicates; stable List order; done/covered/incompatible quantities |
 | Rule editor | single and aggregate sources; need/substitute/use-in-recipe; revision failures; draft/focus recovery; unrelated sources unchanged |
 | AH activity | empty, success, partial, failed, pending, uncertain; latest/older disclosures; no uncertain retry; destination/account/count agreement |
 | Responsive UI | 320, 375, 768, 1280 px; EN/NL; light/dark; long recipe labels; 200% effective layout; no faded interactive edges or page overflow |
@@ -473,18 +495,18 @@ uncertain external-handoff message.
 
 ## Plan critique
 
-The chosen approach passes the deletion test: Store Route and the List options routing state are
-removed with all callers rather than left as dead compatibility paths. The rule editor is
-extracted because both row and global manager need the exact same source/revision contract; it is
-not a new domain abstraction. Weekly grouping changes presentation only and never splits or
-duplicates the canonical item model.
+The chosen interaction model passes the deletion test: Store Route, A–Z, the sort controller
+state, and the List options routing state are removed with all callers rather than left as dead
+compatibility paths. The rule editor is extracted because both row and global manager need the
+same source/revision contract; it is not a new domain abstraction. Source Ledger grouping changes
+presentation only and never splits or duplicates the canonical item model.
 
-**Steelman:** The Source Board would make provenance clearer at a glance, which is valuable when
-recipes share ingredients. It is still the weaker default because the app already has one
-canonical aggregated shopping row, and a source-section board would either repeat that row or ask
-the household to reconcile cross-references. Run Rail preserves the trustworthy one-list model,
-shows provenance only where it changes a decision, and gives the repeated mobile task less
-structure to scan.
+**Steelman:** Editorial Cards would make provenance clearer and more inviting at a glance,
+especially during planning. It is still the weaker repeated-shopping default because every card
+repeats padding, borders, and header controls on the narrow surface. Source Ledger preserves the
+chosen Source Board structure, but uses typography and compact bands to keep the phone page
+bounded. Focus Deck is calmer within one source, but makes a complete run depend on horizontal
+navigation.
 
 Plan-readiness recommendation: **GO**. The primary critique found five P1 classes and integrated
 their mitigations above: explicit-week precedence, single-ownership Weekly partitioning,
@@ -493,6 +515,10 @@ semantics. The routed independent Opus check was unavailable because its session
 19:50 Europe/Amsterdam; no outside findings were accepted. No R3 stage gate is required.
 
 ## Open Questions
+
+> **Q: Which Source Board treatment should implementation use?** — Default: Source Ledger.
+> Reason: it keeps source ownership explicit without the card padding or horizontal navigation
+> cost of the other round-two treatments.
 
 > **Q: When should a passed delivery advance the default week?** — Default: keep the current run
 > through the delivery date and advance the next Amsterdam calendar day. Reason: the household may
@@ -508,11 +534,12 @@ semantics. The routed independent Opus check was unavailable because its session
 
 ## Resume pack
 
-- **Goal:** simplify Shopping around a visible source/sort row, Weekly-first list, direct
-  rule/substitute editing, delivery-aware default, and outcome-first AH activity.
+- **Goal:** simplify Shopping around a Source Board with visible source navigation, fixed stable
+  List order, Weekly-first sections, direct rule/substitute editing, delivery-aware default, and
+  outcome-first AH activity.
 - **Current state:** authenticated 300/1024 CSS-px runtime and source audits are complete; three
-  visual directions are compared; Direction A (Run Rail) is selected; no application code or live
-  data changed.
+  interaction models and three Source Board treatments are compared; Source Board is selected and
+  Source Ledger is the round-two recommendation; no application code or live data changed.
 - **First command:** `/run`
 - **Load first:** `docs/feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md`
 - **First files:** `src/lib/server/workflows/reconcile-shopping.ts`,
@@ -524,5 +551,5 @@ semantics. The routed independent Opus check was unavailable because its session
 - **Dependency:** preserve and rebase over the active Assistant Recipe Options work before touching
   AH preview/preferences. Do not merge its product IDs into shopping-term/substitute controls.
 - **Pending verification:** all tests in the matrix; no real AH push.
-- **Defaults if unanswered:** advance the day after delivery, explicit Save, latest AH activity
-  above the phone list.
+- **Defaults if unanswered:** Source Ledger, advance the day after delivery, explicit Save, latest
+  AH activity above the phone list.

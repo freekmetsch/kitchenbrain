@@ -549,3 +549,16 @@ activity. The decision workspace preserves four user-facing defaults and generat
 
 Touched: docs/feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md,
 docs/artifacts/2026-07-28-plan-shopping-journey-simplification.html
+
+## 2026-07-28 | html-artifact | design-shotgun: Shopping Source Board round two
+
+Recorded Source Board as the selected interaction model and removed the ordering control from the
+planned Shopping UI: stable List order is now the only behavior. Compared Source Ledger,
+Editorial Cards, and Focus Deck with equivalent synthetic Weekly, Shared, recipe, direct-rule,
+and partial-AH states. Recommended Source Ledger because it keeps provenance explicit with the
+lowest mobile height and navigation cost. The spent round-one comparison moved to the artifact
+archive.
+
+Touched: docs/feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md,
+docs/artifacts/2026-07-28-design-shotgun-shopping-source-board.html,
+docs/artifacts/archive/2026-07-28-plan-shopping-journey-simplification-round-1.html

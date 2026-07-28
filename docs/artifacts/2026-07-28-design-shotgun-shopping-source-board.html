@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Shopping Source Board — second design shotgun</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #26322b;
+      --muted: #68736d;
+      --paper: #f5f0e6;
+      --surface: #fffdf8;
+      --line: #ddd6c8;
+      --green: #426c56;
+      --green-dark: #2f5341;
+      --green-soft: #dfeade;
+      --sage: #edf2e9;
+      --clay: #b76f4d;
+      --clay-soft: #f4e3d9;
+      --amber: #a36d22;
+      --amber-soft: #f8ebcf;
+      --blue: #47667a;
+      --blue-soft: #e5edf1;
+      --shadow: 0 18px 50px rgb(50 55 43 / 10%);
+      --radius: 18px;
+      --sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --serif: Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: #e9e2d5; }
+
+    body {
+      margin: 0;
+      min-width: 280px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgb(255 253 247 / 90%) 0 15rem, transparent 38rem),
+        linear-gradient(145deg, #e7dfd2, #f3eee5 46%, #e6ddd0);
+      font-family: var(--sans);
+      line-height: 1.45;
+    }
+
+    button, input, textarea { font: inherit; }
+
+    button, label, a { -webkit-tap-highlight-color: transparent; }
+
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    a:focus-visible {
+      outline: 3px solid #8ca993;
+      outline-offset: 3px;
+    }
+
+    main {
+      width: min(1520px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0 70px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+      gap: 28px;
+      align-items: end;
+      padding: clamp(24px, 4vw, 54px);
+      border: 1px solid rgb(70 77 65 / 14%);
+      border-radius: 28px;
+      background: rgb(255 253 248 / 88%);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      right: -90px;
+      top: -120px;
+      border: 54px solid rgb(66 108 86 / 8%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 760px;
+      margin-bottom: 14px;
+      font-family: var(--serif);
+      font-size: clamp(42px, 6vw, 78px);
+      font-weight: 500;
+      letter-spacing: -.045em;
+      line-height: .96;
+    }
+
+    .hero-copy {
+      max-width: 740px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: clamp(17px, 2vw, 22px);
+    }
+
+    .locked {
+      display: grid;
+      gap: 9px;
+      padding: 18px;
+      border: 1px solid #ced8ce;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #edf4ec, #f9f5ea);
+      position: relative;
+      z-index: 1;
+    }
+
+    .lock-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .lock-mark {
+      flex: 0 0 25px;
+      display: grid;
+      place-items: center;
+      height: 25px;
+      border-radius: 50%;
+      color: white;
+      background: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .lock-row strong { display: block; font-size: 14px; }
+    .lock-row span:last-child { color: var(--muted); font-size: 12px; }
+
+    .proof-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      margin: 18px 0 34px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--line);
+      box-shadow: 0 10px 28px rgb(49 57 45 / 7%);
+    }
+
+    .proof {
+      min-height: 102px;
+      padding: 19px;
+      background: rgb(255 253 248 / 92%);
+    }
+
+    .proof strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--green-dark);
+      font-family: var(--serif);
+      font-size: 29px;
+      font-weight: 500;
+    }
+
+    .proof span { color: var(--muted); font-size: 13px; }
+
+    .section {
+      margin-top: 34px;
+      padding: clamp(22px, 3vw, 34px);
+      border: 1px solid rgb(73 77 68 / 14%);
+      border-radius: 24px;
+      background: rgb(255 253 248 / 88%);
+      box-shadow: var(--shadow);
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    .section-head h2 {
+      margin-bottom: 0;
+      font-family: var(--serif);
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 500;
+      letter-spacing: -.025em;
+    }
+
+    .section-note {
+      max-width: 560px;
+      margin-bottom: 0;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .viewport-switch {
+      display: inline-flex;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #f2ede3;
+    }
+
+    .viewport-switch button {
+      min-height: 40px;
+      padding: 7px 14px;
+      border: 0;
+      border-radius: 999px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .viewport-switch button[aria-pressed="true"] {
+      color: white;
+      background: var(--green-dark);
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .variant {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: #fbf8f1;
+      transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+    }
+
+    .variant.selected {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgb(66 108 86 / 12%);
+      transform: translateY(-2px);
+    }
+
+    .variant-copy {
+      min-height: 238px;
+      padding: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .variant-tag {
+      display: inline-grid;
+      place-items: center;
+      width: 31px;
+      height: 31px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+      color: white;
+      background: var(--clay);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .variant:nth-child(2) .variant-tag { background: var(--blue); }
+    .variant:nth-child(3) .variant-tag { background: var(--amber); }
+
+    .variant h3 {
+      margin-bottom: 5px;
+      font-family: var(--serif);
+      font-size: 28px;
+      font-weight: 500;
+    }
+
+    .variant-thesis {
+      min-height: 60px;
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .variant-facts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .variant-facts div {
+      padding: 9px;
+      border-radius: 10px;
+      background: #f0eadf;
+      font-size: 12px;
+    }
+
+    .variant-facts span {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .screen {
+      min-height: 660px;
+      padding: 12px;
+      color: #29342e;
+      background: #f3efe7;
+      font-size: 11px;
+    }
+
+    .app-shell {
+      width: 100%;
+      min-height: 636px;
+      overflow: hidden;
+      border: 1px solid #d8d1c4;
+      border-radius: 16px;
+      background: #fffdf9;
+      box-shadow: 0 8px 20px rgb(55 58 51 / 8%);
+    }
+
+    .mock-top {
+      padding: 12px 13px 9px;
+      border-bottom: 1px solid #e5dfd4;
+      background: #fffefb;
+    }
+
+    .mock-title,
+    .week-line,
+    .control-line,
+    .section-title,
+    .row,
+    .activity,
+    .dock {
+      display: flex;
+      align-items: center;
+    }
+
+    .mock-title { justify-content: space-between; margin-bottom: 8px; }
+    .mock-title strong { font-family: var(--serif); font-size: 17px; font-weight: 500; }
+
+    .connected {
+      color: var(--green-dark);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .week-line {
+      justify-content: space-between;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .week-line span:nth-child(2) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mock-body { padding: 10px; }
+
+    .control-line { gap: 7px; margin-bottom: 8px; }
+
+    .pills {
+      display: flex;
+      flex: 1 1 auto;
+      gap: 5px;
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+      mask-image: none;
+    }
+
+    .pills::-webkit-scrollbar { display: none; }
+
+    .pill {
+      flex: 0 0 auto;
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border: 1px solid #d8d2c7;
+      border-radius: 999px;
+      color: #49534d;
+      background: white;
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .pill.active {
+      color: white;
+      border-color: var(--green);
+      background: var(--green);
+    }
+
+    .rule-line,
+    .activity {
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+
+    .rule-line {
+      display: flex;
+      margin-bottom: 7px;
+      background: var(--sage);
+    }
+
+    .activity {
+      margin-bottom: 9px;
+      border: 1px solid #ead3b4;
+      background: var(--amber-soft);
+    }
+
+    .rule-line strong,
+    .activity strong { display: block; font-size: 10px; }
+
+    .rule-line small,
+    .activity small { color: var(--muted); font-size: 8px; }
+
+    .action-text {
+      flex: 0 0 auto;
+      color: var(--green-dark);
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .section-title {
+      justify-content: space-between;
+      min-height: 31px;
+      padding: 7px 9px;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    .section-title small {
+      color: inherit;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .row {
+      gap: 7px;
+      min-height: 42px;
+      padding: 7px 8px;
+      border-top: 1px solid #ebe5db;
+      background: rgb(255 255 255 / 82%);
+    }
+
+    .check {
+      flex: 0 0 16px;
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid #a9aea9;
+      border-radius: 50%;
+    }
+
+    .row-main { flex: 1 1 auto; min-width: 0; }
+    .row-main strong { display: block; font-size: 10px; }
+    .row-main small { display: block; color: var(--muted); font-size: 8px; }
+
+    .source-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 3px;
+    }
+
+    .source-chip,
+    .choice-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 18px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 7px;
+      font-weight: 800;
+    }
+
+    .source-chip { color: var(--green-dark); background: var(--green-soft); }
+    .choice-chip { flex: 0 0 auto; color: #765037; background: var(--clay-soft); }
+
+    .dock {
+      justify-content: space-between;
+      gap: 6px;
+      min-height: 44px;
+      padding: 8px 10px;
+      border-top: 1px solid #e3ddd1;
+      background: #fffdf9;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    /* Source Ledger */
+    .ledger-section {
+      margin-bottom: 8px;
+      overflow: hidden;
+      border: 1px solid #e0d9ce;
+      border-radius: 9px;
+    }
+
+    .ledger-section.weekly .section-title { color: #2f5942; background: #dfeade; }
+    .ledger-section.shared .section-title { color: #70543c; background: #f3e6d8; }
+    .ledger-section.recipe .section-title { color: #425764; background: #e5ecef; }
+
+    /* Editorial Cards */
+    .card-board { display: grid; gap: 9px; }
+
+    .source-card {
+      overflow: hidden;
+      border: 1px solid #d8d1c5;
+      border-radius: 13px;
+      box-shadow: 0 4px 10px rgb(52 57 48 / 7%);
+    }
+
+    .source-card .section-title { min-height: 40px; padding: 9px 10px; }
+    .source-card.weekly { border-color: #bdd0bf; background: #f4f8f1; }
+    .source-card.weekly .section-title { color: #2e5941; background: #dcebdc; }
+    .source-card.shared { border-color: #dec7b5; background: #fdf8f2; }
+    .source-card.shared .section-title { color: #795138; background: #f4e3d6; }
+    .source-card.recipe { border-color: #cbd6dc; background: #f8fbfc; }
+    .source-card.recipe .section-title { color: #3d596a; background: #e5eef2; }
+    .source-card .row { margin: 0 7px 7px; border: 0; border-radius: 9px; }
+
+    /* Focus Deck */
+    .deck-index {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(70px, 1fr));
+      gap: 5px;
+      margin-bottom: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .deck-index span {
+      min-width: 70px;
+      padding: 6px 7px;
+      border: 1px solid #dcd5c9;
+      border-radius: 8px;
+      background: white;
+    }
+
+    .deck-index strong,
+    .deck-index small { display: block; }
+    .deck-index strong { font-size: 8px; }
+    .deck-index small { color: var(--muted); font-size: 7px; }
+
+    .deck-track {
+      display: flex;
+      gap: 9px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+    }
+
+    .deck-track::-webkit-scrollbar { display: none; }
+
+    .deck-card {
+      flex: 0 0 88%;
+      overflow: hidden;
+      border: 1px solid #d3ccbf;
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 6px 16px rgb(48 52 46 / 8%);
+      scroll-snap-align: start;
+    }
+
+    .deck-card .section-title { min-height: 42px; background: #e4eee1; }
+    .deck-card.shared .section-title { background: #f3e4d7; }
+    .deck-card.recipe .section-title { background: #e5edf1; }
+    .deck-card .row { min-height: 48px; }
+
+    .comparison-table-wrap {
+      margin-top: 20px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+      background: #fffdf9;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 13px 14px;
+      border-bottom: 1px solid #e6e0d5;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      background: #f2ede4;
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .recommendation {
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .recommendation h2 {
+      margin-bottom: 8px;
+      font-family: var(--serif);
+      font-size: clamp(34px, 5vw, 58px);
+      font-weight: 500;
+      letter-spacing: -.03em;
+      line-height: 1;
+    }
+
+    .reason-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .reason {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #f8f4ec;
+    }
+
+    .reason h3 { margin-bottom: 5px; font-size: 14px; }
+    .reason p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+
+    .decisions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    fieldset,
+    .notes-card {
+      min-width: 0;
+      margin: 0;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fbf8f1;
+    }
+
+    fieldset h3,
+    .notes-card h3 { margin-bottom: 5px; font-size: 16px; }
+
+    fieldset > p,
+    .notes-card > p {
+      margin-bottom: 13px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .options { display: grid; gap: 8px; }
+
+    .option {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+      padding: 11px;
+      border: 1px solid #ddd6ca;
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+    }
+
+    .option:has(input:checked) {
+      border-color: var(--green);
+      background: #eef5ec;
+      box-shadow: inset 3px 0 var(--green);
+    }
+
+    .option input { margin: 3px 0 0; accent-color: var(--green); }
+    .option strong { display: block; font-size: 13px; }
+    .option small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+
+    .recommended {
+      padding: 3px 6px;
+      border-radius: 999px;
+      color: var(--green-dark);
+      background: var(--green-soft);
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      resize: vertical;
+      padding: 12px;
+      border: 1px solid #cfc8bc;
+      border-radius: 10px;
+      color: var(--ink);
+      background: white;
+    }
+
+    .handoff textarea { min-height: 320px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+
+    .handoff-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 11px;
+    }
+
+    .handoff-actions button,
+    .source-link {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 9px 14px;
+      border: 1px solid var(--green-dark);
+      border-radius: 10px;
+      color: white;
+      background: var(--green-dark);
+      cursor: pointer;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .handoff-actions button.secondary,
+    .source-link {
+      color: var(--green-dark);
+      background: transparent;
+    }
+
+    #status {
+      min-height: 22px;
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .source-note {
+      margin: 20px 4px 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    body[data-viewport="desktop"] .comparison-grid { grid-template-columns: 1fr; }
+    body[data-viewport="desktop"] .variant { display: grid; grid-template-columns: 280px minmax(0, 1fr); }
+    body[data-viewport="desktop"] .variant-copy { min-height: 0; border-right: 1px solid var(--line); border-bottom: 0; }
+    body[data-viewport="desktop"] .screen { min-height: 470px; }
+    body[data-viewport="desktop"] .app-shell { min-height: 446px; }
+    body[data-viewport="desktop"] .mock-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+    body[data-viewport="desktop"] .control-line,
+    body[data-viewport="desktop"] .rule-line,
+    body[data-viewport="desktop"] .activity { grid-column: 1 / -1; }
+    body[data-viewport="desktop"] .ledger-board,
+    body[data-viewport="desktop"] .card-board { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    body[data-viewport="desktop"] .ledger-section,
+    body[data-viewport="desktop"] .source-card { margin: 0; align-self: start; }
+    body[data-viewport="desktop"] .deck-index { grid-column: 1 / -1; }
+    body[data-viewport="desktop"] .deck-track { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); overflow: visible; }
+    body[data-viewport="desktop"] .deck-card { min-width: 0; }
+    body[data-viewport="desktop"] .dock { grid-column: 1 / -1; }
+
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+      .proof-strip { grid-template-columns: repeat(2, 1fr); }
+      .comparison-grid { grid-template-columns: 1fr; }
+      .variant { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr); }
+      .variant-copy { min-height: 0; border-right: 1px solid var(--line); border-bottom: 0; }
+      .recommendation { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      main { width: min(100% - 18px, 1520px); padding-top: 9px; }
+      .hero, .section { border-radius: 18px; }
+      .hero { padding: 24px 18px; }
+      h1 { font-size: 44px; }
+      .proof-strip { grid-template-columns: 1fr 1fr; }
+      .proof { min-height: 88px; padding: 14px; }
+      .section { padding: 16px 12px; }
+      .section-head { align-items: start; flex-direction: column; gap: 10px; }
+      .section-note { text-align: left; }
+      .viewport-switch { width: 100%; }
+      .viewport-switch button { flex: 1; }
+      .variant { display: block; }
+      .variant-copy { border-right: 0; border-bottom: 1px solid var(--line); }
+      .variant-thesis { min-height: 0; }
+      .screen { min-height: 0; }
+      body[data-viewport="desktop"] .variant { display: block; }
+      body[data-viewport="desktop"] .variant-copy { border-right: 0; border-bottom: 1px solid var(--line); }
+      body[data-viewport="desktop"] .screen { overflow-x: auto; }
+      body[data-viewport="desktop"] .app-shell { min-width: 640px; }
+      .decisions, .reason-grid { grid-template-columns: 1fr; }
+      .option { grid-template-columns: 20px minmax(0, 1fr); }
+      .recommended { grid-column: 2; justify-self: start; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body data-viewport="phone">
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Design shotgun · Round two</p>
+        <h1>Source Board, without the clutter.</h1>
+        <p class="hero-copy">
+          Source ownership is now fixed. This pass compares three ways to make it work on a phone,
+          with one stable list order and no ordering control.
+        </p>
+      </div>
+      <div class="locked" aria-label="Decisions already accepted">
+        <div class="lock-row"><span class="lock-mark">1</span><span><strong>Source Board is locked</strong><span>The board, not Run Rail or Edit Lane, is the implementation model.</span></span></div>
+        <div class="lock-row"><span class="lock-mark">2</span><span><strong>List order is fixed</strong><span>No dropdown, A–Z option, Store Route, or hidden sort state.</span></span></div>
+        <div class="lock-row"><span class="lock-mark">3</span><span><strong>One item, one row</strong><span>Weekly and Shared ownership prevent duplicate shopping rows.</span></span></div>
+      </div>
+    </header>
+
+    <section class="proof-strip" aria-label="Refinement summary">
+      <div class="proof"><strong>0</strong><span>ordering controls in the Shopping UI</span></div>
+      <div class="proof"><strong>1</strong><span>canonical row per aggregate item</span></div>
+      <div class="proof"><strong>1st</strong><span>Weekly section in every All view</span></div>
+      <div class="proof"><strong>3</strong><span>Source Board treatments compared</span></div>
+    </section>
+
+    <section class="section" aria-labelledby="comparison-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Comparable evidence</p>
+          <h2 id="comparison-title">Three treatments, same hard case</h2>
+        </div>
+        <div>
+          <p class="section-note">Every preview contains the same Weekly, Shared, long recipe, direct rule, and partial AH state.</p>
+          <div class="viewport-switch" role="group" aria-label="Preview viewport">
+            <button type="button" data-viewport-button="phone" aria-pressed="true">Phone · 375</button>
+            <button type="button" data-viewport-button="desktop" aria-pressed="false">Desktop · 1280</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="comparison-grid">
+        <article class="variant selected" data-variant="source-ledger">
+          <div class="variant-copy">
+            <span class="variant-tag">A</span>
+            <h3>Source Ledger</h3>
+            <p class="variant-thesis">Compact source bands and continuous rows make provenance clear without card weight.</p>
+            <div class="variant-facts">
+              <div><span>Strength</span>Fast full-run scan</div>
+              <div><span>Trade-off</span>Quieter boundaries</div>
+            </div>
+          </div>
+          <div class="screen" aria-label="Source Ledger Shopping mockup">
+            <div class="app-shell">
+              <div class="mock-top">
+                <div class="mock-title"><strong>Shopping</strong><span class="connected">AH connected</span></div>
+                <div class="week-line"><span>&lsaquo;</span><span>Upcoming shop · Delivery Tue 28 Jul</span><span>&rsaquo;</span></div>
+              </div>
+              <div class="mock-body">
+                <div class="control-line">
+                  <div class="pills"><span class="pill active">All</span><span class="pill">Weekly items</span><span class="pill">Weeknight tacos</span><span class="pill">Long family aubergine traybake</span></div>
+                </div>
+                <div class="rule-line"><div><strong>Shopping rules</strong><small>2 ingredients are off this list</small></div><span class="action-text">Review</span></div>
+                <div class="activity"><div><strong>6 sent · 1 needs attention</strong><small>AH order · 12:43</small></div><span class="action-text">Details</span></div>
+                <div class="ledger-board">
+                  <div class="ledger-section weekly">
+                    <div class="section-title"><span>Weekly items · 2</span><small>Manage</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Milk</strong><small>2 cartons</small></div><span class="choice-chip">Weekly</span></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Fruit</strong><small>Mixed bowl</small></div><span class="choice-chip">Weekly</span></div>
+                  </div>
+                  <div class="ledger-section shared">
+                    <div class="section-title"><span>Shared · 1</span><small>2 recipes</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Tomatoes</strong><div class="source-chips"><span class="source-chip">Tacos</span><span class="source-chip">Traybake</span></div></div><span class="choice-chip">2 rules</span></div>
+                  </div>
+                  <div class="ledger-section recipe">
+                    <div class="section-title"><span>Weeknight tacos · 1</span></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Tortillas</strong><small>Every time · Buy: wholegrain</small></div><span class="choice-chip">Edit</span></div>
+                  </div>
+                  <div class="ledger-section recipe">
+                    <div class="section-title"><span>Long family aubergine traybake · 1</span></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Yoghurt</strong><small>Usually stocked · Buy: oat</small></div><span class="choice-chip">Edit</span></div>
+                  </div>
+                </div>
+                <div class="dock"><span>Add item</span><span>Review AH · 5</span></div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="variant" data-variant="editorial-cards">
+          <div class="variant-copy">
+            <span class="variant-tag">B</span>
+            <h3>Editorial Cards</h3>
+            <p class="variant-thesis">Tinted source cards use generous headers and framing to make ownership unmistakable.</p>
+            <div class="variant-facts">
+              <div><span>Strength</span>Strongest explanation</div>
+              <div><span>Trade-off</span>Tallest phone page</div>
+            </div>
+          </div>
+          <div class="screen" aria-label="Editorial Cards Shopping mockup">
+            <div class="app-shell">
+              <div class="mock-top">
+                <div class="mock-title"><strong>Shopping board</strong><span class="connected">AH connected</span></div>
+                <div class="week-line"><span>&lsaquo;</span><span>Upcoming shop · Delivery Tue 28 Jul</span><span>&rsaquo;</span></div>
+              </div>
+              <div class="mock-body">
+                <div class="control-line">
+                  <div class="pills"><span class="pill active">All</span><span class="pill">Weekly items</span><span class="pill">Weeknight tacos</span><span class="pill">Long family aubergine traybake</span></div>
+                </div>
+                <div class="rule-line"><div><strong>Shopping rules</strong><small>2 ingredients are off this list</small></div><span class="action-text">Review</span></div>
+                <div class="activity"><div><strong>6 sent · 1 needs attention</strong><small>AH order · 12:43</small></div><span class="action-text">Details</span></div>
+                <div class="card-board">
+                  <div class="source-card weekly">
+                    <div class="section-title"><span>Weekly items</span><small>2 items · Manage</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Milk</strong><small>2 cartons</small></div><span class="choice-chip">Weekly</span></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Fruit</strong><small>Mixed bowl</small></div><span class="choice-chip">Weekly</span></div>
+                  </div>
+                  <div class="source-card shared">
+                    <div class="section-title"><span>Shared</span><small>1 item · 2 recipes</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Tomatoes</strong><div class="source-chips"><span class="source-chip">Tacos</span><span class="source-chip">Traybake</span></div></div><span class="choice-chip">2 rules</span></div>
+                  </div>
+                  <div class="source-card recipe">
+                    <div class="section-title"><span>Weeknight tacos</span><small>1 item</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Tortillas</strong><small>Every time · Buy: wholegrain</small></div><span class="choice-chip">Edit</span></div>
+                  </div>
+                  <div class="source-card recipe">
+                    <div class="section-title"><span>Long family aubergine traybake</span><small>1 item</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Yoghurt</strong><small>Usually stocked · Buy: oat</small></div><span class="choice-chip">Edit</span></div>
+                  </div>
+                </div>
+                <div class="dock"><span>Add item</span><span>Review AH · 5</span></div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="variant" data-variant="focus-deck">
+          <div class="variant-copy">
+            <span class="variant-tag">C</span>
+            <h3>Focus Deck</h3>
+            <p class="variant-thesis">Swipeable source cards focus one part of the run at a time, then become columns on desktop.</p>
+            <div class="variant-facts">
+              <div><span>Strength</span>Calmest single source</div>
+              <div><span>Trade-off</span>Hides later sources</div>
+            </div>
+          </div>
+          <div class="screen" aria-label="Focus Deck Shopping mockup">
+            <div class="app-shell">
+              <div class="mock-top">
+                <div class="mock-title"><strong>Shopping deck</strong><span class="connected">AH connected</span></div>
+                <div class="week-line"><span>&lsaquo;</span><span>Upcoming shop · Delivery Tue 28 Jul</span><span>&rsaquo;</span></div>
+              </div>
+              <div class="mock-body">
+                <div class="control-line">
+                  <div class="pills"><span class="pill active">All</span><span class="pill">Weekly items</span><span class="pill">Weeknight tacos</span><span class="pill">Long family aubergine traybake</span></div>
+                </div>
+                <div class="rule-line"><div><strong>Shopping rules</strong><small>2 ingredients are off this list</small></div><span class="action-text">Review</span></div>
+                <div class="activity"><div><strong>6 sent · 1 needs attention</strong><small>AH order · 12:43</small></div><span class="action-text">Details</span></div>
+                <div class="deck-index">
+                  <span><strong>Weekly</strong><small>2 items</small></span>
+                  <span><strong>Shared</strong><small>1 item</small></span>
+                  <span><strong>Tacos</strong><small>1 item</small></span>
+                  <span><strong>Traybake</strong><small>1 item</small></span>
+                </div>
+                <div class="deck-track">
+                  <div class="deck-card weekly">
+                    <div class="section-title"><span>Weekly items</span><small>Manage</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Milk</strong><small>2 cartons</small></div><span class="choice-chip">Weekly</span></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Fruit</strong><small>Mixed bowl</small></div><span class="choice-chip">Weekly</span></div>
+                  </div>
+                  <div class="deck-card shared">
+                    <div class="section-title"><span>Shared</span><small>2 recipes</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Tomatoes</strong><div class="source-chips"><span class="source-chip">Tacos</span><span class="source-chip">Traybake</span></div></div><span class="choice-chip">2 rules</span></div>
+                  </div>
+                  <div class="deck-card recipe">
+                    <div class="section-title"><span>Weeknight tacos</span><small>1 item</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Tortillas</strong><small>Every time · Buy: wholegrain</small></div><span class="choice-chip">Edit</span></div>
+                  </div>
+                  <div class="deck-card recipe">
+                    <div class="section-title"><span>Long family aubergine traybake</span><small>1 item</small></div>
+                    <div class="row"><span class="check"></span><div class="row-main"><strong>Yoghurt</strong><small>Usually stocked · Buy: oat</small></div><span class="choice-chip">Edit</span></div>
+                  </div>
+                </div>
+                <div class="dock"><span>Add item</span><span>Review AH · 5</span></div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="comparison-table-wrap">
+        <table>
+          <thead><tr><th>Treatment</th><th>Board structure</th><th>Optimizes</th><th>Main cost</th></tr></thead>
+          <tbody>
+            <tr><td><strong>A · Source Ledger</strong></td><td>Compact vertical bands</td><td>Complete phone run</td><td>Quieter source boundaries</td></tr>
+            <tr><td><strong>B · Editorial Cards</strong></td><td>Framed cards, two columns on desktop</td><td>Planning and explanation</td><td>Vertical padding on phone</td></tr>
+            <tr><td><strong>C · Focus Deck</strong></td><td>Horizontal deck, desktop columns</td><td>One source at a time</td><td>Later sources are off-screen</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section recommendation" aria-labelledby="recommendation-title">
+      <div>
+        <p class="eyebrow">Recommendation</p>
+        <h2 id="recommendation-title">Start with Source Ledger.</h2>
+        <p class="hero-copy">It honors the Source Board decision without making a long shopping run feel like a dashboard.</p>
+      </div>
+      <div class="reason-grid">
+        <div class="reason"><h3>Weekly still leads</h3><p>Recurring items own the first section and their single Manage action.</p></div>
+        <div class="reason"><h3>Shared stays honest</h3><p>Recipe-only shared items appear once, with every source named on the row.</p></div>
+        <div class="reason"><h3>No order UI</h3><p>The board always follows stable List order. There is no dropdown or hidden alternative.</p></div>
+        <div class="reason"><h3>Less framing</h3><p>Source bands provide hierarchy with fewer borders, shadows, and repeated card margins.</p></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="decisions-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Decision workspace</p>
+          <h2 id="decisions-title">Choose the board’s final behavior</h2>
+        </div>
+        <p class="section-note">Selections and notes stay in this browser. Untouched, the workspace accepts every recommendation.</p>
+      </div>
+
+      <form id="decisions" class="decisions">
+        <fieldset data-decision="treatment">
+          <h3>Which Source Board treatment should `/run` build?</h3>
+          <p>The interaction model is settled; this choice controls density, section framing, and navigation.</p>
+          <div class="options">
+            <label class="option"><input type="radio" name="treatment" value="Source Ledger" checked><span><strong>Source Ledger</strong><small>Compact vertical bands and one continuous phone scan.</small></span><span class="recommended">Recommended</span></label>
+            <label class="option"><input type="radio" name="treatment" value="Editorial Cards"><span><strong>Editorial Cards</strong><small>Strong framed sources with more mobile height.</small></span></label>
+            <label class="option"><input type="radio" name="treatment" value="Focus Deck"><span><strong>Focus Deck</strong><small>One source at a time with horizontal phone navigation.</small></span></label>
+          </div>
+        </fieldset>
+
+        <fieldset data-decision="shared">
+          <h3>Where should a multi-source item appear in All?</h3>
+          <p>The same aggregate item must never become two shopping rows.</p>
+          <div class="options">
+            <label class="option"><input type="radio" name="shared" value="Weekly wins; recipe-only multi-source items use Shared" checked><span><strong>Weekly wins, then Shared</strong><small>Recurring aggregates stay Weekly; recipe-only overlaps get one Shared row.</small></span><span class="recommended">Recommended</span></label>
+            <label class="option"><input type="radio" name="shared" value="Every multi-source item uses Shared"><span><strong>Everything shared together</strong><small>Pure model, but a recurring staple can leave Weekly.</small></span></label>
+            <label class="option"><input type="radio" name="shared" value="First source owns the row and all sources appear as chips"><span><strong>First source owns it</strong><small>No Shared section, but ownership depends on an arbitrary source order.</small></span></label>
+          </div>
+        </fieldset>
+
+        <fieldset data-decision="rollover">
+          <h3>When should the default advance after delivery?</h3>
+          <p>The stored grocery preference has a day, not a delivery time.</p>
+          <div class="options">
+            <label class="option"><input type="radio" name="rollover" value="Advance the next Amsterdam calendar day" checked><span><strong>Next calendar day</strong><small>Keep the current run available for the full delivery date.</small></span><span class="recommended">Recommended</span></label>
+            <label class="option"><input type="radio" name="rollover" value="Advance at the start of delivery day"><span><strong>Start of delivery day</strong><small>Looks ahead earlier, but can hide an active run.</small></span></label>
+          </div>
+        </fieldset>
+
+        <fieldset data-decision="save">
+          <h3>How should rules and substitutes commit?</h3>
+          <p>These are recipe-owned choices with revision checks and failure recovery.</p>
+          <div class="options">
+            <label class="option"><input type="radio" name="save" value="Explicit Save per source" checked><span><strong>Explicit Save</strong><small>One deliberate mutation after the navigation steps disappear.</small></span><span class="recommended">Recommended</span></label>
+            <label class="option"><input type="radio" name="save" value="Autosave every selection"><span><strong>Autosave</strong><small>One tap fewer, but weaker draft and error recovery.</small></span></label>
+          </div>
+        </fieldset>
+
+        <fieldset data-decision="activity">
+          <h3>Where should recent AH activity live on phone?</h3>
+          <p>The latest external handoff affects the current run; old attempts are history.</p>
+          <div class="options">
+            <label class="option"><input type="radio" name="activity" value="Latest attempt before the board; older sends collapsed" checked><span><strong>Latest before board</strong><small>Immediate bounded status; uncertain sends never offer Retry.</small></span><span class="recommended">Recommended</span></label>
+            <label class="option"><input type="radio" name="activity" value="All send history after the board"><span><strong>History after board</strong><small>Quieter top, but the handoff result remains buried.</small></span></label>
+            <label class="option"><input type="radio" name="activity" value="AH activity only inside its own drawer"><span><strong>Drawer only</strong><small>Minimal page, but status requires another tap and recall.</small></span></label>
+          </div>
+        </fieldset>
+
+        <div class="notes-card">
+          <h3>Clarifications for implementation</h3>
+          <p>These notes are reproduced verbatim in the generated handoff.</p>
+          <textarea id="notes" placeholder="Optional: refine section color, density, source chips, or Shared wording."></textarea>
+        </div>
+      </form>
+    </section>
+
+    <section class="section handoff" aria-labelledby="handoff-title">
+      <p class="eyebrow">Forward-only handoff</p>
+      <h2 id="handoff-title">Paste-ready `/run` prompt</h2>
+      <p>The Markdown plan remains authoritative. The prompt carries accepted defaults, overrides, and exact notes.</p>
+      <textarea id="prompt" readonly aria-label="Generated run handoff"></textarea>
+      <div class="handoff-actions">
+        <button type="button" id="copy">Copy handoff</button>
+        <button type="button" id="reset" class="secondary">Reset decisions</button>
+        <a class="source-link" href="../feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md">Open source plan</a>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <p class="source-note">
+      Source: <code>docs/feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md</code>.
+      All preview content is fictitious; no household list data or authenticated evidence is embedded.
+    </p>
+  </main>
+
+  <script>
+    (() => {
+      const storageKey = "docs/artifacts/2026-07-28-design-shotgun-shopping-source-board.html::v1";
+      const form = document.querySelector("#decisions");
+      const notes = document.querySelector("#notes");
+      const prompt = document.querySelector("#prompt");
+      const status = document.querySelector("#status");
+      const variants = [...document.querySelectorAll(".variant")];
+
+      const defaults = {
+        treatment: "Source Ledger",
+        shared: "Weekly wins; recipe-only multi-source items use Shared",
+        rollover: "Advance the next Amsterdam calendar day",
+        save: "Explicit Save per source",
+        activity: "Latest attempt before the board; older sends collapsed",
+        notes: ""
+      };
+
+      const decisions = {
+        treatment: {
+          question: "Which Source Board treatment should /run build?",
+          source: "Design shotgun / Round two — Source Board treatment",
+          options: ["Source Ledger", "Editorial Cards", "Focus Deck"],
+          recommendation: "Source Ledger",
+          rationale: "It preserves explicit source ownership with the least vertical and interaction cost on a phone.",
+          assumptions: "Shopping is a repeated full-list phone task; source clarity matters more than decorative framing.",
+          evidence: "The initial Source Board was selected, but its framed panels were vertically heavy and repeated a shared row.",
+          uncertainty: "A household that mostly plans on desktop may prefer Editorial Cards.",
+          consequences: {
+            "Source Ledger": "One continuous scan with compact source bands and direct row choices.",
+            "Editorial Cards": "Strongest explanation, but the tallest phone page.",
+            "Focus Deck": "Calmest single source, but later sources remain off-screen."
+          }
+        },
+        shared: {
+          question: "Where should a multi-source item appear in All?",
+          source: "Chosen approach / Shared-item ownership",
+          options: [
+            "Weekly wins; recipe-only multi-source items use Shared",
+            "Every multi-source item uses Shared",
+            "First source owns the row and all sources appear as chips"
+          ],
+          recommendation: "Weekly wins; recipe-only multi-source items use Shared",
+          rationale: "It keeps weekly staples first while giving recipe-only overlap a clear single home.",
+          assumptions: "All presentation may assign one display section without changing source membership or filters.",
+          evidence: "The first Source Board repeated Tomatoes in two recipe panels; the canonical projection has one aggregate row.",
+          uncertainty: "The word Shared may need Dutch copy testing with real-length labels.",
+          consequences: {
+            "Weekly wins; recipe-only multi-source items use Shared": "No duplicates; recurring ownership stays stable; recipe overlaps are explicit.",
+            "Every multi-source item uses Shared": "A uniform rule, but recurring staples can leave the Weekly section.",
+            "First source owns the row and all sources appear as chips": "No extra section, but ownership depends on arbitrary ordering."
+          }
+        },
+        rollover: {
+          question: "When should the default advance after delivery?",
+          source: "Open Questions / Upcoming grocery default",
+          options: ["Advance the next Amsterdam calendar day", "Advance at the start of delivery day"],
+          recommendation: "Advance the next Amsterdam calendar day",
+          rationale: "The stored preference has a day but no time; delivery day can still be active.",
+          assumptions: "Amsterdam local date is authoritative and an explicit week query always wins.",
+          evidence: "The current route always derives the planning week from today even after its computed delivery date passes.",
+          uncertainty: "A future delivery-time preference could support a finer boundary.",
+          consequences: {
+            "Advance the next Amsterdam calendar day": "The current run remains default for the full delivery date.",
+            "Advance at the start of delivery day": "The upcoming week appears earlier, but the active run may seem to disappear."
+          }
+        },
+        save: {
+          question: "How should rules and substitutes commit?",
+          source: "Open Questions / Direct rule editor",
+          options: ["Explicit Save per source", "Autosave every selection"],
+          recommendation: "Explicit Save per source",
+          rationale: "Revision-bound recipe choices need a stable draft and visible failure recovery.",
+          assumptions: "One deliberate tap is acceptable after two navigation layers are removed.",
+          evidence: "The existing endpoint validates entry and recipe revisions and closes only after success.",
+          uncertainty: "None that outweighs the persistence and recovery cost of autosave.",
+          consequences: {
+            "Explicit Save per source": "Deliberate mutation with stable draft and error recovery.",
+            "Autosave every selection": "One tap fewer, but accidental writes and harder rollback."
+          }
+        },
+        activity: {
+          question: "Where should recent AH activity live on phone?",
+          source: "Open Questions / AH activity",
+          options: [
+            "Latest attempt before the board; older sends collapsed",
+            "All send history after the board",
+            "AH activity only inside its own drawer"
+          ],
+          recommendation: "Latest attempt before the board; older sends collapsed",
+          rationale: "The latest handoff affects the current run; older attempts should not compete with shopping sections.",
+          assumptions: "Empty history renders nothing and uncertain sends must remain visible without Retry.",
+          evidence: "The current trailing aside places activity after the mobile list and expands item lines for every attempt.",
+          uncertainty: "A household that never revisits send results may prefer drawer-only activity.",
+          consequences: {
+            "Latest attempt before the board; older sends collapsed": "Immediate bounded status and safe recovery.",
+            "All send history after the board": "A quieter top, but the current outcome remains buried.",
+            "AH activity only inside its own drawer": "Minimal page, but another tap and more recall."
+          }
+        }
+      };
+
+      const readState = () => {
+        try {
+          return { ...defaults, ...(JSON.parse(localStorage.getItem(storageKey) || "null") || {}) };
+        } catch {
+          return { ...defaults };
+        }
+      };
+
+      let state = readState();
+
+      const setRadio = (name, value) => {
+        const radios = [...form.querySelectorAll(`input[name="${name}"]`)];
+        const match = radios.find((radio) => radio.value === value);
+        if (match) match.checked = true;
+      };
+
+      Object.keys(decisions).forEach((name) => setRadio(name, state[name]));
+      notes.value = state.notes || "";
+
+      const persist = () => {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(state));
+          status.textContent = "Decisions saved in this browser.";
+        } catch {
+          status.textContent = "Changes are active for this session but could not be saved.";
+        }
+      };
+
+      const decisionBlock = (name) => {
+        const decision = decisions[name];
+        const selected = state[name];
+        const accepted = selected === decision.recommendation ? "Accepted recommendation" : "Override";
+        return [
+          `Decision: ${decision.question}`,
+          `Source: ${decision.source}`,
+          `Options: ${decision.options.join(" / ")}`,
+          `Selected: ${selected} (${accepted})`,
+          `Recommendation: ${decision.recommendation}`,
+          `Rationale: ${decision.rationale}`,
+          `Assumptions: ${decision.assumptions}`,
+          `Evidence: ${decision.evidence}`,
+          `Uncertainty: ${decision.uncertainty}`,
+          `Practical consequence: ${decision.consequences[selected]}`,
+          "User note: none"
+        ].join("\n");
+      };
+
+      const render = () => {
+        variants.forEach((variant) => {
+          const expected = state.treatment.toLowerCase().replaceAll(" ", "-");
+          variant.classList.toggle("selected", variant.dataset.variant === expected);
+        });
+
+        prompt.value = [
+          "Load docs/feature-lists/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md and execute it with /run.",
+          "The Markdown feature list is authoritative. Keep this handoff forward-only: do not read or depend on the HTML artifact.",
+          "Accepted product direction: Source Board. Remove the ordering dropdown and all A–Z / Store Route state; use stable List order everywhere.",
+          "Preserve the repository’s Dutch-only AH lookup seam, one canonical aggregate shopping row, revision-bound recipe-source writes, active recipe-scoped AH preference precedence, exact-main delivery contract, and privacy rules.",
+          "",
+          decisionBlock("treatment"),
+          "",
+          decisionBlock("shared"),
+          "",
+          decisionBlock("rollover"),
+          "",
+          decisionBlock("save"),
+          "",
+          decisionBlock("activity"),
+          "",
+          "Requested follow-up work:",
+          "- Remove visible “Y left / X in basket” header copy.",
+          "- Keep All, Weekly items, and recipe pills fully opaque.",
+          "- Remove every ordering control and use stable List order only.",
+          "- Delete Store Route, A–Z, and every caller/message/test.",
+          "- Put Weekly first and render recipe-only overlaps once in Shared.",
+          "- Remove Back to this week.",
+          "- Make rule and substitute state visible and directly editable.",
+          "- Make latest AH outcome clear; never offer Retry after an uncertain send.",
+          "",
+          "General clarification (verbatim):",
+          state.notes.trim() || "none",
+          "",
+          "Run the complete verification matrix and do not perform a real AH push or retain authenticated household evidence."
+        ].join("\n");
+      };
+
+      form.addEventListener("change", (event) => {
+        if (event.target instanceof HTMLInputElement && event.target.type === "radio") {
+          state[event.target.name] = event.target.value;
+          persist();
+          render();
+        }
+      });
+
+      notes.addEventListener("input", () => {
+        state.notes = notes.value;
+        persist();
+        render();
+      });
+
+      document.querySelectorAll("[data-viewport-button]").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.body.dataset.viewport = button.dataset.viewportButton;
+          document.querySelectorAll("[data-viewport-button]").forEach((candidate) => {
+            candidate.setAttribute("aria-pressed", String(candidate === button));
+          });
+        });
+      });
+
+      document.querySelector("#copy").addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(prompt.value);
+          status.textContent = "Handoff copied.";
+        } catch {
+          prompt.focus();
+          prompt.select();
+          status.textContent = "Copy was blocked. The full handoff is selected; copy it manually.";
+        }
+      });
+
+      document.querySelector("#reset").addEventListener("click", () => {
+        state = { ...defaults };
+        Object.keys(decisions).forEach((name) => setRadio(name, state[name]));
+        notes.value = "";
+        document.body.dataset.viewport = "phone";
+        document.querySelectorAll("[data-viewport-button]").forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.viewportButton === "phone"));
+        });
+        try { localStorage.removeItem(storageKey); } catch {}
+        render();
+        persist();
+        status.textContent = "Recommendations restored.";
+      });
+
+      render();
+      persist();
+    })();
+  </script>
+</body>
+</html>
