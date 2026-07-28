@@ -23,6 +23,24 @@ function Resolve-UniqueApplicationPath {
     return @($paths)[0]
 }
 
+function Get-RailwayInvocation {
+    if ($IsWindows) {
+        $nodePath = Resolve-UniqueApplicationPath 'node'
+        $railwayScript = Join-Path $env:APPDATA 'npm\node_modules\@railway\cli\bin\railway.js'
+        if (-not (Test-Path -LiteralPath $railwayScript -PathType Leaf)) {
+            throw 'Railway CLI entry point is missing.'
+        }
+        return [pscustomobject]@{
+            FileName = $nodePath
+            PrefixArguments = @($railwayScript)
+        }
+    }
+    return [pscustomobject]@{
+        FileName = (Resolve-UniqueApplicationPath 'railway')
+        PrefixArguments = @()
+    }
+}
+
 function Wait-ForProcess {
     param([Diagnostics.Process]$Process, [int]$TimeoutMilliseconds)
 
@@ -40,14 +58,14 @@ if ($ValidateOnly) {
 }
 
 try {
-    $railwayPath = Resolve-UniqueApplicationPath 'railway'
+    $railway = Get-RailwayInvocation
     $start = [Diagnostics.ProcessStartInfo]::new()
-    $start.FileName = $railwayPath
+    $start.FileName = $railway.FileName
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
-    foreach ($argument in @(
+    foreach ($argument in @($railway.PrefixArguments) + @(
         'bucket', 'credentials',
         '--reset',
         '--yes',
