@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+	buildDeclarativeTimerNotification,
 	buildTimerNotification,
 	parseTimerAlertPushPayload
 } from './notification';
 
 describe('timer push notification', () => {
-	it('renders the declarative payload through the classic service-worker path', () => {
+	it('keeps timer alerts audible even when the payload asks for silence', () => {
 		const payload = parseTimerAlertPushPayload({
 			web_push: 8030,
 			mutable: true,
@@ -15,7 +16,7 @@ describe('timer push notification', () => {
 				navigate: '/recipes/roast',
 				tag: 'cook-timer-job-id',
 				renotify: false,
-				silent: false,
+				silent: true,
 				requireInteraction: true,
 				timestamp: 20_000,
 				data: { timerJobId: 'job-id', navigate: '/recipes/roast' }
@@ -23,15 +24,16 @@ describe('timer push notification', () => {
 		});
 
 		expect(payload).not.toBeNull();
-		expect(buildTimerNotification(payload!, true)).toEqual({
+		expect(buildTimerNotification(payload!)).toEqual({
 			title: 'TIMER',
 			options: expect.objectContaining({
 				body: 'Turn off the oven',
 				tag: 'cook-timer-job-id',
-				silent: true,
+				silent: false,
 				renotify: false,
 				requireInteraction: true,
-				data: { timerJobId: 'job-id', navigate: '/recipes/roast' }
+				data: { timerJobId: 'job-id', navigate: '/recipes/roast' },
+				vibrate: [200, 100, 200, 100, 200]
 			})
 		});
 	});
@@ -49,5 +51,28 @@ describe('timer push notification', () => {
 				}
 			})
 		).toBeNull();
+	});
+
+	it('renders a browser-parsed declarative notification instead of the generic fallback', () => {
+		expect(
+			buildDeclarativeTimerNotification({
+				title: 'OVEN · LEFT',
+				body: 'Remove the tray',
+				tag: 'cook-timer-declarative',
+				renotify: false,
+				silent: true,
+				requireInteraction: true,
+				timestamp: 30_000,
+				data: { timerJobId: 'declarative-id', navigate: '/recipes/roast' }
+			})
+		).toEqual({
+			title: 'OVEN · LEFT',
+			options: expect.objectContaining({
+				body: 'Remove the tray',
+				tag: 'cook-timer-declarative',
+				silent: false,
+				data: { timerJobId: 'declarative-id', navigate: '/recipes/roast' }
+			})
+		});
 	});
 });

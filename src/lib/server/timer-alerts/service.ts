@@ -2,6 +2,7 @@ import type { TimerAlertRepository } from './repository';
 import type { TimerAlertSender } from './scheduler';
 import {
 	SubscriptionBodySchema,
+	TimerAlertReceiptBodySchema,
 	validateTimerAlertSchedule,
 	type ValidTimerAlertSchedule
 } from './validation';
@@ -82,7 +83,10 @@ export function createTimerAlertService(options: TimerAlertServiceOptions) {
 			return options.repository.removeOwnedSubscription(userId, subscriptionId);
 		},
 
-		async sendTest(userId: number, subscriptionId: string): Promise<{ accepted: true }> {
+		async sendTest(
+			userId: number,
+			subscriptionId: string
+		): Promise<{ id: string; stage: 'provider-accepted' }> {
 			const { send } = requireEnabled();
 			const subscription = requireSubscription(userId, subscriptionId);
 			const currentTime = now();
@@ -94,25 +98,103 @@ export function createTimerAlertService(options: TimerAlertServiceOptions) {
 				);
 			}
 			lastTestAt.set(userId, currentTime.getTime());
-			const result = await send({
-				id: crypto.randomUUID(),
+			const id = crypto.randomUUID();
+			const test = {
+				id,
 				userId,
 				subscriptionId,
 				deadline: currentTime,
-				title: 'Timer alerts are ready',
-				body: 'This device can receive background timer notifications.',
-				navigate: '/',
-				attemptCount: 0,
-				endpoint: subscription.endpoint,
-				p256dh: subscription.p256dh,
-				auth: subscription.auth
-			});
-			if (result.outcome === 'sent') return { accepted: true };
+				title: 'Timer test alert',
+				body: 'If this notification made a sound, background timer alerts are working.',
+				navigate: '/'
+			};
+			options.repository.createTest(test);
+			let result: Awaited<ReturnType<TimerAlertSender>>;
+			try {
+				result = await send({
+					...test,
+					attemptCount: 0,
+					endpoint: subscription.endpoint,
+					p256dh: subscription.p256dh,
+					auth: subscription.auth
+				});
+			} catch {
+				options.repository.markFailed(id, currentTime, 'sender-error');
+				throw new TimerAlertServiceError(
+					'unavailable',
+					'The test alert could not be accepted by the push service'
+				);
+			}
+			if (result.outcome === 'sent') {
+				options.repository.markProviderAccepted(id, currentTime);
+				return { id, stage: 'provider-accepted' };
+			}
 			if (result.outcome === 'gone') options.repository.removeSubscription(subscriptionId);
+			else {
+				options.repository.markFailed(
+					id,
+					currentTime,
+					result.outcome === 'failed' || result.outcome === 'retry'
+						? result.category
+						: 'gone'
+				);
+			}
 			throw new TimerAlertServiceError(
 				'unavailable',
 				'The test alert could not be accepted by the push service'
 			);
+		},
+
+		getStatus(userId: number, id: string) {
+			const job = options.repository.getJob(userId, id);
+			if (!job) {
+				throw new TimerAlertServiceError('not_found', 'Timer alert job not found');
+			}
+			const stage =
+				job.notificationShownAt != null
+					? 'notification-shown'
+					: job.displayFailedAt != null
+						? 'display-failed'
+						: job.workerReceivedAt != null
+							? 'worker-received'
+							: job.providerAcceptedAt != null
+								? 'provider-accepted'
+								: job.state === 'failed' || job.state === 'expired'
+									? 'failed'
+									: 'pending';
+			return {
+				id: job.id,
+				kind: job.kind,
+				stage,
+				providerAcceptedAt: job.providerAcceptedAt?.getTime() ?? null,
+				workerReceivedAt: job.workerReceivedAt?.getTime() ?? null,
+				notificationShownAt: job.notificationShownAt?.getTime() ?? null,
+				displayFailedAt: job.displayFailedAt?.getTime() ?? null,
+				displayError: job.displayError,
+				clickedAt: job.clickedAt?.getTime() ?? null
+			};
+		},
+
+		recordReceipt(userId: number, id: string, value: unknown): { accepted: true } {
+			if (!options.repository.getJob(userId, id)) {
+				throw new TimerAlertServiceError('not_found', 'Timer alert job not found');
+			}
+			const receipt = TimerAlertReceiptBodySchema.parse(value);
+			const currentTime = now().getTime();
+			if (
+				receipt.occurredAt < currentTime - 10 * 60_000 ||
+				receipt.occurredAt > currentTime + 30_000
+			) {
+				throw new TimerAlertServiceError('invalid', 'Timer alert receipt timestamp is invalid');
+			}
+			options.repository.recordReceipt(
+				userId,
+				id,
+				receipt.event,
+				new Date(receipt.occurredAt),
+				receipt.errorCategory
+			);
+			return { accepted: true };
 		},
 
 		schedule(userId: number, id: string, value: unknown) {

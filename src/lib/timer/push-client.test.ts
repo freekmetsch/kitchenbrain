@@ -100,4 +100,64 @@ describe('timer Push client', () => {
 		});
 		expect(subscribe).toHaveBeenCalledOnce();
 	});
+
+	it('reports a test as successful only after this browser confirms notification display', async () => {
+		const subscription = {
+			endpoint: 'https://fcm.googleapis.com/fcm/send/test-subscription',
+			toJSON: () => ({
+				endpoint: 'https://fcm.googleapis.com/fcm/send/test-subscription',
+				keys: { p256dh: 'A'.repeat(87), auth: 'B'.repeat(22) }
+			})
+		};
+		let statusReads = 0;
+		const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+			const path = String(input);
+			if (path.endsWith('/readiness')) {
+				return Response.json({ enabled: true, publicKey: 'A'.repeat(87) });
+			}
+			if (path.endsWith('/subscription') && init?.method === 'PUT') {
+				return Response.json({ id: '5b063156-fe5e-452f-a67f-82935fb3a3e6' });
+			}
+			if (path.endsWith('/test') && init?.method === 'POST') {
+				return Response.json({
+					id: '4bb16cdf-f1bb-48c7-85dd-c6a86aeb01b4',
+					stage: 'provider-accepted'
+				});
+			}
+			if (path.includes('/jobs/') && init?.method == null) {
+				statusReads += 1;
+				return Response.json({
+					id: '4bb16cdf-f1bb-48c7-85dd-c6a86aeb01b4',
+					kind: 'test',
+					stage: statusReads === 1 ? 'worker-received' : 'notification-shown'
+				});
+			}
+			return new Response(null, { status: 404 });
+		});
+		const stages: string[] = [];
+		const client = createTimerPushClient({
+			fetch,
+			notificationPermission: () => 'granted',
+			requestNotificationPermission: async () => 'granted',
+			isIos: () => false,
+			isStandalone: () => false,
+			getSubscription: async () => subscription,
+			subscribe: async () => subscription,
+			deviceLabel: () => 'Kitchen phone',
+			sleep: async () => {}
+		});
+		await client.inspect();
+
+		await expect(
+			client.sendTest((result) => stages.push(result.stage))
+		).resolves.toMatchObject({
+			id: '4bb16cdf-f1bb-48c7-85dd-c6a86aeb01b4',
+			stage: 'notification-shown'
+		});
+		expect(stages).toEqual([
+			'provider-accepted',
+			'worker-received',
+			'notification-shown'
+		]);
+	});
 });

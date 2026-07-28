@@ -169,6 +169,13 @@
       "when": 1785242688739,
       "tag": "0023_cloudy_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1785259818766,
+      "tag": "0024_sparkling_spirit",
+      "breakpoints": true
     }
   ]
 }

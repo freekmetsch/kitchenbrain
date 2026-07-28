@@ -8,6 +8,17 @@ import { throwTimerAlertHttpError } from '$lib/server/timer-alerts/http';
 
 const IdSchema = z.string().uuid();
 
+export const GET: RequestHandler = ({ locals, params }) => {
+	if (!locals.user) error(401, 'Unauthorized');
+	const id = IdSchema.safeParse(params.id);
+	if (!id.success) error(400, 'Invalid timer alert id');
+	try {
+		return json(timerAlertService.getStatus(locals.user.id, id.data));
+	} catch (cause) {
+		throwTimerAlertHttpError(cause);
+	}
+};
+
 export const PUT: RequestHandler = async ({ request, locals, params }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 	const id = IdSchema.safeParse(params.id);

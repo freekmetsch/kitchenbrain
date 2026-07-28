@@ -1,4 +1,4 @@
-import { and, count, eq, gt, inArray, lte, sql } from 'drizzle-orm';
+import { and, count, eq, gt, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { pushSubscriptions, timerAlertJobs } from '$lib/server/db/schema';
 import type { Db } from '$lib/server/db/types';
 
@@ -20,6 +20,12 @@ export type TimerAlertScheduleInput = {
 	body: string;
 	navigate: string;
 };
+
+export type TimerAlertReceiptEvent =
+	| 'worker-received'
+	| 'notification-shown'
+	| 'display-failed'
+	| 'clicked';
 
 export type ClaimedTimerAlert = {
 	id: string;
@@ -173,6 +179,7 @@ export function createTimerAlertRepository(db: Db) {
 				tx.insert(timerAlertJobs)
 					.values({
 						...input,
+						kind: 'timer',
 						state: 'scheduled',
 						attemptCount: 0,
 						nextAttemptAt: input.deadline,
@@ -186,6 +193,22 @@ export function createTimerAlertRepository(db: Db) {
 					.run();
 				return { id: input.id, state: 'scheduled' };
 			});
+		},
+
+		createTest(input: TimerAlertScheduleInput): void {
+			const now = input.deadline;
+			db.insert(timerAlertJobs)
+				.values({
+					...input,
+					kind: 'test',
+					state: 'claimed',
+					attemptCount: 0,
+					nextAttemptAt: now,
+					claimedAt: now,
+					createdAt: now,
+					updatedAt: now
+				})
+				.run();
 		},
 
 		cancel(userId: number, id: string): boolean {
@@ -210,9 +233,15 @@ export function createTimerAlertRepository(db: Db) {
 			return db
 				.select({
 					id: timerAlertJobs.id,
+					kind: timerAlertJobs.kind,
 					state: timerAlertJobs.state,
 					deadline: timerAlertJobs.deadline,
-					sentAt: timerAlertJobs.sentAt,
+					providerAcceptedAt: timerAlertJobs.providerAcceptedAt,
+					workerReceivedAt: timerAlertJobs.workerReceivedAt,
+					notificationShownAt: timerAlertJobs.notificationShownAt,
+					displayFailedAt: timerAlertJobs.displayFailedAt,
+					displayError: timerAlertJobs.displayError,
+					clickedAt: timerAlertJobs.clickedAt,
 					lastError: timerAlertJobs.lastError
 				})
 				.from(timerAlertJobs)
@@ -295,6 +324,37 @@ export function createTimerAlertRepository(db: Db) {
 				.run().changes;
 		},
 
+		failInterruptedTests(now: Date): number {
+			return db
+				.update(timerAlertJobs)
+				.set({
+					state: 'failed',
+					updatedAt: now,
+					lastError: 'process-restart'
+				})
+				.where(
+					and(
+						eq(timerAlertJobs.kind, 'test'),
+						eq(timerAlertJobs.state, 'claimed')
+					)
+				)
+				.run().changes;
+		},
+
+		pruneTestEvidence(now: Date, retentionMs: number): number {
+			const cutoff = new Date(now.getTime() - retentionMs);
+			return db
+				.delete(timerAlertJobs)
+				.where(
+					and(
+						eq(timerAlertJobs.kind, 'test'),
+						inArray(timerAlertJobs.state, ['sent', 'failed', 'expired', 'cancelled']),
+						lte(timerAlertJobs.createdAt, cutoff)
+					)
+				)
+				.run().changes;
+		},
+
 		recoverClaimed(now: Date, staleGraceMs: number): number {
 			const cutoff = new Date(now.getTime() - staleGraceMs);
 			return db
@@ -309,6 +369,7 @@ export function createTimerAlertRepository(db: Db) {
 				.where(
 					and(
 						eq(timerAlertJobs.state, 'claimed'),
+						eq(timerAlertJobs.kind, 'timer'),
 						gt(timerAlertJobs.deadline, cutoff)
 					)
 				)
@@ -323,6 +384,7 @@ export function createTimerAlertRepository(db: Db) {
 					.where(
 						and(
 							eq(timerAlertJobs.state, 'scheduled'),
+							eq(timerAlertJobs.kind, 'timer'),
 							lte(timerAlertJobs.nextAttemptAt, now)
 						)
 					)
@@ -375,11 +437,82 @@ export function createTimerAlertRepository(db: Db) {
 			});
 		},
 
-		markSent(id: string, now: Date): void {
+		markProviderAccepted(id: string, now: Date): void {
 			db.update(timerAlertJobs)
-				.set({ state: 'sent', sentAt: now, updatedAt: now, lastError: null })
+				.set({
+					state: 'sent',
+					providerAcceptedAt: now,
+					updatedAt: now,
+					lastError: null
+				})
 				.where(and(eq(timerAlertJobs.id, id), eq(timerAlertJobs.state, 'claimed')))
 				.run();
+		},
+
+		recordReceipt(
+			userId: number,
+			id: string,
+			event: TimerAlertReceiptEvent,
+			occurredAt: Date,
+			errorCategory?: string
+		): boolean {
+			const owned = db
+				.select({ id: timerAlertJobs.id })
+				.from(timerAlertJobs)
+				.where(and(eq(timerAlertJobs.id, id), eq(timerAlertJobs.userId, userId)))
+				.get();
+			if (!owned) return false;
+			const updatedAt = new Date();
+			if (event === 'worker-received') {
+				db.update(timerAlertJobs)
+					.set({ workerReceivedAt: occurredAt, updatedAt })
+					.where(
+						and(
+							eq(timerAlertJobs.id, id),
+							eq(timerAlertJobs.userId, userId),
+							isNull(timerAlertJobs.workerReceivedAt)
+						)
+					)
+					.run();
+			} else if (event === 'notification-shown') {
+				db.update(timerAlertJobs)
+					.set({ notificationShownAt: occurredAt, updatedAt })
+					.where(
+						and(
+							eq(timerAlertJobs.id, id),
+							eq(timerAlertJobs.userId, userId),
+							isNull(timerAlertJobs.notificationShownAt)
+						)
+					)
+					.run();
+			} else if (event === 'display-failed') {
+				db.update(timerAlertJobs)
+					.set({
+						displayFailedAt: occurredAt,
+						displayError: errorCategory ?? 'unknown',
+						updatedAt
+					})
+					.where(
+						and(
+							eq(timerAlertJobs.id, id),
+							eq(timerAlertJobs.userId, userId),
+							isNull(timerAlertJobs.displayFailedAt)
+						)
+					)
+					.run();
+			} else {
+				db.update(timerAlertJobs)
+					.set({ clickedAt: occurredAt, updatedAt })
+					.where(
+						and(
+							eq(timerAlertJobs.id, id),
+							eq(timerAlertJobs.userId, userId),
+							isNull(timerAlertJobs.clickedAt)
+						)
+					)
+					.run();
+			}
+			return true;
 		},
 
 		retry(id: string, now: Date, nextAttemptAt: Date, category: string): void {

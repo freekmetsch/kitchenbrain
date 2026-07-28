@@ -5,15 +5,24 @@
 
 import { build, files, version } from '$service-worker';
 import {
+	buildDeclarativeTimerNotification,
 	buildTimerNotification,
 	parseTimerAlertPushPayload,
 	type TimerAlertPushPayload
 } from '$lib/timer/notification';
+import {
+	createIndexedDbTimerReceiptAdapters,
+	TimerReceiptOutbox,
+	type TimerReceipt
+} from '$lib/timer/receipt-outbox';
 
 declare const self: ServiceWorkerGlobalScope;
 
 const CACHE = `hb-${version}`;
 const ASSETS = [...build, ...files];
+const timerReceiptOutbox = new TimerReceiptOutbox(
+	createIndexedDbTimerReceiptAdapters(sendTimerReceipt)
+);
 
 self.addEventListener('install', (event) => {
 	event.waitUntil(
@@ -59,28 +68,68 @@ const FALLBACK_TIMER_PUSH: TimerAlertPushPayload = {
 self.addEventListener('push', (event) => {
 	event.waitUntil(
 		(async () => {
-			let raw: unknown = null;
-			try {
-				raw = event.data?.json();
-			} catch {
-				// A visible generic timer notification is safer than a silent push failure.
-			}
-			const payload = parseTimerAlertPushPayload(raw) ?? {
-				...FALLBACK_TIMER_PUSH,
-				notification: {
-					...FALLBACK_TIMER_PUSH.notification,
-					timestamp: Date.now()
-				}
-			};
-			const windowClients = await self.clients.matchAll({
-				type: 'window',
-				includeUncontrolled: true
-			});
-			const foregroundVisible = windowClients.some(
-				(client) => 'visibilityState' in client && client.visibilityState === 'visible'
+			const receiptTasks: Promise<void>[] = [
+				timerReceiptOutbox.flush().catch(() => {})
+			];
+			const declarativeNotification = buildDeclarativeTimerNotification(
+				(event as PushEvent & { readonly notification?: Notification | null }).notification
 			);
-			const notification = buildTimerNotification(payload, foregroundVisible);
-			await self.registration.showNotification(notification.title, notification.options);
+			let notification = declarativeNotification;
+			if (!notification) {
+				let raw: unknown = null;
+				try {
+					raw = event.data?.json();
+				} catch {
+					// A visible generic timer notification is safer than a silent push failure.
+				}
+				const payload = parseTimerAlertPushPayload(raw) ?? {
+					...FALLBACK_TIMER_PUSH,
+					notification: {
+						...FALLBACK_TIMER_PUSH.notification,
+						timestamp: Date.now()
+					}
+				};
+				notification = buildTimerNotification(payload);
+			}
+			const jobId = timerJobId(notification.options.data);
+			if (jobId) {
+				receiptTasks.push(
+					timerReceiptOutbox.record({
+						id: jobId,
+						event: 'worker-received',
+						occurredAt: Date.now()
+					})
+				);
+			}
+			try {
+				await self.registration.showNotification(notification.title, notification.options);
+				if (jobId) {
+					receiptTasks.push(
+						timerReceiptOutbox.record({
+							id: jobId,
+							event: 'notification-shown',
+							occurredAt: Date.now()
+						})
+					);
+				}
+			} catch (cause) {
+				if (jobId) {
+					receiptTasks.push(
+						timerReceiptOutbox.record({
+							id: jobId,
+							event: 'display-failed',
+							occurredAt: Date.now(),
+							errorCategory:
+								cause instanceof DOMException && cause.name === 'NotAllowedError'
+									? 'permission'
+									: 'show-notification'
+						})
+					);
+				}
+				throw cause;
+			} finally {
+				await Promise.allSettled(receiptTasks);
+			}
 		})()
 	);
 });
@@ -93,22 +142,31 @@ self.addEventListener('notificationclick', (event) => {
 		(data.navigate === '/' || data.navigate.startsWith('/recipes/'))
 			? data.navigate
 			: '/';
-	event.waitUntil(
-		(async () => {
-			const destination = new URL(navigate, self.location.origin).href;
-			const windowClients = await self.clients.matchAll({
-				type: 'window',
-				includeUncontrolled: true
-			});
-			const existing = windowClients.find((client) => new URL(client.url).origin === self.location.origin);
-			if (existing && 'focus' in existing) {
-				if ('navigate' in existing) await existing.navigate(destination);
-				await existing.focus();
-				return;
-			}
-			await self.clients.openWindow(destination);
-		})()
-	);
+	const jobId = timerJobId(data);
+	const receipt = jobId
+		? timerReceiptOutbox.record({
+				id: jobId,
+				event: 'clicked',
+				occurredAt: Date.now()
+			})
+		: Promise.resolve();
+	const navigation = (async () => {
+		const destination = new URL(navigate, self.location.origin).href;
+		const windowClients = await self.clients.matchAll({
+			type: 'window',
+			includeUncontrolled: true
+		});
+		const existing = windowClients.find(
+			(client) => new URL(client.url).origin === self.location.origin
+		);
+		if (existing && 'focus' in existing) {
+			if ('navigate' in existing) await existing.navigate(destination);
+			await existing.focus();
+			return;
+		}
+		await self.clients.openWindow(destination);
+	})();
+	event.waitUntil(Promise.allSettled([navigation, receipt]).then(() => undefined));
 });
 
 self.addEventListener('pushsubscriptionchange', (event) => {
@@ -187,6 +245,34 @@ async function persistChangedPushSubscription(
 
 function timerAlertApiUrl(path: string): string {
 	return new URL(`api/timer-alerts/${path}`, self.registration.scope).href;
+}
+
+async function sendTimerReceipt(receipt: TimerReceipt): Promise<boolean> {
+	const { id, event, occurredAt, errorCategory } = receipt;
+	const response = await fetch(
+		timerAlertApiUrl(`jobs/${encodeURIComponent(id)}/receipts`),
+		{
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({
+				event,
+				occurredAt,
+				...(errorCategory ? { errorCategory } : {})
+			})
+		}
+	);
+	if (response.ok) return true;
+	return response.status === 400 || response.status === 404;
+}
+
+function timerJobId(value: unknown): string | null {
+	if (value == null || typeof value !== 'object') return null;
+	const id = (value as Record<string, unknown>).timerJobId;
+	return typeof id === 'string' &&
+		/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+		? id
+		: null;
 }
 
 function base64UrlToBuffer(value: string): ArrayBuffer {
