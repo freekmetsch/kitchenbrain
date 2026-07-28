@@ -80,44 +80,58 @@ export class TimerReceiptOutbox {
 export function createIndexedDbTimerReceiptAdapters(
 	send: TimerReceiptOutboxAdapters['send']
 ): TimerReceiptOutboxAdapters {
+	let connection: Promise<IDBDatabase> | null = null;
 	const database = () =>
-		new Promise<IDBDatabase>((resolve, reject) => {
+		(connection ??= new Promise<IDBDatabase>((resolve, reject) => {
 			const request = indexedDB.open('keukenbrein-timer-receipts', 1);
 			request.onupgradeneeded = () => {
 				if (!request.result.objectStoreNames.contains('receipts')) {
 					request.result.createObjectStore('receipts', { keyPath: 'key' });
 				}
 			};
-			request.onsuccess = () => resolve(request.result);
-			request.onerror = () => reject(request.error);
-		});
+			request.onblocked = () => {
+				connection = null;
+				reject(new Error('Timer receipt database upgrade blocked'));
+			};
+			request.onsuccess = () => {
+				const db = request.result;
+				db.onclose = () => {
+					connection = null;
+				};
+				db.onversionchange = () => {
+					db.close();
+					connection = null;
+				};
+				resolve(db);
+			};
+			request.onerror = () => {
+				connection = null;
+				reject(request.error);
+			};
+		}));
 	const transaction = async <T>(
 		mode: IDBTransactionMode,
 		run: (store: IDBObjectStore) => IDBRequest<T>
 	): Promise<T> => {
 		const db = await database();
-		try {
-			return await new Promise<T>((resolve, reject) => {
-				const tx = db.transaction('receipts', mode);
-				let result: T;
-				let request: IDBRequest<T>;
-				try {
-					request = run(tx.objectStore('receipts'));
-				} catch (cause) {
-					reject(cause);
-					return;
-				}
-				request.onsuccess = () => {
-					result = request.result;
-				};
-				request.onerror = () => reject(request.error);
-				tx.oncomplete = () => resolve(result);
-				tx.onerror = () => reject(tx.error ?? request.error);
-				tx.onabort = () => reject(tx.error ?? new Error('Timer receipt transaction aborted'));
-			});
-		} finally {
-			db.close();
-		}
+		return new Promise<T>((resolve, reject) => {
+			const tx = db.transaction('receipts', mode);
+			let result: T;
+			let request: IDBRequest<T>;
+			try {
+				request = run(tx.objectStore('receipts'));
+			} catch (cause) {
+				reject(cause);
+				return;
+			}
+			request.onsuccess = () => {
+				result = request.result;
+			};
+			request.onerror = () => reject(request.error);
+			tx.oncomplete = () => resolve(result);
+			tx.onerror = () => reject(tx.error ?? request.error);
+			tx.onabort = () => reject(tx.error ?? new Error('Timer receipt transaction aborted'));
+		});
 	};
 	return {
 		send,

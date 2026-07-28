@@ -116,7 +116,7 @@ describe('timer alert scheduler', () => {
 		expect(repository.getJob(userId, id)).toMatchObject({ state: 'sent' });
 	});
 
-	it('does not replay a Test alert after a process restart', () => {
+	it('does not replay a Test alert after a process restart', async () => {
 		const db = createTestDb();
 		const userId = db.select({ id: users.id }).from(users).get()!.id;
 		const repository = createTimerAlertRepository(db);
@@ -127,22 +127,28 @@ describe('timer alert scheduler', () => {
 			auth: 'auth-secret'
 		});
 		const id = 'a989d984-6469-4cbf-a2da-7b7814fe6201';
-		repository.createTest({
-			id,
-			userId,
-			subscriptionId: subscription.id,
-			deadline: new Date(20_000),
-			title: 'Timer test alert',
-			body: 'Did it make a sound?',
-			navigate: '/'
-		});
+		repository.createTest(
+			{
+				id,
+				userId,
+				subscriptionId: subscription.id,
+				deadline: new Date(20_000),
+				title: 'Timer test alert',
+				body: 'Did it make a sound?',
+				navigate: '/'
+			},
+			new Date(20_000)
+		);
+		const send = vi.fn(async () => ({ outcome: 'sent' as const }));
 		const scheduler = createTimerAlertScheduler({
 			repository,
-			send: vi.fn(async () => ({ outcome: 'sent' as const })),
+			send,
 			now: () => new Date(20_500)
 		});
 
 		expect(scheduler.recover()).toEqual({ recovered: 0, expired: 0 });
+		expect(await scheduler.runOnce()).toMatchObject({ sent: 0, retried: 0 });
+		expect(send).not.toHaveBeenCalled();
 		expect(repository.getJob(userId, id)).toMatchObject({
 			state: 'failed',
 			lastError: 'process-restart'

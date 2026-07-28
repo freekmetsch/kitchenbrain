@@ -117,6 +117,35 @@ describe('CookModeLifecycleController', () => {
 		expect(clearInterval).toHaveBeenCalledWith(42);
 	});
 
+	it('persists only timer transitions rather than every countdown tick', () => {
+		let fallbackTick: (() => void) | undefined;
+		let now = 1_000;
+		const timers = new CookTimerController(now);
+		timers.start(0, 10, now);
+		const deps = dependencies(
+			timers,
+			browserAdapters({
+				setInterval: (callback) => {
+					fallbackTick = callback;
+					return 1;
+				},
+				now: () => now
+			})
+		);
+		deps.onTimerStateChange = vi.fn();
+		const lifecycle = new CookModeLifecycleController(deps);
+		lifecycle.syncTimerActivity(true);
+
+		now = 2_000;
+		fallbackTick?.();
+		expect(deps.onTimerStateChange).not.toHaveBeenCalled();
+
+		now = 11_000;
+		fallbackTick?.();
+		expect(deps.onTimerStateChange).toHaveBeenCalledOnce();
+		lifecycle.destroy();
+	});
+
 	it('keeps timers usable when wake lock, audio, and vibration fail', async () => {
 		let visibilityListener: (() => void) | undefined;
 		let now = 1_000;

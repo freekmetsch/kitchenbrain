@@ -189,10 +189,21 @@ export function createTimerPushClient(
 				};
 				onUpdate?.(current);
 				for (let attempt = 0; attempt < 15; attempt += 1) {
-					if (attempt > 0) await adapters.sleep(1_000);
+					if (attempt > 0) {
+						await adapters.sleep(
+							Math.min(5_000, 1_000 * 2 ** (attempt - 1))
+						);
+					}
 					const statusResponse = await adapters.fetch(
 						`${base}/api/timer-alerts/jobs/${encodeURIComponent(accepted.id)}`
 					);
+					if (
+						statusResponse.status === 401 ||
+						statusResponse.status === 403 ||
+						statusResponse.status === 404
+					) {
+						return { id: accepted.id, stage: 'failed' };
+					}
 					if (!statusResponse.ok) continue;
 					const value = (await statusResponse.json()) as {
 						stage?: unknown;

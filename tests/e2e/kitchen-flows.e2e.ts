@@ -224,7 +224,11 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 	const progressKey = `cookmode-progress:${fixture.cookRecipeSlug}:direct`;
 
 	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
-	await page.evaluate(() => localStorage.removeItem('cook-timer-registry:v1'));
+	await page.evaluate(() => {
+		for (const key of Object.keys(localStorage)) {
+			if (key.startsWith('cook-timer-registry:')) localStorage.removeItem(key);
+		}
+	});
 	await page.reload();
 	await page.waitForLoadState('networkidle');
 

@@ -160,4 +160,85 @@ describe('timer Push client', () => {
 			'notification-shown'
 		]);
 	});
+
+	it('reports the Test cooldown when the server rate limit is active', async () => {
+		const subscription = {
+			endpoint: 'https://fcm.googleapis.com/fcm/send/rate-limited-subscription',
+			toJSON: () => ({
+				endpoint: 'https://fcm.googleapis.com/fcm/send/rate-limited-subscription',
+				keys: { p256dh: 'A'.repeat(87), auth: 'B'.repeat(22) }
+			})
+		};
+		const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+			const path = String(input);
+			if (path.endsWith('/readiness')) {
+				return Response.json({ enabled: true, publicKey: 'A'.repeat(87) });
+			}
+			if (path.endsWith('/subscription') && init?.method === 'PUT') {
+				return Response.json({ id: '5b063156-fe5e-452f-a67f-82935fb3a3e6' });
+			}
+			return new Response(null, { status: 429 });
+		});
+		const client = createTimerPushClient({
+			fetch,
+			notificationPermission: () => 'granted',
+			isIos: () => false,
+			isStandalone: () => false,
+			getSubscription: async () => subscription,
+			deviceLabel: () => 'Kitchen phone'
+		});
+		await client.inspect();
+
+		await expect(client.sendTest()).resolves.toEqual({ stage: 'rate-limited' });
+	});
+
+	it('reports an unconfirmed Test after the bounded display-status window', async () => {
+		const subscription = {
+			endpoint: 'https://fcm.googleapis.com/fcm/send/unconfirmed-subscription',
+			toJSON: () => ({
+				endpoint: 'https://fcm.googleapis.com/fcm/send/unconfirmed-subscription',
+				keys: { p256dh: 'A'.repeat(87), auth: 'B'.repeat(22) }
+			})
+		};
+		const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+			const path = String(input);
+			if (path.endsWith('/readiness')) {
+				return Response.json({ enabled: true, publicKey: 'A'.repeat(87) });
+			}
+			if (path.endsWith('/subscription') && init?.method === 'PUT') {
+				return Response.json({ id: '5b063156-fe5e-452f-a67f-82935fb3a3e6' });
+			}
+			if (path.endsWith('/test') && init?.method === 'POST') {
+				return Response.json({
+					id: '4bb16cdf-f1bb-48c7-85dd-c6a86aeb01b4',
+					stage: 'provider-accepted'
+				});
+			}
+			return Response.json({ stage: 'worker-received' });
+		});
+		const sleep = vi.fn(async (_delayMs: number) => {});
+		const stages: string[] = [];
+		const client = createTimerPushClient({
+			fetch,
+			notificationPermission: () => 'granted',
+			isIos: () => false,
+			isStandalone: () => false,
+			getSubscription: async () => subscription,
+			deviceLabel: () => 'Kitchen phone',
+			sleep
+		});
+		await client.inspect();
+
+		await expect(
+			client.sendTest((result) => stages.push(result.stage))
+		).resolves.toMatchObject({
+			id: '4bb16cdf-f1bb-48c7-85dd-c6a86aeb01b4',
+			stage: 'unconfirmed'
+		});
+		expect(stages).toEqual(['provider-accepted', 'worker-received', 'unconfirmed']);
+		expect(sleep).toHaveBeenCalledTimes(14);
+		expect(
+			sleep.mock.calls.reduce((total, [delay]) => total + delay, 0)
+		).toBeGreaterThanOrEqual(60_000);
+	});
 });
