@@ -1265,6 +1265,14 @@
 			gap: 0.4rem;
 		}
 
+		.shopping-filter-rail {
+			scrollbar-width: none;
+		}
+
+		.shopping-filter-rail::-webkit-scrollbar {
+			display: none;
+		}
+
 		.shopping-options-trigger {
 			display: inline-flex;
 			width: 2.75rem;
