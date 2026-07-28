@@ -1,5 +1,5 @@
 # Railway deploy image (P1.0): SvelteKit adapter-node app supervised by
-# Litestream for streaming SQLite replication to Cloudflare R2.
+# Litestream for streaming SQLite replication to a Railway Storage Bucket.
 # Railway service settings must use builder=Dockerfile with NO build/start
 # command overrides, or this image's CMD is bypassed and Litestream never runs.
 FROM node:22-slim AS build
