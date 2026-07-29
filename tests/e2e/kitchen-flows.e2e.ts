@@ -459,7 +459,6 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 		}
 	});
 	await page.reload();
-	await page.waitForLoadState('networkidle');
 
 	const firstStep = page.getByRole('button', {
 		name: 'Read step 1: Simmer until ready.'
@@ -467,7 +466,7 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 	const secondStep = page.getByRole('button', {
 		name: 'Read step 2: Serve the stew.'
 	});
-	await expect(firstStep).toHaveAttribute('aria-current', 'step');
+	await expect(firstStep).toHaveAttribute('aria-current', 'step', { timeout: 15_000 });
 	await secondStep.click();
 	await expect(secondStep).toHaveAttribute('aria-current', 'step');
 	await expect

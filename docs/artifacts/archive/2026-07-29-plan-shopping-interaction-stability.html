@@ -1,0 +1,1009 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Shopping interaction stability — plan review</title>
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23304b3a'/%3E%3Cpath d='M9 16.5l4 4L23 10.5' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+	<style>
+		:root {
+			color-scheme: light;
+			--ink: #18231c;
+			--muted: #5a665e;
+			--paper: #f7f3e8;
+			--card: #fffdf7;
+			--olive: #304b3a;
+			--olive-soft: #dfe8dd;
+			--honey: #d89a2b;
+			--terra: #ad4d29;
+			--line: #d7d6cc;
+			--danger: #9b3325;
+			--shadow: 0 18px 50px rgb(37 51 40 / 10%);
+			--radius: 18px;
+		}
+
+		* { box-sizing: border-box; }
+
+		html { scroll-behavior: smooth; }
+
+		body {
+			margin: 0;
+			background:
+				radial-gradient(circle at 92% 4%, rgb(216 154 43 / 12%), transparent 30rem),
+				linear-gradient(180deg, #edf1e9 0 21rem, var(--paper) 21rem);
+			color: var(--ink);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			line-height: 1.55;
+		}
+
+		button, input, textarea { font: inherit; }
+
+		button, label { -webkit-tap-highlight-color: transparent; }
+
+		a { color: var(--olive); }
+
+		.skip-link {
+			position: fixed;
+			top: 0.5rem;
+			left: 0.5rem;
+			z-index: 10;
+			padding: 0.6rem 0.8rem;
+			border-radius: 0.55rem;
+			background: white;
+			transform: translateY(-150%);
+		}
+
+		.skip-link:focus { transform: none; }
+
+		.shell {
+			width: min(1180px, calc(100% - 2rem));
+			margin: 0 auto;
+			padding: 1.25rem 0 5rem;
+		}
+
+		.hero {
+			display: grid;
+			grid-template-columns: minmax(0, 1.4fr) minmax(17rem, 0.6fr);
+			gap: 1.2rem;
+			align-items: end;
+			padding: clamp(1.2rem, 4vw, 3.5rem) 0 2rem;
+		}
+
+		.eyebrow {
+			margin: 0 0 0.5rem;
+			color: var(--honey);
+			font-size: 0.75rem;
+			font-weight: 850;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+		}
+
+		h1, h2, h3, p { margin-top: 0; }
+
+		h1 {
+			max-width: 16ch;
+			margin-bottom: 0.8rem;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.25rem, 7vw, 5.7rem);
+			font-weight: 500;
+			letter-spacing: -0.055em;
+			line-height: 0.95;
+		}
+
+		.hero-copy {
+			max-width: 65ch;
+			margin-bottom: 0;
+			color: #405047;
+			font-size: clamp(1rem, 2vw, 1.18rem);
+		}
+
+		.status-panel {
+			border: 1px solid rgb(255 255 255 / 25%);
+			border-radius: var(--radius);
+			padding: 1rem;
+			background: var(--olive);
+			color: white;
+			box-shadow: var(--shadow);
+		}
+
+		.status-panel strong {
+			display: block;
+			font-size: 1.1rem;
+		}
+
+		.status-panel p {
+			margin: 0.3rem 0 0;
+			color: #dfe9e2;
+			font-size: 0.88rem;
+		}
+
+		.status-grid {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 0.45rem;
+			margin-top: 0.85rem;
+		}
+
+		.status-grid span {
+			border-radius: 0.6rem;
+			padding: 0.55rem 0.45rem;
+			background: rgb(255 255 255 / 9%);
+			font-size: 0.7rem;
+			text-align: center;
+		}
+
+		.layout {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) 18rem;
+			gap: 1rem;
+			align-items: start;
+		}
+
+		.main { min-width: 0; }
+
+		.rail {
+			position: sticky;
+			top: 1rem;
+			display: grid;
+			gap: 0.75rem;
+		}
+
+		.rail-card, .panel {
+			border: 1px solid var(--line);
+			border-radius: var(--radius);
+			background: rgb(255 253 247 / 92%);
+			box-shadow: 0 8px 24px rgb(37 51 40 / 6%);
+		}
+
+		.rail-card { padding: 0.9rem; }
+
+		.rail-card h2 {
+			margin-bottom: 0.55rem;
+			font-size: 0.76rem;
+			letter-spacing: 0.09em;
+			text-transform: uppercase;
+		}
+
+		.rail-card ol {
+			display: grid;
+			gap: 0.4rem;
+			margin: 0;
+			padding-left: 1.25rem;
+			color: var(--muted);
+			font-size: 0.8rem;
+		}
+
+		.rail-card a {
+			text-decoration-thickness: 1px;
+			text-underline-offset: 0.18rem;
+		}
+
+		.panel {
+			margin-bottom: 1rem;
+			padding: clamp(1rem, 2.5vw, 1.5rem);
+		}
+
+		.panel > header {
+			display: flex;
+			gap: 0.75rem;
+			align-items: baseline;
+			justify-content: space-between;
+			margin-bottom: 1rem;
+		}
+
+		.panel h2 {
+			margin-bottom: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(1.35rem, 3vw, 2rem);
+			font-weight: 500;
+			letter-spacing: -0.025em;
+		}
+
+		.kicker {
+			color: var(--muted);
+			font-size: 0.73rem;
+			font-weight: 750;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.evidence-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 0.65rem;
+		}
+
+		.metric {
+			min-height: 9rem;
+			border-radius: 0.85rem;
+			padding: 0.9rem;
+			background: #f1eee4;
+		}
+
+		.metric.bad { background: #f8e9e4; }
+		.metric.target { background: var(--olive-soft); }
+
+		.metric strong {
+			display: block;
+			color: var(--terra);
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2rem, 5vw, 3.6rem);
+			font-weight: 500;
+			line-height: 1;
+		}
+
+		.metric.target strong { color: var(--olive); }
+
+		.metric span {
+			display: block;
+			margin-top: 0.55rem;
+			font-size: 0.82rem;
+			font-weight: 720;
+		}
+
+		.metric p {
+			margin: 0.25rem 0 0;
+			color: var(--muted);
+			font-size: 0.75rem;
+		}
+
+		.flow {
+			display: grid;
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+			gap: 0.35rem;
+			align-items: stretch;
+			margin-top: 0.75rem;
+		}
+
+		.flow-step {
+			position: relative;
+			display: grid;
+			min-height: 7.6rem;
+			align-content: space-between;
+			border: 1px solid var(--line);
+			border-radius: 0.75rem;
+			padding: 0.7rem;
+			background: white;
+		}
+
+		.flow-step:not(:last-child)::after {
+			position: absolute;
+			top: calc(50% - 0.8rem);
+			right: -0.63rem;
+			z-index: 2;
+			display: grid;
+			width: 1rem;
+			height: 1.6rem;
+			place-items: center;
+			background: var(--card);
+			color: var(--olive);
+			content: "›";
+			font-size: 1.15rem;
+			font-weight: 850;
+		}
+
+		.flow-step b {
+			color: var(--olive);
+			font-size: 0.72rem;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+		}
+
+		.flow-step span {
+			font-size: 0.78rem;
+			font-weight: 700;
+		}
+
+		.findings {
+			display: grid;
+			gap: 0.55rem;
+		}
+
+		.finding {
+			display: grid;
+			grid-template-columns: 3.1rem minmax(0, 1fr);
+			gap: 0.75rem;
+			border-top: 1px solid var(--line);
+			padding-top: 0.75rem;
+		}
+
+		.finding:first-child {
+			border-top: 0;
+			padding-top: 0;
+		}
+
+		.priority {
+			display: inline-grid;
+			width: 2.8rem;
+			height: 2rem;
+			place-items: center;
+			border-radius: 999px;
+			background: #f8e9e4;
+			color: var(--danger);
+			font-size: 0.7rem;
+			font-weight: 850;
+		}
+
+		.priority.p2 { background: #faefd8; color: #825613; }
+		.priority.p3 { background: var(--olive-soft); color: var(--olive); }
+
+		.finding h3 {
+			margin-bottom: 0.18rem;
+			font-size: 0.9rem;
+		}
+
+		.finding p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.8rem;
+		}
+
+		.decision {
+			border: 1px solid color-mix(in srgb, var(--honey) 45%, var(--line));
+			border-radius: 1rem;
+			padding: 1rem;
+			background: #fffbef;
+		}
+
+		.decision + .decision { margin-top: 0.85rem; }
+
+		.decision h3 {
+			margin-bottom: 0.25rem;
+			font-size: 1rem;
+		}
+
+		.decision > p {
+			margin-bottom: 0.75rem;
+			color: var(--muted);
+			font-size: 0.8rem;
+		}
+
+		.options {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 0.55rem;
+		}
+
+		.option {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr);
+			gap: 0.5rem;
+			align-content: start;
+			min-height: 8.6rem;
+			border: 1px solid var(--line);
+			border-radius: 0.75rem;
+			padding: 0.7rem;
+			background: white;
+			cursor: pointer;
+		}
+
+		.option:has(input:checked) {
+			border-color: var(--olive);
+			outline: 2px solid rgb(48 75 58 / 13%);
+			background: #f3f7f1;
+		}
+
+		.option input {
+			width: 1.1rem;
+			height: 1.1rem;
+			margin: 0.1rem 0 0;
+			accent-color: var(--olive);
+		}
+
+		.option strong {
+			display: block;
+			font-size: 0.8rem;
+		}
+
+		.option small {
+			display: block;
+			margin-top: 0.22rem;
+			color: var(--muted);
+			font-size: 0.7rem;
+			line-height: 1.45;
+		}
+
+		.recommended {
+			display: inline-block;
+			margin-top: 0.35rem;
+			border-radius: 999px;
+			padding: 0.15rem 0.4rem;
+			background: var(--olive-soft);
+			color: var(--olive);
+			font-size: 0.6rem;
+			font-weight: 850;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+		}
+
+		.note-label {
+			display: block;
+			margin-top: 0.75rem;
+			font-size: 0.72rem;
+			font-weight: 780;
+		}
+
+		textarea {
+			width: 100%;
+			min-height: 5.5rem;
+			margin-top: 0.35rem;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 0.65rem;
+			padding: 0.65rem;
+			background: white;
+			color: var(--ink);
+		}
+
+		textarea:focus, button:focus-visible, input:focus-visible, a:focus-visible {
+			outline: 3px solid var(--honey);
+			outline-offset: 2px;
+		}
+
+		.ticket-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.65rem;
+		}
+
+		.ticket {
+			border-left: 4px solid var(--olive);
+			border-radius: 0.5rem;
+			padding: 0.75rem;
+			background: #f1eee4;
+		}
+
+		.ticket b {
+			display: block;
+			margin-bottom: 0.2rem;
+			font-size: 0.75rem;
+			letter-spacing: 0.05em;
+		}
+
+		.ticket span {
+			display: block;
+			color: var(--muted);
+			font-size: 0.76rem;
+		}
+
+		.guard-list {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.55rem;
+			margin: 0;
+			padding: 0;
+			list-style: none;
+		}
+
+		.guard-list li {
+			border: 1px solid var(--line);
+			border-radius: 0.7rem;
+			padding: 0.7rem;
+			background: white;
+			font-size: 0.78rem;
+		}
+
+		.guard-list strong {
+			display: block;
+			margin-bottom: 0.18rem;
+			color: var(--olive);
+		}
+
+		.prompt-box {
+			width: 100%;
+			min-height: 22rem;
+			white-space: pre-wrap;
+			font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+			font-size: 0.76rem;
+			line-height: 1.5;
+		}
+
+		.actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.55rem;
+			margin-top: 0.65rem;
+		}
+
+		.button {
+			min-height: 2.75rem;
+			border: 0;
+			border-radius: 0.65rem;
+			padding: 0 0.9rem;
+			background: var(--olive);
+			color: white;
+			font-weight: 760;
+			cursor: pointer;
+		}
+
+		.button.secondary {
+			border: 1px solid var(--line);
+			background: white;
+			color: var(--ink);
+		}
+
+		.save-state {
+			margin: 0.6rem 0 0;
+			color: var(--muted);
+			font-size: 0.72rem;
+		}
+
+		.source-note {
+			border-left: 3px solid var(--honey);
+			padding-left: 0.65rem;
+			color: var(--muted);
+			font-size: 0.75rem;
+		}
+
+		@media (max-width: 900px) {
+			.hero, .layout { grid-template-columns: 1fr; }
+			.rail { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+			.flow { grid-template-columns: 1fr; }
+			.flow-step { min-height: auto; gap: 1rem; }
+			.flow-step:not(:last-child)::after { display: none; }
+		}
+
+		@media (max-width: 650px) {
+			.shell { width: min(100% - 1rem, 1180px); }
+			.hero { padding-top: 1rem; }
+			.status-grid, .evidence-grid, .options, .ticket-grid, .guard-list, .rail {
+				grid-template-columns: 1fr;
+			}
+			.option { min-height: auto; }
+			.panel { border-radius: 0.9rem; }
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after {
+				scroll-behavior: auto !important;
+				transition-duration: 0.01ms !important;
+			}
+		}
+	</style>
+</head>
+<body>
+	<a class="skip-link" href="#decisions">Skip to decisions</a>
+	<div class="shell">
+		<header class="hero">
+			<div>
+				<p class="eyebrow">Plan review · Shopping</p>
+				<h1>Keep the list still.</h1>
+				<p class="hero-copy">
+					The Source Ledger stays. This pass fixes the identity and focus defects that make a
+					tap rearrange the page, then removes support UI that repeats itself before the shop.
+				</p>
+			</div>
+			<div class="status-panel" aria-label="Plan status">
+				<strong>GO — defaults are executable</strong>
+				<p>R2 because AH outcome presentation is a duplicate-send safety surface. No schema,
+					auth, provider call, or AH send changes.</p>
+				<div class="status-grid">
+					<span>4 phases</span>
+					<span>7 tickets</span>
+					<span>2 choices</span>
+				</div>
+			</div>
+		</header>
+
+		<div class="layout">
+			<main class="main" id="content">
+				<section class="panel" id="evidence">
+					<header>
+						<h2>The defect is measurable</h2>
+						<span class="kicker">Synthetic fixture</span>
+					</header>
+					<div class="evidence-grid">
+						<div class="metric bad">
+							<strong>569 px</strong>
+							<span>outer-window scroll after one mobile tap</span>
+							<p>The list's own scroll container stayed at 624 px, splitting the viewport.</p>
+						</div>
+						<div class="metric bad">
+							<strong>106 px</strong>
+							<span>instant shift when a singleton section disappears</span>
+							<p>The next recipe occupies the old position with no continuity cue.</p>
+						</div>
+						<div class="metric target">
+							<strong>0 px</strong>
+							<span>target outer-window movement</span>
+							<p>Only the app main may scroll; the next focused row must remain visible.</p>
+						</div>
+					</div>
+					<div class="flow" aria-label="Chosen interaction sequence">
+						<div class="flow-step"><b>1</b><span>Tap or press Space</span></div>
+						<div class="flow-step"><b>2</b><span>Lock that row key</span></div>
+						<div class="flow-step"><b>3</b><span>Persist one mutation</span></div>
+						<div class="flow-step"><b>4</b><span>Focus without page scroll</span></div>
+						<div class="flow-step"><b>5</b><span>Settle one local reflow</span></div>
+					</div>
+				</section>
+
+				<section class="panel" id="findings">
+					<header>
+						<h2>What the audit found</h2>
+						<span class="kicker">UI + UX</span>
+					</header>
+					<div class="findings">
+						<div class="finding">
+							<span class="priority">P1</span>
+							<div>
+								<h3>Focus scrolls the wrong viewport</h3>
+								<p>A successful mobile check can move the navigation into the middle of the
+									screen and leave the active list outside the usable viewport.</p>
+							</div>
+						</div>
+						<div class="finding">
+							<span class="priority p2">P2</span>
+							<div>
+								<h3>Recipe controls swap after completion</h3>
+								<p>The filter order comes from pending rows followed by completed rows, so the
+									control a user just touched can change position.</p>
+							</div>
+						</div>
+						<div class="finding">
+							<span class="priority p2">P2</span>
+							<div>
+								<h3>The first useful row starts behind fixed controls</h3>
+								<p>An empty Weekly card plus expanded AH result detail puts the first active
+									row under the dock and bottom navigation at 375 px.</p>
+							</div>
+						</div>
+						<div class="finding">
+							<span class="priority p3">P3</span>
+							<div>
+								<h3>Rule and AH context repeat</h3>
+								<p>Rows repeat an unchanged ingredient term; disconnected AH status/action
+									appears in several competing places.</p>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<section class="panel" id="decisions">
+					<header>
+						<h2>Two choices remain yours</h2>
+						<span class="kicker">Defaults selected</span>
+					</header>
+
+					<fieldset class="decision">
+						<legend><h3>1. What should happen to a checked row?</h3></legend>
+						<p>The scroll and ordering defects are mandatory fixes. This choice only changes the
+							settled completion model.</p>
+						<div class="options">
+							<label class="option">
+								<input type="radio" name="completion" value="basket-motion" checked />
+								<span>
+									<strong>Keep basket + local motion</strong>
+									<small>Fix identity/focus, then move the completed row out with one short,
+										locked reflow. Remaining work stays visually primary.</small>
+									<span class="recommended">Recommended</span>
+								</span>
+							</label>
+							<label class="option">
+								<input type="radio" name="completion" value="inline" />
+								<span>
+									<strong>Keep checked rows inline</strong>
+									<small>Maximum positional stability and direct uncheck, but completed items
+										continue to compete with the active shop.</small>
+								</span>
+							</label>
+							<label class="option">
+								<input type="radio" name="completion" value="basket-instant" />
+								<span>
+									<strong>Fix identity, omit motion</strong>
+									<small>Retain the instant basket move after fixing focus/order. Smaller change,
+										but the 106 px section jump remains abrupt.</small>
+								</span>
+							</label>
+						</div>
+						<label class="note-label" for="completion-note">Clarification for this choice</label>
+						<textarea id="completion-note" placeholder="Optional. Your words are copied verbatim into the handoff."></textarea>
+					</fieldset>
+
+					<fieldset class="decision">
+						<legend><h3>2. How much unresolved AH detail stays open?</h3></legend>
+						<p>The outcome, duplicate-send warning, and safe Open AH action always remain visible.
+							This choice affects product-level lines only.</p>
+						<div class="options">
+							<label class="option">
+								<input type="radio" name="ah-detail" value="two-unresolved" checked />
+								<span>
+									<strong>Show up to two unresolved lines</strong>
+									<small>Keep action-relevant items visible; collapse successful lines and
+										overflow so the list starts materially higher.</small>
+									<span class="recommended">Recommended</span>
+								</span>
+							</label>
+							<label class="option">
+								<input type="radio" name="ah-detail" value="all-lines" />
+								<span>
+									<strong>Leave every line expanded</strong>
+									<small>Maximum product detail with no disclosure, but repeats the current
+										support-first mobile hierarchy.</small>
+								</span>
+							</label>
+							<label class="option">
+								<input type="radio" name="ah-detail" value="summary-only" />
+								<span>
+									<strong>Collapse every product line</strong>
+									<small>Most compact, but users must open a disclosure to learn which products
+										need attention.</small>
+								</span>
+							</label>
+						</div>
+						<label class="note-label" for="ah-note">Clarification for this choice</label>
+						<textarea id="ah-note" placeholder="Optional. Your words are copied verbatim into the handoff."></textarea>
+					</fieldset>
+					<p id="save-state" class="save-state" role="status">Defaults loaded.</p>
+				</section>
+
+				<section class="panel" id="tickets">
+					<header>
+						<h2>Execution order</h2>
+						<span class="kicker">Seven observable slices</span>
+					</header>
+					<div class="ticket-grid">
+						<div class="ticket"><b>SIS-01 · Stable identity</b><span>Canonical source order for filters and groups.</span></div>
+						<div class="ticket"><b>SIS-02 · Safe focus</b><span>Keep focus visible without scrolling the outer document.</span></div>
+						<div class="ticket"><b>SIS-03 · Bounded reflow</b><span>Short motion plus a per-key duplicate-action lock.</span></div>
+						<div class="ticket"><b>SIS-04 · No empty All groups</b><span>Weekly management remains one tap away.</span></div>
+						<div class="ticket"><b>SIS-05 · Compact rule copy</b><span>Show a term only when it is meaningfully different.</span></div>
+						<div class="ticket"><b>SIS-06 · One AH action</b><span>Passive header state; contextual Connect/Review dock.</span></div>
+						<div class="ticket"><b>SIS-07 · Outcome-first history</b><span>Preserve duplicate-send safety; disclose resolved detail.</span></div>
+					</div>
+				</section>
+
+				<section class="panel" id="guards">
+					<header>
+						<h2>Failure guards baked in</h2>
+						<span class="kicker">Critique complete</span>
+					</header>
+					<ul class="guard-list">
+						<li><strong>No outer scroll</strong>Assert `window.scrollY === 0` after pointer, keyboard, failure, and undo paths.</li>
+						<li><strong>No double mutation</strong>Make an exiting/in-flight key inert and count POSTs under rapid activation.</li>
+						<li><strong>No hidden AH warning</strong>Outcome, safety help, Open AH, and unresolved state remain visible; no Retry for uncertain sends.</li>
+						<li><strong>No invisible reduced-motion delay</strong>Resolve Svelte directive duration to zero, not only CSS transition duration.</li>
+						<li><strong>No lost Weekly manager</strong>The empty Weekly filter retains its direct Manage action and focus return.</li>
+						<li><strong>No household evidence</strong>Use synthetic screenshots only; production checks retain structure and counts, never list content.</li>
+					</ul>
+					<p class="source-note" style="margin-top: 0.9rem">
+						The required independent Opus check was unavailable because its session limit resets
+						at 12:50 Europe/Amsterdam. No outside findings were accepted; the local failure-mode
+						table is preserved in the authoritative Markdown.
+					</p>
+				</section>
+
+				<section class="panel" id="handoff">
+					<header>
+						<h2>Paste-ready handoff</h2>
+						<span class="kicker">Generated from your choices</span>
+					</header>
+					<textarea class="prompt-box" id="handoff-prompt" readonly aria-label="Generated handoff prompt"></textarea>
+					<div class="actions">
+						<button class="button" id="copy-prompt" type="button">Copy handoff</button>
+						<button class="button secondary" id="reset-decisions" type="button">Reset choices</button>
+					</div>
+					<p id="copy-state" class="save-state" role="status"></p>
+				</section>
+			</main>
+
+			<aside class="rail" aria-label="Plan navigation">
+				<nav class="rail-card">
+					<h2>Review path</h2>
+					<ol>
+						<li><a href="#evidence">Measured defect</a></li>
+						<li><a href="#findings">Ranked findings</a></li>
+						<li><a href="#decisions">Your choices</a></li>
+						<li><a href="#tickets">Execution order</a></li>
+						<li><a href="#guards">Failure guards</a></li>
+						<li><a href="#handoff">Generated handoff</a></li>
+					</ol>
+				</nav>
+				<div class="rail-card">
+					<h2>Source of truth</h2>
+					<p class="source-note">
+						<code>docs/feature-lists/<br />FEATURE_LIST_SHOPPING_<br />INTERACTION_STABILITY.md</code>
+					</p>
+					<p style="margin: 0; color: var(--muted); font-size: 0.75rem">
+						The next agent loads the Markdown, never this HTML.
+					</p>
+				</div>
+			</aside>
+		</div>
+	</div>
+
+	<script>
+		(() => {
+			"use strict";
+
+			const artifactPath = "docs/artifacts/2026-07-29-plan-shopping-interaction-stability.html";
+			const sourcePath = "docs/feature-lists/FEATURE_LIST_SHOPPING_INTERACTION_STABILITY.md";
+			const schemaVersion = 1;
+			const storageKey = `decision-workspace:${artifactPath}:v${schemaVersion}`;
+			const saveState = document.getElementById("save-state");
+			const copyState = document.getElementById("copy-state");
+			const prompt = document.getElementById("handoff-prompt");
+			const completionNote = document.getElementById("completion-note");
+			const ahNote = document.getElementById("ah-note");
+
+			const decisions = {
+				completion: {
+					question: "Should checked rows continue moving into the basket?",
+					source: "Open Questions; SIS-02 and SIS-03",
+					recommendation: "basket-motion",
+					rationale: "Completed rows stop competing with the remaining shop while stable identity, viewport-safe focus, and short local motion repair the actual defects.",
+					assumptions: "The recently shipped Source Ledger and active/basket contract remain the intended repeated-shopping model.",
+					evidence: "At 375px one tap scrolled the outer window 569px; at 1280px a singleton section shifted 106px instantly.",
+					uncertainty: "The household may prefer absolute positional stability enough to keep completed rows inline.",
+					options: {
+						"basket-motion": {
+							label: "Keep basket + local motion",
+							consequence: "Preserves the active task and shipped model; adds per-key locking, viewport-safe focus, and bounded reflow."
+						},
+						"inline": {
+							label: "Keep checked rows inline",
+							consequence: "Eliminates settled reparenting but changes the interaction model and leaves completed rows mixed with active work."
+						},
+						"basket-instant": {
+							label: "Fix identity, omit motion",
+							consequence: "Repairs scroll/order with less code but keeps abrupt section collapse."
+						}
+					}
+				},
+				"ah-detail": {
+					question: "How much of an unresolved AH result should remain expanded?",
+					source: "Open Questions; SIS-07",
+					recommendation: "two-unresolved",
+					rationale: "Duplicate-send safety stays visible while successful and overflow product detail stops burying the list.",
+					assumptions: "Outcome, safety help, Open AH, and no-Retry semantics are mandatory regardless of this choice.",
+					evidence: "In the 375px fixture, expanded unresolved history plus an empty Weekly card put the first active row behind fixed controls.",
+					uncertainty: "A household may value seeing every affected product above immediate access to the list.",
+					options: {
+						"two-unresolved": {
+							label: "Show up to two unresolved lines",
+							consequence: "Keeps actionable product context visible and discloses resolved/overflow lines."
+						},
+						"all-lines": {
+							label: "Leave every line expanded",
+							consequence: "Maximizes product detail but preserves the support-first mobile hierarchy."
+						},
+						"summary-only": {
+							label: "Collapse every product line",
+							consequence: "Maximizes list space but requires disclosure before identifying affected products."
+						}
+					}
+				}
+			};
+
+			function selected(name) {
+				return document.querySelector(`input[name="${name}"]:checked`)?.value;
+			}
+
+			function state() {
+				return {
+					completion: selected("completion") || "basket-motion",
+					"ah-detail": selected("ah-detail") || "two-unresolved",
+					completionNote: completionNote.value,
+					ahNote: ahNote.value
+				};
+			}
+
+			function applyState(saved) {
+				for (const name of ["completion", "ah-detail"]) {
+					const value = saved?.[name];
+					if (!value) continue;
+					const input = document.querySelector(`input[name="${name}"][value="${value}"]`);
+					if (input) input.checked = true;
+				}
+				completionNote.value = saved?.completionNote || "";
+				ahNote.value = saved?.ahNote || "";
+			}
+
+			function save() {
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state()));
+					saveState.textContent = "Choices saved in this browser.";
+				} catch {
+					saveState.textContent = "Choices are active for this session but could not be saved in this browser.";
+				}
+			}
+
+			function load() {
+				try {
+					const raw = localStorage.getItem(storageKey);
+					if (raw) {
+						applyState(JSON.parse(raw));
+						saveState.textContent = "Saved choices restored.";
+					}
+				} catch {
+					saveState.textContent = "Saved choices could not be read; recommended defaults are active.";
+				}
+			}
+
+			function decisionBlock(id, note) {
+				const item = decisions[id];
+				const choice = state()[id];
+				const option = item.options[choice];
+				const status = choice === item.recommendation
+					? "Accepted recommendation"
+					: "Override selected";
+				return [
+					`Decision: ${item.question}`,
+					`Source: ${item.source}`,
+					`Outcome: ${option.label} (${status})`,
+					`Practical consequence: ${option.consequence}`,
+					`Recommendation: ${item.options[item.recommendation].label}`,
+					`Rationale: ${item.rationale}`,
+					`Assumptions: ${item.assumptions}`,
+					`Evidence: ${item.evidence}`,
+					`Uncertainty: ${item.uncertainty}`,
+					`Available options: ${Object.values(item.options).map((value) => `${value.label} — ${value.consequence}`).join(" / ")}`,
+					`User note (verbatim): ${note || "[none]"}`
+				].join("\n");
+			}
+
+			function updatePrompt() {
+				const current = state();
+				prompt.value = [
+					"Execute the Shopping Interaction Stability plan.",
+					`Load the authoritative Markdown at ${sourcePath}, then run $run.`,
+					"",
+					"Goal: make /shopping spatially stable and less repetitive without replacing the shipped Source Ledger or changing Shopping/AH data behavior.",
+					"Current state: UI/UX audit complete at 375 and 1280; seven tickets across four phases; overall R2; no application code or household data changed.",
+					"",
+					decisionBlock("completion", current.completionNote),
+					"",
+					decisionBlock("ah-detail", current.ahNote),
+					"",
+					"Mandatory constraints:",
+					"- Fix source-filter/group identity from the canonical source registry.",
+					"- Keep window.scrollY at zero; focus/reveal only within main.app-main and prove pointer + keyboard behavior.",
+					"- Lock in-flight/exiting row keys so motion cannot create a double mutation.",
+					"- Respect reduced motion with zero directive duration.",
+					"- Preserve the Weekly one-tap Manage path.",
+					"- Preserve Dutch AH lineage, outcome classification, fingerprinted push behavior, and uncertain no-Retry safety.",
+					"- Use synthetic fixtures; do not make a real AH request or retain household content.",
+					"",
+					"Start with SIS-01 and SIS-02. Reproduce the 375px scrolled-check defect, filter-pill reorder, and 106px singleton-section shift before changing code. Execute each ticket with its focused tests, then run the full verification matrix and repository gate."
+				].join("\n");
+			}
+
+			function onChange() {
+				save();
+				updatePrompt();
+			}
+
+			document.querySelectorAll('input[type="radio"], textarea').forEach((element) => {
+				element.addEventListener("change", onChange);
+				element.addEventListener("input", onChange);
+			});
+
+			document.getElementById("copy-prompt").addEventListener("click", async () => {
+				updatePrompt();
+				try {
+					await navigator.clipboard.writeText(prompt.value);
+					copyState.textContent = "Handoff copied.";
+				} catch {
+					prompt.focus();
+					prompt.select();
+					copyState.textContent = "Clipboard access was unavailable. The full handoff is selected; copy it with Ctrl+C or Cmd+C.";
+				}
+			});
+
+			document.getElementById("reset-decisions").addEventListener("click", () => {
+				document.querySelector('input[name="completion"][value="basket-motion"]').checked = true;
+				document.querySelector('input[name="ah-detail"][value="two-unresolved"]').checked = true;
+				completionNote.value = "";
+				ahNote.value = "";
+				try { localStorage.removeItem(storageKey); } catch {}
+				saveState.textContent = "Recommended defaults restored.";
+				copyState.textContent = "";
+				updatePrompt();
+			});
+
+			load();
+			updatePrompt();
+		})();
+	</script>
+</body>
+</html>

@@ -39,6 +39,11 @@ export type ShoppingListViewMode =
 	| 'complete'
 	| 'covered-only';
 
+export type ShoppingFocusIntent = {
+	key: string | null;
+	mode: 'preserve' | 'reveal';
+};
+
 type ShoppingListMessages = {
 	bought: (name: string, count: number) => string;
 	notBought: (name: string, count: number) => string;
@@ -56,7 +61,8 @@ export type ShoppingListControllerDependencies = {
 	onToggleBought: (item: ShoppingListItem) => Promise<boolean>;
 	onDeleteManual: (source: ShoppingListSource) => Promise<boolean>;
 	onRestoreManual: (source: ShoppingListSource) => Promise<boolean>;
-	focus: (key: string | null) => Promise<void>;
+	focus: (intent: ShoppingFocusIntent) => Promise<void>;
+	waitForMotion: () => Promise<void>;
 	notifyUndo: (message: string, action: () => void | Promise<void>) => void;
 	notifyError: (message: string) => void;
 	messages: ShoppingListMessages;
@@ -69,6 +75,7 @@ class ShoppingListController {
 	actionPending = $state(false);
 	basketOpen = $state(false);
 	shoppingStatus = $state('');
+	lockedItemKeys = $state<string[]>([]);
 
 	readonly #dependencies: ShoppingListControllerDependencies;
 
@@ -97,10 +104,8 @@ class ShoppingListController {
 	}
 
 	get filterOptions() {
-		const projected = getShoppingFilterOptions([...this.pending, ...this.done]);
-		const sourceMeals = this.recipeSources.flatMap((source) => source.mealNames);
 		return {
-			meals: [...new Set([...projected.meals, ...sourceMeals])],
+			meals: getShoppingFilterOptions(this.#dependencies.sources()).meals,
 			hasWeekly: true
 		};
 	}
@@ -127,6 +132,10 @@ class ShoppingListController {
 			this.filter,
 			this.filterOptions.meals
 		);
+	}
+
+	get activeFocusItems() {
+		return this.activeGroups.flatMap((group) => group.items);
 	}
 
 	get recipeSources() {
@@ -173,6 +182,16 @@ class ShoppingListController {
 		);
 	}
 
+	itemLocked(key: string): boolean {
+		return this.lockedItemKeys.includes(key);
+	}
+
+	#setItemLocked(key: string, value: boolean) {
+		this.lockedItemKeys = value
+			? [...new Set([...this.lockedItemKeys, key])]
+			: this.lockedItemKeys.filter((candidate) => candidate !== key);
+	}
+
 	openActions(item: ShoppingListItem) {
 		this.selectedItem = item;
 		this.itemActionOpen = true;
@@ -183,28 +202,49 @@ class ShoppingListController {
 	}
 
 	async undoBought(item: ShoppingListItem, key: string) {
+		if (this.itemLocked(key)) return;
+		this.#setItemLocked(key, true);
 		const restored = await this.#dependencies.onToggleBought(item);
-		if (!restored) return;
-		await this.#dependencies.focus(key);
+		if (!restored) {
+			this.#setItemLocked(key, false);
+			return;
+		}
 		this.shoppingStatus = item.bought
 			? this.#dependencies.messages.bought(item.name, this.activePending.length)
 			: this.#dependencies.messages.notBought(item.name, this.activePending.length);
+		await this.#dependencies.waitForMotion();
+		this.#setItemLocked(key, false);
+		await this.#dependencies.focus({ key, mode: 'reveal' });
 	}
 
 	async toggleBought(item: ShoppingListItem) {
 		const wasBought = item.bought;
 		const key = shoppingItemKey(item);
-		const before = wasBought ? [...this.completed] : [...this.activePending];
+		if (this.itemLocked(key)) return;
+		this.#setItemLocked(key, true);
+		const before = wasBought ? [...this.completed] : [...this.activeFocusItems];
 		const nextKey = wasBought ? key : nextVisibleShoppingKey(before, key);
 		const saved = await this.#dependencies.onToggleBought(item);
 		if (!saved) {
-			await this.#dependencies.focus(key);
+			this.#setItemLocked(key, false);
+			await this.#dependencies.focus({ key, mode: 'reveal' });
 			return;
 		}
-		await this.#dependencies.focus(nextKey);
+		const focusIntent: ShoppingFocusIntent = {
+			key: nextKey,
+			mode: wasBought || nextKey === null ? 'reveal' : 'preserve'
+		};
+		if (focusIntent.key !== key) {
+			await this.#dependencies.focus(focusIntent);
+		}
 		this.shoppingStatus = wasBought
 			? this.#dependencies.messages.notBought(item.name, this.activePending.length)
 			: this.#dependencies.messages.bought(item.name, this.activePending.length);
+		await this.#dependencies.waitForMotion();
+		this.#setItemLocked(key, false);
+		if (focusIntent.key === key) {
+			await this.#dependencies.focus(focusIntent);
+		}
 		this.#dependencies.notifyUndo(this.shoppingStatus, () => this.undoBought(item, key));
 	}
 

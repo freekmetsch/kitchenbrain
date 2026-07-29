@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { tick, type Snippet } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { slide } from 'svelte/transition';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 	import { m } from '$lib/paraglide/messages';
 	import {
 		shoppingItemKey,
@@ -14,7 +17,8 @@
 	import {
 		createShoppingListController,
 		type LegacyShoppingItem,
-		type RecurringShoppingItem
+		type RecurringShoppingItem,
+		type ShoppingFocusIntent
 	} from './list-controller.svelte';
 	import type { ShoppingListItem, ShoppingListSource } from './types';
 	import ShoppingSourceQuickControls, {
@@ -94,6 +98,11 @@
 	let offListOpen = $state(false);
 	let pendingSourceKeys = $state<string[]>([]);
 	let pendingRecipeIds = $state<number[]>([]);
+	const reducedMotion =
+		typeof window !== 'undefined' &&
+		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const rowMotionMs = reducedMotion ? 0 : MOTION_MICRO_MS;
+	const groupMotionMs = reducedMotion ? 0 : MOTION_CONTENT_MS;
 
 	function sectionLabel(section: ShoppingBoardSection): string {
 		switch (section.kind) {
@@ -110,17 +119,38 @@
 		return 'required';
 	}
 
-	async function focusShoppingKey(key: string | null) {
-		await tick();
-		if (key) {
-			const target = [...document.querySelectorAll<HTMLElement>('[data-shopping-key]')]
-				.find((element) => element.dataset.shoppingKey === key);
-			if (target) {
-				target.focus();
-				return;
-			}
+	function revealInsideAppMain(target: HTMLElement, appMain: HTMLElement) {
+		const row = target.closest<HTMLElement>('.market-run-row') ?? target;
+		const rowRect = row.getBoundingClientRect();
+		const mainRect = appMain.getBoundingClientRect();
+		const dockTop =
+			document.querySelector<HTMLElement>('.shopping-market-dock')?.getBoundingClientRect().top ??
+			mainRect.bottom;
+		const visibleTop = mainRect.top + 8;
+		const visibleBottom = Math.min(mainRect.bottom, dockTop) - 8;
+		if (rowRect.top < visibleTop) {
+			appMain.scrollTop += rowRect.top - visibleTop;
+		} else if (rowRect.bottom > visibleBottom) {
+			appMain.scrollTop += rowRect.bottom - visibleBottom;
 		}
-		document.querySelector<HTMLElement>('#shopping-basket-toggle')?.focus();
+	}
+
+	async function focusShoppingKey(intent: ShoppingFocusIntent) {
+		await tick();
+		const appMain = document.querySelector<HTMLElement>('main.app-main');
+		let target: HTMLElement | null = null;
+		if (intent.key) {
+			target = [...document.querySelectorAll<HTMLElement>('[data-shopping-key]')]
+				.find((element) => element.dataset.shoppingKey === intent.key) ?? null;
+			if (target) target.focus({ preventScroll: true });
+		}
+		if (!target) {
+			target = document.querySelector<HTMLElement>('#shopping-basket-toggle');
+			target?.focus({ preventScroll: true });
+		}
+		if (intent.mode === 'reveal' && target && appMain) {
+			revealInsideAppMain(target, appMain);
+		}
 	}
 
 	async function focusSourceKey(sourceKey: string) {
@@ -142,6 +172,11 @@
 		pendingRecipeIds = value
 			? [...new Set([...pendingRecipeIds, recipeId])]
 			: pendingRecipeIds.filter((id) => id !== recipeId);
+	}
+
+	function waitForListMotion(): Promise<void> {
+		if (groupMotionMs === 0) return Promise.resolve();
+		return new Promise((resolve) => setTimeout(resolve, groupMotionMs));
 	}
 
 	async function changeTerm(source: ShoppingListSource, term: string): Promise<boolean> {
@@ -206,6 +241,7 @@
 		onDeleteManual: (source) => onDeleteManual(source),
 		onRestoreManual: (source) => onRestoreManual(source),
 		focus: focusShoppingKey,
+		waitForMotion: waitForListMotion,
 		notifyUndo: (message, action) => toast.undo(message, () => void action()),
 		notifyError: (message) => toast.error(message),
 		messages: {
@@ -376,6 +412,8 @@
 				class:weekly={group.kind === 'weekly'}
 				class:shared={group.kind === 'shared'}
 				class="shopping-ledger-section"
+				out:slide={{ duration: groupMotionMs }}
+				animate:flip={{ duration: groupMotionMs }}
 			>
 				<header class="shopping-section-header">
 					<h2>{sectionLabel(group)} <span>· {group.items.length}</span></h2>
@@ -399,13 +437,22 @@
 					{@const key = shoppingItemKey(item)}
 					{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
 					{@const actionOwned = item.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
-					<li class:warning={item.incompatibleQuantities} class="market-run-row">
+					<li
+						class:warning={item.incompatibleQuantities}
+						class:locked={controller.itemLocked(key)}
+						class="market-run-row"
+						inert={controller.itemLocked(key)}
+						aria-busy={controller.itemLocked(key)}
+						out:slide={{ duration: rowMotionMs }}
+						animate:flip={{ duration: groupMotionMs }}
+					>
 						<label class="market-check-hit" aria-label={m.shopping_mark_bought_aria({ name: item.name })}>
 							<input
 								id={`buy-${key}`}
 								data-shopping-key={key}
 								type="checkbox"
 								checked={item.bought}
+								disabled={controller.itemLocked(key)}
 								onchange={() => void controller.toggleBought(item)}
 							/>
 							<span><Icon name="check" /></span>
@@ -527,13 +574,21 @@
 		{#each controller.completed as item (shoppingItemKey(item))}
 			{@const key = shoppingItemKey(item)}
 			{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
-			<li class="market-run-row">
+			<li
+				class:locked={controller.itemLocked(key)}
+				class="market-run-row"
+				inert={controller.itemLocked(key)}
+				aria-busy={controller.itemLocked(key)}
+				out:slide={{ duration: rowMotionMs }}
+				animate:flip={{ duration: groupMotionMs }}
+			>
 				<label class="market-check-hit" aria-label={m.shopping_mark_not_bought_aria({ name: item.name })}>
 					<input
 						id={`done-${key}`}
 						data-shopping-key={key}
 						type="checkbox"
 						checked
+						disabled={controller.itemLocked(key)}
 						onchange={() => void controller.toggleBought(item)}
 					/>
 					<span><Icon name="check" /></span>
@@ -824,6 +879,10 @@
 		background: color-mix(in oklab, var(--color-warning) 8%, var(--color-base-100));
 	}
 
+	.market-run-row.locked {
+		pointer-events: none;
+	}
+
 	.market-run-row.covered .market-covered-marker,
 	.market-run-row.covered > .market-row-copy > strong,
 	.market-run-row.covered > .market-row-copy > span {
@@ -839,6 +898,7 @@
 	}
 
 	.market-check-hit {
+		position: relative;
 		cursor: pointer;
 	}
 
@@ -853,11 +913,14 @@
 
 	.market-check-hit input {
 		position: absolute;
+		top: 50%;
+		left: 50%;
 		width: 1px;
 		height: 1px;
 		overflow: hidden;
 		clip: rect(0 0 0 0);
 		clip-path: inset(50%);
+		transform: translate(-50%, -50%);
 		white-space: nowrap;
 	}
 

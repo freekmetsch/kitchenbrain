@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ShoppingListItem, ShoppingListSource } from './types';
 import {
 	createShoppingListController,
+	type ShoppingFocusIntent,
 	type ShoppingListControllerDependencies
 } from './list-controller.svelte';
 
@@ -61,9 +62,10 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 	let pending = initialPending;
 	let done = initialDone;
 	let sources = [...pending, ...done].flatMap((entry) => entry.sources ?? []);
-	const focus = vi.fn<(key: string | null) => Promise<void>>(async () => {});
+	const focus = vi.fn<(intent: ShoppingFocusIntent) => Promise<void>>(async () => {});
 	const undo = vi.fn<(message: string, action: () => void) => void>();
 	const error = vi.fn<(message: string) => void>();
+	const waitForMotion = vi.fn<() => Promise<void>>(async () => {});
 	const dependencies: ShoppingListControllerDependencies = {
 		pending: () => pending,
 		done: () => done,
@@ -85,6 +87,7 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 		onDeleteManual: async () => true,
 		onRestoreManual: async () => true,
 		focus,
+		waitForMotion,
 		notifyUndo: undo,
 		notifyError: error,
 		messages: {
@@ -102,6 +105,7 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 		focus,
 		undo,
 		error,
+		waitForMotion,
 		setPending(value: ShoppingListItem[]) {
 			pending = value;
 		},
@@ -135,6 +139,27 @@ describe('shopping list controller', () => {
 		expect(second.controller.filter).toEqual({ kind: 'all' });
 	});
 
+	it('keeps canonical source order through check, undo, source add, and source removal', async () => {
+		const primarySource = source(1, 'recipe', { mealNames: ['Primary'] });
+		const secondarySource = source(2, 'recipe', { mealNames: ['Secondary'] });
+		const primary = item('tomatoes', 1, [primarySource]);
+		const secondary = item('beans', 2, [secondarySource]);
+		const test = harness([primary, secondary]);
+		test.setSources([primarySource, secondarySource]);
+
+		expect(test.controller.filterOptions.meals).toEqual(['Primary', 'Secondary']);
+		await test.controller.toggleBought(primary);
+		expect(test.controller.filterOptions.meals).toEqual(['Primary', 'Secondary']);
+		await test.undo.mock.calls[0][1]();
+		expect(test.controller.filterOptions.meals).toEqual(['Primary', 'Secondary']);
+
+		const tertiarySource = source(3, 'recipe', { mealNames: ['Tertiary'] });
+		test.setSources([primarySource, secondarySource, tertiarySource]);
+		expect(test.controller.filterOptions.meals).toEqual(['Primary', 'Secondary', 'Tertiary']);
+		test.setSources([secondarySource, tertiarySource]);
+		expect(test.controller.filterOptions.meals).toEqual(['Secondary', 'Tertiary']);
+	});
+
 	it('moves focus through visible order and restores the original row through undo', async () => {
 		const tomatoes = item('tomatoes', 1, [source(1, 'manual')]);
 		const milk = item('milk', 2, [source(2, 'weekly')]);
@@ -143,14 +168,20 @@ describe('shopping list controller', () => {
 
 		await test.controller.toggleBought(milk);
 
-		expect(test.focus).toHaveBeenLastCalledWith('entries:3');
+		expect(test.focus).toHaveBeenLastCalledWith({
+			key: 'entries:1',
+			mode: 'preserve'
+		});
 		expect(test.controller.shoppingStatus).toBe('bought:milk:2');
 		expect(test.undo).toHaveBeenCalledTimes(1);
 
 		const undoAction = test.undo.mock.calls[0][1];
 		await undoAction();
 
-		expect(test.focus).toHaveBeenLastCalledWith('entries:2');
+		expect(test.focus).toHaveBeenLastCalledWith({
+			key: 'entries:2',
+			mode: 'reveal'
+		});
 		expect(test.controller.shoppingStatus).toBe('not-bought:milk:3');
 	});
 
@@ -164,9 +195,37 @@ describe('shopping list controller', () => {
 
 		await failing.toggleBought(tomatoes);
 
-		expect(test.focus).toHaveBeenCalledWith('entries:1');
+		expect(test.focus).toHaveBeenCalledWith({
+			key: 'entries:1',
+			mode: 'reveal'
+		});
 		expect(failing.shoppingStatus).toBe('');
 		expect(test.undo).not.toHaveBeenCalled();
+	});
+
+	it('locks one item through its motion window so rapid activation sends one mutation', async () => {
+		const tomatoes = item('tomatoes', 1, [source(1, 'manual')]);
+		const test = harness([tomatoes]);
+		let releaseMotion!: () => void;
+		const motion = new Promise<void>((resolve) => {
+			releaseMotion = resolve;
+		});
+		const toggle = vi.fn(test.dependencies.onToggleBought);
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onToggleBought: toggle,
+			waitForMotion: () => motion
+		});
+
+		const first = controller.toggleBought(tomatoes);
+		await Promise.resolve();
+		await controller.toggleBought(tomatoes);
+
+		expect(toggle).toHaveBeenCalledTimes(1);
+		expect(controller.itemLocked('entries:1')).toBe(true);
+		releaseMotion();
+		await first;
+		expect(controller.itemLocked('entries:1')).toBe(false);
 	});
 
 	it('keeps the same focus key when restoring an item from the completed list', async () => {
@@ -175,7 +234,10 @@ describe('shopping list controller', () => {
 
 		await test.controller.toggleBought(tomatoes);
 
-		expect(test.focus).toHaveBeenLastCalledWith('entries:1');
+		expect(test.focus).toHaveBeenLastCalledWith({
+			key: 'entries:1',
+			mode: 'reveal'
+		});
 		expect(test.controller.shoppingStatus).toBe('not-bought:tomatoes:1');
 	});
 

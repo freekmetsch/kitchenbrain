@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { resolveShoppingPushOutcome } from './shopping_push_history';
+import {
+	resolveShoppingPushOutcome,
+	shoppingPushOutcomeNeedsReview,
+	splitShoppingPushItems
+} from './shopping_push_history';
 
 describe('resolveShoppingPushOutcome', () => {
 	it.each([
@@ -17,4 +21,39 @@ describe('resolveShoppingPushOutcome', () => {
 			).toBe(outcome);
 		}
 	);
+
+	it('keeps two unresolved lines visible and discloses overflow plus resolved detail', () => {
+		const items = [
+			{ id: 'resolved', status: 'success' as const },
+			{ id: 'skipped', status: 'skipped' as const },
+			{ id: 'uncertain', status: 'uncertain' as const },
+			{ id: 'failed', status: 'failed' as const }
+		];
+		expect(splitShoppingPushItems(items)).toEqual({
+			visible: [items[2], items[3]],
+			disclosed: [items[1], items[0]]
+		});
+	});
+
+	it('never moves resolved lines ahead of action-relevant unresolved lines', () => {
+		const items = [
+			{ id: 'resolved', status: 'success' as const },
+			{ id: 'failed', status: 'failed' as const }
+		];
+		expect(splitShoppingPushItems(items)).toEqual({
+			visible: [items[1]],
+			disclosed: [items[0]]
+		});
+	});
+
+	it.each(['pending', 'uncertain', 'failed', 'partial'] as const)(
+		'keeps the %s outcome on the safety-review path',
+		(outcome) => {
+			expect(shoppingPushOutcomeNeedsReview(outcome)).toBe(true);
+		}
+	);
+
+	it('keeps success compact and outside the safety-review path', () => {
+		expect(shoppingPushOutcomeNeedsReview('success')).toBe(false);
+	});
 });

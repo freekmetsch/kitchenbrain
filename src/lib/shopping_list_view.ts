@@ -1,4 +1,7 @@
-import type { ShoppingListItem } from '$lib/components/shopping/types';
+import type {
+	ShoppingListItem,
+	ShoppingListSource
+} from '$lib/components/shopping/types';
 
 export type ShoppingListFilter =
 	| { kind: 'all' }
@@ -25,21 +28,19 @@ function signature(value: string): string {
 		.join(' ');
 }
 
-export function getShoppingFilterOptions(items: ShoppingListItem[]): {
+export function getShoppingFilterOptions(sources: ShoppingListSource[]): {
 	meals: string[];
 	hasWeekly: boolean;
 } {
 	const meals: string[] = [];
 	const seen = new Set<string>();
 	let hasWeekly = false;
-	for (const item of items) {
-		for (const source of item.sources ?? []) {
-			if (source.sourceKind === 'weekly') hasWeekly = true;
-			for (const mealName of source.mealNames) {
-				if (seen.has(mealName)) continue;
-				seen.add(mealName);
-				meals.push(mealName);
-			}
+	for (const source of sources) {
+		if (source.sourceKind === 'weekly') hasWeekly = true;
+		for (const mealName of source.mealNames) {
+			if (seen.has(mealName)) continue;
+			seen.add(mealName);
+			meals.push(mealName);
 		}
 	}
 	return { meals, hasWeekly };
@@ -119,7 +120,9 @@ export function groupShoppingBoardItems<T extends ShoppingListItem>(
 	}
 
 	return [
-		{ kind: 'weekly' as const, key: 'weekly', mealName: null, items: weekly },
+		...(weekly.length
+			? [{ kind: 'weekly' as const, key: 'weekly', mealName: null, items: weekly }]
+			: []),
 		...(shared.length
 			? [{ kind: 'shared' as const, key: 'shared', mealName: null, items: shared }]
 			: []),

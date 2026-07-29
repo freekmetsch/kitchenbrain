@@ -3,7 +3,10 @@
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import {
+		orderShoppingPushItems,
 		resolveShoppingPushOutcome,
+		shoppingPushOutcomeNeedsReview,
+		splitShoppingPushItems,
 		type ShoppingPushOutcome
 	} from '$lib/shopping_push_history';
 	import { APP_TIME_ZONE } from '$lib/week';
@@ -85,13 +88,7 @@
 	}
 
 	function orderedItems(push: Push): PushHistoryItem[] {
-		const rank: Record<PushHistoryItem['status'], number> = {
-			uncertain: 0,
-			failed: 1,
-			skipped: 2,
-			success: 3
-		};
-		return [...push.items].sort((a, b) => rank[a.status] - rank[b.status]);
+		return orderShoppingPushItems(push.items);
 	}
 
 	function iconName(item: PushHistoryItem): 'check' | 'x' | 'warn' | 'minus' {
@@ -100,25 +97,46 @@
 		if (item.status === 'uncertain') return 'warn';
 		return 'minus';
 	}
+
+	function outcomeHelp(value: ShoppingPushOutcome): string | null {
+		switch (value) {
+			case 'pending':
+				return m.shopping_pushhistory_pending_help();
+			case 'uncertain':
+				return m.shopping_pushhistory_uncertain_help();
+			case 'failed':
+				return m.shopping_pushhistory_failed_help();
+			case 'partial':
+				return m.shopping_pushhistory_partial_help();
+			case 'success':
+				return null;
+		}
+	}
 </script>
 
-{#snippet attemptItems(push: Push, limit = 5)}
-	{@const items = orderedItems(push)}
+{#snippet itemLines(items: PushHistoryItem[])}
 	<ul class="push-item-list">
-		{#each items.slice(0, limit) as item}
+		{#each items as item}
 			<li class:unresolved={item.status !== 'success'}>
 				<Icon name={iconName(item)} />
 				<span>{choiceLabel(item)}{#if item.status === 'uncertain'} · {m.shopping_pushhistory_item_uncertain()}{/if}</span>
 			</li>
 		{/each}
-		{#if items.length > limit}
-			<li class="push-more">{m.shopping_pushhistory_more({ count: items.length - limit })}</li>
-		{/if}
 	</ul>
+{/snippet}
+
+{#snippet attemptItems(push: Push, limit = 5)}
+	{@const items = orderedItems(push)}
+	{@render itemLines(items.slice(0, limit))}
+	{#if items.length > limit}
+		<p class="push-more">{m.shopping_pushhistory_more({ count: items.length - limit })}</p>
+	{/if}
 {/snippet}
 
 {#if latest}
 	{@const latestOutcome = outcome(latest)}
+	{@const latestItems = splitShoppingPushItems(latest.items)}
+	{@const latestHelp = outcomeHelp(latestOutcome)}
 	<section class="push-history" class:compact aria-labelledby={headingId}>
 		<h2 id={headingId} class="ui-section-label">{m.shopping_sent_to_ah_heading()}</h2>
 
@@ -151,16 +169,20 @@
 				{/if}
 			</header>
 
-			{#if latestOutcome === 'pending' || latestOutcome === 'uncertain'}
-				<p class="push-alert" role="alert">
-					{latestOutcome === 'pending'
-						? m.shopping_pushhistory_pending_help()
-						: m.shopping_pushhistory_uncertain_help()}
-				</p>
+			{#if latestHelp}
+				<p class="push-alert" role="alert">{latestHelp}</p>
 			{/if}
 
-			{#if latestOutcome === 'uncertain' || latestOutcome === 'failed' || latestOutcome === 'partial'}
-				{@render attemptItems(latest)}
+			{#if shoppingPushOutcomeNeedsReview(latestOutcome)}
+				{#if latestItems.visible.length}
+					{@render itemLines(latestItems.visible)}
+				{/if}
+				{#if latestItems.disclosed.length}
+					<details class="push-details">
+						<summary>{m.shopping_pushhistory_view_more_items({ count: latestItems.disclosed.length })}</summary>
+						{@render itemLines(latestItems.disclosed)}
+					</details>
+				{/if}
 			{:else if latestOutcome === 'success' && latest.items.length}
 				<details class="push-details">
 					<summary>{m.shopping_pushhistory_view_items({ count: latest.items.length })}</summary>
@@ -168,7 +190,7 @@
 				</details>
 			{/if}
 
-			{#if latestOutcome === 'uncertain' || latestOutcome === 'failed'}
+			{#if shoppingPushOutcomeNeedsReview(latestOutcome)}
 				<a class="push-open-ah" href="https://www.ah.nl" target="_blank" rel="noopener noreferrer">
 					{m.shopping_ah_open_button()}
 				</a>
@@ -339,10 +361,12 @@
 		color: var(--color-success);
 	}
 
-	.push-item-list .push-more {
+	.push-more {
 		display: block;
+		margin: 0.25rem 0 0;
 		padding-left: 1.2rem;
 		color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
+		font-size: 0.64rem;
 	}
 
 	.push-details {

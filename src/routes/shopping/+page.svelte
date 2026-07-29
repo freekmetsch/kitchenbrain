@@ -166,7 +166,10 @@
 		ahConnected={data.ah.connected}
 	/>
 
-	<div class="shopping-market-layout ui-kitchen-content">
+	<div
+		class:single-column={data.pushHistory.length === 0}
+		class="shopping-market-layout ui-kitchen-content"
+	>
 		<main class="min-w-0">
 			<ShoppingLists
 				{pending}
@@ -236,7 +239,6 @@
 				{/snippet}
 				{#snippet notices()}
 					<ShoppingNotices
-						showAhNotice={!data.ah.connected && items.length > 0}
 						mealsWithoutRecipe={data.mealsWithoutRecipe}
 						freezerMeals={data.freezerMeals}
 						freezerMealsMissingFreshInfo={data.freezerMealsMissingFreshInfo}
@@ -245,42 +247,21 @@
 			</ShoppingLists>
 		</main>
 
-		<aside class="shopping-market-aside">
-			<div class="shopping-market-desktop">
-				<section class="market-side-card">
-					<header><strong>Albert Heijn</strong><span>{data.ah.connected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}</span></header>
-					<div>
-						<p>{data.ah.connected ? m.shopping_uncovered_ready({ count: visibleToBuyCount }) : m.shopping_ah_connect_first()}</p>
-						{#if data.ah.connected}
-							<button
-								type="button"
-								class="market-side-action"
-								disabled={visibleToBuyCount === 0}
-								onclick={() => ahSheet?.openAhModal()}
-							>
-								<Icon name="cart" class="h-4 w-4" />
-								{m.shopping_review_ah_short()} · {visibleToBuyCount}
-							</button>
-						{:else}
-							<a href="{base}/settings/connections" class="market-side-action">{m.shopping_open_settings_button()}</a>
-						{/if}
-					</div>
-				</section>
-
-			</div>
-
-			<div class="shopping-market-desktop-history">
-				<PushHistory
-					pushHistory={data.pushHistory}
-					compact
-					headingId="shopping-desktop-push-history"
-				/>
-			</div>
-		</aside>
+		{#if data.pushHistory.length}
+			<aside class="shopping-market-aside">
+				<div class="shopping-market-desktop-history">
+					<PushHistory
+						pushHistory={data.pushHistory}
+						compact
+						headingId="shopping-desktop-push-history"
+					/>
+				</div>
+			</aside>
+		{/if}
 	</div>
 
 	<div
-		class:single-action={visibleToBuyCount === 0}
+		class:single-column={data.pushHistory.length === 0}
 		class="shopping-market-dock"
 		aria-label={m.shopping_heading()}
 	>
@@ -288,17 +269,28 @@
 			<Icon name="plus" />
 			{m.shopping_additem_submit_aria()}
 		</button>
-		<button
-			type="button"
-			class="market-ah-action"
-			disabled={visibleToBuyCount === 0}
-			onclick={() => ahSheet?.openAhModal()}
-			aria-label={m.shopping_review_ah_order()}
-		>
-			<Icon name="cart" />
-			{m.shopping_review_ah_short()}
-			{#if visibleToBuyCount > 0}<span>{visibleToBuyCount}</span>{/if}
-		</button>
+		{#if data.ah.connected}
+			<button
+				type="button"
+				class="market-ah-action"
+				disabled={visibleToBuyCount === 0}
+				onclick={() => ahSheet?.openAhModal()}
+				aria-label={m.shopping_review_ah_order()}
+			>
+				<Icon name="cart" />
+				{m.shopping_review_ah_short()}
+				{#if visibleToBuyCount > 0}<span>{visibleToBuyCount}</span>{/if}
+			</button>
+		{:else}
+			<a
+				class="market-ah-action"
+				href="{base}/settings/connections"
+				aria-label={m.shopping_connect_settings_link()}
+			>
+				<Icon name="cart" />
+				{m.shopping_connect_ah_short()}
+			</a>
+		{/if}
 	</div>
 </div>
 
@@ -339,75 +331,12 @@
 		min-width: 0;
 	}
 
-	.shopping-market-desktop {
-		display: none;
-	}
-
 	.shopping-market-mobile-history {
 		display: block;
 	}
 
 	.shopping-market-desktop-history {
 		display: none;
-	}
-
-	.market-side-card {
-		overflow: hidden;
-		border: 1px solid color-mix(in oklab, var(--market-olive) 18%, var(--color-base-300));
-		border-radius: 0.85rem;
-		background: var(--market-card);
-		box-shadow: 0 6px 18px rgb(48 75 58 / 5%);
-	}
-
-	.market-side-card > header {
-		display: flex;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		border-bottom: 1px solid var(--color-base-200);
-		padding: 0 0.8rem;
-	}
-
-	.market-side-card > header strong {
-		font-size: 0.66rem;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	.market-side-card > header span {
-		color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
-		font-size: 0.64rem;
-	}
-
-	.market-side-card > div {
-		padding: 0.8rem;
-	}
-
-	.market-side-card p {
-		color: color-mix(in oklab, var(--color-base-content) 74%, transparent);
-		font-size: 0.72rem;
-		line-height: 1.45;
-	}
-
-	.market-side-action {
-		display: inline-flex;
-		width: 100%;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-		margin-top: 0.7rem;
-		border-radius: 0.65rem;
-		background: var(--market-terra);
-		color: white;
-		font-size: 0.72rem;
-		font-weight: 750;
-	}
-
-	.market-side-action:disabled {
-		background: var(--color-base-200);
-		color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
 	}
 
 	.shopping-market-dock {
@@ -429,7 +358,8 @@
 		backdrop-filter: blur(12px);
 	}
 
-	.shopping-market-dock button {
+	.shopping-market-dock button,
+	.shopping-market-dock a {
 		display: inline-flex;
 		min-width: 0;
 		min-height: 2.75rem;
@@ -440,16 +370,6 @@
 		padding: 0 0.7rem;
 		font-size: 0.75rem;
 		font-weight: 800;
-	}
-
-	@media (max-width: 47.999rem) {
-		.shopping-market-dock.single-action {
-			grid-template-columns: minmax(0, 1fr);
-		}
-
-		.shopping-market-dock.single-action .market-ah-action {
-			display: none;
-		}
 	}
 
 	.market-add-action {
@@ -484,15 +404,14 @@
 	}
 
 	@media (min-width: 48rem) {
-		.shopping-market-layout {
+		.shopping-market-layout:not(.single-column) {
 			grid-template-columns: minmax(0, 1fr) 17rem;
+		}
+
+		.shopping-market-layout {
 			align-items: start;
 			gap: 0.9rem;
 			padding-block: 0.85rem max(7rem, var(--ui-overlay-bottom));
-		}
-
-		.shopping-market-desktop {
-			display: block;
 		}
 
 		.shopping-market-mobile-history {
@@ -505,8 +424,11 @@
 	}
 
 	@media (min-width: 64rem) {
-		.shopping-market-layout {
+		.shopping-market-layout:not(.single-column) {
 			grid-template-columns: minmax(0, 1fr) 18.75rem;
+		}
+
+		.shopping-market-layout {
 			gap: 1rem;
 		}
 
@@ -516,6 +438,10 @@
 			width: 30rem;
 			/* Center the dock beneath the primary column, not the context rail. */
 			transform: translateX(-50%) translateX(-9.875rem);
+		}
+
+		.shopping-market-dock.single-column {
+			transform: translateX(-50%);
 		}
 	}
 </style>
