@@ -18,6 +18,7 @@ export type KitchenFixture = {
 	recipeSlug: string;
 	recipeTitle: string;
 	shoppingName: string;
+	shoppingSibling: string;
 	longShoppingNames: string[];
 	shoppingAlternative: string;
 	shoppingNameEn: string;
@@ -40,6 +41,7 @@ function fixtureForAccount(account: TestAccountName): KitchenFixture {
 		recipeSlug: `e2e-${account}-stew`,
 		recipeTitle: `E2E ${label} Stew`,
 		shoppingName: `E2E ${dutchLabel} tomaten`,
+		shoppingSibling: 'E2E gedeelde basilicum',
 		longShoppingNames: [
 			'amandelen',
 			'broccoli',
@@ -291,7 +293,28 @@ export function seedKitchenFixtures(databasePath: string): void {
 					role: 'cook_in',
 					purchaseForm: 'preserved',
 					origin: 'source',
-					substitutes: [{ name: fixture.shoppingAlternative }]
+					substitutes: [
+						{ name: fixture.shoppingAlternative },
+						{
+							name: `E2E ${fixture.account === 'primary' ? 'primaire' : 'secundaire'} gezeefde tomaten in een extra lange verpakking`
+						},
+						{
+							name: `E2E ${fixture.account === 'primary' ? 'primaire' : 'secundaire'} hele gepelde tomaten`
+						},
+						{
+							name: `E2E ${fixture.account === 'primary' ? 'primaire' : 'secundaire'} tomatenpassata`
+						}
+					]
+				},
+				{
+					id: `e2e-${fixture.account}-basil`,
+					name: fixture.shoppingSibling,
+					amount: '1',
+					unit: 'bunch',
+					optional: true,
+					role: 'serve_fresh',
+					purchaseForm: 'fresh',
+					origin: 'source'
 				}
 			];
 			const ingredientsEn = [
@@ -299,7 +322,18 @@ export function seedKitchenFixtures(databasePath: string): void {
 					name: fixture.shoppingNameEn,
 					amount: '2',
 					unit: 'cans',
-					substitutes: [{ name: fixture.shoppingAlternativeEn }]
+					substitutes: [
+						{ name: fixture.shoppingAlternativeEn },
+						{ name: 'E2E strained tomatoes in an extra-long package' },
+						{ name: 'E2E whole peeled tomatoes' },
+						{ name: 'E2E tomato passata' }
+					]
+				},
+				{
+					name: `E2E ${fixture.account === 'primary' ? 'Primary' : 'Secondary'} Basil`,
+					amount: '1',
+					unit: 'bunch',
+					optional: true
 				}
 			];
 			const directions = ['Laat sudderen tot gaar.', 'Serveer de stoofpot.'];

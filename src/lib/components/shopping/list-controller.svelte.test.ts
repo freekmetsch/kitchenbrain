@@ -13,12 +13,14 @@ function source(
 	return {
 		id,
 		revision: 1,
+		sourceKey: `${sourceKind}:${id}`,
 		sourceKind,
 		recipeId: null,
 		recipeSlug: null,
 		recipeTitle: null,
 		recipeRevision: null,
 		ingredientId: null,
+		recurringItemId: null,
 		name: `source ${id}`,
 		term: `source ${id}`,
 		amount: null,
@@ -62,9 +64,6 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 	const focus = vi.fn<(key: string | null) => Promise<void>>(async () => {});
 	const undo = vi.fn<(message: string, action: () => void) => void>();
 	const error = vi.fn<(message: string) => void>();
-	const settle = vi.fn(async () => {});
-	const openWeeklyManager = vi.fn(async () => {});
-
 	const dependencies: ShoppingListControllerDependencies = {
 		pending: () => pending,
 		done: () => done,
@@ -86,8 +85,6 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 		onDeleteManual: async () => true,
 		onRestoreManual: async () => true,
 		focus,
-		settle,
-		openWeeklyManager,
 		notifyUndo: undo,
 		notifyError: error,
 		messages: {
@@ -105,8 +102,6 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 		focus,
 		undo,
 		error,
-		settle,
-		openWeeklyManager,
 		setPending(value: ShoppingListItem[]) {
 			pending = value;
 		},
@@ -132,6 +127,9 @@ describe('shopping list controller', () => {
 		expect(second.controller.filter).toEqual({ kind: 'all' });
 
 		first.setPending([]);
+		expect(first.controller.reconcileFilter()).toBe(false);
+		expect(first.controller.filterOptions.meals).toContain('Soup');
+		first.setSources([]);
 		expect(first.controller.reconcileFilter()).toBe(true);
 		expect(first.controller.filter).toEqual({ kind: 'all' });
 		expect(second.controller.filter).toEqual({ kind: 'all' });
@@ -181,24 +179,16 @@ describe('shopping list controller', () => {
 		expect(test.controller.shoppingStatus).toBe('not-bought:tomatoes:1');
 	});
 
-	it('opens row rules directly and waits for item actions before opening weekly management', async () => {
-		const recipeSource = source(1, 'recipe');
-		const entry = item('tomatoes', 1, [recipeSource]);
+	it('keeps manual item actions local to the selected row', () => {
+		const entry = item('tomatoes', 1, [source(1, 'manual')]);
 		const test = harness([entry]);
 
-		test.controller.openRuleSources([recipeSource]);
-		expect(test.controller.selectedSources).toEqual([recipeSource]);
-		expect(test.controller.sourceSheetOpen).toBe(true);
-		test.controller.openRules();
-		expect(test.controller.rulesOpen).toBe(true);
-		expect(test.settle).not.toHaveBeenCalled();
-
-		test.controller.sourceSheetOpen = false;
 		test.controller.openActions(entry);
-		test.controller.openWeeklyAfterActions();
-		await test.controller.handleActionClose();
-		expect(test.settle).toHaveBeenCalledTimes(1);
-		expect(test.openWeeklyManager).toHaveBeenCalledTimes(1);
+		expect(test.controller.selectedItem).toBe(entry);
+		expect(test.controller.itemActionOpen).toBe(true);
+		test.controller.itemActionOpen = false;
+		test.controller.handleActionClose();
+		expect(test.controller.selectedItem).toBeNull();
 	});
 
 	it('coordinates empty, filtered-empty, active, covered-only, and complete modes', () => {

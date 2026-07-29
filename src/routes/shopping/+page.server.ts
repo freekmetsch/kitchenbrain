@@ -26,6 +26,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		prevWeek: page.prevWeek,
 		nextWeek: page.nextWeek,
 		isDefaultWeek: page.isDefaultWeek,
+		isEditable: page.isEditable,
 		deliveryDate: page.deliveryDate,
 		emptyState: page.emptyState,
 		ah: page.ah,

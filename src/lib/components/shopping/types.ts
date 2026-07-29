@@ -3,12 +3,14 @@ import type { IngredientPurchaseForm } from '$lib/recipe_ingredient';
 export type ShoppingListSource = {
 	id: number;
 	revision: number;
+	sourceKey: string;
 	sourceKind: 'recipe' | 'weekly' | 'manual' | 'legacy';
 	recipeId: number | null;
 	recipeSlug: string | null;
 	recipeTitle: string | null;
 	recipeRevision: number | null;
 	ingredientId: string | null;
+	recurringItemId: number | null;
 	name: string;
 	term: string;
 	amount: string | null;

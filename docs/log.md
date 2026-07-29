@@ -668,3 +668,57 @@ src/routes/api/chat/+server.ts
 No terminal feature list was present in the root lane. The active Butler roadmap remains in
 place for the promoted Next portfolio. The repository still has no `scripts/archive-scan.ps1`,
 so it remains a candidate for the shared archive-script rollout.
+
+## 2026-07-28 | plan + html-artifact | Shopping quick rules and inline Weekly items
+
+Created the execution-ready successor to the shipped Source Ledger. The selected approach removes
+the umbrella Shopping-rules manager in favor of independent one-tap Need and Dutch-term controls,
+a source-derived `Not this run` shelf, and a Weekly section edit mode rendered from recurring
+definitions instead of a bottom sheet.
+
+The first architecture draft was NO-GO after independent Opus review found coupled substitute/
+staple writes, missing focus recovery after a successful exclusion, no host for excluded recipe
+sources, and no host for skipped weekly definitions. The revised plan separates term and need
+commands, keys recovery on `sourceKey`, makes Weekly run/edit bodies mutually exclusive, and
+returns the new identity after effective-dated recurring edits. Context7 was not used because no
+external library or API contract changes.
+
+Touched: docs/feature-lists/FEATURE_LIST_SHOPPING_QUICK_RULES_AND_INLINE_WEEKLY_ITEMS.md,
+docs/artifacts/2026-07-28-plan-shopping-quick-rules-inline-weekly-items.html
+
+## 2026-07-29 | run | Shopping quick rules and inline Weekly items
+
+Replaced the remaining Shopping-rules and Weekly-item managers with source-owned controls. Each
+recipe source now keeps its item name, one cycling Always/Nice to have/Usually stocked pill, and
+one adjacent Buy menu in a compact row. Term-only writes cannot mutate inclusion, optionality,
+Inventory staple state, or canonical recipe fields; need writes serialize per recipe and recover
+by stable `sourceKey`. Excluded sources remain editable through `Not this run`.
+
+Weekly definitions now edit in place and replace Weekly run rows while editing. Add/edit drafts
+survive failed writes, later-week edits focus the returned recurring ID, include/skip is direct,
+stop uses inline confirmation, and past weeks remain read-only. No real AH action was exercised
+and Dutch AH-facing ingredient fields remain the source boundary.
+
+The complete provider-free gate passed 125 test files / 672 unit tests, all 23 primary
+authenticated browser stories, Svelte diagnostics, and the production build. All 23
+secondary-account browser stories also passed, including 320/375/768/1280 px, 200% effective
+layout, EN/NL, light/dark, stale, rollback, shared-source, off-list, and inline Weekly states.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_QUICK_RULES_AND_INLINE_WEEKLY_ITEMS.md,
+docs/artifacts/archive/2026-07-28-plan-shopping-quick-rules-inline-weekly-items.html,
+src/lib/components/shopping/ShoppingSourceQuickControls.svelte,
+src/lib/components/shopping/InlineWeeklyItemsEditor.svelte,
+src/lib/components/shopping/ShoppingLists.svelte,
+src/lib/server/workflows/choose-shopping-source.ts,
+src/lib/server/workflows/reconcile-shopping.ts,
+src/routes/api/shopping/recipe-choice/+server.ts,
+src/routes/shopping/+page.svelte
+
+## 2026-07-29 | archive-scan | 1 feature list, 1 HTML archived
+
+Moved the completed Shopping quick-rules feature list and its linked decision workspace into
+their archive directories. The repository has no `scripts/archive-scan.ps1`, so the validated
+inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_QUICK_RULES_AND_INLINE_WEEKLY_ITEMS.md,
+docs/artifacts/archive/2026-07-28-plan-shopping-quick-rules-inline-weekly-items.html

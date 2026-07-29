@@ -13,44 +13,81 @@
 	import type { PageData } from './$types';
 	import type { ShoppingListSource } from '$lib/components/shopping/types';
 	import { untrack } from 'svelte';
+	import type { ShoppingNeed } from '$lib/components/shopping/ShoppingSourceQuickControls.svelte';
 
 	type Item = PageData['items'][number];
+	type SourceMutationStatus = 'saved' | 'stale' | 'failed';
+	type MutationResult<T> =
+		| { status: 'saved'; data: T }
+		| { status: 'stale' | 'failed'; data: null };
 	let { data }: { data: PageData } = $props();
 	let items = $state<Item[]>(untrack(() => data.items.map((item) => ({ ...item }))));
 	let bonusByName = $state<Record<string, boolean>>({});
 	let ahSheet = $state<{ openAhModal: () => Promise<void> }>();
 	let addItemForm = $state<{ openAddModal: () => Promise<void> }>();
-	let shoppingLists = $state<{ openRules: (scope?: 'excluded' | 'all') => void }>();
 	let showCovered = $state(false);
 
 	let pending = $derived(items.filter((item) => !item.bought));
 	let done = $derived(items.filter((item) => item.bought));
 	let visibleToBuyCount = $derived(pending.filter((item) => !item.covered).length);
-	let recipeRuleCount = $derived(data.sources.filter((source) => source.sourceKind === 'recipe').length);
-	let excludedRuleCount = $derived(
-		data.sources.filter((source) => source.sourceKind === 'recipe' && !source.included).length
-	);
 	let emptyState = $derived(data.emptyState === 'no_meals' ? ('no_meals' as const) : ('nothing_needed' as const));
 
 	$effect(() => {
 		items = data.items.map((item) => ({ ...item }));
 	});
 
-	async function mutate(body: Record<string, unknown>, success?: string): Promise<boolean> {
+	async function postMutation<T>(
+		path: string,
+		body: Record<string, unknown>
+	): Promise<MutationResult<T>> {
 		try {
-			const response = await fetch(`${base}/api/shopping`, {
+			const response = await fetch(`${base}${path}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
 			});
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			if (!response.ok) {
+				if (response.status === 409) {
+					await invalidateAll();
+					return { status: 'stale', data: null };
+				}
+				throw new Error(`HTTP ${response.status}`);
+			}
+			const result = (await response.json()) as T;
 			await invalidateAll();
-			if (success) toast.success(success);
-			return true;
+			return { status: 'saved', data: result };
 		} catch {
-			toast.error(m.shopping_mutation_failed());
+			return { status: 'failed', data: null };
+		}
+	}
+
+	function showMutationFailure(status: 'stale' | 'failed') {
+		toast.error(
+			status === 'stale' ? m.shopping_choice_stale() : m.shopping_mutation_failed()
+		);
+	}
+
+	async function mutate(body: Record<string, unknown>, success?: string): Promise<boolean> {
+		const result = await postMutation<unknown>('/api/shopping', body);
+		if (result.status !== 'saved') {
+			showMutationFailure(result.status);
 			return false;
 		}
+		if (success) toast.success(success);
+		return true;
+	}
+
+	async function mutateReturning<T>(
+		body: Record<string, unknown>,
+		success?: string
+	): Promise<T | null> {
+		const result = await postMutation<T>('/api/shopping', body);
+		if (result.status !== 'saved') {
+			showMutationFailure(result.status);
+			return null;
+		}
+		if (success) toast.success(success);
+		return result.data;
 	}
 
 	async function toggleBought(item: Item) {
@@ -72,29 +109,19 @@
 		return true;
 	}
 
-	async function saveSource(
+	async function mutateSource(
 		source: ShoppingListSource,
-		input: { need: 'required' | 'optional' | 'stocked'; term: string; useInRecipe: boolean }
-	) {
-		try {
-			const response = await fetch(`${base}/api/shopping/recipe-choice`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					entryId: source.id,
-					expectedEntryRevision: source.revision,
-					expectedRecipeRevision: source.recipeRevision,
-					...input
-				})
-			});
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
-			await invalidateAll();
-			toast.success(m.shopping_choice_saved());
-			return true;
-		} catch {
-			toast.error(m.shopping_mutation_failed());
-			return false;
-		}
+		input: { action: 'term'; term: string } | { action: 'need'; need: ShoppingNeed }
+	): Promise<SourceMutationStatus> {
+		const result = await postMutation<unknown>('/api/shopping/recipe-choice', {
+			entryId: source.id,
+			expectedEntryRevision: source.revision,
+			...(input.action === 'need'
+				? { expectedRecipeRevision: source.recipeRevision }
+				: {}),
+			...input
+		});
+		return result.status;
 	}
 
 	function addItem(_item: Item) {
@@ -137,15 +164,11 @@
 		isDefaultWeek={data.isDefaultWeek}
 		deliveryDate={data.deliveryDate}
 		ahConnected={data.ah.connected}
-		{recipeRuleCount}
-		{excludedRuleCount}
-		onOpenRules={() => shoppingLists?.openRules('all')}
 	/>
 
 	<div class="shopping-market-layout ui-kitchen-content">
 		<main class="min-w-0">
 			<ShoppingLists
-				bind:this={shoppingLists}
 				{pending}
 				{done}
 				sources={data.sources}
@@ -157,23 +180,34 @@
 				onToggleBought={toggleBought}
 				onDeleteManual={removeManual}
 				onRestoreManual={restoreManual}
-				onSaveSource={saveSource}
+				editable={data.isEditable}
+				onChangeSourceTerm={(source, term) =>
+					mutateSource(source, { action: 'term', term })}
+				onChangeSourceNeed={(source, need) =>
+					mutateSource(source, { action: 'need', need })}
 				onAddRecurring={(input) =>
-					mutate({ action: 'add_recurring', startWeek: data.weekStart, ...input })}
+					mutateReturning<{ id: number }>(
+						{ action: 'add_recurring', startWeek: data.weekStart, ...input },
+						m.shopping_choice_saved()
+					)}
 				onEditRecurring={(item, input) =>
-					mutate({
-						action: 'edit_recurring',
-						itemId: item.id,
-						expectedRevision: item.revision,
-						effectiveWeek: data.weekStart,
-						...input
-					})}
-				onSkipRecurring={(item) =>
+					mutateReturning<{ id: number }>(
+						{
+							action: 'edit_recurring',
+							itemId: item.id,
+							expectedRevision: item.revision,
+							effectiveWeek: data.weekStart,
+							...input
+						},
+						m.shopping_choice_saved()
+					)}
+				onSetRecurringIncluded={(item, included) =>
 					item.entryId && item.entryRevision
 						? mutate({
-								action: 'skip_recurring',
+								action: 'set_recurring_included',
 								entryId: item.entryId,
-								expectedRevision: item.entryRevision
+								expectedRevision: item.entryRevision,
+								included
 							})
 						: Promise.resolve(false)}
 				onDisableRecurring={(item) =>

@@ -15,11 +15,13 @@ function source(
 	return {
 		id: 1,
 		revision: 1,
+		sourceKey: 'manual:1',
 		recipeId: null,
 		recipeSlug: null,
 		recipeTitle: null,
 		recipeRevision: null,
 		ingredientId: null,
+		recurringItemId: null,
 		name: 'item',
 		term: 'item',
 		amount: null,

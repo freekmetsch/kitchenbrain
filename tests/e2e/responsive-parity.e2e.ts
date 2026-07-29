@@ -218,45 +218,62 @@ for (const viewport of VIEWPORTS) {
 			expect(historyBox?.x).toBeGreaterThan(ledgerBox?.x ?? Number.POSITIVE_INFINITY);
 		}
 
-		const rulesTrigger = page.getByRole('button', { name: /^Shopping rules/ });
-		await expect(rulesTrigger).toBeVisible();
-		await rulesTrigger.click();
-		let dialog = page.getByRole('dialog').filter({
-			has: page.getByRole('heading', { name: 'Manage shopping rules' })
+		await expect(page.getByRole('button', { name: /^Shopping rules/ })).toHaveCount(0);
+		const needPill = page.getByRole('button', {
+			name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Always`
 		});
-		await expect(dialog).toBeVisible();
-		await expect(page.locator('dialog[open]')).toHaveCount(1);
-		await dialog.getByRole('button', { name: new RegExp(fixture.shoppingName) }).click();
-		await expect(dialog.getByRole('radio', { name: /Every time/ })).toBeVisible();
-		await expect(page.locator('dialog[open]')).toHaveCount(1);
-		await page.keyboard.press('Escape');
-		await expect(rulesTrigger).toBeFocused();
-
-		const directRuleTrigger = page.getByRole('button', {
-			name: `Edit shopping rule for ${fixture.shoppingName}`
+		const buyPill = page.getByRole('combobox', {
+			name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
 		});
-		await directRuleTrigger.click();
-		dialog = page.getByRole('dialog').filter({
-			has: page.getByRole('heading', { name: 'Edit shopping rule' })
-		});
-		await expect(dialog.getByRole('radio', { name: /Every time/ })).toBeVisible();
-		await expect(dialog.getByRole('combobox', { name: 'Buy this week' })).toBeVisible();
-		await expect(page.locator('dialog[open]')).toHaveCount(1);
-		await page.keyboard.press('Escape');
-		await expect(directRuleTrigger).toBeFocused();
+		await expect(needPill).toBeVisible();
+		await expect(buyPill).toBeVisible();
+		await expect(buyPill.locator('option')).toHaveCount(5);
+		await expect(page.locator('dialog[open]')).toHaveCount(0);
+		const sourceName = page.getByText(fixture.shoppingName, { exact: true }).first();
+		const [sourceBox, needBox, buyBox] = await Promise.all([
+			sourceName.boundingBox(),
+			needPill.boundingBox(),
+			buyPill.boundingBox()
+		]);
+		expect(Math.abs((sourceBox?.y ?? 0) - (needBox?.y ?? 0))).toBeLessThan(20);
+		expect(Math.abs((needBox?.y ?? 0) - (buyBox?.y ?? 0))).toBeLessThan(20);
+		await page.route(
+			'**/api/shopping/recipe-choice',
+			(route) =>
+				route.fulfill({
+					status: 409,
+					contentType: 'application/json',
+					body: '{"message":"intentional stale source test"}'
+				}),
+			{ times: 1 }
+		);
+		await buyPill.selectOption(fixture.shoppingAlternative);
+		await expect(
+			page.getByRole('alert').filter({
+				hasText: 'This item changed elsewhere. The current value has been reloaded.'
+			})
+		).toBeVisible();
+		await expect(buyPill).toHaveValue(fixture.shoppingName);
+		await page.getByText('Not this run (2)', { exact: true }).click();
+		await expect(
+			page.getByRole('button', {
+				name: `Change need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}. Current: Nice to have`
+			})
+		).toBeVisible();
+		await filterRail.getByRole('button', { name: fixture.recipeTitle, exact: true }).click();
+		await expect(page.getByText('Not this run (1)', { exact: true })).toBeVisible();
+		await filterRail.getByRole('button', { name: 'All', exact: true }).click();
 
 		const weeklyFilter = filterRail.getByRole('button', { name: 'Weekly items', exact: true });
 		await weeklyFilter.click();
+		await expect(page.getByText(/^Not this run/)).toHaveCount(0);
 		await expect(page.getByText('No weekly items are included in this run.')).toBeVisible();
-		const manageWeekly = page.getByRole('button', { name: 'Manage', exact: true });
-		await manageWeekly.click();
-		dialog = page.getByRole('dialog').filter({
-			has: page.getByRole('heading', { name: 'Manage weekly items' })
-		});
-		await expect(dialog).toBeVisible();
-		await expect(page.locator('dialog[open]')).toHaveCount(1);
-		await page.keyboard.press('Escape');
-		await expect(manageWeekly).toBeFocused();
+		const editWeekly = page.getByRole('button', { name: 'Edit weekly', exact: true });
+		await editWeekly.click();
+		await expect(page.getByRole('button', { name: 'Add weekly item', exact: true })).toBeVisible();
+		await expect(page.locator('dialog[open]')).toHaveCount(0);
+		await page.getByRole('button', { name: 'Done editing', exact: true }).click();
+		await expect(editWeekly).toBeFocused();
 
 		const mealFilter = page
 			.getByRole('toolbar', { name: 'Filter shopping list' })
@@ -324,12 +341,10 @@ for (const viewport of VIEWPORTS) {
 			.getByRole('button', { name: 'Weekly items', exact: true })
 			.click();
 		await expect(page.getByText('No weekly items are included in this run.')).toBeVisible();
-		await page.getByRole('button', { name: 'Manage', exact: true }).click();
-		const emptyDialog = page.getByRole('dialog').filter({
-			has: page.getByRole('heading', { name: 'Manage weekly items' })
-		});
-		await expect(emptyDialog).toBeVisible();
-		await page.keyboard.press('Escape');
+		await page.getByRole('button', { name: 'Edit weekly', exact: true }).click();
+		await expect(page.getByRole('button', { name: 'Add weekly item', exact: true })).toBeVisible();
+		await expect(page.locator('dialog[open]')).toHaveCount(0);
+		await page.getByRole('button', { name: 'Done editing', exact: true }).click();
 		await expectResponsiveSurface(page, '/shopping (empty week)', viewport.width);
 	});
 
@@ -396,7 +411,11 @@ for (const viewport of VIEWPORTS) {
 	});
 }
 
-test('Shopping keeps its controls to one row at the narrow mobile boundary', async ({ page }) => {
+test('Shopping keeps source controls compact at 320, 768, and 200% text', async (
+	{ page },
+	testInfo
+) => {
+	const fixture = kitchenFixtureFor(testInfo);
 	await page.setViewportSize({ width: 320, height: 900 });
 	await page.goto('/shopping');
 	await page.waitForLoadState('networkidle');
@@ -418,6 +437,58 @@ test('Shopping keeps its controls to one row at the narrow mobile boundary', asy
 	for (const button of await filterRail.getByRole('button').all()) {
 		expect(await button.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
 	}
+	const needPill = page.getByRole('button', {
+		name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Always`
+	});
+	const buyPill = page.getByRole('combobox', {
+		name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
+	});
+	await expect(needPill).toBeVisible();
+	await expect(buyPill).toBeVisible();
+	expect(
+		Math.abs(
+			((await needPill.boundingBox())?.y ?? 0) - ((await buyPill.boundingBox())?.y ?? 0)
+		)
+	).toBeLessThan(20);
 	await expect(page.getByRole('progressbar')).toHaveCount(0);
 	await expectResponsiveSurface(page, '/shopping (320px compact controls)', 320);
+
+	await page.setViewportSize({ width: 768, height: 900 });
+	await page.evaluate(() => {
+		document.documentElement.style.fontSize = '200%';
+	});
+	await expect(needPill).toBeVisible();
+	await expect(buyPill).toBeVisible();
+	expect(
+		Math.abs(
+			((await needPill.boundingBox())?.y ?? 0) - ((await buyPill.boundingBox())?.y ?? 0)
+		)
+	).toBeLessThan(36);
+	await expectResponsiveSurface(page, '/shopping (768px at 200% text)', 768);
+});
+
+test('Shopping source controls remain legible in Dutch dark mode', async ({ page }, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	await page.setViewportSize({ width: 375, height: 900 });
+	await page.goto('/shopping');
+	await page.evaluate(() => {
+		document.cookie = 'PARAGLIDE_LOCALE=nl; path=/';
+	});
+	await page.reload();
+	await page.evaluate(() => {
+		document.documentElement.setAttribute('data-theme', 'dark');
+	});
+
+	await expect(page.getByRole('heading', { name: 'Boodschappen', level: 1 })).toBeVisible();
+	const needPill = page.getByRole('button', {
+		name: `Wijzig behoefte voor ${fixture.shoppingName} · ${fixture.recipeTitle}. Huidig: Altijd nodig`
+	});
+	const buyPill = page.getByRole('combobox', {
+		name: `Kies wat je deze ronde koopt voor ${fixture.shoppingName} · ${fixture.recipeTitle}`
+	});
+	await expect(needPill).toBeVisible();
+	await expect(buyPill).toBeVisible();
+	expect(await needPill.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+	expect(await buyPill.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+	await expectResponsiveSurface(page, '/shopping (Dutch dark)', 375);
 });
