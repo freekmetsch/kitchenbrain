@@ -642,3 +642,29 @@ boundary remains a deliberate user confirmation.
 
 Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
 docs/deploys/2026-07.md
+
+## 2026-07-29 | run | Assistant capability regression foundation
+
+Promoted the literal Next portfolio and added a checked Assistant exposure budget at the live
+chat boundary: 27 tools / 23,125 serialized bytes with a ceiling of 28 / 26,000. Fifteen
+synthetic EN/NL selection cases now cover old and cross-domain behavior. The live baseline used
+34 provider calls, reported six USD cents, and exposed one known semantic collision: “we are out
+of rice” selected `add_to_inventory`. That case remains a required gap until the reviewed
+Stock → Shopping proposal replaces it.
+
+The isolated gate passed 123 files / 663 unit tests, 21 primary and 21 secondary authenticated
+browser stories, clean Svelte diagnostics, and the production build. One initial primary-browser
+run lost its browser before the first Stock test; the unchanged focused rerun passed all 21.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+src/lib/server/ai/assistant_capability_eval.ts,
+src/lib/server/ai/assistant_capability_eval.test.ts,
+scripts/eval/assistant-tool-selection-live.ts,
+scripts/invoke-production-secret-tool.ps1,
+src/routes/api/chat/+server.ts
+
+## 2026-07-29 08:20 archive-scan | no archive this pass
+
+No terminal feature list was present in the root lane. The active Butler roadmap remains in
+place for the promoted Next portfolio. The repository still has no `scripts/archive-scan.ps1`,
+so it remains a candidate for the shared archive-script rollout.

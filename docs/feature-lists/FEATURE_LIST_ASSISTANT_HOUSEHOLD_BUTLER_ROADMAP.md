@@ -1,7 +1,7 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Plan → Shop First slice shipped 2026-07-29; remaining Wave 1 ideas are
-unpromoted_
+_Status: In flight - Phase 6 of 10 (capability baseline complete 2026-07-29; calm-service wave
+active)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -87,8 +87,10 @@ should become more useful through explicit choices, not covert memory.
 - A reusable capability/risk registry for present and future agent tools.
 - Reviewed multi-domain action bundles with exact preconditions and truthful partial/blocked
   states.
-- The six selected First-slice ideas only: BTL-003, BTL-004, BTL-005, BTL-006, BTL-011, and
-  BTL-014, plus the shared registry and review contracts required to implement them truthfully.
+- The shipped First slice plus all twenty ideas explicitly ranked **Next**: BTL-016 through
+  BTL-035.
+- The smallest Wave 1 dependency set required to make those Next behaviors real rather than
+  decorative: BTL-001, BTL-002, BTL-007, BTL-008, BTL-009, BTL-012, BTL-013, and BTL-015.
 - Explicit scoped preference proposal contracts where the First slice needs them; the full
   preference center and initiative controls remain outside this run.
 - Reuse of existing domain services, push infrastructure, model seam, tool displays, and
@@ -110,10 +112,9 @@ should become more useful through explicit choices, not covert memory.
 - Replacing the current OpenRouter/Anthropic-compatible client seam.
 - Making non-AH retailer support part of the first wave.
 
-The ranked ideas outside **Wave 1** are an inert opportunity queue: they create no schema,
-callers, tool contracts, or migration pressure until explicitly promoted into execution scope.
-Wave 1 itself is also not current execution scope: only rows marked **First slice** may be
-implemented by this `$run`.
+The user promoted every row explicitly ranked **Next** on 2026-07-29. **Later**, **Park**, and
+**Exclude** remain inert and create no callers, schemas, tools, or migrations. Wave 1 ideas are
+active only where named above as direct dependencies of the promoted Next portfolio.
 
 ## Existing-system inventory
 
@@ -294,9 +295,9 @@ file is authoritative.
 
 Selected lanes:
 
-- **First slice:** the only implementation scope in this `$run`.
-- **Wave 1:** retained for the next implementation decision; not executable now.
-- **Next:** ranks 16–35; keep shaped, do not implement until promoted.
+- **First slice:** shipped Plan → Shop baseline.
+- **Wave 1:** active only for the eight named dependency enablers.
+- **Next:** ranks 16–35; all twenty are active in the current `$run`.
 - **Later:** ranks 36–65; retain as inert opportunities.
 - **Park:** ranks 66–75; interesting but lower evidence, new integration, or weaker fit.
 - **Exclude:** deliberately removed from the intended product.
@@ -394,7 +395,85 @@ The selected First slice is one complete **Plan → Shop** loop sharing a reusab
 6. stop for a separate explicit confirmation before pushing the exact preview revision to AH.
 
 Stock → Shopping, Cook → Close, fridge, timers, and Butler Brief remain Wave 1 but are not
-implemented by this run. BTL-010 is excluded. Next, Later, and Park remain inert.
+independent scope; the eight named enablers now ship only as dependencies of the promoted Next
+portfolio. BTL-010 is excluded. Later and Park remain inert.
+
+## Active Next portfolio run
+
+The current run delivers BTL-016 through BTL-035 in five dependency-ordered vertical waves. It
+also closes the eight named Wave 1 enablers where a promoted behavior cannot work without them.
+No Later or Park idea is silently pulled forward.
+
+### Assistant performance guard
+
+New product behavior must not become a flat pile of model-visible database tools:
+
+1. capture a provider-free baseline across representative household intents before exposing a
+   new capability;
+2. prefer deep proposal/read modules and existing tools over one new tool per idea;
+3. keep a hard checked budget for model-visible schemas and their serialized description size;
+4. after every exposure change, rerun selection, required-read, confirmation, and truthful-finish
+   cases for old and new intents;
+5. run a bounded live-model sample only with explicit paid-test authority and synthetic household
+   fixtures; do not use production household content;
+6. if an exposure wave lowers the accepted selection/safety baseline, consolidate or route the
+   tools before implementing the next wave.
+
+### Next portfolio phases
+
+### Phase 5 — capability baseline and routing budget
+
+_Completed 2026-07-29._
+
+- Add a public, provider-free Assistant behavior suite covering the existing 27-tool surface,
+  ambiguous requests, cross-domain preparation, required review, and no-tool answers.
+- Record a checked tool count/description-size budget.
+- Add the smallest routing/consolidation seam needed to keep later capabilities from flattening
+  into twenty additional model-visible tools.
+
+### Phase 6 — calm service and trust
+
+- Deliver BTL-009/016/017/018/019/020: zero-spend Brief candidates, tray triage, per-domain
+  initiative, the shared recommendation disclosure, change summary, and Shopping provenance.
+- Keep opening `/` read-only; no routine, provider call, chat insertion, or automatically prepared
+  write.
+- Route durable dismissals, initiative, and last-seen state through an isolated append-only R3
+  migration and the beta wide-sweep PR gate.
+
+### Phase 7 — stock and Shopping loops
+
+- Deliver BTL-001/002/008/013/015/021/022/023/024: authoritative Shopping controls, out/used/bought
+  bundles, exact stock coverage, reviewed visual/voice intake, freezer refill, fridge, and pantry
+  par levels.
+- Keep every cross-domain write reviewed and transactional where both services share SQLite.
+- Route fridge/par-level schema through isolated append-only migrations with populated-upgrade
+  rehearsal before production approval.
+
+### Phase 8 — meal decisions and scoped choices
+
+- Deliver BTL-025/026/027/028/029/030/031: leftover follow-through, comparable meal cards,
+  one-time/saved substitutions and AH choices, conflict resolution, missed-meal rollover, and
+  Cook-this handoff.
+- Reuse the shipped plan proposal, recommendation envelope, exact fingerprint, and scoped recipe
+  product-preference seams.
+
+### Phase 9 — cooking assistance
+
+- Deliver BTL-007/012/032/033/034/035: reviewed after-cook checkout, persistent timer client
+  actions, hands-busy cook mode, step-aware timer suggestions, active-recipe rescue, and defrost
+  preparation.
+- Keep microphone use explicit, timer execution client-authoritative, food-safety uncertainty
+  visible, and notifications/routines outside scope.
+
+### Phase 10 — simplify, verify, and deliver
+
+- Require the Assistant behavior suite after every exposure change and the full repository gate
+  after every vertical wave.
+- Exercise both household test accounts at phone and desktop sizes without retaining household
+  evidence.
+- Deliver code-only waves ordinarily; deliver each schema wide sweep through
+  `wide-sweep/schema-<topic>` and stop before an irreversible production migration if beta stage
+  evidence or approval is missing.
 
 ## Phase plan
 
@@ -447,9 +526,9 @@ _Completed 2026-07-29._
 
 ## Execution tickets
 
-Only BTL-00, BTL-01, BTL-02, BTL-05, BTL-06, and BTL-12 are active in this run. They implement
-the six First-slice ideas and their required trust/delivery foundation. BTL-03, BTL-04, and
-BTL-07 through BTL-11 are retained for later Wave 1 work and must not be touched now.
+BTL-00, BTL-01, BTL-02, BTL-05, BTL-06, and BTL-12 record the shipped First slice. The remaining
+Wave 1 tickets below become active only where the Next portfolio phases name them as dependencies.
+The five N-series tickets are the execution authority for the current run.
 
 ### BTL-00 — Close the active Assistant baseline
 
@@ -703,6 +782,76 @@ BTL-07 through BTL-11 are retained for later Wave 1 work and must not be touched
   forward/rollback strategy; never overwrite newer household data wholesale.
 - **Dependencies:** completed selected implementation tickets.
 
+### BTL-N1 — Protect Assistant capability selection
+
+**Status: Completed 2026-07-29.**
+
+- **Observable behavior:** old and new representative requests retain accepted capability
+  selection, required-read, review, external-effect, and final-truth behavior as the portfolio
+  grows.
+- **Scope in:** provider-free behavior fixtures, serialized-tool budget, domain routing or
+  consolidation seam, bounded synthetic live-model evaluation when authorized.
+- **Scope out:** scoring prose style, production household prompts, model-specific business logic,
+  or silently changing the configured model.
+- **Risk:** R2 shared Assistant boundary.
+- **Verification:** baseline before exposure; regression after every tool change; hard failure on
+  unregistered tools, budget growth, missed review, or false completion.
+- **Rollback:** disable the newest capability pack and retain the previous passing exposure set.
+
+Baseline evidence: the shipped surface is 27 tools / 23,125 serialized bytes, with a checked
+ceiling of 28 / 26,000. Fifteen synthetic EN/NL live-model cases cost six reported USD cents and
+found one explicit known gap: “we are out of rice” selected `add_to_inventory`. That collision is
+now a required failure until BTL-N3 replaces it with the reviewed Stock → Shopping proposal.
+
+### BTL-N2 — Deliver calm service and trust
+
+- **Ideas:** BTL-009, BTL-016, BTL-017, BTL-018, BTL-019, BTL-020.
+- **Risk:** R3 durable tray/initiative/last-seen state.
+- **Wide sweep:** `wide-sweep/schema-butler-service-state`; append-only migration and populated
+  upgrade rehearsal.
+- **Verification:** zero provider/network/write on home load; deterministic priority cap;
+  dismiss/snooze/return; per-domain enforcement; cross-user attribution; recommendation envelope;
+  exact Shopping provenance.
+- **Rollback:** hide the service region and ignore durable initiative/dismissal rows without
+  deleting them.
+- **Dependencies:** BTL-N1 and the shipped recommendation/action contracts.
+
+### BTL-N3 — Deliver stock and Shopping loops
+
+- **Ideas:** BTL-001, BTL-002, BTL-008, BTL-013, BTL-015, BTL-021, BTL-022, BTL-023, BTL-024.
+- **Risk:** R3 fridge/par-level schema; remaining behavior R1/R2.
+- **Wide sweep:** `wide-sweep/schema-inventory-zones-targets`; append-only migration, every caller,
+  populated upgrade, export/import, and rollback rehearsal.
+- **Verification:** current-read and source protection; atomic stock/list bundles; duplicate and
+  unit conflicts; reviewed intake; Dutch Shopping lineage; fridge in every semantically valid
+  inventory path.
+- **Rollback:** hide fridge/par controls while leaving additive rows readable; disable compound
+  proposals and retain native Stock/Shopping flows.
+- **Dependencies:** BTL-N1 and BTL-N2 recommendation/review primitives.
+
+### BTL-N4 — Deliver meal decisions and scoped choices
+
+- **Ideas:** BTL-025, BTL-026, BTL-027, BTL-028, BTL-029, BTL-030, BTL-031.
+- **Risk:** R3 only if a new durable substitution scope is required; otherwise R1/R2.
+- **Verification:** comparable facts; one-time choices leave no durable state; explicit saved
+  scope/edit/forget; stale plan/list fingerprint; missed-meal source reconciliation; validated
+  Cook-this navigation.
+- **Rollback:** disable new proposal kinds and keep shipped Plan → Shop plus native recipe/cook
+  routes.
+- **Dependencies:** BTL-N1, BTL-N3, and the shipped plan/AH preference seams.
+
+### BTL-N5 — Deliver cooking assistance
+
+- **Ideas:** BTL-007, BTL-012, BTL-032, BTL-033, BTL-034, BTL-035.
+- **Risk:** R2 unless durable reminder/session schema becomes necessary, which is a stop-and-replan
+  R3 gate.
+- **Verification:** after-cook all-or-none/compensated truth; timer start/extend/rename/cancel;
+  explicit voice activation; active-recipe grounding; food-safety cautions; defrost completion;
+  no global bubble or automatic notification.
+- **Rollback:** render client actions as inert suggestions and keep native cook mode/timer
+  coordinator authoritative.
+- **Dependencies:** BTL-N1, BTL-N3, and BTL-N4.
+
 ## First-slice implementation record
 
 The implementation remained code-only R2: no schema, migration, automatic memory, routine,
@@ -764,16 +913,17 @@ consequence, external confirmation, or a coherent rollback. Building the bundle 
 contracts once is what allows future features to feel simpler rather than making the prompt, chat,
 and safety sets grow without bound.
 
-**Plan critique recommendation: GO for the selected First slice.** The feedback resolves every
-decision gate. No unresolved P0/P1 remains. The main P1 risk—partial cross-domain work—is a
-foundation ticket and release gate, not deferred debt.
+**Plan critique recommendation: GO for the promoted Next portfolio in gated vertical waves.**
+The main P1 risks are model capability-selection degradation and schema breadth. BTL-N1 blocks
+each exposure wave on measurable behavior, while the R3 state changes are isolated from code-only
+delivery and cannot ride along in an ordinary branch.
 
 ## Risk and verification matrix
 
-The roadmap program remains **R3** because later selected ideas may add durable
-suggestion/permission state and a fridge inventory location. This First slice is **R2**: it adds
-shared write/review behavior and an external AH confirmation path, but no schema, auth, destructive
-data operation, or automatic provider work. Discovering a schema need is a stop-and-replan gate.
+The active Next portfolio is **R3** because it intentionally adds durable service-state,
+inventory-zone/target, and scoped-preference behavior. Schema changes are split from code-only
+waves, append-only, rehearsed on populated data, and subject to the beta wide-sweep/stage gate.
+Assistant routing, recommendations, cooking actions, and reviewed bundles remain R1/R2.
 
 | Boundary | Risk | Required proof |
 | --- | --- | --- |
@@ -803,8 +953,8 @@ data operation, or automatic provider work. Discovering a schema need is a stop-
 
 ## Rollout and rollback
 
-- Complete one household loop per branch/PR after the shared foundation, not one giant portfolio
-  branch.
+- Complete one dependency-ordered wave per branch/PR; do not expose the next capability pack until
+  the previous wave passes the Assistant behavior baseline.
 - Schema/auth wide-sweep work in beta follows the required `wide-sweep/schema-<topic>` split and
   PR path. Code-only loop work stays on the ordinary route.
 - Additive migrations remain append-only and are rehearsed against fresh and populated databases.
@@ -818,7 +968,8 @@ data operation, or automatic provider work. Discovering a schema need is a stop-
 
 ## Open Questions
 
-None. Feedback resolved every gate on 2026-07-28:
+None. Feedback resolved the original gates on 2026-07-28 and promoted the literal Next lane on
+2026-07-29:
 
 - First slice is Plan → Shop: BTL-003, BTL-004, BTL-005, BTL-006, BTL-011, and BTL-014 only.
 - Assertive means completing safe preparation inside a user-requested goal, not initiating work.
@@ -829,23 +980,29 @@ None. Feedback resolved every gate on 2026-07-28:
   automatically prepare work.
 - The first delivery sends no Butler push notifications.
 - BTL-010 is excluded.
+- “All next options” is interpreted as the twenty rows whose authoritative portfolio lane is
+  **Next** (BTL-016 through BTL-035), plus only the eight explicitly named Wave 1 dependencies.
+- Iterative Assistant testing is a release gate: no exposure wave may reduce the accepted
+  selection/safety baseline or exceed the checked schema budget.
 
 ## Resume pack
 
-- **Goal:** keep evolving the 27-tool model surface into a layered, assertive, trustworthy
-  household butler after the selected Plan → Shop First slice.
-- **Current state:** the six First-slice ideas shipped through PR #29 and passed exact-main
-  Railway delivery plus both authenticated no-mutation canaries. The slice is code-only R2 and
-  adds no schema.
-- **First command:** choose and promote a specific remaining Wave 1 ticket in this Markdown
-  before starting another `$run`; do not infer the next slice from rank alone.
+- **Goal:** deliver BTL-016 through BTL-035 and their eight named Wave 1 enablers without degrading
+  Assistant capability selection or trust.
+- **Current state:** the Plan → Shop baseline is live; the Next portfolio is promoted; Phase 5
+  established the checked exposure budget and fifteen-case regression suite. Phase 6 is active on
+  `codex/assistant-next-portfolio`.
+- **First command:** begin the zero-spend Brief/tray public interface with one failing behavior
+  test and no provider call on home load.
 - **First files:** this feature list; `src/lib/server/ai/capability_registry.ts`;
   `src/lib/server/ai/meal_plan_proposal.ts`;
   `src/lib/components/chat/MealPlanReview.svelte`;
   `src/lib/server/workflows/meal-plan-proposal.ts`.
-- **First implementation move:** none; do not expand beyond the six First-slice ideas.
-- **Pending verification:** none for the shipped First slice. Any later promoted ticket gets its
-  own risk-proportionate gate, exact-main deployment check, and safe canary.
+- **First implementation move:** derive bounded Butler candidates from current local state and
+  render them above chat without adding a model-visible tool.
+- **Pending verification:** targeted red/green per behavior; Assistant regression after every
+  exposure change; full gate and both-account responsive stories per wave; populated migration
+  rehearsals and beta stage decision for R3 branches.
 - **Open questions:** none.
 - **Beta wide-sweep note:** any selected schema-backed action-bundle, fridge, brief-state, or
   preference work must use the schema split and PR path from app-stage delivery guidance.

@@ -18,6 +18,7 @@ import {
 import { getChatModel, getChatFallbackModel, getVisionModel } from '$lib/server/ai/config';
 import { buildClaudeHistory, stableHistoryWindow } from '$lib/server/ai/history';
 import { tools } from '$lib/server/ai/tools';
+import { assertAssistantToolBudget } from '$lib/server/ai/assistant_capability_eval';
 import { applyMessageCacheAnchors } from '$lib/server/ai/cache';
 import { executeToolCall } from '$lib/server/ai/executors';
 import { describeToolStart, type ToolDisplay } from '$lib/tool_display';
@@ -35,6 +36,8 @@ import {
 	FinalIterationText,
 	finalizeProposalText
 } from '$lib/server/ai/final_iteration_text';
+
+assertAssistantToolBudget(tools);
 
 // Vision upload hard caps (Stage 4b / P5.4). Images arrive as multipart/form-data
 // (no base64 +33% on the wire); the client downscales to ≤1568px before sending,
