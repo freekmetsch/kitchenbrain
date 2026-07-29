@@ -854,6 +854,16 @@ restore the baseline reliably. The shipped catalog therefore stays exactly 27 to
 bytes, and BTL-020 is explicitly parked until routing/consolidation can pass the planning suite
 repeatedly.
 
+R3 PR verification on the isolated worktree passed Svelte diagnostics, the production build,
+both 0025/0026 populated migration rehearsals, the focused Butler state/change/snapshot/reset
+suite, and the Butler browser journey for both test accounts. The primary browser matrix passed
+22 of 23 stories, including every Assistant story; the unrelated Cook Mode story reached its
+expected final recovery screen but exceeded the unchanged 30-second total test timeout under
+heavy concurrent machine load. The unit matrix passed 675/682 assertions in one run; the seven
+file-scanning guard timeouts then passed unchanged as 13/13 in isolation. This is sufficient for
+draft R3 review but not a claim that the monolithic `npm test` gate is green; repeat that exact
+gate before merge when the shared machine is quiet.
+
 ### BTL-N3 — Deliver stock and Shopping loops
 
 - **Ideas:** BTL-001, BTL-002, BTL-008, BTL-013, BTL-015, BTL-021, BTL-022, BTL-023, BTL-024.
@@ -1038,8 +1048,8 @@ None. Feedback resolved the original gates on 2026-07-28 and promoted the litera
   `src/routes/+page.server.ts`.
 - **First implementation move:** review the additive 0026 migration and zero-write home-load
   boundary; do not reintroduce the removed Shopping provenance tool.
-- **Pending verification:** full gate and both-account responsive stories; PR review and beta
-  stage decision for migration 0026. BTL-019 actor-writer completion and BTL-020 tool routing stay
+- **Pending verification:** one quiet-machine monolithic full gate; PR review and beta stage
+  decision for migration 0026. BTL-019 actor-writer completion and BTL-020 tool routing stay
   explicitly open.
 - **Open questions:** none.
 - **Beta wide-sweep note:** any selected schema-backed action-bundle, fridge, brief-state, or
