@@ -1,7 +1,7 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 6 of 10 (capability baseline complete 2026-07-29; calm-service wave
-active)_
+_Status: In flight - Phase 6 of 10 (passive Butler Brief complete 2026-07-29; durable
+calm-service state next)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -805,6 +805,8 @@ now a required failure until BTL-N3 replaces it with the reviewed Stock → Shop
 
 ### BTL-N2 — Deliver calm service and trust
 
+**Status: In progress. Passive Brief tracer completed 2026-07-29.**
+
 - **Ideas:** BTL-009, BTL-016, BTL-017, BTL-018, BTL-019, BTL-020.
 - **Risk:** R3 durable tray/initiative/last-seen state.
 - **Wide sweep:** `wide-sweep/schema-butler-service-state`; append-only migration and populated
@@ -815,6 +817,16 @@ now a required failure until BTL-N3 replaces it with the reviewed Stock → Shop
 - **Rollback:** hide the service region and ignore durable initiative/dismissal rows without
   deleting them.
 - **Dependencies:** BTL-N1 and the shipped recommendation/action contracts.
+
+Checkpoint evidence: `/` now derives at most three stable candidates from read-only Stock,
+planning, Shopping-provenance, and freezer-target projections. Every card exposes why now,
+evidence, confidence, uncertainty, consequence, and alternatives. A SQLite `total_changes()`
+regression proves the snapshot writes nothing, an authenticated 375/1280 px story proves the
+Brief remains bounded above usable chat with zero `/api/chat` requests, and the complete gate
+passed 125 files / 667 unit tests, all 22 primary browser stories, diagnostics, and build. The
+model-visible surface remains the Phase 5 baseline of 27 tools / 23,125 bytes, so this tracer
+required no paid selection rerun. Durable dismiss/snooze, initiative, and last-seen state remain
+behind the named R3 wide-sweep.
 
 ### BTL-N3 — Deliver stock and Shopping loops
 
@@ -990,16 +1002,15 @@ None. Feedback resolved the original gates on 2026-07-28 and promoted the litera
 - **Goal:** deliver BTL-016 through BTL-035 and their eight named Wave 1 enablers without degrading
   Assistant capability selection or trust.
 - **Current state:** the Plan → Shop baseline is live; the Next portfolio is promoted; Phase 5
-  established the checked exposure budget and fifteen-case regression suite. Phase 6 is active on
-  `codex/assistant-next-portfolio`.
-- **First command:** begin the zero-spend Brief/tray public interface with one failing behavior
-  test and no provider call on home load.
-- **First files:** this feature list; `src/lib/server/ai/capability_registry.ts`;
-  `src/lib/server/ai/meal_plan_proposal.ts`;
-  `src/lib/components/chat/MealPlanReview.svelte`;
-  `src/lib/server/workflows/meal-plan-proposal.ts`.
-- **First implementation move:** derive bounded Butler candidates from current local state and
-  render them above chat without adding a model-visible tool.
+  established the checked exposure budget and fifteen-case regression suite. Phase 6's passive
+  Brief tracer is complete on `codex/assistant-next-trust`; durable service state is next.
+- **First command:** commit and deliver the passive Brief tracer, then obtain the required
+  independent schema opinion before branching `wide-sweep/schema-butler-service-state`.
+- **First files:** this feature list; `src/lib/server/butler/brief.ts`;
+  `src/lib/server/butler/snapshot.ts`; `src/lib/components/butler/ButlerBrief.svelte`;
+  `src/routes/+page.server.ts`.
+- **First implementation move:** append durable, user-scoped dismiss/snooze, initiative, and
+  last-seen state without changing the zero-spend candidate derivation.
 - **Pending verification:** targeted red/green per behavior; Assistant regression after every
   exposure change; full gate and both-account responsive stories per wave; populated migration
   rehearsals and beta stage decision for R3 branches.
