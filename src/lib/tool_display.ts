@@ -150,6 +150,33 @@ export type AfterCookProposalDisplay = {
 	recommendation: MealPlanProposalDisplay['recommendation'];
 };
 
+export type CookingActionDisplay = {
+	id: string;
+	kind: 'timer' | 'rescue' | 'defrost';
+	title: string;
+	recommendation: MealPlanProposalDisplay['recommendation'];
+	timer?: {
+		operation: 'start' | 'extend' | 'rename' | 'cancel';
+		seconds: number | null;
+		label: string | null;
+		targetLabel: string | null;
+	};
+	rescue?: {
+		recipeSlug: string;
+		issue: 'too_salty' | 'too_thin' | 'not_browning';
+		stepIndex: number;
+		step: string;
+		guidance: string[];
+		safetyCaution: string | null;
+	};
+	defrost?: {
+		itemId: number;
+		itemName: string;
+		expectedUpdatedAt: string;
+		reminderSeconds: number;
+	};
+};
+
 export type ToolDisplay = {
 	kind: 'read' | 'write' | 'error' | 'confirm' | 'plan' | 'proposal';
 	/** One human-readable sentence — never JSON. */
@@ -172,6 +199,7 @@ export type ToolDisplay = {
 	stockActionProposal?: StockActionProposalDisplay;
 	mealChoices?: MealChoicesDisplay;
 	afterCookProposal?: AfterCookProposalDisplay;
+	cookingAction?: CookingActionDisplay;
 	/** A validated entity reference. The client derives the app-local route. */
 	entityAction?: ToolDisplayEntityAction;
 };

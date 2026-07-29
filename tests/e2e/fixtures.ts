@@ -297,7 +297,7 @@ function chatMealChoices(fixture: KitchenFixture) {
 function chatAfterCookReview(fixture: KitchenFixture, mealId: number) {
 	return {
 		kind: 'proposal',
-		summary: 'Finish freezer meal',
+		summary: 'Finish meal',
 		afterCookProposal: {
 			token: `e2e-${fixture.account}-after-cook-proposal`,
 			status: 'active',
@@ -319,6 +319,78 @@ function chatAfterCookReview(fixture: KitchenFixture, mealId: number) {
 				consequence:
 					'The meal is marked cooked and the selected portions are consumed oldest first.',
 				alternatives: ['Adjust the count.', 'Choose Not now.']
+			}
+		}
+	};
+}
+
+function cookingRecommendation(consequence: string) {
+	return {
+		whyNow: 'This action was requested in the current conversation.',
+		evidence: ['The reviewed target comes from the current household state.'],
+		confidence: 'high',
+		uncertainty: null,
+		consequence,
+		alternatives: ['Adjust the prepared action.', 'Leave everything unchanged.']
+	};
+}
+
+function chatCookingTimer(fixture: KitchenFixture) {
+	return {
+		kind: 'proposal',
+		summary: 'Review timer',
+		cookingAction: {
+			id: `e2e-${fixture.account}-timer`,
+			kind: 'timer',
+			title: 'Pasta timer',
+			recommendation: cookingRecommendation('Starts a ten-minute browser timer after one tap.'),
+			timer: {
+				operation: 'start',
+				seconds: 600,
+				label: 'Pasta',
+				targetLabel: null
+			}
+		}
+	};
+}
+
+function chatCookingRescue(fixture: KitchenFixture) {
+	return {
+		kind: 'proposal',
+		summary: 'Cooking help',
+		cookingAction: {
+			id: `e2e-${fixture.account}-rescue`,
+			kind: 'rescue',
+			title: `Cooking help for ${fixture.recipeTitle}`,
+			recommendation: cookingRecommendation('Reduces the sauce before another adjustment.'),
+			rescue: {
+				recipeSlug: fixture.recipeSlug,
+				issue: 'too_thin',
+				stepIndex: 0,
+				step: 'Simmer the stew.',
+				guidance: ['Simmer uncovered first and stir regularly.'],
+				safetyCaution: 'Do not taste raw meat. Cook it to a safe internal temperature.'
+			}
+		}
+	};
+}
+
+function chatCookingDefrost(fixture: KitchenFixture) {
+	return {
+		kind: 'proposal',
+		summary: 'Defrost freezer stew',
+		cookingAction: {
+			id: `e2e-${fixture.account}-defrost`,
+			kind: 'defrost',
+			title: 'Defrost freezer stew',
+			recommendation: cookingRecommendation(
+				'Starts a reviewed cue; confirmation moves the stock record to the fridge.'
+			),
+			defrost: {
+				itemId: 700 + (fixture.account === 'primary' ? 1 : 2),
+				itemName: `${fixture.recipeTitle} freezer portion`,
+				expectedUpdatedAt: '2026-07-29T10:00:00.000Z',
+				reminderSeconds: 7200
 			}
 		}
 	};
@@ -729,6 +801,72 @@ export function seedKitchenFixtures(databasePath: string): void {
 					}
 				]),
 				createdAt: now - 1
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'user',
+				content: 'Start a ten minute pasta timer.',
+				toolCalls: null,
+				createdAt: now + 1
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'assistant',
+				content: 'The timer is ready for review.',
+				toolCalls: JSON.stringify([
+					{
+						id: `cooking-timer-${fixture.account}`,
+						name: 'prepare_cooking_action',
+						input: { action: 'timer' },
+						result: { ok: true },
+						display: chatCookingTimer(fixture)
+					}
+				]),
+				createdAt: now + 2
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'user',
+				content: 'The saved stew is too thin.',
+				toolCalls: null,
+				createdAt: now + 3
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'assistant',
+				content: 'Here is grounded cooking help.',
+				toolCalls: JSON.stringify([
+					{
+						id: `cooking-rescue-${fixture.account}`,
+						name: 'prepare_cooking_action',
+						input: { action: 'rescue' },
+						result: { ok: true },
+						display: chatCookingRescue(fixture)
+					}
+				]),
+				createdAt: now + 4
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'user',
+				content: 'Prepare a two hour defrost cue.',
+				toolCalls: null,
+				createdAt: now + 5
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'assistant',
+				content: 'The defrost cue is ready for review.',
+				toolCalls: JSON.stringify([
+					{
+						id: `cooking-defrost-${fixture.account}`,
+						name: 'prepare_cooking_action',
+						input: { action: 'defrost' },
+						result: { ok: true },
+						display: chatCookingDefrost(fixture)
+					}
+				]),
+				createdAt: now + 6
 			});
 		});
 

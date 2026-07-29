@@ -9,7 +9,14 @@ export const ASSISTANT_TOOL_BUDGET = Object.freeze({
 
 export type AssistantCapabilityEvalCase = {
 	id: string;
-	domain: 'inventory' | 'planning' | 'recipes' | 'shopping' | 'cross-domain' | 'knowledge';
+	domain:
+		| 'inventory'
+		| 'planning'
+		| 'recipes'
+		| 'shopping'
+		| 'cooking'
+		| 'cross-domain'
+		| 'knowledge';
 	locale: 'en' | 'nl';
 	prompt: string;
 	allowedFirstTools: string[];
@@ -229,6 +236,46 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 		requiredTools: ['get_inventory_history'],
 		forbiddenTools: ['undo_op'],
 		requiresReview: false
+	},
+	{
+		id: 'assistant-timer',
+		domain: 'cooking',
+		locale: 'en',
+		prompt: 'Start a ten minute timer called pasta.',
+		allowedFirstTools: ['prepare_cooking_action'],
+		requiredTools: ['prepare_cooking_action'],
+		forbiddenTools: [],
+		requiresReview: true
+	},
+	{
+		id: 'cooking-rescue-nl',
+		domain: 'cooking',
+		locale: 'nl',
+		prompt: 'De saus van onze opgeslagen curry is te zout. Help me bij de huidige stap.',
+		allowedFirstTools: ['get_recipe'],
+		requiredTools: ['get_recipe', 'prepare_cooking_action'],
+		forbiddenTools: ['edit_recipe'],
+		requiresReview: false
+	},
+	{
+		id: 'defrost-cue',
+		domain: 'cooking',
+		locale: 'en',
+		prompt: 'Prepare a two hour defrost cue for the freezer chili and let me confirm when it is in the fridge.',
+		allowedFirstTools: ['get_inventory'],
+		requiredTools: ['get_inventory', 'prepare_cooking_action'],
+		forbiddenTools: ['update_inventory_item'],
+		requiresReview: true
+	},
+	{
+		id: 'after-cook-checkout',
+		domain: 'cooking',
+		locale: 'en',
+		prompt: 'We ate two portions of tonight’s freezer meal. Prepare the checkout.',
+		allowedFirstTools: ['get_meal_plan'],
+		requiredTools: ['get_meal_plan', 'prepare_cooking_action'],
+		forbiddenTools: ['mark_meal_cooked', 'update_inventory_item'],
+		requiresReview: true
 	},
 	{
 		id: 'plain-cooking-knowledge',

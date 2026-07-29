@@ -33,6 +33,7 @@
 			quietBriefCount: number;
 			butlerInitiative: Record<ButlerDomain, ButlerInitiativeLevel>;
 			butlerChanges: ButlerChangeSummary;
+			assistantDraft: string;
 			capExceeded: boolean;
 			capEur: number;
 			hasOlder: boolean;
@@ -43,6 +44,7 @@
 	const chatAgent = useChatAgent();
 	untrack(() =>
 		chatAgent.hydrateOnce(data.messages, {
+			input: data.assistantDraft,
 			capExceeded: data.capExceeded,
 			capEur: data.capEur,
 			hasOlder: data.hasOlder,

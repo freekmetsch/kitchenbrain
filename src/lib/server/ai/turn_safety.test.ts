@@ -360,3 +360,82 @@ describe('meal-plan proposal provenance', () => {
 		expect(staged).toMatchObject({ ok: true, kind: 'meal_plan_proposal' });
 	});
 });
+
+describe('cooking-action provenance', () => {
+	it('permits timer preparation directly but requires current reads for household targets', async () => {
+		const db = createTestDb();
+		const recipe = seedRecipe(db);
+		const now = new Date('2026-07-29T10:00:00Z');
+		const item = db
+			.insert(schema.inventoryItems)
+			.values({
+				name: 'Stoofpot',
+				section: 'freezer',
+				qtyNum: 2,
+				unit: 'portion',
+				createdAt: now,
+				updatedAt: now
+			})
+			.returning()
+			.get();
+
+		await expect(
+			executeToolCall(
+				'prepare_cooking_action',
+				{ action: 'timer', timer_operation: 'start', seconds: 300, label: 'Pasta' },
+				db,
+				1,
+				turn()
+			)
+		).resolves.toMatchObject({ ok: true, actionKind: 'timer' });
+
+		await expect(
+			executeToolCall(
+				'prepare_cooking_action',
+				{ action: 'rescue', recipe_slug: recipe.slug, issue: 'too_thin', step_index: 0 },
+				db,
+				1,
+				turn()
+			)
+		).resolves.toMatchObject({
+			ok: false,
+			contract_error: 'missing_provenance'
+		});
+		await expect(
+			executeToolCall(
+				'prepare_cooking_action',
+				{ action: 'defrost', inventory_id: item.id },
+				db,
+				1,
+				turn()
+			)
+		).resolves.toMatchObject({
+			ok: false,
+			contract_error: 'missing_provenance'
+		});
+
+		const rescueContext = turn();
+		await executeToolCall('get_recipe', { slug: recipe.slug }, db, 1, rescueContext);
+		await expect(
+			executeToolCall(
+				'prepare_cooking_action',
+				{ action: 'rescue', recipe_slug: recipe.slug, issue: 'too_thin', step_index: 0 },
+				db,
+				1,
+				rescueContext
+			)
+		).resolves.toMatchObject({ ok: true, actionKind: 'rescue' });
+
+		const defrostContext = turn();
+		await executeToolCall('get_inventory', {}, db, 1, defrostContext);
+		await expect(
+			executeToolCall(
+				'prepare_cooking_action',
+				{ action: 'defrost', inventory_id: item.id },
+				db,
+				1,
+				defrostContext
+			)
+		).resolves.toMatchObject({ ok: true, actionKind: 'defrost' });
+	});
+});

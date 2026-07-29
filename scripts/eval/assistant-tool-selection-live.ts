@@ -14,7 +14,8 @@ const REVIEW_BOUNDARY_TOOLS = new Set([
 	'bulk_update_inventory',
 	'propose_meal_plan',
 	'propose_recipe_patch',
-	'prepare_stock_action'
+	'prepare_stock_action',
+	'prepare_cooking_action'
 ]);
 
 type CaseReport = {

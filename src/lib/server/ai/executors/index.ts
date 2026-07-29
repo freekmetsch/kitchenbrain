@@ -12,6 +12,7 @@ import { recipeExecutors } from './recipes';
 import { shoppingExecutors } from './shopping';
 import { miscExecutors } from './misc';
 import { ahExecutors } from './ah';
+import { cookingExecutors } from './cooking';
 import {
 	ContractError,
 	authorizeToolCall,
@@ -27,6 +28,7 @@ const domainMaps = [
 	recipeExecutors,
 	shoppingExecutors,
 	ahExecutors,
+	cookingExecutors,
 	miscExecutors
 ];
 

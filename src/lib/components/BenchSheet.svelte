@@ -45,6 +45,8 @@
 	import { CookModeNetworkController } from './cook-mode/network-controller.svelte';
 	import { useCookTimerCoordinator } from '$lib/timer/coordinator-context';
 	import type { TimerTestResult } from '$lib/timer/push-client';
+	import HandsBusyControls from './cook-mode/HandsBusyControls.svelte';
+	import CookingRescuePanel from './cook-mode/CookingRescuePanel.svelte';
 
 	export type BenchSheetController = {
 		resetSession: () => void;
@@ -235,6 +237,11 @@
 	let steps = $derived(
 		applySessionSwapsToSteps(cookMode?.steps ?? [], sessionSwaps, ingredientNamesById)
 	);
+	let currentStepIndex = $derived.by(() => {
+		const keys = currentKeys();
+		const index = currentStepKey ? keys.indexOf(currentStepKey) : 0;
+		return index < 0 ? 0 : index;
+	});
 	const detachTimerView = timerSession.attachView(
 		() =>
 			requiresPlan && !localizedPlan && !loading && Boolean(loadError) && loadErrorRetryable,
@@ -741,6 +748,16 @@
 				</div>
 			{/if}
 		</div>
+		<HandsBusyControls
+			{steps}
+			currentIndex={currentStepIndex}
+			language={activeViewLang}
+			onSelect={selectStep}
+			onStartTimer={(index) => {
+				const seconds = steps[index]?.timer_seconds;
+				if (seconds) startTimer(index, seconds);
+			}}
+		/>
 	{/if}
 
 	<div class="mx-auto max-w-5xl px-3 py-3 md:grid md:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)] md:items-start md:gap-5">
@@ -763,6 +780,15 @@
 	{/if}
 
 	<div class="min-w-0">
+	{#if steps[currentStepIndex]}
+		<CookingRescuePanel
+			{recipeSlug}
+			stepIndex={currentStepIndex}
+			step={steps[currentStepIndex].body || steps[currentStepIndex].goal || steps[currentStepIndex].title}
+			ingredients={projectedIngredients.map((ingredient) => ingredient.name)}
+			language={activeViewLang}
+		/>
+	{/if}
 	<ul class="space-y-3 pb-4">
 		{#each steps as step, index (cookStepKey(index, step.stream_id))}
 			<CookStepCard

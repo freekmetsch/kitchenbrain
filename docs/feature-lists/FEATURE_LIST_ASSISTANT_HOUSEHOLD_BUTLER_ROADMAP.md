@@ -1,7 +1,8 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 9 of 10 (stock and Shopping loops isolated in stacked draft PR #36;
-meal decisions and scoped choices isolated in stacked draft PR #39; cooking assistance starting)_
+_Status: In flight - Phase 10 of 10 (stock and Shopping loops isolated in stacked draft PR #36;
+meal decisions and scoped choices isolated in stacked draft PR #39; cooking assistance complete
+locally and in final verification)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -466,6 +467,8 @@ _Completed locally 2026-07-29._
   product-preference seams.
 
 ### Phase 9 — cooking assistance
+
+_Completed locally 2026-07-29._
 
 - Deliver BTL-007/012/032/033/034/035: reviewed after-cook checkout, persistent timer client
   actions, hands-busy cook mode, step-aware timer suggestions, active-recipe rescue, and defrost
@@ -1005,6 +1008,47 @@ recover; no production household content was used.
   coordinator authoritative.
 - **Dependencies:** BTL-N1, BTL-N3, and BTL-N4.
 
+#### Phase 9 implementation record
+
+The exposed `prepare_cooking_action` capability consolidates after-cook checkout, timer controls,
+active-recipe rescue, and defrost preparation behind one typed tool. Small forced capability packs
+require the relevant household read before preparation, and the existing persistent capability
+registry and turn-safety ledger cover its read/write, precondition, confirmation, Undo,
+external-effect, and display contracts. The model-visible catalog remains exactly 28 tools and
+25,537 serialized bytes under the checked 28/26,000 ceiling.
+
+Timer start, extend, rename, and cancel render as reviewed client actions. The browser coordinator
+remains authoritative, persists timers across routes, returns Assistant timers to `/`, and restores
+the previous timer on Undo. Native cook mode adds large read-next, repeat, what-now, and
+current-step timer controls. Voice recognition is one-shot, begins only after an explicit tap,
+stops after one result or eight seconds, and is cleaned up on unmount; there is no free-running
+microphone.
+
+Recipe rescue is deterministic and grounded in the active recipe ingredients and step. It exposes
+the same recommendation envelope as other proposals and includes food-safety cautions where
+relevant. Defrost preparation first offers a local timed cue and writes nothing; a separate
+reviewed completion moves the exact fingerprinted freezer row to fridge, records the inventory
+operation, and supports exact Undo. It adds no notification, background job, routine, or durable
+reminder schema. After-cook preparation now handles both fresh and freezer meals without inventing
+freezer uncertainty.
+
+The provider-free catalog validator passes. The focused selection, registry, safety, display,
+executor, workflow, timer, voice, and rescue matrix passes 67/67. The serialized full unit run
+passes all 137 files / 738 tests; the default parallel run exceeded unrelated five-second database
+test limits under machine contention without assertion failures. Svelte diagnostics report zero
+errors and warnings, and the production adapter-node build transforms 521 server and 362 client
+modules successfully.
+
+Both isolated household accounts pass the complete Assistant safety browser file: eight/eight
+product stories plus authentication setup, including Butler hydration, meal decisions, freezer
+checkout, cooking actions, Plan -> Shop/AH review, Stock -> Shopping, recipe patches, dense
+history, phone/desktop layout, and Undo. Two standard monolithic primary runs reached 24/28 and
+26/28 respectively; every failed story then passed in an isolated rerun. The remaining
+monolithic-only failures were client-hydration timeouts or a closed Chromium session, so the quiet
+machine monolithic gate remains explicit Phase 10 work rather than being reported as green. A
+bounded paid-provider rerun remains deferred after the previously observed provider failures; no
+production household content was used.
+
 ## First-slice implementation record
 
 The implementation remained code-only R2: no schema, migration, automatic memory, routine,
@@ -1155,20 +1199,23 @@ None. Feedback resolved the original gates on 2026-07-28 and promoted the litera
   comparable meal cards,
   source/serving cook handoff, reviewed atomic freezer checkout with Undo, missed-meal staging,
   AH conflict disclosure, and explicit one-time/save/forget choice scope. The catalog is still 28
-  tools / 25,300 bytes; its focused provider-free matrix is 46/46 and the full primary Assistant
-  browser file is eight/eight.
-- **First command:** deliver the Phase 8 code-only branch as a stacked draft, then start Phase 9
-  from that tip without merging migrations 0026 or 0027 until the beta stage decision is explicit.
-- **First files:** this feature list; `src/lib/components/cook-mode/`;
-  `src/lib/server/ai/tools.ts`; `src/lib/server/ai/client.ts`;
-  `src/lib/server/ai/turn_safety.ts`; the existing timer coordinator and recipe-step projections.
-- **First implementation move:** deliver BTL-012/032/033 through one validated client-action/cook
-  context rather than adding separate timer tools, then add grounded rescue and read-only defrost
-  preparation without notifications or durable reminder schema.
-- **Pending verification:** one quiet-machine monolithic full gate (the current run is 21/24
-  browser stories after diagnostics and 704/704 unit tests); a provider-recovery rerun of the
-  hardened remaining live cases; R3 PR review and beta stage decisions for migrations 0026 and
-  0027. BTL-019 actor-writer completion and BTL-020 provenance exposure remain explicitly open.
+  tools / 25,537 bytes after Phase 9. Cooking assistance is locally complete: reviewed persistent
+  timer actions, explicit one-shot hands-busy voice, step timers, grounded rescue, reviewed
+  defrost completion/Undo, and fresh/freezer after-cook preparation. Its focused provider-free
+  matrix is 67/67, the serialized full unit suite is 738/738, and the complete Assistant browser
+  file is eight/eight for both isolated household accounts.
+- **First command:** finish the Phase 10 quiet-machine monolithic gate, then deliver the Phase 9
+  code-only branch as a stacked draft without merging migrations 0026 or 0027 until the beta stage
+  decision is explicit.
+- **First files:** this feature list; the Phase 9 diff; the three stacked draft PRs; the existing
+  Assistant behavior evaluator and browser gates.
+- **First implementation move:** simplify only where the checked 28-tool contract remains intact;
+  do not pull Later/Park work forward to compensate for a gate failure.
+- **Pending verification:** one quiet-machine monolithic full browser gate (two accumulated runs
+  reached 24/28 and 26/28; all failed stories passed in isolation); a provider-recovery rerun of
+  the hardened remaining live cases; R3 PR review and beta stage decisions for migrations 0026
+  and 0027. BTL-019 actor-writer completion and BTL-020 provenance exposure remain explicitly
+  open.
 - **Open questions:** none.
 - **Beta wide-sweep note:** any selected schema-backed action-bundle, fridge, brief-state, or
   preference work must use the schema split and PR path from app-stage delivery guidance.

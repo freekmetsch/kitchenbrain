@@ -23,6 +23,7 @@
 	import StockActionReview from '$lib/components/chat/StockActionReview.svelte';
 	import MealChoiceCards from '$lib/components/chat/MealChoiceCards.svelte';
 	import AfterCookReview from '$lib/components/chat/AfterCookReview.svelte';
+	import CookingActionReview from '$lib/components/chat/CookingActionReview.svelte';
 	import { toolEntityHref } from '$lib/tool_display';
 
 	let { controller }: { controller: ChatAgentController } = $props();
@@ -550,6 +551,9 @@
 													d.afterCookProposal.mealId
 												) === d.afterCookProposal.token}
 											/>
+										{/if}
+										{#if d.kind === 'proposal' && d.cookingAction}
+											<CookingActionReview action={d.cookingAction} />
 										{/if}
 									</div>
 								{:else}

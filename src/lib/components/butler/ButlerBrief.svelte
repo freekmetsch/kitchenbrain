@@ -2,7 +2,7 @@
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
 	import { m } from '$lib/paraglide/messages';
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { ButlerCandidate } from '$lib/server/butler/brief';
 	import type { ButlerChangeSummary } from '$lib/server/butler/changes';
 	import type {
@@ -35,8 +35,13 @@
 	const domains = ['shopping', 'planning', 'stock', 'cooking'] as const satisfies ButlerDomain[];
 	const levels = ['quiet', 'notice', 'prepare'] as const satisfies ButlerInitiativeLevel[];
 	let draftInitiative = $state(untrack(() => ({ ...initiative })));
+	let ready = $state(false);
 	let busy = $state<string | null>(null);
 	let errorMessage = $state('');
+
+	onMount(() => {
+		ready = true;
+	});
 
 	function domainLabel(domain: ButlerDomain): string {
 		if (domain === 'shopping') return m.home_butler_domain_shopping();
@@ -111,7 +116,7 @@
 							</label>
 							<button
 								class="btn btn-primary btn-sm"
-								disabled={busy !== null}
+								disabled={!ready || busy !== null}
 								onclick={() =>
 									mutate(`initiative:${domain}`, {
 										action: 'save_initiative',
@@ -124,7 +129,7 @@
 						</div>
 						<button
 							class="btn btn-ghost btn-xs"
-							disabled={busy !== null}
+							disabled={!ready || busy !== null}
 							onclick={() =>
 								mutate(`forget:${domain}`, { action: 'forget_initiative', domain })}
 						>
@@ -203,7 +208,7 @@
 					<div class="mt-1 grid grid-cols-2 gap-1">
 						<button
 							class="btn btn-ghost btn-xs"
-							disabled={busy !== null}
+							disabled={!ready || busy !== null}
 							onclick={() =>
 								mutate(`snooze:${candidate.id}`, {
 									action: 'snooze',
@@ -215,7 +220,7 @@
 						</button>
 						<button
 							class="btn btn-ghost btn-xs"
-							disabled={busy !== null}
+							disabled={!ready || busy !== null}
 							onclick={() =>
 								mutate(`dismiss:${candidate.id}`, {
 									action: 'dismiss',
@@ -261,7 +266,7 @@
 					</div>
 					<button
 						class="btn btn-ghost btn-xs shrink-0"
-						disabled={busy !== null}
+						disabled={!ready || busy !== null}
 						onclick={() =>
 							mutate(`return:${item.candidate.id}`, {
 								action: 'return',
@@ -284,7 +289,7 @@
 			<p class="mt-2 text-base-content/65">{m.home_butler_changes_not_started()}</p>
 			<button
 				class="btn btn-ghost btn-xs mt-2"
-				disabled={busy !== null}
+				disabled={!ready || busy !== null}
 				onclick={() => mutate('changes:start', { action: 'mark_changes_seen' })}
 			>
 				{m.home_butler_changes_start()}
@@ -304,7 +309,7 @@
 			{/if}
 			<button
 				class="btn btn-ghost btn-xs mt-2"
-				disabled={busy !== null}
+				disabled={!ready || busy !== null}
 				onclick={() => mutate('changes:caught-up', { action: 'mark_changes_seen' })}
 			>
 				{m.home_butler_changes_caught_up()}

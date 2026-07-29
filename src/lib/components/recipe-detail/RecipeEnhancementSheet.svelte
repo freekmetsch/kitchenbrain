@@ -6,15 +6,21 @@
 	import RecipeEnhancementReview from '$lib/components/chat/RecipeEnhancementReview.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { onMount } from 'svelte';
 	import type { Ingredient } from '$lib/recipe_ingredient';
 	import type { RecipePatchDisplay } from '$lib/tool_display';
 
 	type Props = { slug: string; ingredients: Ingredient[] };
 	let { slug, ingredients: _ingredients }: Props = $props();
 	let open = $state(false);
+	let ready = $state(false);
 	let loading = $state(false);
 	let status = $state<'idle' | 'loading' | 'ready' | 'error'>('idle');
 	let proposal = $state<RecipePatchDisplay | null>(null);
+
+	onMount(() => {
+		ready = true;
+	});
 
 	async function generate() {
 		if (loading) return;
@@ -59,7 +65,7 @@
 		type="button"
 		class="btn btn-outline btn-sm min-h-11 w-full min-w-0 whitespace-normal border-primary/40 bg-base-100 px-2 text-xs md:px-3 md:text-sm"
 		aria-haspopup={proposal ? 'dialog' : undefined}
-		disabled={loading}
+		disabled={!ready || loading}
 		onclick={openReview}
 	>
 		{#if loading}

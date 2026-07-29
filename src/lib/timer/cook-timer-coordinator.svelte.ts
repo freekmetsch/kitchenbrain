@@ -16,6 +16,8 @@ export type CookTimerSessionIdentity = {
 	key: string;
 	recipeSlug: string;
 	recipeTitle: string;
+	/** Validated app-local return path. Recipe sessions derive one when omitted. */
+	href?: string;
 };
 
 export type VisibleCookTimer = {
@@ -23,17 +25,25 @@ export type VisibleCookTimer = {
 	index: number;
 	recipeSlug: string;
 	recipeTitle: string;
+	href: string;
 	label: string;
 	deadline: number;
 	done: boolean;
 	remainingSeconds: number;
 };
 
-type TimerMetadata = {
+export type CookTimerMetadata = {
 	label: string;
 	title?: string;
 	body?: string;
 	navigate?: string;
+};
+
+export type CookTimerRestoreSnapshot = {
+	identity: CookTimerSessionIdentity;
+	index: number;
+	remainingSeconds: number;
+	metadata: CookTimerMetadata;
 };
 
 type CookTimerCoordinatorStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -58,7 +68,7 @@ export class CookTimerSession {
 		recipeSlug: '',
 		recipeTitle: ''
 	});
-	metadata = $state<Record<number, TimerMetadata>>({});
+	metadata = $state<Record<number, CookTimerMetadata>>({});
 	alerts = $state<Record<number, CookTimerAlert>>({});
 	timerStateInitialized = $state(false);
 
@@ -125,7 +135,7 @@ export class CookTimerSession {
 		};
 	}
 
-	start(index: number, seconds: number, metadata: TimerMetadata): number {
+	start(index: number, seconds: number, metadata: CookTimerMetadata): number {
 		this.timerStateInitialized = true;
 		this.metadata = { ...this.metadata, [index]: metadata };
 		const deadline = this.#lifecycle.startTimer(index, seconds);
@@ -199,10 +209,33 @@ export class CookTimerSession {
 		this.#onChange();
 	}
 
+	extend(index: number, seconds: number): void {
+		const deadline = this.timers.ends[index];
+		const metadata = this.metadata[index];
+		if (!deadline || !metadata || !Number.isFinite(seconds) || seconds <= 0) return;
+		const remaining = Math.max(1, Math.ceil((deadline - this.timers.now) / 1_000));
+		this.cancel(index);
+		this.start(index, remaining + Math.round(seconds), metadata);
+	}
+
+	rename(index: number, label: string): void {
+		const deadline = this.timers.ends[index];
+		const metadata = this.metadata[index];
+		const nextLabel = label.trim().slice(0, 80);
+		if (!deadline || !metadata || !nextLabel) return;
+		const remaining = Math.max(1, Math.ceil((deadline - this.timers.now) / 1_000));
+		this.cancel(index);
+		this.start(index, remaining, {
+			...metadata,
+			label: nextLabel,
+			...(metadata.title ? { title: nextLabel } : {})
+		});
+	}
+
 	restore(
 		ends: Record<number, number>,
 		order: number[],
-		metadata: Record<number, TimerMetadata> = {},
+		metadata: Record<number, CookTimerMetadata> = {},
 		alerts: Record<number, CookTimerAlert> = {},
 		persist = true
 	): void {
@@ -282,6 +315,9 @@ export class CookTimerCoordinator {
 						index,
 						recipeSlug: session.identity.recipeSlug,
 						recipeTitle: session.identity.recipeTitle,
+						href:
+							session.identity.href ??
+							`/recipes/${encodeURIComponent(session.identity.recipeSlug)}`,
 						label: session.metadata[index]?.label ?? session.identity.recipeTitle,
 						deadline,
 						done,
@@ -352,6 +388,38 @@ export class CookTimerCoordinator {
 
 	cancel(sessionKey: string, index: number): void {
 		this.sessions[sessionKey]?.cancel(index);
+	}
+
+	extend(sessionKey: string, index: number, seconds: number): void {
+		this.sessions[sessionKey]?.extend(index, seconds);
+	}
+
+	rename(sessionKey: string, index: number, label: string): void {
+		this.sessions[sessionKey]?.rename(index, label);
+	}
+
+	timerSnapshot(sessionKey: string, index: number): CookTimerRestoreSnapshot | null {
+		const session = this.sessions[sessionKey];
+		const deadline = session?.timers.ends[index];
+		const metadata = session?.metadata[index];
+		if (!session || !deadline || !metadata) return null;
+		return {
+			identity: { ...session.identity },
+			index,
+			remainingSeconds: Math.max(
+				1,
+				Math.ceil((deadline - session.timers.now) / 1_000)
+			),
+			metadata: { ...metadata }
+		};
+	}
+
+	restoreTimer(snapshot: CookTimerRestoreSnapshot): void {
+		this.session(snapshot.identity).start(
+			snapshot.index,
+			Math.max(1, Math.round(snapshot.remainingSeconds)),
+			snapshot.metadata
+		);
 	}
 
 	async inspectPush(): Promise<TimerPushState> {
@@ -457,7 +525,7 @@ function readPersistedSession(
 	identity: CookTimerSessionIdentity;
 	ends: Record<number, number>;
 	order: number[];
-	metadata: Record<number, TimerMetadata>;
+	metadata: Record<number, CookTimerMetadata>;
 	alerts: Record<number, CookTimerAlert>;
 } | null {
 	if (value == null || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -471,6 +539,11 @@ function readPersistedSession(
 		typeof saved.recipeTitle !== 'string' ||
 		saved.recipeTitle.length === 0 ||
 		saved.recipeTitle.length > 160 ||
+		(saved.href !== undefined &&
+			(typeof saved.href !== 'string' ||
+				saved.href.length === 0 ||
+				saved.href.length > 300 ||
+				!/^\/(?!\/)/.test(saved.href))) ||
 		saved.ends == null ||
 		typeof saved.ends !== 'object' ||
 		Array.isArray(saved.ends) ||
@@ -492,7 +565,7 @@ function readPersistedSession(
 		return null;
 	}
 	const ends: Record<number, number> = {};
-	const metadata: Record<number, TimerMetadata> = {};
+	const metadata: Record<number, CookTimerMetadata> = {};
 	const alerts: Record<number, CookTimerAlert> = {};
 	for (const rawIndex of order) {
 		const index = rawIndex as number;
@@ -543,7 +616,8 @@ function readPersistedSession(
 		identity: {
 			key: saved.key,
 			recipeSlug: saved.recipeSlug,
-			recipeTitle: saved.recipeTitle
+			recipeTitle: saved.recipeTitle,
+			...(typeof saved.href === 'string' ? { href: saved.href } : {})
 		},
 		ends,
 		order: order as number[],

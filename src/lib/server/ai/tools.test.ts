@@ -75,6 +75,39 @@ describe('recipe continuity tool contracts', () => {
 		).toHaveProperty('include_missed');
 	});
 
+	it('consolidates cooked checkout, timers, rescue, and defrost into one cooking proposal', () => {
+		const names = tools.map((candidate) => candidate.name);
+		expect(names).not.toContain('mark_meal_cooked');
+		const cooking = tool('prepare_cooking_action');
+		expect(
+			(cooking.input_schema.properties as Record<string, { enum?: string[] }>).action.enum
+		).toEqual(['after_cook', 'timer', 'rescue', 'defrost']);
+
+		expect(
+			toolsForAssistantTurn('Start a ten minute timer for pasta').map(
+				(candidate) => candidate.name
+			)
+		).toEqual(['prepare_cooking_action']);
+		expect(
+			toolsForAssistantTurn('The sauce in our saved curry is too salty').map(
+				(candidate) => candidate.name
+			)
+		).toEqual(['get_recipe']);
+		expect(
+			assistantToolRoute(
+				'The sauce in our saved curry is too salty',
+				false,
+				[],
+				['get_recipe']
+			)
+		).toMatchObject({ forcedToolName: 'prepare_cooking_action' });
+		expect(
+			toolsForAssistantTurn('Remind me to defrost freezer chili').map(
+				(candidate) => candidate.name
+			)
+		).toEqual(['get_inventory']);
+	});
+
 	it('routes the consolidated Stock proposal only to relevant turns', () => {
 		expect(toolsForAssistantTurn('Sort out dinners for next week').map((candidate) => candidate.name))
 			.not.toContain('prepare_stock_action');

@@ -509,3 +509,70 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 		.poll(() => page.evaluate((key) => localStorage.getItem(key), progressKey))
 		.toBeNull();
 });
+
+test('Cook Mode offers explicit hands-busy voice, current-step timers, and grounded rescue', async ({
+	page
+}, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	await page.addInitScript(() => {
+		class OneShotRecognition {
+			continuous = true;
+			interimResults = true;
+			lang = '';
+			onresult: ((event: { results: { 0: { 0: { transcript: string } } } }) => void) | null =
+				null;
+			onerror: (() => void) | null = null;
+			onend: (() => void) | null = null;
+			start() {
+				this.onresult?.({ results: { 0: { 0: { transcript: 'next step' } } } });
+				this.onend?.();
+			}
+			stop() {}
+		}
+		Object.assign(window, {
+			SpeechRecognition: OneShotRecognition,
+			webkitSpeechRecognition: OneShotRecognition
+		});
+	});
+	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+	await page.evaluate(() => {
+		for (const key of Object.keys(localStorage)) {
+			if (key.startsWith('cook-timer-registry:') || key.startsWith('cookmode-progress:')) {
+				localStorage.removeItem(key);
+			}
+		}
+	});
+	await page.reload();
+
+	await page.getByText('Hands-busy controls', { exact: true }).click();
+	await expect(
+		page.getByText('The microphone never stays on.', { exact: false })
+	).toBeVisible();
+	const whatNow = page.getByRole('button', { name: 'What now?' });
+	await expect(whatNow).toBeEnabled();
+	await whatNow.click();
+	await expect(page.getByText('Simmer until ready.', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Start current timer' }).click();
+	await expect(page.getByRole('timer')).toBeVisible();
+	await page.getByRole('button', { name: 'Cancel this timer' }).click();
+
+	await page.getByRole('button', { name: 'Listen once' }).click();
+	await expect(
+		page.getByRole('button', { name: 'Read step 2: Serve the stew.' })
+	).toHaveAttribute('aria-current', 'step');
+
+	await page.getByText('Fix the pan', { exact: true }).click();
+	await page.getByRole('button', { name: 'Too thin' }).click();
+	await expect(page.getByText('Simmer uncovered first and stir regularly.')).toBeVisible();
+	const assistantLink = page.getByRole('link', { name: 'Ask Assistant with this context' });
+	await expect(assistantLink).toHaveAttribute(
+		'href',
+		new RegExp(
+			`/\\?cook_recipe=${fixture.cookRecipeSlug}&cook_step=1&cook_issue=too_thin$`
+		)
+	);
+	await assistantLink.click();
+	await expect(page.getByRole('textbox')).toHaveValue(
+		new RegExp(`Help me with ${fixture.cookRecipeSlug}, step 2: it is too thin`)
+	);
+});

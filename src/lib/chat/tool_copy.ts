@@ -99,6 +99,8 @@ export function toolStartSummary(
 				return 'Boodschappenlijst maken…';
 			case 'prepare_stock_action':
 				return 'Voorraad en boodschappen voorbereiden…';
+			case 'prepare_cooking_action':
+				return 'Kookactie voorbereiden…';
 			case 'add_recipe':
 				return title ? `${title} opslaan…` : 'Recept opslaan…';
 			case 'create_meal_recipe':
@@ -167,6 +169,8 @@ export function toolStartSummary(
 			return 'Building the shopping list…';
 		case 'prepare_stock_action':
 			return 'Preparing Stock and Shopping…';
+		case 'prepare_cooking_action':
+			return 'Preparing the cooking action…';
 		case 'add_recipe':
 			return title ? `Saving ${title}…` : 'Saving the recipe…';
 		case 'create_meal_recipe':

@@ -3,6 +3,7 @@ export type CapabilityDomain =
 	| 'planning'
 	| 'recipes'
 	| 'shopping'
+	| 'cooking'
 	| 'ah'
 	| 'trust';
 
@@ -103,10 +104,20 @@ export const ASSISTANT_CAPABILITIES = Object.freeze({
 		display: 'write'
 	}),
 	mark_meal_cooked: capability({
+		exposed: false,
 		domain: 'planning',
 		access: 'write',
 		currentRead: 'target',
 		confirmation: 'risk-based',
+		undo: 'atomic-batch',
+		externalEffect: 'none',
+		display: 'proposal'
+	}),
+	prepare_cooking_action: capability({
+		domain: 'cooking',
+		access: 'proposal',
+		currentRead: 'conditional',
+		confirmation: 'always-review',
 		undo: 'atomic-batch',
 		externalEffect: 'none',
 		display: 'proposal'
