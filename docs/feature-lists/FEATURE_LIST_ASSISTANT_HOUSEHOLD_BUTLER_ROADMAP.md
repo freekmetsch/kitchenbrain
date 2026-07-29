@@ -2,7 +2,7 @@
 
 _Status: In flight - Phase 10 of 10 (stock and Shopping loops isolated in stacked draft PR #36;
 meal decisions and scoped choices isolated in stacked draft PR #39; cooking assistance complete
-locally and in final verification)_
+in stacked draft PR #40 and in final verification)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -1049,6 +1049,11 @@ machine monolithic gate remains explicit Phase 10 work rather than being reporte
 bounded paid-provider rerun remains deferred after the previously observed provider failures; no
 production household content was used.
 
+The code-only wave is isolated in stacked draft PR #40 on
+`feature/assistant-cooking-assistance`, based on the meal-decisions branch from PR #39. It must
+remain stacked and undeployed until the beta R3 decisions for migrations 0026 and 0027 are
+explicit.
+
 ## First-slice implementation record
 
 The implementation remained code-only R2: no schema, migration, automatic memory, routine,
@@ -1204,9 +1209,8 @@ None. Feedback resolved the original gates on 2026-07-28 and promoted the litera
   defrost completion/Undo, and fresh/freezer after-cook preparation. Its focused provider-free
   matrix is 67/67, the serialized full unit suite is 738/738, and the complete Assistant browser
   file is eight/eight for both isolated household accounts.
-- **First command:** finish the Phase 10 quiet-machine monolithic gate, then deliver the Phase 9
-  code-only branch as a stacked draft without merging migrations 0026 or 0027 until the beta stage
-  decision is explicit.
+- **First command:** finish the Phase 10 quiet-machine monolithic gate, then review stacked draft
+  PR #40 without merging migrations 0026 or 0027 until the beta stage decision is explicit.
 - **First files:** this feature list; the Phase 9 diff; the three stacked draft PRs; the existing
   Assistant behavior evaluator and browser gates.
 - **First implementation move:** simplify only where the checked 28-tool contract remains intact;
