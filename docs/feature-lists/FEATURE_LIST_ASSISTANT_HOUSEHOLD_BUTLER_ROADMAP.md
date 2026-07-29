@@ -1,7 +1,7 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 6 of 10 (durable calm-service implementation ready for its R3
-PR gate; BTL-019 partial and BTL-020 parked after the Assistant performance gate)_
+_Status: In flight - Phase 7 of 10 (stock and Shopping loops implemented and locally verified on
+their isolated R3 wide sweep; stacked draft PR pending; Phase 8 not started)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -877,6 +877,68 @@ gate before merge when the shared machine is quiet.
   proposals and retain native Stock/Shopping flows.
 - **Dependencies:** BTL-N1 and BTL-N2 recommendation/review primitives.
 
+**Status: Implemented locally 2026-07-29; R3 draft delivery pending.**
+
+The isolated `wide-sweep/schema-inventory-zones-targets` branch adds append-only migration 0027
+with nullable pantry par-target quantity/unit columns. Fridge is now a first-class inventory zone
+through schema types, commands, merge/query boundaries, APIs, import/export, Assistant schemas,
+Stock filters/forms/editors, history labels, and populated 0025/0026/0027 migration rehearsals.
+Par targets remain pantry-only, require a positive comparable quantity/unit pair, explicitly force
+the existing staple flag when saved, and never infer a refill from unknown or incompatible stock.
+
+One server-owned `prepare_stock_action` proposal replaces a pile of domain-specific model tools.
+It stages authoritative Shopping adds/removals/quantity/bought changes, out-of/used-last
+Stock→Shopping bundles, bought-to-fridge intake, transient grocery photo/voice intake, and exact
+pantry deficits. Staging writes nothing. Apply rechecks whole Stock/current-week fingerprints and
+commits selected SQLite operations atomically; an injected later Shopping failure rolls back Stock
+and its operation log. The receipt reports both domains and one Undo reverses them in the same
+transaction, including reviewed intakes above the ordinary ten-operation chat-tool limit.
+Existing Shopping sources are reopened or adjusted instead of duplicated; multiple-source
+quantity changes refuse ambiguity.
+
+BTL-008 reuses the existing deterministic meal-suggestion projection and now requires exact
+on-hand/missing ingredient lists per option. BTL-023 combines current freezer targets, the coming
+week, and suggestion facts before one adjustable batch-cook plan proposal. Both paths share the
+existing recommendation envelope and meal-plan review rather than adding model-visible tools.
+
+The complete registry is 28 tools / 25,020 serialized bytes under the checked 28 / 26,000 ceiling,
+but explicit service workflows no longer receive that flat catalog. The router stages one required
+safe read or proposal tool at a time; OpenRouter/Anthropic tool choice is forced only for safe reads
+and write-nothing proposals. The server independently rejects any out-of-stage tool name before
+executor dispatch. Direct Shopping and grocery-intake turns therefore expose one proposal tool;
+out-of/used-last exposes the safe-read prefix and proposal; week edits and freezer refill expose
+only their completed safe-read prefix plus the next stage. Ordinary chat is still not memory and
+no apply/commit tool is ever forced.
+
+Iterative synthetic live checks against `z-ai/glm-5` exposed and then removed the overload:
+
+- the first post-exposure run used 46 calls / 524,278 tokens / 10 reported cents and failed direct
+  Shopping, grocery intake, and freezer-refill handoff;
+- intent packs reduced that to 44 calls / 369,125 tokens / 9 cents, while still revealing that a
+  one-tool pack did not guarantee a proposal call;
+- deterministic staged choice passed all 20 bilingual/cross-domain cases with zero known gaps in
+  45 calls / 328,466 tokens / 8 reported cents, versus 524,278 tokens before routing;
+- after the server-side stage allowlist was added, the next run passed its first twelve cases
+  (including week proposal and meal edit) before the provider began failing every request. That
+  outage run stopped at 39 calls / 257,357 tokens / 5 reported cents; it is not counted as a
+  product pass, and the remaining hardened cases stay pending a provider-recovery rerun.
+
+Provider-free evidence includes clean Svelte diagnostics, 704/704 unit tests, the checked evaluator
+config, the 0025/0026/0027 populated migration suite, focused
+Stock/Shopping/fridge/par/import/tool contracts, and a successful production adapter-node build
+(507 server and 355 client modules transformed). The new authenticated browser story passes for
+both isolated accounts at phone and desktop sizes, covering disclosure, row adjustment, atomic
+apply receipt, Undo, and horizontal overflow; it also passed inside the canonical primary run.
+
+The canonical `npm test` reached 21/24 primary browser stories. One previously focused dense-chat
+story exceeded the unchanged 30-second total, one unchanged recipe cook/freeze story exceeded it,
+and the desktop Stock deep-link missed its five-second dialog assertion after the phone variant
+passed. A focused rerun did not reach the product story because the isolated auth page took longer
+than its fixed 15-second assertion under the same machine contention; its failure snapshot shows
+the complete authenticated Assistant and expected primary navigation rendered after the timeout.
+No deep-link code changed in this wave. This is sufficient evidence for a draft R3 review, not a
+claim that the monolithic gate is green. Repeat the exact gate on a quiet machine before merge.
+
 ### BTL-N4 — Deliver meal decisions and scoped choices
 
 - **Ideas:** BTL-025, BTL-026, BTL-027, BTL-028, BTL-029, BTL-030, BTL-031.
@@ -1038,19 +1100,26 @@ None. Feedback resolved the original gates on 2026-07-28 and promoted the litera
 - **Goal:** deliver BTL-016 through BTL-035 and their eight named Wave 1 enablers without degrading
   Assistant capability selection or trust.
 - **Current state:** the Plan → Shop baseline is live; the Next portfolio is promoted; Phase 5
-  established the checked exposure budget and fifteen-case regression suite. Phase 6's passive
-  Brief is live. Its durable state is implemented on `wide-sweep/schema-butler-service-state`;
+  established the checked exposure budget, now exercised by a twenty-case regression suite. Phase
+  6's passive Brief is live. Its durable state is implemented on
+  `wide-sweep/schema-butler-service-state`;
   BTL-019 is truthful but partial, and BTL-020 is parked after four live regression failures.
-- **First command:** finish the full repository gate, open the R3 wide-sweep PR, and stop before
-  merging the production migration until the beta stage decision is explicit.
-- **First files:** this feature list; `src/lib/server/butler/brief.ts`;
-  `src/lib/server/butler/snapshot.ts`; `src/lib/components/butler/ButlerBrief.svelte`;
-  `src/routes/+page.server.ts`.
-- **First implementation move:** review the additive 0026 migration and zero-write home-load
-  boundary; do not reintroduce the removed Shopping provenance tool.
-- **Pending verification:** one quiet-machine monolithic full gate; PR review and beta stage
-  decision for migration 0026. BTL-019 actor-writer completion and BTL-020 tool routing stay
-  explicitly open.
+  Phase 7 is implemented and locally verified on stacked branch
+  `wide-sweep/schema-inventory-zones-targets`: migration 0027, fridge/par levels, the reviewed
+  Stock/Shopping proposal, and deterministic staged Assistant routing. The production build and
+  all 704 unit tests pass; the canonical browser run is 21/24 under documented machine contention.
+- **First command:** open the stacked R3 draft PR, then start Phase 8 without merging either
+  production migration until the beta stage decision is explicit.
+- **First files:** this feature list; `src/lib/server/ai/stock_action_proposal.ts`;
+  `src/lib/server/ai/tools.ts`; `src/lib/server/ai/client.ts`;
+  `src/lib/components/chat/StockActionReview.svelte`; `src/lib/par_level.ts`.
+- **First implementation move:** after Phase 7 is committed and its R3 draft is open, start Phase 8
+  from BTL-025/026 using the shipped recommendation and proposal envelopes; do not expand the flat
+  tool catalog.
+- **Pending verification:** one quiet-machine monolithic full gate (the current run is 21/24
+  browser stories after diagnostics and 704/704 unit tests); a provider-recovery rerun of the
+  hardened remaining live cases; R3 PR review and beta stage decisions for migrations 0026 and
+  0027. BTL-019 actor-writer completion and BTL-020 provenance exposure remain explicitly open.
 - **Open questions:** none.
 - **Beta wide-sweep note:** any selected schema-backed action-bundle, fridge, brief-state, or
   preference work must use the schema split and PR path from app-stage delivery guidance.
