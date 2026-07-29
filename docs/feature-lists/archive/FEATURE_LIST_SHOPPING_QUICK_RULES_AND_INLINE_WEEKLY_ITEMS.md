@@ -1,6 +1,6 @@
 # Feature List: Shopping Quick Rules and Inline Weekly Items
 
-_Status: Implementation complete - release verification in progress (2026-07-29)_
+_Status: Shipped - exact-main production healthy (2026-07-29)_
 
 ## Problem framing
 
@@ -378,7 +378,7 @@ household evidence.
 | SHOP-QI-4 | Complete | The umbrella rules block, rule sheet, weekly manager, controller state, routes, copy, and obsolete components are removed; repository search is clean. |
 | SHOP-QI-5 | Complete | `Edit weekly` replaces run rows with recurring definitions; inline add/edit retains failed drafts and restores focus to returned recurring IDs. |
 | SHOP-QI-6 | Complete | Weekly include/skip is direct, stop requires inline confirmation, later-week ranges retain effective-week semantics, and past weeks are read-only. |
-| SHOP-QI-7 | Release in progress | The complete provider-free gate and both account matrices pass; exact-main Railway and the privacy-safe authenticated canary remain the release boundary. |
+| SHOP-QI-7 | Complete | PR #33 merged as `69b0ca6`; Railway deployment `9ef0f712-8370-4542-9ef8-b31156c77f1b` reached `SUCCESS` on that exact remote `main`, and the privacy-safe authenticated canary passed. |
 
 ## Risk tier and rollout
 
@@ -429,7 +429,7 @@ definitions.
 | Responsive UI | 320, 375, 768, 1280 px; 200% effective layout; long recipe/term strings; many terms; EN/NL; light/dark | Complete — responsive matrix |
 | Accessibility | Labelled controls per recipe source, selected/busy state, 44 px project target, keyboard/focus/live announcements | Complete — semantic locators, focus assertions, and layout checks |
 | Repository gate | `npm test`; `npm run test:e2e:secondary`; `git diff --check`; Gitleaks | Complete — 125 files/672 unit tests, 23 primary and 23 secondary browser tests; static gates clean |
-| Production | Railway exact `main`, authenticated narrow/desktop structural canary, zero console/HTTP errors, no retained household evidence | Pending release |
+| Production | Railway exact `main`, authenticated narrow/desktop structural canary, zero console/HTTP errors, no retained household evidence | Complete — exact `69b0ca6`, authenticated 320/1280 checks, zero console/runtime/HTTP errors |
 
 Context7 is not required: this plan changes internal Svelte composition and existing application
 commands, not an external framework/library/API contract.
@@ -477,10 +477,10 @@ name a rollback and observable verification path for each write boundary. No R3 
 
 - **Goal:** replace the remaining Shopping rules and Weekly-item managers with direct source pills
   and a single inline Weekly edit mode.
-- **Current state:** all seven execution tickets are implemented. The provider-free repository
-  gate and both authenticated test-account matrices pass.
-- **Continue with:** exact-main Railway delivery and the privacy-safe authenticated production
-  canary, then record the release evidence in this archived plan and `docs/deploys/2026-07.md`.
+- **Current state:** all seven execution tickets are shipped. The provider-free repository gate,
+  both authenticated test-account matrices, exact-main Railway deployment, and privacy-safe
+  production canary pass.
+- **Continue with:** session complete; `$plan` the next item.
 - **Do not retain:** household screenshots, bodies, cookies, list contents, or other authenticated
   evidence.
 - **Accepted decisions:** one cycling need-state pill including `Usually stocked`; one adjacent Buy
