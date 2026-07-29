@@ -85,6 +85,32 @@ export type MealPlanProposalDisplay = {
 	}>;
 };
 
+export type StockActionProposalDisplay = {
+	token: string;
+	status: 'active' | 'applying' | 'applied' | 'undone' | 'rejected' | 'superseded' | 'expired';
+	title: string;
+	weekStartDate: string;
+	atomicity: {
+		kind: 'atomic';
+		consequence: string;
+	};
+	recommendation: MealPlanProposalDisplay['recommendation'];
+	operations: Array<{
+		id: string;
+		kind:
+			| 'stock_replace'
+			| 'par_refill'
+			| 'shopping_add'
+			| 'shopping_change'
+			| 'bought_intake'
+			| 'inventory_intake';
+		label: string;
+		before: string | null;
+		after: string;
+		reason: string;
+	}>;
+};
+
 export type ToolDisplay = {
 	kind: 'read' | 'write' | 'error' | 'confirm' | 'plan' | 'proposal';
 	/** One human-readable sentence — never JSON. */
@@ -104,6 +130,7 @@ export type ToolDisplay = {
 	steps?: string[];
 	recipePatch?: RecipePatchDisplay;
 	mealPlanProposal?: MealPlanProposalDisplay;
+	stockActionProposal?: StockActionProposalDisplay;
 	/** A validated entity reference. The client derives the app-local route. */
 	entityAction?: ToolDisplayEntityAction;
 };

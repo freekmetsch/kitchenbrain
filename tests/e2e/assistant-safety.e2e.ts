@@ -250,6 +250,76 @@ test('Plan → Shop review is adjustable, atomic, and keeps the AH push behind f
 	}
 });
 
+test('Stock and Shopping review is adjustable, atomic, undoable, and responsive', async ({
+	page
+}, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	const token = `e2e-${fixture.account}-stock-proposal`;
+	const selectedRequests: string[][] = [];
+	let undoRequests = 0;
+
+	await page.route('**/api/stock/proposal*', async (route) => {
+		if (route.request().method() === 'GET') {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ status: 'active' })
+			});
+			return;
+		}
+		const body = route.request().postDataJSON() as {
+			token: string;
+			operationIds?: string[];
+		};
+		expect(body.token).toBe(token);
+		if (route.request().method() === 'DELETE') undoRequests += 1;
+		if (route.request().method() === 'POST') selectedRequests.push(body.operationIds ?? []);
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				status: route.request().method() === 'DELETE' ? 'undone' : 'committed',
+				atomicity: 'atomic'
+			})
+		});
+	});
+
+	for (const viewport of VIEWPORTS) {
+		await page.setViewportSize(viewport);
+		await page.goto('/');
+		const review = page.getByRole('region', { name: 'Stock and Shopping review' });
+		await expect(review).toBeVisible();
+		await expect(review.getByRole('heading', { name: 'Restock rice and unpack milk' })).toBeVisible();
+		await expect(review.getByText('Why now', { exact: true })).toBeVisible();
+		await expect(review.getByText('What will change', { exact: true })).toBeVisible();
+		await expect(review.getByText('Confidence: medium', { exact: true })).toBeVisible();
+		await expect(
+			review.getByText('Selected rows change together. If one row fails, nothing is saved.')
+		).toBeVisible();
+		await review.getByText('Evidence', { exact: true }).click();
+		await expect(review.getByText('Uncertainty', { exact: true })).toBeVisible();
+		await expect(review.getByText('Alternatives', { exact: true })).toBeVisible();
+
+		const rows = review.getByRole('checkbox');
+		await expect(rows).toHaveCount(2);
+		await rows.nth(1).uncheck();
+		await expect(review.getByText('1 selected', { exact: true })).toBeVisible();
+		await review.getByRole('button', { name: 'Apply selected' }).click();
+		await expect(review.getByText('Stock and Shopping were updated together.')).toBeVisible();
+		expect(selectedRequests.at(-1)).toEqual([`e2e-${fixture.account}-stock-rice`]);
+
+		await review.getByRole('button', { name: 'Undo all' }).click();
+		await expect(review.getByText('Stock and Shopping were restored.')).toBeVisible();
+		expect(undoRequests).toBe(viewport.name === 'phone' ? 1 : 2);
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth > document.documentElement.clientWidth
+			),
+			`Stock and Shopping review must not overflow horizontally at ${viewport.width}px`
+		).toBe(false);
+	}
+});
+
 test('Recipe patch review stays selective and responsive at phone and desktop', async ({
 	page
 }, testInfo) => {

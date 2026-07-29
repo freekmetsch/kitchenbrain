@@ -142,6 +142,47 @@ export function buildToolDisplay(
 ): ToolDisplay {
 	const result = asObj(rawResult) as Result;
 	if (
+		name === 'prepare_stock_action' &&
+		result.kind === 'stock_action_proposal' &&
+		typeof result.token === 'string' &&
+		typeof result.title === 'string' &&
+		typeof result.weekStartDate === 'string' &&
+		Array.isArray(result.operations) &&
+		result.recommendation &&
+		typeof result.recommendation === 'object' &&
+		result.atomicity &&
+		typeof result.atomicity === 'object'
+	) {
+		return {
+			kind: 'proposal',
+			summary: locale === 'nl' ? 'Voorraad en boodschappen controleren' : 'Review Stock and Shopping',
+			stockActionProposal: {
+				token: result.token,
+				status:
+					result.status === 'active' ||
+					result.status === 'applying' ||
+					result.status === 'applied' ||
+					result.status === 'undone' ||
+					result.status === 'rejected' ||
+					result.status === 'superseded' ||
+					result.status === 'expired'
+						? result.status
+						: 'active',
+				title: result.title,
+				weekStartDate: result.weekStartDate,
+				atomicity: result.atomicity as NonNullable<
+					ToolDisplay['stockActionProposal']
+				>['atomicity'],
+				recommendation: result.recommendation as NonNullable<
+					ToolDisplay['stockActionProposal']
+				>['recommendation'],
+				operations: result.operations as NonNullable<
+					ToolDisplay['stockActionProposal']
+				>['operations']
+			}
+		};
+	}
+	if (
 		name === 'propose_meal_plan' &&
 		result.kind === 'meal_plan_proposal' &&
 		typeof result.token === 'string' &&

@@ -17,6 +17,7 @@ function number(value: unknown): number | null {
 
 function sectionLabel(value: unknown, locale: ChatLocale): string {
 	if (value === 'freezer') return locale === 'nl' ? 'vriezer' : 'freezer';
+	if (value === 'fridge') return locale === 'nl' ? 'koelkast' : 'fridge';
 	if (value === 'pantry') return locale === 'nl' ? 'voorraadkast' : 'pantry';
 	return text(value) ?? (locale === 'nl' ? 'voorraad' : 'inventory');
 }
@@ -96,6 +97,8 @@ export function toolStartSummary(
 				return 'Producten bij AH zoeken…';
 			case 'generate_shopping_list':
 				return 'Boodschappenlijst maken…';
+			case 'prepare_stock_action':
+				return 'Voorraad en boodschappen voorbereiden…';
 			case 'add_recipe':
 				return title ? `${title} opslaan…` : 'Recept opslaan…';
 			case 'create_meal_recipe':
@@ -162,6 +165,8 @@ export function toolStartSummary(
 			return 'Searching AH products…';
 		case 'generate_shopping_list':
 			return 'Building the shopping list…';
+		case 'prepare_stock_action':
+			return 'Preparing Stock and Shopping…';
 		case 'add_recipe':
 			return title ? `Saving ${title}…` : 'Saving the recipe…';
 		case 'create_meal_recipe':

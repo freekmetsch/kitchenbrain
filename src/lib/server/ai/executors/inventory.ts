@@ -17,7 +17,7 @@ const singleUpdateSchema = z.object({
 	qty_text: z.string().optional(),
 	qty_num: z.number().nonnegative().optional(),
 	unit: z.string().optional(),
-	section: z.enum(['freezer', 'pantry']).optional(),
+	section: z.enum(['freezer', 'fridge', 'pantry']).optional(),
 	expiry_date: isoDateSchema.nullable().optional(),
 	created_at: isoDateSchema.optional(),
 	category: z.string().optional(),
@@ -89,7 +89,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 	async get_inventory(raw, db) {
 		const input = z
 			.object({
-				section: z.enum(['freezer', 'pantry']).optional(),
+				section: z.enum(['freezer', 'fridge', 'pantry']).optional(),
 				category: z.string().optional(),
 				expiring_within_days: z.number().optional(),
 				added_before_days: z.number().optional(),
@@ -110,7 +110,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 		const input = z
 			.object({
 				name: z.string(),
-				section: z.enum(['freezer', 'pantry']),
+				section: z.enum(['freezer', 'fridge', 'pantry']),
 				qty_text: z.string().optional(),
 				qty_num: z.number().nonnegative().optional(),
 				unit: z.string().optional(),
@@ -167,7 +167,7 @@ export const inventoryExecutors: Record<string, ExecutorFn> = {
 			.object({
 				id: z.number().optional(),
 				name: z.string().optional(),
-				section: z.enum(['freezer', 'pantry']).optional()
+				section: z.enum(['freezer', 'fridge', 'pantry']).optional()
 			})
 			.parse(raw);
 

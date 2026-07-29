@@ -27,6 +27,7 @@ import {
 } from '$lib/chat/tool_copy';
 import type { TurnSafetyState } from '$lib/server/ai/turn_safety';
 import type { ToolDisplayDiff } from '$lib/tool_display';
+import type { InventorySection } from '$lib/inventory_section';
 
 /** Threaded through one chat request's tool loop; feeds the risk decisions. */
 export type TurnExecutionContext = {
@@ -61,8 +62,8 @@ function str(v: unknown): string | undefined {
 function num(v: unknown): number | undefined {
 	return typeof v === 'number' ? v : undefined;
 }
-function section(v: unknown): 'freezer' | 'pantry' | undefined {
-	return v === 'freezer' || v === 'pantry' ? v : undefined;
+function section(v: unknown): InventorySection | undefined {
+	return v === 'freezer' || v === 'fridge' || v === 'pantry' ? v : undefined;
 }
 
 const BULK_SNAPSHOT_FIELDS: Record<string, string> = {

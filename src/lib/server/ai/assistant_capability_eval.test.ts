@@ -12,8 +12,8 @@ describe('Assistant capability quality gate', () => {
 	it('keeps the complete shipped surface inside the checked exposure budget', () => {
 		const measurement = measureAssistantTools(tools);
 
-		expect(measurement.count).toBe(27);
-		expect(measurement.serializedBytes).toBe(23_125);
+		expect(measurement.count).toBe(28);
+		expect(measurement.serializedBytes).toBe(25_020);
 		expect(() => assertAssistantToolBudget(tools)).not.toThrow();
 		expect(ASSISTANT_TOOL_BUDGET.maxCount).toBe(28);
 	});
@@ -51,17 +51,17 @@ describe('Assistant capability quality gate', () => {
 		).toBeGreaterThanOrEqual(4);
 		expect(
 			ASSISTANT_CAPABILITY_EVAL_CASES.filter((scenario) => scenario.knownBaselineFailure)
-		).toHaveLength(1);
+		).toHaveLength(0);
 	});
 
-	it('records the shipped out-of-stock collision as a baseline gap', () => {
+	it('requires the reviewed Stock proposal for the former out-of-stock collision', () => {
 		const scenario = ASSISTANT_CAPABILITY_EVAL_CASES.find(
 			(candidate) => candidate.id === 'cross-domain-out-of'
 		);
 
 		expect(scenario).toBeDefined();
 		expect(
-			evaluateAssistantToolOrder(scenario!, ['get_inventory', 'add_to_inventory'])
-		).toBe('FORBIDDEN_TOOL:add_to_inventory');
+			evaluateAssistantToolOrder(scenario!, ['get_inventory', 'prepare_stock_action'])
+		).toBeNull();
 	});
 });

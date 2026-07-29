@@ -318,6 +318,8 @@ export type AgentTurnOpts = {
 	system: string;
 	messages: Anthropic.MessageParam[];
 	tools: Anthropic.Tool[];
+	/** Force one server-selected tool for a deterministic, user-requested workflow stage. */
+	toolChoice?: { name: string };
 	/**
 	 * Per-call output ceiling. Omit to let the provider use its own natural
 	 * maximum — no artificial truncation cliff. Cost stays bounded by the daily
@@ -347,7 +349,10 @@ async function streamOpenRouterTurn(opts: AgentTurnOpts): Promise<AgentTurnResul
 			model: opts.model,
 			messages: toOpenAiMessages(opts.system, opts.messages),
 			tools: toOpenAiTools(opts.tools),
-			tool_choice: 'auto',
+			tool_choice: opts.toolChoice
+				? { type: 'function', function: { name: opts.toolChoice.name } }
+				: 'auto',
+			...(opts.toolChoice ? { parallel_tool_calls: false } : {}),
 			// Omit max_tokens unless a caller pins one — the provider's own limit is
 			// the ceiling, so no reply is severed by an artificial cap.
 			...(opts.maxTokens != null ? { max_tokens: opts.maxTokens } : {}),
@@ -454,6 +459,15 @@ async function streamAnthropicTurn(opts: AgentTurnOpts): Promise<AgentTurnResult
 		max_tokens: opts.maxTokens ?? ANTHROPIC_MAX_TOKENS_FALLBACK,
 		system: [{ type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } }],
 		tools: opts.tools,
+		...(opts.toolChoice
+			? {
+					tool_choice: {
+						type: 'tool' as const,
+						name: opts.toolChoice.name,
+						disable_parallel_tool_use: true
+					}
+				}
+			: {}),
 		messages: opts.messages
 	});
 	const onAbort = () => stream.abort();
