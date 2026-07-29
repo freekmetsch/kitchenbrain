@@ -16,6 +16,9 @@ describe('provable Butler household changes', () => {
 			{ name: 'Spinazie', section: 'pantry' },
 			{ userId: user.id, actor: user.username }
 		);
+		db.update(schema.inventoryOpsLog)
+			.set({ createdAt: new Date('2026-07-29T09:15:00Z') })
+			.run();
 		db.insert(schema.shoppingPushHistory)
 			.values({
 				weekStartDate: '2026-07-29',

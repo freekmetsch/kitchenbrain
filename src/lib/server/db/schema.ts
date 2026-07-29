@@ -12,6 +12,7 @@ import {
 import type { BenchSheetRating, StoredCookModeRecipe } from '$lib/types';
 import type { RecipeSourceSnapshot } from '$lib/recipe_source_snapshot';
 import type { MachineActor } from '$lib/actors';
+import type { InventorySection } from '$lib/inventory_section';
 import type {
 	Ingredient,
 	IngredientRole,
@@ -182,7 +183,7 @@ export const inventoryItems = sqliteTable('inventory_items', {
 	qtyText: text('qty_text'),
 	qtyNum: real('qty_num'),
 	unit: text('unit'),
-	section: text('section').notNull().$type<'freezer' | 'pantry'>(),
+	section: text('section').notNull().$type<InventorySection>(),
 	// Legacy single-field classifier from ADR 0001, superseded by foodClass for AI
 	// filtering — but still actively read/written by inventory writes, merge, and the
 	// executor layer, so it stays live rather than a dead column. Retiring it is a
@@ -196,6 +197,8 @@ export const inventoryItems = sqliteTable('inventory_items', {
 	needsReview: integer('needs_review', { mode: 'boolean' }).notNull().default(false),
 	reviewReason: text('review_reason'),
 	isStaple: integer('is_staple', { mode: 'boolean' }).notNull().default(false),
+	parTargetQty: real('par_target_qty'),
+	parTargetUnit: text('par_target_unit'),
 	expiryDate: text('expiry_date'),
 	tags: text('tags', { mode: 'json' }).$type<string[]>().default([]),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

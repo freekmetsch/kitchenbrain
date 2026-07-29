@@ -67,6 +67,7 @@
 				<span class="ui-field-label">{m.inventory_editor_section_label()}</span>
 				<select class="select select-bordered select-sm w-full" bind:value={draft.section}>
 					<option value="freezer">{m.inventory_section_freezer()}</option>
+					<option value="fridge">{m.inventory_section_fridge()}</option>
 					<option value="pantry">{m.inventory_section_pantry()}</option>
 				</select>
 			</label>
@@ -105,10 +106,34 @@
 					</div>
 				{/if}
 			{:else}
-				<label class="col-span-2 flex cursor-pointer items-center gap-2 pt-0.5">
-					<input type="checkbox" class="checkbox checkbox-sm" bind:checked={draft.staple} />
-					<span class="text-xs text-base-content/70">{m.inventory_editor_staple_label()}</span>
-				</label>
+				<div class="col-span-2 space-y-2 pt-0.5">
+					<label class="flex cursor-pointer items-center gap-2">
+						<input type="checkbox" class="checkbox checkbox-sm" bind:checked={draft.staple} />
+						<span class="text-xs text-base-content/70">{m.inventory_editor_staple_label()}</span>
+					</label>
+					{#if draft.section === 'pantry' || draft.parTargetQty !== null || draft.parTargetUnit}
+						<div class="rounded-lg border border-base-300/70 bg-base-100/60 p-2.5">
+							<p class="ui-field-label">{m.inventory_editor_par_target_label()}</p>
+							<p class="mb-2 text-xs text-base-content/55">{m.inventory_editor_par_target_help()}</p>
+							<div class="grid grid-cols-2 gap-2">
+								<input
+									type="number"
+									inputmode="decimal"
+									min="0.01"
+									step="any"
+									class="input input-bordered input-sm w-full"
+									placeholder={m.inventory_editor_par_target_qty_placeholder()}
+									bind:value={draft.parTargetQty}
+								/>
+								<input
+									class="input input-bordered input-sm w-full"
+									placeholder={m.inventory_editor_par_target_unit_placeholder()}
+									bind:value={draft.parTargetUnit}
+								/>
+							</div>
+						</div>
+					{/if}
+				</div>
 			{/if}
 		</div>
 

@@ -19,7 +19,7 @@ const migrationRoot = join(process.cwd(), 'drizzle');
 const cleanupPaths: string[] = [];
 
 function temporaryPath(): string {
-	const path = mkdtempSync(join(tmpdir(), 'kitchenbrain-butler-state-'));
+	const path = mkdtempSync(join(tmpdir(), 'kitchenbrain-inventory-zones-'));
 	cleanupPaths.push(path);
 	return path;
 }
@@ -30,20 +30,20 @@ function databaseAt(path: string) {
 	return { sqlite, db: drizzle(sqlite, { schema }) };
 }
 
-function legacyMigrationFolder(root: string): string {
+function preTargetMigrationFolder(root: string): string {
 	const folder = join(root, 'legacy-migrations');
 	const meta = join(folder, 'meta');
 	mkdirSync(meta, { recursive: true });
 	for (const filename of readdirSync(migrationRoot)) {
 		const match = filename.match(/^(\d{4})_.+\.sql$/);
-		if (match && Number(match[1]) < 26) {
+		if (match && Number(match[1]) < 27) {
 			copyFileSync(join(migrationRoot, filename), join(folder, filename));
 		}
 	}
 	const journal = JSON.parse(
 		readFileSync(join(migrationRoot, 'meta', '_journal.json'), 'utf8')
 	) as { entries: Array<{ idx: number }> };
-	journal.entries = journal.entries.filter((entry) => entry.idx < 26);
+	journal.entries = journal.entries.filter((entry) => entry.idx < 27);
 	writeFileSync(join(meta, '_journal.json'), JSON.stringify(journal));
 	return folder;
 }
@@ -54,81 +54,53 @@ afterEach(() => {
 	}
 });
 
-describe('Butler service-state migration', () => {
-	it('creates only additive state tables on a fresh database', () => {
+describe('inventory zones and pantry targets migration', () => {
+	it('adds only nullable target columns on a fresh database', () => {
 		const root = temporaryPath();
 		const { sqlite, db } = databaseAt(join(root, 'fresh.sqlite'));
 		try {
 			migrate(db, { migrationsFolder: migrationRoot });
-			const names = sqlite
-				.prepare(
-					"SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'butler_%' ORDER BY name"
-				)
-				.all();
-			expect(names).toEqual([
-				{ name: 'butler_candidate_states' },
-				{ name: 'butler_initiative_preferences' },
-				{ name: 'butler_user_states' }
-			]);
+			const columns = sqlite.prepare('PRAGMA table_info(inventory_items)').all() as Array<{
+				name: string;
+				notnull: number;
+			}>;
+			expect(columns).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ name: 'par_target_qty', notnull: 0 }),
+					expect.objectContaining({ name: 'par_target_unit', notnull: 0 })
+				])
+			);
 			expect(sqlite.pragma('foreign_key_check')).toEqual([]);
 		} finally {
 			sqlite.close();
 		}
 	});
 
-	it('upgrades populated household data and cascades per-user Butler state', () => {
+	it('preserves populated inventory and accepts fridge plus targets after upgrade', () => {
 		const root = temporaryPath();
 		const { sqlite, db } = databaseAt(join(root, 'upgrade.sqlite'));
 		try {
-			migrate(db, { migrationsFolder: legacyMigrationFolder(root) });
+			migrate(db, { migrationsFolder: preTargetMigrationFolder(root) });
 			const now = new Date('2026-07-29T10:00:00Z');
-			const user = db
-				.insert(schema.users)
-				.values({ username: 'migration-user', passwordHash: 'test', createdAt: now })
-				.returning()
-				.get();
 			sqlite
 				.prepare(
 					'INSERT INTO inventory_items (name, section, is_staple, needs_review, created_at, updated_at) VALUES (?, ?, 0, 0, ?, ?)'
 				)
-				.run('Spinazie', 'pantry', now.getTime(), now.getTime());
+				.run('Rijst', 'pantry', now.getTime(), now.getTime());
 
 			migrate(db, { migrationsFolder: migrationRoot });
+			const existing = db.select().from(schema.inventoryItems).get()!;
+			expect(existing).toMatchObject({
+				name: 'Rijst',
+				section: 'pantry',
+				parTargetQty: null,
+				parTargetUnit: null
+			});
 
-			expect(db.select().from(schema.inventoryItems).all()).toEqual([
-				expect.objectContaining({ name: 'Spinazie' })
-			]);
-			db.insert(schema.butlerCandidateStates)
-				.values({
-					userId: user.id,
-					candidateKey: 'brief:stock-expiry:spinach',
-					disposition: 'dismissed',
-					createdAt: now,
-					updatedAt: now
-				})
+			db.update(schema.inventoryItems)
+				.set({ section: 'fridge', parTargetQty: null, parTargetUnit: null })
 				.run();
-			db.insert(schema.butlerInitiativePreferences)
-				.values({
-					userId: user.id,
-					domain: 'stock',
-					level: 'notice',
-					createdAt: now,
-					updatedAt: now
-				})
-				.run();
-			db.insert(schema.butlerUserStates)
-				.values({
-					userId: user.id,
-					changesSeenThrough: now,
-					createdAt: now,
-					updatedAt: now
-				})
-				.run();
-			db.delete(schema.users).run();
-
-			expect(db.select().from(schema.butlerCandidateStates).all()).toEqual([]);
-			expect(db.select().from(schema.butlerInitiativePreferences).all()).toEqual([]);
-			expect(db.select().from(schema.butlerUserStates).all()).toEqual([]);
+			expect(db.select().from(schema.inventoryItems).get()).toMatchObject({ section: 'fridge' });
 			expect(sqlite.pragma('foreign_key_check')).toEqual([]);
 		} finally {
 			sqlite.close();

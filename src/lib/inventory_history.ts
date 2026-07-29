@@ -17,7 +17,11 @@ export function actorLabel(actor: OpActor): string {
 	return displayName(actor);
 }
 
-const SECTION_LABEL: Record<string, string> = { freezer: 'Freezer', pantry: 'Pantry' };
+const SECTION_LABEL: Record<string, string> = {
+	freezer: 'Freezer',
+	fridge: 'Fridge',
+	pantry: 'Pantry'
+};
 
 function str(v: unknown): string | null {
 	return typeof v === 'string' ? v : null;

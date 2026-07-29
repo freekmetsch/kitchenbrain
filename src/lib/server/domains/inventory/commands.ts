@@ -21,10 +21,12 @@ import {
 } from './merge';
 import { autoStapleOnLink } from './freezer';
 import { isRuleReason, reasonTokens } from '$lib/review_reasons';
+import type { InventorySection } from '$lib/inventory_section';
+import { validateParLevel } from '$lib/par_level';
 
 type InventoryItem = typeof schema.inventoryItems.$inferSelect;
 type InventoryOp = typeof schema.inventoryOpsLog.$inferSelect;
-type Section = 'freezer' | 'pantry';
+type Section = InventorySection;
 
 export type WriteCtx = { actor: InventoryActor; userId?: number };
 
@@ -74,6 +76,8 @@ const SNAPSHOT_COMPARE_FIELDS = [
 	'needsReview',
 	'reviewReason',
 	'isStaple',
+	'parTargetQty',
+	'parTargetUnit',
 	'expiryDate',
 	'createdAt',
 	'deletedAt'
@@ -319,6 +323,8 @@ export type UpdateInventoryInput = Partial<{
 	madeFromRecipeId: number | null;
 	recipeStatus: 'linked' | 'plan_to_add' | 'no_recipe' | null;
 	isStaple: boolean;
+	parTargetQty: number | null;
+	parTargetUnit: string | null;
 	needsReview: boolean;
 	reviewReason: string | null;
 	expiryDate: string | null;
@@ -368,6 +374,26 @@ export function updateInventory(
 			updates.recipeStatusAt = new Date();
 		}
 		if (input.isStaple !== undefined) updates.isStaple = input.isStaple;
+		const resultingParTargetQty =
+			input.parTargetQty !== undefined ? input.parTargetQty : before.parTargetQty;
+		const resultingParTargetUnit =
+			input.parTargetUnit !== undefined ? normalizeUnit(input.parTargetUnit) || null : before.parTargetUnit;
+		const parValidation = validateParLevel({
+			section: input.section ?? before.section,
+			qtyNum: input.qtyNum !== undefined ? input.qtyNum : before.qtyNum,
+			unit: input.unit !== undefined ? input.unit : before.unit,
+			parTargetQty: resultingParTargetQty,
+			parTargetUnit: resultingParTargetUnit
+		});
+		if (!parValidation.ok) return { ok: false as const, error: parValidation.error };
+		if (input.parTargetQty !== undefined) updates.parTargetQty = input.parTargetQty;
+		if (input.parTargetUnit !== undefined) updates.parTargetUnit = resultingParTargetUnit;
+		if (
+			(resultingParTargetQty !== null || resultingParTargetUnit !== null) &&
+			(input.parTargetQty !== undefined || input.parTargetUnit !== undefined)
+		) {
+			updates.isStaple = true;
+		}
 		if (input.expiryDate !== undefined) updates.expiryDate = input.expiryDate;
 		if (input.createdAt !== undefined) updates.createdAt = input.createdAt;
 		if (input.tags !== undefined) updates.tags = input.tags;
