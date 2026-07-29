@@ -5,24 +5,21 @@
 
 	type MealRef = { dinner: string; recipeSlug: string };
 	let {
-		showAhNotice,
 		mealsWithoutRecipe,
 		freezerMeals,
 		freezerMealsMissingFreshInfo
 	}: {
-		showAhNotice: boolean;
 		mealsWithoutRecipe: string[];
 		freezerMeals: MealRef[];
 		freezerMealsMissingFreshInfo: MealRef[];
 	} = $props();
 
 	let noticeCount = $derived(
-		Number(showAhNotice) +
 		Number(mealsWithoutRecipe.length > 0) +
 		Number(freezerMeals.length > 0) +
 		Number(freezerMealsMissingFreshInfo.length > 0)
 	);
-	let hasWarning = $derived(showAhNotice || mealsWithoutRecipe.length > 0 || freezerMealsMissingFreshInfo.length > 0);
+	let hasWarning = $derived(mealsWithoutRecipe.length > 0 || freezerMealsMissingFreshInfo.length > 0);
 </script>
 
 {#if noticeCount > 0}
@@ -34,14 +31,6 @@
 			<span aria-hidden="true" class="text-base-content/50">⌄</span>
 		</summary>
 		<ul class="divide-y divide-base-200 border-t border-base-200 text-sm">
-			{#if showAhNotice}
-				<li class="flex items-start gap-2 px-3 py-2.5">
-					<span class="min-w-0 flex-1 text-base-content/70">
-						{m.shopping_ah_not_connected_banner()}
-					</span>
-					<a href="{base}/settings/connections" class="btn btn-ghost min-h-11 shrink-0">{m.shopping_connect_settings_link()}</a>
-				</li>
-			{/if}
 			{#if mealsWithoutRecipe.length}
 				<li class="px-3 py-2.5 text-base-content/70">
 					<p class="font-medium text-base-content/80">{m.shopping_without_recipe_heading()}</p>

@@ -1,4 +1,4 @@
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createServer } from 'vite';
 import { E2E_DATA_DIR, E2E_SERVER_ENV, E2E_SERVER_PORT } from '../tests/e2e/config';
@@ -23,6 +23,19 @@ if (relativeDataDir !== expectedDataDir) {
 
 await rm(E2E_DATA_DIR, { recursive: true, force: true });
 await mkdir(E2E_DATA_DIR, { recursive: true });
+if (process.env.E2E_AH_CONNECTED === '1') {
+	await writeFile(
+		E2E_SERVER_ENV.AH_TOKEN_FILE,
+		JSON.stringify({
+			v: 2,
+			member: true,
+			access_token: 'e2e-connected-access-not-a-secret',
+			refresh_token: 'e2e-connected-refresh-not-a-secret',
+			member_name: 'E2E household'
+		}),
+		'utf8'
+	);
+}
 seedKitchenFixtures(E2E_SERVER_ENV.DATABASE_URL);
 
 const server = await createServer({

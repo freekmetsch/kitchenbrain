@@ -66,10 +66,28 @@ describe('shopping list view projection', () => {
 	const manual = item('lucifers', [source({ id: 4, sourceKind: 'manual' })]);
 
 	it('derives unique meal filters and Weekly from source ownership', () => {
-		expect(getShoppingFilterOptions([shared, weekly, manual, shared])).toEqual({
+		expect(
+			getShoppingFilterOptions([
+				...(shared.sources ?? []),
+				...(weekly.sources ?? []),
+				...(manual.sources ?? []),
+				...(shared.sources ?? [])
+			])
+		).toEqual({
 			meals: ['Soep', 'Pasta'],
 			hasWeekly: true
 		});
+	});
+
+	it('keeps canonical meal order independent from pending and completed item order', () => {
+		const canonical = [
+			source({ id: 20, sourceKind: 'recipe', mealNames: ['Primary'] }),
+			source({ id: 21, sourceKind: 'recipe', mealNames: ['Secondary'] })
+		];
+		expect(getShoppingFilterOptions(canonical).meals).toEqual(['Primary', 'Secondary']);
+		expect(
+			getShoppingFilterOptions([canonical[1], canonical[0]]).meals
+		).toEqual(['Secondary', 'Primary']);
 	});
 
 	it('shows one shared row in either exact meal filter and keeps manual rows in All only', () => {
@@ -139,6 +157,15 @@ describe('shopping list view projection', () => {
 		expect(
 			groupShoppingBoardItems([shared], { kind: 'meal', mealName: 'Pasta' }, ['Soep', 'Pasta'])
 		).toEqual([{ kind: 'meal', key: 'meal:Pasta', mealName: 'Pasta', items: [shared] }]);
+	});
+
+	it('omits an empty Weekly section from All without removing its filtered projection', () => {
+		expect(groupShoppingBoardItems([manual], { kind: 'all' }, [])).toEqual([
+			{ kind: 'other', key: 'other', mealName: null, items: [manual] }
+		]);
+		expect(groupShoppingBoardItems([], { kind: 'weekly' }, [])).toEqual([
+			{ kind: 'weekly', key: 'weekly', mealName: null, items: [] }
+		]);
 	});
 
 	it('selects the next focus target from visible order after a row leaves the state', () => {

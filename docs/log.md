@@ -739,3 +739,65 @@ body, cookie, or household content.
 Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_QUICK_RULES_AND_INLINE_WEEKLY_ITEMS.md,
 docs/artifacts/archive/2026-07-28-plan-shopping-quick-rules-inline-weekly-items.html,
 docs/deploys/2026-07.md
+
+## 2026-07-29 | html-artifact | plan: Shopping interaction stability
+
+Audited the shipped Shopping Source Ledger with isolated synthetic data at 375 and 1280 px. The
+plan fixes outer-window focus scrolling, mutation-driven source-filter reordering, and abrupt
+row/section movement, then removes empty/repeated Weekly, rule, AH connection, and resolved-history
+detail without changing Shopping or AH data behavior. The R2 plan has seven execution tickets,
+four phases, a failure-mode critique, and two defaulted UX decisions. No application code,
+household data, real provider request, or AH send changed.
+
+The local decision workspace preserves the Markdown as the authoritative `$run` input and can
+generate a paste-ready handoff for checked-row behavior and unresolved AH detail density.
+
+Touched: docs/feature-lists/FEATURE_LIST_SHOPPING_INTERACTION_STABILITY.md,
+docs/artifacts/2026-07-29-plan-shopping-interaction-stability.html,
+docs/log.md
+
+## 2026-07-29 | run paused | Shopping interaction stability
+
+Implemented SIS-01 through SIS-07 with canonical source identity, app-main-only focus repair,
+per-key mutation locks, reduced-motion-safe local reflow, compact Weekly/source presentation, one
+contextual AH dock action, and bounded unresolved AH history. Synthetic Shopping unit and browser
+coverage passes for both accounts, including a fake-connected fixture that made zero AH requests;
+the production build passes against an isolated migrated database.
+
+Delivery paused before commit/push because the sustained repository gate ended red on the
+unrelated existing Cook Mode resume journey even though that journey passes focused. The active
+feature list contains the complete evidence and blocker. No household data, real provider request,
+AH lookup, or AH push was used.
+
+Touched: docs/feature-lists/FEATURE_LIST_SHOPPING_INTERACTION_STABILITY.md,
+messages/en.json, messages/nl.json, scripts/e2e_server.ts,
+src/lib/components/shopping/PushHistory.svelte,
+src/lib/components/shopping/ShoppingLists.svelte,
+src/lib/components/shopping/ShoppingNotices.svelte,
+src/lib/components/shopping/list-controller.svelte.ts,
+src/lib/shopping_list_view.ts, src/lib/shopping_push_history.ts,
+src/routes/shopping/+page.svelte, tests/e2e/responsive-parity.e2e.ts
+
+## 2026-07-29 | wrap | Shopping interaction stability
+
+Closed the repository-gate blocker without changing Cook Mode behavior. The failing trace showed
+that two Cook journeys could spend 169 seconds waiting for global `networkidle` while background
+traffic remained active. The tests now use the rendered Cook interface as their readiness signal
+with bounded navigation tolerances.
+
+The complete gate passed 125 test files / 683 unit tests, all 25 primary authenticated browser
+stories, Svelte diagnostics, and the production build. All 25 secondary-account browser stories
+also passed. The opt-in fake-connected AH fixture passed with explicit zero preview/push requests.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_INTERACTION_STABILITY.md,
+docs/artifacts/archive/2026-07-29-plan-shopping-interaction-stability.html,
+tests/e2e/kitchen-flows.e2e.ts, tests/e2e/responsive-parity.e2e.ts
+
+## [2026-07-29 14:44] archive-scan | 1 feature list, 1 HTML archived
+
+Moved the completed Shopping interaction-stability feature list and its linked decision workspace
+into their archive directories. The repository has no `scripts/archive-scan.ps1`, so the validated
+inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_INTERACTION_STABILITY.md,
+docs/artifacts/archive/2026-07-29-plan-shopping-interaction-stability.html
