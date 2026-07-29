@@ -118,6 +118,27 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 		requiresReview: true
 	},
 	{
+		id: 'missed-meal-rollover',
+		domain: 'planning',
+		locale: 'nl',
+		prompt:
+			'Schuif de gemiste maaltijden door naar deze week of verwijder ze, en laat me alles eerst controleren.',
+		allowedFirstTools: ['get_meal_plan'],
+		requiredTools: ['get_meal_plan', 'propose_meal_plan'],
+		forbiddenTools: ['mark_meal_cooked', 'remove_meal'],
+		requiresReview: true
+	},
+	{
+		id: 'after-cook-checkout',
+		domain: 'planning',
+		locale: 'en',
+		prompt: 'We ate the freezer curry tonight. Finish it properly.',
+		allowedFirstTools: ['get_meal_plan'],
+		requiredTools: ['get_meal_plan', 'mark_meal_cooked'],
+		forbiddenTools: ['propose_meal_plan', 'remove_from_inventory'],
+		requiresReview: true
+	},
+	{
 		id: 'recipe-read',
 		domain: 'recipes',
 		locale: 'en',

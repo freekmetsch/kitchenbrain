@@ -43,7 +43,11 @@ import {
 	type RecipeAhPreference
 } from '$lib/server/domains/shopping';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
-import type { PreviewItem, PreviewProduct } from '$lib/shopping_ah';
+import type {
+	PreviewConflict,
+	PreviewItem,
+	PreviewProduct
+} from '$lib/shopping_ah';
 import {
 	initializeShoppingSourceData,
 	materializeShoppingWeek
@@ -160,8 +164,56 @@ function quantitySources(row: ShoppingBuyRow) {
 		name: source.name,
 		amount: source.amount,
 		unit: source.unit,
-		recipeTitle: source.recipeTitle
+		recipeTitle: source.recipeTitle,
+		sourceKind: source.sourceKind
 	}));
+}
+
+function sourceQuantityKey(source: ShoppingBuyRow['sources'][number]): string | null {
+	const amount = source.amount?.trim().toLocaleLowerCase('nl-NL');
+	const unit = source.unit?.trim().toLocaleLowerCase('nl-NL');
+	if (!amount && !unit) return null;
+	return `${amount ?? ''}\u0000${unit ?? ''}`;
+}
+
+export function shoppingRowConflicts(row: ShoppingBuyRow): PreviewConflict[] {
+	const manual = row.sources.filter((source) => source.sourceKind === 'manual');
+	const recipe = row.sources.filter((source) => source.sourceKind === 'recipe');
+	const conflicts: PreviewConflict[] = [];
+	const counts = {
+		sourceCount: row.sources.length,
+		manualCount: manual.length,
+		recipeCount: recipe.length
+	};
+	if (row.incompatibleQuantities) {
+		conflicts.push({ kind: 'incompatible_quantity', ...counts });
+	}
+	if (manual.length > 0 && recipe.length > 0) {
+		const manualQuantities = new Set(
+			manual.map(sourceQuantityKey).filter((key): key is string => key !== null)
+		);
+		const duplicates = recipe.some((source) => {
+			const key = sourceQuantityKey(source);
+			return key !== null && manualQuantities.has(key);
+		});
+		conflicts.push({
+			kind: duplicates ? 'duplicate_quantity' : 'manual_recipe_overlap',
+			...counts
+		});
+	}
+	if (row.sources.length >= 3) {
+		conflicts.push({ kind: 'multi_source_total', ...counts });
+	}
+	return conflicts;
+}
+
+function conflictSignature(conflicts: PreviewConflict[]): string {
+	return conflicts
+		.map(
+			(conflict) =>
+				`${conflict.kind}:${conflict.sourceCount}:${conflict.manualCount}:${conflict.recipeCount}`
+		)
+		.join('|');
 }
 
 function quantitySummary(row: ShoppingBuyRow): string | null {
@@ -228,11 +280,14 @@ function resolveRowPreference(
 
 function preferenceSignature(
 	resolution: RowPreference,
-	globalFavoriteId: string | undefined
+	_globalFavoriteId: string | undefined
 ): string {
 	if (resolution.kind === 'recipe') return `recipe:${resolution.preference.productId}`;
 	if (resolution.kind === 'unresolved') return 'unresolved';
-	return `global:${globalFavoriteId ?? ''}`;
+	// A household favorite ranks candidates but does not authorize an AH write.
+	// Let the user explicitly save/edit/forget that ranking inside an active
+	// preview without invalidating the already reviewed product set.
+	return 'none';
 }
 
 export async function previewShoppingForAh(
@@ -289,6 +344,10 @@ export async function previewShoppingForAh(
 			const purchaseForm = row.sources.find((source) => source.purchaseForm)?.purchaseForm;
 			const { outcome, usedDutchTerm } = await searchWithFallback(ah, row.name);
 			const sourceAmounts = quantitySources(row);
+			const conflicts = shoppingRowConflicts(row);
+			const sourceReviewRequired = conflicts.some(
+				(conflict) => conflict.kind !== 'incompatible_quantity'
+			);
 			if (!outcome.ok) {
 				return {
 					ref,
@@ -298,6 +357,8 @@ export async function previewShoppingForAh(
 					unit: row.unit,
 					incompatibleQuantities: row.incompatibleQuantities,
 					quantitySources: sourceAmounts,
+					conflicts,
+					...(sourceReviewRequired ? { requiresExplicitDecision: true } : {}),
 					purchaseForm,
 					status: 'unknown',
 					candidates: [],
@@ -324,6 +385,8 @@ export async function previewShoppingForAh(
 					unit: row.unit,
 					incompatibleQuantities: row.incompatibleQuantities,
 					quantitySources: sourceAmounts,
+					conflicts,
+					...(sourceReviewRequired ? { requiresExplicitDecision: true } : {}),
 					purchaseForm,
 					status: 'freetext',
 					candidates: [],
@@ -354,6 +417,8 @@ export async function previewShoppingForAh(
 				unit: row.unit,
 				incompatibleQuantities: row.incompatibleQuantities,
 				quantitySources: sourceAmounts,
+				conflicts,
+				...(sourceReviewRequired ? { requiresExplicitDecision: true } : {}),
 				purchaseForm,
 				status: 'product',
 				candidates: ranked
@@ -484,6 +549,7 @@ export async function previewShoppingForAh(
 				unit: item.unit,
 				incompatibleQuantities: item.incompatibleQuantities,
 				quantitySummary: quantitySummary(row),
+				conflictSignature: conflictSignature(item.conflicts),
 				preferenceSignature: preferenceSignature(
 					rowPreferences.get(item.ref) ?? { kind: 'none' },
 					favorites.get(normalize(row.name))?.productId
@@ -546,6 +612,15 @@ function assertCurrentPreview(
 			throw new ShoppingAhWorkflowError(
 				409,
 				'The shopping list changed; review it again'
+			);
+		}
+		if (
+			conflictSignature(shoppingRowConflicts(row)) !==
+			(binding.conflictSignature ?? '')
+		) {
+			throw new ShoppingAhWorkflowError(
+				409,
+				'The shopping source conflicts changed; review them again'
 			);
 		}
 		const ids = [...row.entryIds].sort((a, b) => a - b);

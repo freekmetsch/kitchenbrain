@@ -252,7 +252,8 @@ export function observeToolResult(
 		return;
 	}
 	if (name === 'get_meal_plan') {
-		for (const week of nestedRecords(result, 'weeks')) {
+		const weeks = nestedRecords(result, 'weeks');
+		for (const week of weeks) {
 			const observedWeek = str(week.week_start);
 			if (observedWeek) {
 				state.mealWeeks.set(
@@ -270,6 +271,20 @@ export function observeToolResult(
 					.get();
 				if (current) state.meals.set(id, fingerprint(current));
 			}
+		}
+		for (const meal of nestedRecords(result, 'missed_meals')) {
+			const id = num(meal.id);
+			const weekStart = str(meal.weekStartDate);
+			if (weekStart && !state.mealWeeks.has(weekStart)) {
+				state.mealWeeks.set(weekStart, fingerprint(listMealsForWeek(db, weekStart)));
+			}
+			if (id === undefined) continue;
+			const current = db
+				.select()
+				.from(schema.mealPlanMeals)
+				.where(eq(schema.mealPlanMeals.id, id))
+				.get();
+			if (current) state.meals.set(id, fingerprint(current));
 		}
 		return;
 	}

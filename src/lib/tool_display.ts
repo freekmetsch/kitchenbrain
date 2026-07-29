@@ -111,6 +111,45 @@ export type StockActionProposalDisplay = {
 	}>;
 };
 
+export type MealChoiceOptionDisplay = {
+	slug: string;
+	title: string;
+	source: 'fresh' | 'freezer';
+	servings: number;
+	totalTimeMin: number | null;
+	onHand: string[];
+	missingItems: string[];
+	staleOnHand: string[];
+	frozenPortionsOnHand: number;
+	daysSinceCooked: number | null;
+	freezerEffect: string;
+	why: string[];
+};
+
+export type MealChoicesDisplay = {
+	whyNow: string;
+	evidence: string[];
+	confidence: 'high' | 'medium' | 'low';
+	uncertainty: string | null;
+	consequence: string;
+	options: MealChoiceOptionDisplay[];
+};
+
+export type AfterCookProposalDisplay = {
+	token: string;
+	status: 'active' | 'applying' | 'applied' | 'undone' | 'rejected' | 'superseded' | 'expired';
+	mealId: number;
+	meal: string;
+	cookedDate: string;
+	availablePortions: number;
+	defaultEatenPortions: number;
+	atomicity: {
+		kind: 'atomic';
+		consequence: string;
+	};
+	recommendation: MealPlanProposalDisplay['recommendation'];
+};
+
 export type ToolDisplay = {
 	kind: 'read' | 'write' | 'error' | 'confirm' | 'proposal';
 	/** One human-readable sentence — never JSON. */
@@ -128,6 +167,8 @@ export type ToolDisplay = {
 	recipePatch?: RecipePatchDisplay;
 	mealPlanProposal?: MealPlanProposalDisplay;
 	stockActionProposal?: StockActionProposalDisplay;
+	mealChoices?: MealChoicesDisplay;
+	afterCookProposal?: AfterCookProposalDisplay;
 	/** A validated entity reference. The client derives the app-local route. */
 	entityAction?: ToolDisplayEntityAction;
 };
@@ -138,6 +179,18 @@ export function toolEntityHref(
 ): string | null {
 	if (!action || action.kind !== 'recipe' || !action.id.trim()) return null;
 	return `${basePath}/recipes/${encodeURIComponent(action.id)}`;
+}
+
+export function mealChoiceHref(
+	option: Pick<MealChoiceOptionDisplay, 'slug' | 'servings' | 'source'>,
+	basePath: string
+): string | null {
+	if (!option.slug.trim()) return null;
+	const servings =
+		Number.isInteger(option.servings) && option.servings >= 1 && option.servings <= 99
+			? option.servings
+			: 4;
+	return `${basePath}/recipes/${encodeURIComponent(option.slug)}?servings=${servings}&source=${option.source}`;
 }
 
 /** Present-tense "doing" line shown the moment a tool starts, before its result. */

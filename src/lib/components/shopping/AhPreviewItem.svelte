@@ -11,6 +11,7 @@
 	import { formatPrice, itemLabel } from './format';
 	import type { Decision } from './types';
 	import { MOTION_MICRO_MS } from '$lib/motion';
+	import type { PreviewConflict } from '$lib/shopping_ah';
 
 	type Props = {
 		item: PreviewItem;
@@ -48,6 +49,19 @@
 	const mode = $derived(dec?.mode);
 	const pick = $derived(dec?.pick ?? 0);
 	const sel = $derived(item.candidates[pick] ?? null);
+	const sourceConflicts = $derived(
+		(item.conflicts ?? []).filter((conflict) => conflict.kind !== 'incompatible_quantity')
+	);
+
+	function conflictMessage(conflict: PreviewConflict): string {
+		if (conflict.kind === 'duplicate_quantity') {
+			return m.shopping_ah_conflict_duplicate_quantity();
+		}
+		if (conflict.kind === 'manual_recipe_overlap') {
+			return m.shopping_ah_conflict_manual_recipe();
+		}
+		return m.shopping_ah_conflict_many_sources({ count: conflict.sourceCount });
+	}
 </script>
 
 <li class="rounded-2xl border border-base-300 p-3 {mode === 'exclude' ? 'opacity-50' : ''}">
@@ -77,6 +91,24 @@
 					</li>
 				{/each}
 			</ul>
+		</div>
+	{/if}
+	{#if sourceConflicts.length > 0}
+		<div
+			class="mt-2 rounded-xl border border-warning/30 bg-warning/10 px-2.5 py-2"
+			data-testid="ah-source-conflicts"
+		>
+			<p class="text-xs font-medium text-base-content/80">
+				{m.shopping_ah_source_conflicts_title()}
+			</p>
+			<ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-base-content/70">
+				{#each sourceConflicts as conflict}
+					<li>{conflictMessage(conflict)}</li>
+				{/each}
+			</ul>
+			<p class="mt-1 text-xs text-base-content/60">
+				{m.shopping_ah_source_conflicts_consequence()}
+			</p>
 		</div>
 	{/if}
 
@@ -126,6 +158,41 @@
 		{#if sel.pricePerCount != null}
 			<p class="mt-1 text-right text-xs text-base-content/55">{m.shopping_ah_price_per_count({ price: formatPrice(sel.pricePerCount) })}</p>
 		{/if}
+		{#if showFavorite}
+			<section class="mt-2 rounded-xl border border-base-300/70 bg-base-100/55 p-2.5">
+				<p class="text-xs font-semibold">{m.shopping_ah_choice_scope()}</p>
+				{#if favoriteId === sel.id}
+					<p class="mt-1 text-xs leading-relaxed text-base-content/65">
+						{m.shopping_ah_scope_household_saved({ term: item.term })}
+					</p>
+					<button
+						type="button"
+						class="btn btn-ghost btn-sm mt-1.5 min-h-11 w-full"
+						aria-label={m.shopping_ah_unpin_favorite_aria({ name: sel.name })}
+						onclick={() => onToggleFavorite(sel, pick)}
+					>
+						{m.shopping_ah_scope_forget()}
+					</button>
+				{:else}
+					<p class="mt-1 text-xs leading-relaxed text-base-content/65">
+						{m.shopping_ah_scope_this_push()}
+					</p>
+					<button
+						type="button"
+						class="btn btn-outline btn-sm mt-1.5 min-h-11 w-full"
+						aria-label={m.shopping_ah_pin_favorite_aria({ name: sel.name })}
+						onclick={() => onToggleFavorite(sel, pick)}
+					>
+						{favoriteId
+							? m.shopping_ah_scope_replace_household()
+							: m.shopping_ah_scope_save_household()}
+					</button>
+				{/if}
+				<p class="mt-1.5 text-[0.68rem] leading-relaxed text-base-content/50">
+					{m.shopping_ah_scope_recipe_elsewhere()}
+				</p>
+			</section>
+		{/if}
 		{#if item.lowConfidence}
 			<p class="mt-1.5 text-xs text-warning">{m.shopping_ah_low_confidence()}</p>
 		{/if}
@@ -137,17 +204,6 @@
 					onclick={() => onToggleExpanded()}
 				>
 					{expanded ? m.shopping_ah_hide_options() : m.shopping_ah_other_options({ count: item.candidates.length - 1 })}
-				</button>
-			{/if}
-			{#if showFavorite}
-				<button
-					type="button"
-					class="flex min-h-11 min-w-11 items-center justify-center text-base leading-none {favoriteId === sel.id ? 'text-warning' : 'text-base-content/35'}"
-					aria-pressed={favoriteId === sel.id}
-					aria-label={favoriteId === sel.id ? m.shopping_ah_unpin_favorite_aria({ name: sel.name }) : m.shopping_ah_pin_favorite_aria({ name: sel.name })}
-					onclick={() => onToggleFavorite(sel, pick)}
-				>
-					{favoriteId === sel.id ? '★' : '☆'}
 				</button>
 			{/if}
 			<button type="button" class="min-h-11 text-base-content/50" onclick={() => onDemoteToText()}>{m.shopping_ah_send_as_text()}</button>
@@ -179,17 +235,6 @@
 								{formatPrice(cand.price)}
 							</span>
 						</button>
-						{#if showFavorite}
-							<button
-								type="button"
-								class="btn btn-ghost btn-xs h-11 w-11 shrink-0 px-0 text-base {favoriteId === cand.id ? 'text-warning' : 'text-base-content/30'}"
-								aria-label={favoriteId === cand.id ? m.shopping_ah_unpin_favorite_aria({ name: cand.name }) : m.shopping_ah_pin_favorite_aria({ name: cand.name })}
-								aria-pressed={favoriteId === cand.id}
-								onclick={() => onToggleFavorite(cand, idx)}
-							>
-								{favoriteId === cand.id ? '★' : '☆'}
-							</button>
-						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -197,7 +242,9 @@
 	{:else if item.requiresExplicitDecision}
 		<div class="mt-2 rounded-xl border border-warning/30 bg-warning/10 px-2.5 py-2" role="status">
 			<p class="text-xs text-base-content/75">
-				{item.preferenceState === 'unavailable'
+				{sourceConflicts.length > 0
+					? m.shopping_ah_source_conflict_decision()
+					: item.preferenceState === 'unavailable'
 					? m.shopping_ah_recipe_preference_unavailable()
 					: m.shopping_ah_recipe_preference_conflict()}
 			</p>

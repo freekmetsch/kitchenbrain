@@ -35,6 +35,18 @@ export type PreviewProduct = {
  * unknown  — AH search errored (retryable); pushed as free text as a fallback.
  */
 export type PreviewStatus = 'product' | 'freetext' | 'unknown';
+export type PreviewConflictKind =
+	| 'incompatible_quantity'
+	| 'manual_recipe_overlap'
+	| 'duplicate_quantity'
+	| 'multi_source_total';
+
+export type PreviewConflict = {
+	kind: PreviewConflictKind;
+	sourceCount: number;
+	manualCount: number;
+	recipeCount: number;
+};
 
 export type PreviewItem = {
 	/** Stable per-item reference so duplicate names with different amounts never cross-wire. */
@@ -51,7 +63,10 @@ export type PreviewItem = {
 		amount: string | null;
 		unit: string | null;
 		recipeTitle: string | null;
+		sourceKind: 'recipe' | 'weekly' | 'manual' | 'legacy';
 	}>;
+	/** Deterministic Shopping-source conflicts that must be visible before any AH write. */
+	conflicts: PreviewConflict[];
 	purchaseForm?: 'fresh' | 'preserved' | 'frozen' | 'dried' | 'any';
 	status: PreviewStatus;
 	/** Ranked candidates for status 'product' (top-10 batch, up to 24 on re-search); empty otherwise. */

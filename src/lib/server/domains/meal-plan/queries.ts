@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lt, max, count } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lt, max, count, or } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
 import { weekKeyRange } from '$lib/week';
@@ -14,6 +14,33 @@ export function listMealPlanMeals(db: DbOrTx): MealPlanMeal[] {
 		.select()
 		.from(schema.mealPlanMeals)
 		.orderBy(asc(schema.mealPlanMeals.weekStartDate), asc(schema.mealPlanMeals.sortOrder))
+		.all();
+}
+
+export function listMissedPlannedMeals(
+	db: DbOrTx,
+	input: { today: string; currentWeekStart: string }
+): MealPlanMeal[] {
+	return db
+		.select()
+		.from(schema.mealPlanMeals)
+		.where(
+			and(
+				eq(schema.mealPlanMeals.status, 'planned'),
+				or(
+					lt(schema.mealPlanMeals.plannedDate, input.today),
+					and(
+						isNull(schema.mealPlanMeals.plannedDate),
+						lt(schema.mealPlanMeals.weekStartDate, input.currentWeekStart)
+					)
+				)
+			)
+		)
+		.orderBy(
+			asc(schema.mealPlanMeals.plannedDate),
+			asc(schema.mealPlanMeals.weekStartDate),
+			asc(schema.mealPlanMeals.sortOrder)
+		)
 		.all();
 }
 

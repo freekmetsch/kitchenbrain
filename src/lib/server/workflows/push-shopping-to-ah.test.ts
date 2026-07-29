@@ -265,6 +265,57 @@ describe('pushShoppingToAh', () => {
 		expect(mixedPreview.items[0].candidates[0]?.isRecipePreference).not.toBe(true);
 	});
 
+	it('blocks an automatic AH choice when a manual quantity duplicates a recipe source', async () => {
+		const db = createTestDb();
+		const recipeRow = seedRecipeShoppingRow(db, 1);
+		db.insert(schema.shoppingWeekEntries)
+			.values({
+				weekStartDate: WEEK,
+				sourceKey: 'manual:duplicate-cheese',
+				sourceKind: 'manual',
+				name: 'Parmezaanse kaas',
+				amount: '50',
+				unit: 'g',
+				approvedTerms: ['Parmezaanse kaas'],
+				createdAt: NOW,
+				updatedAt: NOW
+			})
+			.run();
+		const row = getShoppingWeekView(db, WEEK).toBuy.find(
+			(candidate) => candidate.name === 'Parmezaanse kaas'
+		)!;
+		expect(row.entryIds).toHaveLength(recipeRow.entryIds.length + 1);
+
+		const preview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: row.entryIds },
+			dependencies(
+				db,
+				fakeAdapter({
+					searchProducts: async () => ({
+						ok: true,
+						products: [ahProduct('cheese', 'AH Parmigiano Reggiano')]
+					})
+				})
+			)
+		);
+
+		expect(preview.items[0]).toMatchObject({
+			requiresExplicitDecision: true,
+			conflicts: [
+				{
+					kind: 'duplicate_quantity',
+					sourceCount: 2,
+					manualCount: 1,
+					recipeCount: 1
+				}
+			]
+		});
+		expect(preview.items[0].quantitySources.map((source) => source.sourceKind).sort()).toEqual([
+			'manual',
+			'recipe'
+		]);
+	});
+
 	it('requires review when a saved recipe product is unavailable', async () => {
 		const db = createTestDb();
 		const row = seedRecipeShoppingRow(db, 1);
@@ -487,6 +538,47 @@ describe('pushShoppingToAh', () => {
 			id: favorite.id,
 			isFavorite: true
 		});
+	});
+
+	it('allows an explicit household favorite save without invalidating a neutral active preview', async () => {
+		const db = createTestDb();
+		const entries = seedEntries(db);
+		const product = ahProduct('ordinary-pasta', 'AH Spaghetti');
+		const adapter = fakeAdapter({
+			searchProducts: async () => ({ ok: true, products: [product] })
+		});
+		const deps = dependencies(db, adapter);
+		const preview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: [entries.pasta.id] },
+			deps
+		);
+
+		db.insert(schema.ahFavorites)
+			.values({
+				nameKey: 'pasta',
+				productId: product.id,
+				productName: product.name,
+				createdAt: NOW
+			})
+			.run();
+
+		await expect(
+			pushShoppingToAh(
+				{
+					userId: 1,
+					previewToken: preview.previewToken,
+					decisions: [
+						{
+							ref: preview.items[0].ref,
+							mode: 'product',
+							productId: product.id,
+							qty: 1
+						}
+					]
+				},
+				deps
+			)
+		).resolves.toMatchObject({ productsPushed: 1 });
 	});
 
 	it('invalidates a preview token when its recipe preference changes', async () => {

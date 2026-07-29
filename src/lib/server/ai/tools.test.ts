@@ -78,6 +78,9 @@ describe('recipe continuity tool contracts', () => {
 		expect(proposal.properties?.operations?.items?.oneOf).toHaveLength(3);
 		expect(JSON.stringify(proposal)).toContain('meal_id');
 		expect(JSON.stringify(proposal)).toContain('recipe_slug');
+		expect(
+			(tool('get_meal_plan').input_schema.properties as Record<string, unknown>)
+		).toHaveProperty('include_missed');
 	});
 
 	it('routes the consolidated Stock proposal only to relevant turns', () => {
@@ -144,6 +147,35 @@ describe('recipe continuity tool contracts', () => {
 				(candidate) => candidate.name
 			)
 		).toEqual(['get_meal_plan']);
+		expect(
+			toolsForAssistantTurn('Move the missed dinners into this week for review.').map(
+				(candidate) => candidate.name
+			)
+		).toEqual(['get_meal_plan']);
+		expect(
+			assistantToolRoute(
+				'Schuif de gemiste maaltijden door en laat me de wijzigingen controleren.',
+				false,
+				[],
+				['get_meal_plan']
+			).forcedToolName
+		).toBe('propose_meal_plan');
+		expect(
+			toolsForAssistantTurn('We ate the freezer curry tonight. Finish it properly.').map(
+				(candidate) => candidate.name
+			)
+		).toEqual(['get_meal_plan']);
+		const afterCookReview = assistantToolRoute(
+			'We ate the freezer curry tonight. Finish it properly.',
+			false,
+			[],
+			['get_meal_plan']
+		);
+		expect(afterCookReview.forcedToolName).toBe('mark_meal_cooked');
+		expect(afterCookReview.tools.map((candidate) => candidate.name)).toEqual([
+			'get_meal_plan',
+			'mark_meal_cooked'
+		]);
 		expect(
 			toolsForAssistantTurn('Sort out dinners for next week').map((candidate) => candidate.name)
 		).toEqual(['get_meal_plan']);

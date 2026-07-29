@@ -71,7 +71,8 @@ describe('Plan → Shop finish pipeline', () => {
 				candidates: [],
 				lowConfidence: false,
 				incompatibleQuantities: false,
-				quantitySources: []
+				quantitySources: [],
+				conflicts: []
 			}))
 		}));
 

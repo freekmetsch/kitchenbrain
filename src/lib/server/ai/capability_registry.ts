@@ -105,10 +105,10 @@ export const ASSISTANT_CAPABILITIES = Object.freeze({
 		domain: 'planning',
 		access: 'write',
 		currentRead: 'target',
-		confirmation: 'none',
-		undo: 'none',
+		confirmation: 'risk-based',
+		undo: 'atomic-batch',
 		externalEffect: 'none',
-		display: 'write'
+		display: 'proposal'
 	}),
 	suggest_meals: capability({
 		domain: 'planning',
