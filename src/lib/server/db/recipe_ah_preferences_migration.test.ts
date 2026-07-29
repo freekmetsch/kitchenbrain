@@ -35,14 +35,15 @@ function legacyMigrationFolder(root: string): string {
 	const meta = join(folder, 'meta');
 	mkdirSync(meta, { recursive: true });
 	for (const filename of readdirSync(migrationRoot)) {
-		if (/^\d{4}_.+\.sql$/.test(filename) && !filename.startsWith('0025_')) {
+		const match = filename.match(/^(\d{4})_.+\.sql$/);
+		if (match && Number(match[1]) < 25) {
 			copyFileSync(join(migrationRoot, filename), join(folder, filename));
 		}
 	}
 	const journal = JSON.parse(
 		readFileSync(join(migrationRoot, 'meta', '_journal.json'), 'utf8')
-	) as { entries: Array<{ tag: string }> };
-	journal.entries = journal.entries.filter((entry) => entry.tag !== '0025_unusual_boomer');
+	) as { entries: Array<{ idx: number }> };
+	journal.entries = journal.entries.filter((entry) => entry.idx < 25);
 	writeFileSync(join(meta, '_journal.json'), JSON.stringify(journal));
 	return folder;
 }
