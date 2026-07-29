@@ -1,6 +1,6 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 6 of 10 (R2 correction verified; replacement draft recut next 2026-07-29)_
+_Status: In flight - Phase 6 of 10 (R2 correction live; replacement draft recut next 2026-07-29)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -816,7 +816,7 @@ The five N-series tickets are the execution authority for the current run.
 
 ### BTL-10 — Remove the standing Butler Brief
 
-**Status: Completed and verified locally 2026-07-29; delivery pending.**
+**Status: Shipped and canary-verified 2026-07-29.**
 
 - **Observable behavior:** opening `/` shows the existing conversation and composer with no
   household cue, candidate count, tray, initiative control, last-seen summary, or provider call.
@@ -836,11 +836,11 @@ The five N-series tickets are the execution authority for the current run.
 - **Rollback:** revert the code-only corrective commit if chat layout regresses. Do not restore
   unsolicited noticing as a fallback for a request-flow defect.
 - **Dependencies:** BTL-N1; issue
-  `docs/known_issues/current/ISSUE_ASSISTANT_PROACTIVE_NOTICING_20260729-1637.md`.
+  `docs/known_issues/solved/ISSUE_ASSISTANT_PROACTIVE_NOTICING_20260729-1637.md`.
 
 ### BTL-11 — Render request-scoped Outcome Dockets
 
-**Status: Completed and verified locally 2026-07-29; delivery pending.**
+**Status: Shipped and canary-verified 2026-07-29.**
 
 - **Observable behavior:** after an explicit request, the Assistant quietly completes the safe
   implied work and, when structured review helps, returns one compact, adjustable Docket inside
@@ -868,7 +868,7 @@ The five N-series tickets are the execution authority for the current run.
 
 ### BTL-11B — Replace model planning narration with grounded working progress
 
-**Status: Completed and verified locally 2026-07-29; delivery pending.**
+**Status: Shipped and canary-verified 2026-07-29.**
 
 - **Observable behavior:** while a requested outcome is running, the composer area shows one
   generic client-owned working label. “See process” is optional and contains only actual
@@ -963,7 +963,7 @@ review, external-effect, and truthful-finish cases remain green.
 
 ### BTL-N2 — Restore request-driven trust
 
-**Status: R2 correction implemented and verified 2026-07-29; R3 draft recut pending.**
+**Status: R2 correction shipped and canary-verified 2026-07-29; R3 draft recut pending.**
 
 - **Ideas:** retain BTL-018; reframe BTL-019/020 as explicit answers; exclude BTL-009/016/017.
 - **Risk:** R2 code-only correction on `main`; R3 only for recutting the separate inventory-zone
@@ -1120,7 +1120,8 @@ rehearsed on populated data, and subject to the beta wide-sweep/stage gate.
 | Harden | Scoped Assistant integrity review: existing provenance, write latch, recipe review, and inventory confirmation are strong. New privileged boundaries require an exhaustive registry, server validation, exact preconditions, external confirmation, and first-class reset/export/rollback. |
 | Stack discipline | No new dependency or service selected. Existing SvelteKit, SQLite, domain services, OpenRouter seam, and push infrastructure are reused. |
 | Context7 | Not required for option selection: the plan makes no new version-specific framework or third-party API claim. Exact implementation syntax must be checked during `$run` when tickets touch current Svelte/Drizzle APIs. |
-| Independent critique | `opus` was requested in safe mode to challenge the request trigger, `present_plan` retirement, draft-stack recut, and regression gates. The route was unavailable because the Claude session limit resets at 17:50 Europe/Amsterdam; no independent findings were accepted or silently substituted. `$run` should retry this cross-provider review before the R3 inventory recut, but the R2 Brief correction is not blocked by an unavailable advisory review. |
+| Independent critique | `opus` was requested in safe mode to challenge the request trigger, `present_plan` retirement, draft-stack recut, and regression gates. The route was unavailable because the Claude session limit resets at 17:50 Europe/Amsterdam; no independent findings were accepted or silently substituted. `$run` must retry this cross-provider review before the R3 inventory recut. |
+| R2 delivery | PR #41 merged as remote `main` `8b4ded624be2d570916e4dc9c7f742fde7d5a7a5`. Railway deployment `3825498d-7aac-4a1e-889b-e961e6bec35d` reached `SUCCESS` for that exact revision. Both household auth guards, the public health route, phone/desktop logged-out boundary, console, application-error, and HTTP-5xx checks passed without a provider turn or household mutation. |
 
 ## Rollout and rollback
 
@@ -1156,19 +1157,19 @@ client-owned working state with a collapsed, grounded “See process” disclosu
 
 - **Goal:** remove unsolicited household noticing, make `/` request-driven again, and preserve
   assertive end-to-end preparation only inside the current user request.
-- **Current state:** the clean delivery branch removes the shipped passive Brief and candidate
-  path, retires `present_plan`, adds generic client-owned working/process disclosure, and makes
-  recommendation slots optional and grounded. The complete repository gate and the second-account
-  browser gate are green; publication is next. PR #35 remains unmerged, with useful request-driven
-  work still stacked in draft PRs #36, #39, and #40 on top of it.
+- **Current state:** PR #41 is live on exact remote `main`: the passive Brief and candidate path
+  are gone, `present_plan` is retired, working/process disclosure is client-owned, and
+  recommendation slots are optional and grounded. Complete local gates and the privacy-safe
+  production canary are green. PR #35 remains unmerged, with useful request-driven work still
+  stacked in draft PRs #36, #39, and #40 on top of it.
 - **First command:** `$run`.
 - **First files:** this feature list; the current issue file;
   `tests/e2e/assistant-safety.e2e.ts`; `src/routes/+page.server.ts`;
   `src/routes/+page.svelte`; `src/lib/components/butler/`; `src/lib/server/butler/`.
-- **First implementation move:** publish the verified code-only R2 correction, then create the
+- **First implementation move:** run the required independent R3 critique, then create the
   replacement inventory branch from corrected `main`.
-- **Pending verification:** exact-revision production canary for the R2 correction; replacement PR
-  range/tree comparison; populated inventory migration rehearsal and beta R3 decision.
+- **Pending verification:** replacement PR range/tree comparison; populated inventory migration
+  rehearsal and beta R3 decision.
 - **Open questions:** no R2 product choice remains. Default the R3 replacement inventory branch
   to a verified draft PR and stop before merge/production migration.
 - **Beta wide-sweep note:** the schema/auth split applies only while recutting the fridge/par

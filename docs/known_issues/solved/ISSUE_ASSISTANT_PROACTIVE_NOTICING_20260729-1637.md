@@ -1,6 +1,6 @@
 # Issue: Assistant proactively notices household work before being asked
 Created: 2026-07-29 16:37
-Status: AWAITING VERIFICATION
+Status: RESOLVED
 
 ## Symptom
 
@@ -23,6 +23,7 @@ to `/` should not notice, suggest, prepare, dismiss, snooze, or prioritize house
 | 2026-07-29 17:04 | Traced the shipped `/` loader and Brief component, the Assistant system prompt, contextual proposal tools, and draft PR bases 35, 36, 39, and 40. | The shipped loader derives candidates on every authenticated home load. The system prompt and reviewed proposal tools already encode request-triggered preparation. Draft PR 35 adds initiative/dismiss/snooze/last-seen state, and the later useful drafts are based on that branch even though their product behavior does not require it. | Remove the shipped Brief, retire its model-visible planning narration, and recut the useful draft stack from corrected `main` without PR 35 or its migration. |
 | 2026-07-29 18:02 | Removed the home Brief and deterministic candidate path, retired `present_plan`, made the working/process treatment client-owned, and made Docket recommendation fields optional and grounded. | Focused red/green tests pass. The exposed catalog shrank from 27 tools / 23,125 bytes to 26 / 22,407. The complete primary gate passes: clean diagnostics, 684 unit tests, 25 authenticated browser stories with one expected AH-connected skip, and production build. | Verify the second household account, publish the R2 correction, run the exact-revision canary, then recut the R3 draft chain without Butler service state. |
 | 2026-07-29 18:04 | Ran the complete authenticated browser suite with the second isolated household account. | 25 stories passed with the same one expected fake-connected AH skip; the request-driven empty home, Plan → Shop, sparse/active review, process disclosure, responsive, and recovery journeys all passed. | Publish the verified R2 correction and run the exact-revision production canary before recutting the draft chain. |
+| 2026-07-29 18:10 | Merged PR #41 and supervised Railway deployment `3825498d-7aac-4a1e-889b-e961e6bec35d` to `SUCCESS` for exact remote `main` `8b4ded624be2d570916e4dc9c7f742fde7d5a7a5`. | Both household auth guards passed. `/api/healthz` reported healthy; the phone and desktop logged-out boundary had no overflow or console errors; bounded Railway checks found zero application errors and zero HTTP 5xx. No provider turn, household mutation, AH lookup, or AH push occurred. | Resolve this issue. Continue the separately gated R3 replacement draft recut from corrected `main`. |
 
 ## Hypotheses
 
