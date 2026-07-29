@@ -106,4 +106,32 @@ describe('inventory zones and pantry targets migration', () => {
 			sqlite.close();
 		}
 	});
+
+	it('keeps the legacy inventory projection readable after a code rollback', () => {
+		const root = temporaryPath();
+		const { sqlite, db } = databaseAt(join(root, 'rollback.sqlite'));
+		try {
+			migrate(db, { migrationsFolder: migrationRoot });
+			const now = new Date('2026-07-29T10:00:00Z').getTime();
+			sqlite
+				.prepare(
+					'INSERT INTO inventory_items (name, section, is_staple, needs_review, created_at, updated_at) VALUES (?, ?, 0, 0, ?, ?)'
+				)
+				.run('Rijst', 'pantry', now, now);
+
+			const legacyRows = sqlite
+				.prepare('SELECT id, name, section, is_staple FROM inventory_items ORDER BY id')
+				.all();
+			expect(legacyRows).toEqual([
+				expect.objectContaining({
+					name: 'Rijst',
+					section: 'pantry',
+					is_staple: 0
+				})
+			]);
+			expect(sqlite.pragma('foreign_key_check')).toEqual([]);
+		} finally {
+			sqlite.close();
+		}
+	});
 });
