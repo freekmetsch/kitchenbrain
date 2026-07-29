@@ -172,12 +172,18 @@ export const tools: Anthropic.Tool[] = [
 	},
 	{
 		name: 'get_meal_plan',
-		description: 'Get planned meals. Returns current and upcoming weeks by default.',
+		description:
+			'Get planned meals. Returns current and upcoming weeks by default. Set include_missed=true when the user asks to move, drop, keep, or review uncooked past meals.',
 		input_schema: {
 			type: 'object',
 			properties: {
 				weeks: { type: 'number', description: 'Number of upcoming weeks to return (default 2)' },
-				week_start_date: { type: 'string', description: 'ISO date inside the planning week to fetch' }
+				week_start_date: { type: 'string', description: 'ISO date inside the planning week to fetch' },
+				include_missed: {
+					type: 'boolean',
+					description:
+						'Also return planned meals whose date has passed or whose undated planning week is before the current week'
+				}
 			},
 			required: []
 		}
@@ -185,12 +191,16 @@ export const tools: Anthropic.Tool[] = [
 	{
 		name: 'mark_meal_cooked',
 		description:
-			'Mark a planned meal as cooked and record the date. For a meal planned with source=freezer the result reminds you to deduct the eaten portions from the linked freezer leftover (use update_inventory_item / remove_from_inventory after confirming how many portions were eaten).',
+			'Mark a planned meal as cooked. A linked freezer meal stages one atomic after-cook review that also consumes the oldest linked portions; it writes nothing until the user applies the card.',
 		input_schema: {
 			type: 'object',
 			properties: {
 				id: { type: 'number' },
-				cooked_date: { type: 'string', description: 'ISO date, defaults to today' }
+				cooked_date: { type: 'string', description: 'ISO date, defaults to today' },
+				eaten_portions: {
+					type: 'number',
+					description: 'Known eaten portions to prefill in the freezer checkout review'
+				}
 			},
 			required: ['id']
 		}
@@ -924,6 +934,13 @@ export function assistantToolRoute(
 	const tonightChoice =
 		/\b(?:what should we eat|what can we eat).*\btonight\b/.test(normalized) ||
 		/\b(?:wat eten we|wat zullen we eten).*\b(?:vanavond|vandaag)\b/.test(normalized);
+	const missedMealRollover =
+		(/\b(?:move|roll over|rollover|reschedule|handle|sort out|deal with)\b/.test(normalized) &&
+			/\b(?:missed|uncooked|past)\b.*\b(?:meal|dinner)s?\b/.test(normalized)) ||
+		(/\b(?:verplaats|schuif|verschuif|doorschuif|regel|ruim op)\b/.test(normalized) &&
+			/\b(?:gemiste|niet gekookte|oude)\b.*\b(?:maaltijd|maaltijden|avondeten)\b/.test(
+				normalized
+			));
 	const cookFromStock =
 		/\b(?:cook|make|meals?).*\b(?:from|with) stock\b/.test(normalized) ||
 		/\b(?:entirely|almost entirely).*\bfrom stock\b/.test(normalized) ||
@@ -973,6 +990,9 @@ export function assistantToolRoute(
 			'suggest_meals',
 			'propose_meal_plan'
 		], completedToolNames);
+	}
+	if (missedMealRollover) {
+		return forcedSequence(['get_meal_plan', 'propose_meal_plan'], completedToolNames);
 	}
 	if (mealPlanEdit) {
 		return forcedSequence(['get_meal_plan', 'propose_meal_plan'], completedToolNames);

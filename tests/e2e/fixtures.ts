@@ -233,6 +233,97 @@ function chatStockActionProposal(fixture: KitchenFixture) {
 	};
 }
 
+function chatMealChoices(fixture: KitchenFixture) {
+	return {
+		kind: 'read',
+		summary: 'Compared three meal options',
+		mealChoices: {
+			whyNow: 'Tonight is still open and these are the strongest current fits.',
+			evidence: [
+				'The default uses ingredients already in stock.',
+				'The alternatives preserve a fresh and a freezer option.'
+			],
+			confidence: 'high',
+			uncertainty: 'Actual prep time can still vary.',
+			consequence: 'Opening an option changes nothing; it prepares cook mode with the selected source and servings.',
+			options: [
+				{
+					slug: fixture.recipeSlug,
+					title: fixture.recipeTitle,
+					source: 'fresh',
+					servings: 4,
+					totalTimeMin: 30,
+					onHand: ['aardappelen', 'wortel'],
+					missingItems: ['bouillon'],
+					staleOnHand: ['wortel'],
+					frozenPortionsOnHand: 2,
+					daysSinceCooked: 18,
+					freezerEffect: 'Leaves 2 freezer portions untouched',
+					why: ['Uses stock that has been waiting']
+				},
+				{
+					slug: fixture.cookRecipeSlug,
+					title: fixture.cookRecipeTitle,
+					source: 'fresh',
+					servings: 2,
+					totalTimeMin: 20,
+					onHand: ['tomaten'],
+					missingItems: ['kaas'],
+					staleOnHand: [],
+					frozenPortionsOnHand: 0,
+					daysSinceCooked: null,
+					freezerEffect: 'Does not change freezer portions',
+					why: ['Quick fresh option']
+				},
+				{
+					slug: fixture.recipeSlug,
+					title: `${fixture.recipeTitle} from freezer`,
+					source: 'freezer',
+					servings: 2,
+					totalTimeMin: 10,
+					onHand: [],
+					missingItems: [],
+					staleOnHand: [],
+					frozenPortionsOnHand: 2,
+					daysSinceCooked: 18,
+					freezerEffect: 'Uses 2 ready freezer portions',
+					why: ['Two portions are ready']
+				}
+			]
+		}
+	};
+}
+
+function chatAfterCookReview(fixture: KitchenFixture, mealId: number) {
+	return {
+		kind: 'proposal',
+		summary: 'Finish freezer meal',
+		afterCookProposal: {
+			token: `e2e-${fixture.account}-after-cook-proposal`,
+			status: 'active',
+			mealId,
+			meal: `${fixture.recipeTitle} from freezer`,
+			cookedDate: '2026-07-29',
+			availablePortions: 4,
+			defaultEatenPortions: 2,
+			atomicity: {
+				kind: 'atomic',
+				consequence:
+					'Marking the meal cooked and consuming the oldest linked freezer portions commit together or not at all.'
+			},
+			recommendation: {
+				whyNow: 'The meal was served from the freezer and linked stock still needs checkout.',
+				evidence: ['Oldest batch: 2 portions recorded', 'Newest batch: 2 portions recorded'],
+				confidence: 'high',
+				uncertainty: null,
+				consequence:
+					'The meal is marked cooked and the selected portions are consumed oldest first.',
+				alternatives: ['Adjust the count.', 'Choose Not now.']
+			}
+		}
+	};
+}
+
 export function kitchenFixtureFor(testInfo: TestInfo): KitchenFixture {
 	return testInfo.project.name.endsWith('secondary')
 		? KITCHEN_FIXTURES.secondary
@@ -472,6 +563,50 @@ export function seedKitchenFixtures(databasePath: string): void {
 			});
 			const oldToken = `e2e-${fixture.account}-recipe-patch-old`;
 			const newToken = `e2e-${fixture.account}-recipe-patch-new`;
+			insertChatMessage.run({
+				userId,
+				role: 'user',
+				content: 'We ate two portions of the freezer meal.',
+				toolCalls: null,
+				createdAt: now - 12
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'assistant',
+				content: 'The meal checkout is ready.',
+				toolCalls: JSON.stringify([
+					{
+						id: `after-cook-${fixture.account}`,
+						name: 'mark_meal_cooked',
+						input: { id: 900 + index, eaten_portions: 2 },
+						result: { ok: true },
+						display: chatAfterCookReview(fixture, 900 + index)
+					}
+				]),
+				createdAt: now - 11
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'user',
+				content: 'What should we eat tonight?',
+				toolCalls: null,
+				createdAt: now - 10
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'assistant',
+				content: 'I compared the three strongest options.',
+				toolCalls: JSON.stringify([
+					{
+						id: `meal-choices-${fixture.account}`,
+						name: 'suggest_meals',
+						input: {},
+						result: { ok: true },
+						display: chatMealChoices(fixture)
+					}
+				]),
+				createdAt: now - 9
+			});
 			insertChatMessage.run({
 				userId,
 				role: 'user',

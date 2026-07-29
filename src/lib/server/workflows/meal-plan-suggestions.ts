@@ -90,6 +90,7 @@ export function getMealSuggestionContext(
 			title: recipe.title,
 			category: recipe.category,
 			rating: recipe.rating,
+			servings: recipe.servings,
 			total_time_min: recipe.totalTimeMin,
 			ingredient_count: ingredients.length,
 			inventory_overlap: matched.length,
@@ -154,6 +155,7 @@ export function getMealSuggestionContext(
 				slug: recipe.slug,
 				title: recipe.title,
 				source,
+				servings: recipe.servings ?? 4,
 				total_time_min: recipe.total_time_min,
 				on_hand: recipe.on_hand,
 				stale_on_hand: recipe.stale_on_hand,
@@ -164,6 +166,12 @@ export function getMealSuggestionContext(
 				frozen_portions_on_hand: recipe.frozen_portions_on_hand,
 				days_since_cooked: recipe.days_since_cooked,
 				why,
+				freezer_effect:
+					source === 'freezer'
+						? `Uses ${Math.min(recipe.servings ?? 4, recipe.frozen_portions_on_hand)} ready freezer portions`
+						: recipe.frozen_portions_on_hand > 0
+							? `Leaves ${recipe.frozen_portions_on_hand} freezer portions untouched`
+							: 'Does not change freezer portions',
 				score: mealOptionScore(recipe, prefs.repeatCycleDays)
 			};
 		})

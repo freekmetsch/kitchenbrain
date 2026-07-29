@@ -10,6 +10,7 @@ function seedRecipe(
 		title: string;
 		totalTimeMin: number;
 		ingredients: Array<{ id: string; name: string; amount: string }>;
+		servings?: number;
 		lastCookedAt?: Date;
 		rating?: number;
 	}
@@ -78,7 +79,9 @@ describe('comparable meal recommendation', () => {
 			default: expect.objectContaining({
 				slug: 'chili',
 				source: 'freezer',
+				servings: 4,
 				frozen_portions_on_hand: 2,
+				freezer_effect: expect.stringMatching(/2 ready freezer portions/),
 				why: expect.arrayContaining([expect.any(String)])
 			}),
 			alternatives: [

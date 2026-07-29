@@ -107,6 +107,11 @@ function setupIncompatible() {
 	const sources = entries.map((entry) => ({
 		id: entry.id,
 		revision: entry.revision,
+		name: entry.name,
+		amount: entry.amount,
+		unit: entry.unit,
+		sourceKind: entry.sourceKind,
+		recipeTitle: null,
 		term: 'tomaten',
 		approvedTerms: ['tomaten']
 	}));
@@ -134,6 +139,7 @@ function setupIncompatible() {
 			unit: null,
 			incompatibleQuantities: true,
 			quantitySummary: '2 stuks + 1 blik',
+			conflictSignature: 'incompatible_quantity:2:2:0',
 			offeredProducts: [{ id: '456', name: 'AH Tomaten' }]
 		}]
 	});

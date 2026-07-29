@@ -238,6 +238,9 @@ export function loadRecipeDetailData(slug: string, input: { recipeLang: string; 
 		Number.isInteger(requestedServings) && requestedServings >= 1 && requestedServings <= 99
 			? requestedServings
 			: null;
+	const requestedSource = input.url.searchParams.get('source');
+	const occasionSource =
+		requestedSource === 'fresh' || requestedSource === 'freezer' ? requestedSource : null;
 
 	return {
 		recipe,
@@ -249,6 +252,7 @@ export function loadRecipeDetailData(slug: string, input: { recipeLang: string; 
 		subRecipes,
 		partOfMeals,
 		occasionServings: linkedPlan?.servings ?? directServings ?? recipe.servings,
+		occasionSource,
 		planMealId: linkedPlan?.id ?? null,
 		cookingIngredients,
 		cookingIngredientsEn,

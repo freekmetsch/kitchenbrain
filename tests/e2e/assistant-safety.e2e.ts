@@ -41,6 +41,135 @@ test('Assistant home stays request-driven until a person submits a request', asy
 	expect(assistantTurns).toBe(0);
 });
 
+test('Meal choices remain comparable and hand off source and servings to cook mode', async ({
+	page
+}, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+
+	for (const viewport of VIEWPORTS) {
+		await page.setViewportSize(viewport);
+		await page.goto('/');
+
+		const choices = page.getByTestId('meal-choice-cards');
+		await expect(choices).toBeVisible();
+		await expect(choices.locator('article')).toHaveCount(3);
+		await expect(choices.getByText('Why now', { exact: true })).toBeVisible();
+		await expect(choices.getByText('What will change', { exact: true })).toBeVisible();
+		await expect(choices.getByText('On hand', { exact: true }).first()).toBeVisible();
+		await expect(choices.getByText('Missing', { exact: true }).first()).toBeVisible();
+		await expect(choices.getByText('Use soon', { exact: true })).toBeVisible();
+		await expect(choices.getByText('Freezer effect', { exact: true }).first()).toBeVisible();
+		await expect(choices.getByRole('link', { name: 'Cook this' })).toHaveCount(3);
+		await expect(choices.getByTestId('cook-meal-choice-0')).toHaveAttribute(
+			'href',
+			`/recipes/${fixture.recipeSlug}?servings=4&source=fresh`
+		);
+
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth > document.documentElement.clientWidth
+			),
+			`meal choices must not overflow horizontally at ${viewport.width}px`
+		).toBe(false);
+
+		if (viewport.name === 'phone') {
+			await choices.getByTestId('cook-meal-choice-0').click();
+			await expect(page).toHaveURL(
+				new RegExp(`/recipes/${fixture.recipeSlug}\\?servings=4&source=fresh$`)
+			);
+			const handoff = page.getByTestId('recipe-cook-handoff');
+			await expect(handoff).toBeVisible();
+			await expect(handoff.getByText('Fresh cook selected', { exact: true })).toBeVisible();
+			await expect(handoff.getByText('4 servings', { exact: true })).toBeVisible();
+		}
+	}
+});
+
+test('Freezer checkout waits for one atomic reviewed portion commit and supports undo', async ({
+	page
+}, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	const token = `e2e-${fixture.account}-after-cook-proposal`;
+	let applies = 0;
+	let undoes = 0;
+
+	await page.route('**/api/meal-plan/after-cook*', async (route) => {
+		if (route.request().method() === 'GET') {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ status: 'active' })
+			});
+			return;
+		}
+		const body = route.request().postDataJSON() as {
+			token: string;
+			eatenPortions?: number;
+		};
+		expect(body.token).toBe(token);
+		if (route.request().method() === 'POST') {
+			applies += 1;
+			expect(body.eatenPortions).toBe(2);
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					ok: true,
+					receipt: {
+						status: 'committed',
+						atomicity: 'atomic',
+						eatenPortions: 2,
+						remainingPortions: 2
+					}
+				})
+			});
+			return;
+		}
+		if (route.request().method() === 'DELETE') undoes += 1;
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ ok: true, receipt: { status: 'undone' } })
+		});
+	});
+
+	for (const viewport of VIEWPORTS) {
+		const appliesBefore = applies;
+		const undoesBefore = undoes;
+		await page.setViewportSize(viewport);
+		await page.goto('/');
+		const review = page.getByTestId('after-cook-review');
+		await expect(review).toBeVisible();
+		await expect(review.getByText('Why now', { exact: true })).toBeVisible();
+		await expect(review.getByText('What will change', { exact: true })).toBeVisible();
+		await expect(review.getByText(/commit together or not at all/)).toBeVisible();
+		await expect(review.getByLabel('Portions eaten')).toHaveValue('2');
+		expect(applies).toBe(appliesBefore);
+
+		const finishMeal = review.getByRole('button', { name: 'Finish meal' });
+		await expect(finishMeal).toBeEnabled();
+		await finishMeal.click();
+		await expect.poll(() => applies).toBe(appliesBefore + 1);
+		await expect(
+			review.getByText(
+				'Meal marked cooked; 2 portions consumed oldest first, 2 remaining.',
+				{ exact: true }
+			)
+		).toBeVisible();
+		await review.getByRole('button', { name: 'Undo meal checkout' }).click();
+		await expect(
+			review.getByText('The meal and linked freezer stock were restored.', { exact: true })
+		).toBeVisible();
+		expect(undoes).toBe(undoesBefore + 1);
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth > document.documentElement.clientWidth
+			),
+			`after-cook review must not overflow horizontally at ${viewport.width}px`
+		).toBe(false);
+	}
+});
+
 test('Plan → Shop review is adjustable, atomic, and keeps the AH push behind final confirmation', async ({
 	page
 }, testInfo) => {
@@ -48,6 +177,8 @@ test('Plan → Shop review is adjustable, atomic, and keeps the AH push behind f
 	const proposalToken = `e2e-${fixture.account}-meal-plan-proposal`;
 	const selectedRequests: string[][] = [];
 	let ahPushRequests = 0;
+	let favoriteSaves = 0;
+	let favoriteForgets = 0;
 
 	await page.route('**/api/meal-plan/proposal*', async (route) => {
 		if (route.request().method() === 'GET') {
@@ -88,7 +219,31 @@ test('Plan → Shop review is adjustable, atomic, and keeps the AH push behind f
 								amount: '400',
 								unit: 'g',
 								incompatibleQuantities: false,
-								quantitySources: [],
+								quantitySources: [
+									{
+										name: 'linzen',
+										amount: '400',
+										unit: 'g',
+										recipeTitle: fixture.recipeTitle,
+										sourceKind: 'recipe'
+									},
+									{
+										name: 'linzen',
+										amount: '400',
+										unit: 'g',
+										recipeTitle: null,
+										sourceKind: 'manual'
+									}
+								],
+								conflicts: [
+									{
+										kind: 'duplicate_quantity',
+										sourceCount: 2,
+										manualCount: 1,
+										recipeCount: 1
+									}
+								],
+								requiresExplicitDecision: true,
 								status: 'product',
 								candidates: [
 									{
@@ -138,6 +293,15 @@ test('Plan → Shop review is adjustable, atomic, and keeps the AH push behind f
 			})
 		});
 	});
+	await page.route('**/api/shopping/ah-favorite*', async (route) => {
+		if (route.request().method() === 'POST') favoriteSaves += 1;
+		if (route.request().method() === 'DELETE') favoriteForgets += 1;
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ ok: true })
+		});
+	});
 
 	for (const viewport of VIEWPORTS) {
 		const pushCountBeforeReview = ahPushRequests;
@@ -172,10 +336,37 @@ test('Plan → Shop review is adjustable, atomic, and keeps the AH push behind f
 		).toBeVisible();
 		await expect(review.getByText(/Product choices are prepared from the Dutch Shopping sources/)).toBeVisible();
 		await expect(review.getByText('AH Linzen', { exact: true })).toBeVisible();
+		await expect(
+			review.getByText('Check how this total was assembled', { exact: true })
+		).toBeVisible();
+		await expect(
+			review.getByText(
+				'A manual item repeats the same amount as a recipe source.',
+				{ exact: true }
+			)
+		).toBeVisible();
 		expect(ahPushRequests).toBe(pushCountBeforeReview);
 		expect(selectedRequests.at(-1)).toEqual([`e2e-${fixture.account}-meal-add`]);
 
 		const send = review.getByRole('button', { name: 'Send to AH' });
+		await expect(send).toBeDisabled();
+		await review.getByRole('button', { name: /AH Linzen/ }).click();
+		await expect(
+			review.getByText('This push only. Nothing is saved for later.', { exact: true })
+		).toBeVisible();
+		await expect(
+			review.getByText('Save for this household ingredient', { exact: true })
+		).toBeVisible();
+		await review.getByRole('button', { name: 'Pin AH Linzen as favorite' }).click();
+		await expect(
+			review.getByText(/Saved for “linzen” across this household/)
+		).toBeVisible();
+		expect(favoriteSaves).toBeGreaterThan(0);
+		await review.getByRole('button', { name: 'Unpin AH Linzen as favorite' }).click();
+		await expect(
+			review.getByText('This push only. Nothing is saved for later.', { exact: true })
+		).toBeVisible();
+		expect(favoriteForgets).toBeGreaterThan(0);
 		await expect(send).toBeEnabled();
 		await send.click();
 		await expect(review.getByText('AH is external and will not be undone.', { exact: true })).toBeVisible();
