@@ -121,7 +121,7 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 		prompt: 'Verplaats de curry van dinsdag naar donderdag en laat me de wijziging controleren.',
 		allowedFirstTools: ['get_meal_plan'],
 		requiredTools: ['get_meal_plan', 'propose_meal_plan'],
-		forbiddenTools: ['mark_meal_cooked'],
+		forbiddenTools: ['prepare_cooking_action'],
 		requiresReview: true
 	},
 	{
@@ -132,7 +132,7 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 			'Schuif de gemiste maaltijden door naar deze week of verwijder ze, en laat me alles eerst controleren.',
 		allowedFirstTools: ['get_meal_plan'],
 		requiredTools: ['get_meal_plan', 'propose_meal_plan'],
-		forbiddenTools: ['mark_meal_cooked', 'remove_meal'],
+		forbiddenTools: ['prepare_cooking_action', 'remove_meal'],
 		requiresReview: true
 	},
 	{
@@ -274,7 +274,7 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 		prompt: 'We ate the freezer curry tonight. Finish it properly.',
 		allowedFirstTools: ['get_meal_plan'],
 		requiredTools: ['get_meal_plan', 'prepare_cooking_action'],
-		forbiddenTools: ['mark_meal_cooked', 'update_inventory_item', 'remove_from_inventory'],
+		forbiddenTools: ['update_inventory_item', 'remove_from_inventory'],
 		requiresReview: true
 	},
 	{
