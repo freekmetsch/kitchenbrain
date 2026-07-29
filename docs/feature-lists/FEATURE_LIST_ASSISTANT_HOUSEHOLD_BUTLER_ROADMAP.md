@@ -1,6 +1,6 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 6 of 10 (R2 correction live; replacement draft recut next 2026-07-29)_
+_Status: In flight - Phase 10 of 10 (R2 correction live; replacement drafts verified; R3 promotion blocked 2026-07-29)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -487,9 +487,10 @@ BTL-017, and BTL-071 are excluded. Later and Park remain inert.
 
 ## Active Next portfolio run
 
-The current run first removes the shipped unsolicited surface, then delivers BTL-018 through
-BTL-035 in request-driven vertical waves. It also closes the seven named Wave 1 enablers where a
-promoted behavior cannot work without them. No Later or Park idea is silently pulled forward.
+The run removed the shipped unsolicited surface, then recut BTL-018 through BTL-035 as
+request-driven vertical draft waves. It also closes the seven named Wave 1 enablers where a
+promoted behavior cannot work without them. No Later or Park idea was silently pulled forward,
+and the R3 stack remains unmerged.
 
 ### Assistant performance guard
 
@@ -520,20 +521,23 @@ _Completed 2026-07-29._
 
 ### Phase 6 — remove standing Notice; keep contextual trust
 
-_R2 correction verified 2026-07-29; R3 replacement draft recut remains._
+_Completed 2026-07-29. R2 is live; the schema-clean R3 replacement stack is open and blocked
+before merge._
 
 - Roll back BTL-009 on shipped `main`: remove the Brief UI, home-load household snapshot,
   deterministic candidate ranking, Brief copy, and the browser contract that requires them.
-- Cancel BTL-016/017 and draft PR #35. Do not merge migration 0026 or create replacement
-  dismiss/snooze/initiative/last-seen state.
+- Cancel BTL-016/017 and close draft PR #35 without merge. Do not merge its migration 0026 or
+  create replacement dismiss/snooze/initiative/last-seen state.
 - Keep BTL-018 on every request-driven Docket. Reframe BTL-019 as an explicitly asked, provable
   change summary without a last-seen marker. Keep BTL-020 behind its Assistant performance gate.
 - Retire model-visible `present_plan`; use one client-owned working state with optional grounded
   “See process” and a flexible final Docket instead of model-authored process narration.
-- Recut the useful PR #36/#39/#40 work onto corrected `main` without PR #35. Replace the obsolete
-  draft stack rather than force-pushing or carrying the unshipped Butler tables forward.
+- Recut the useful PR #36/#39/#40 work onto corrected `main` without PR #35. Replacement drafts
+  #43/#44/#45 are open; obsolete #35/#36/#39/#40 are closed without merge.
 
 ### Phase 7 — stock and Shopping loops
+
+_Draft verified in PR #43; R3 promotion blocked._
 
 - Deliver BTL-001/002/008/013/015/021/022/023/024: authoritative Shopping controls, out/used/bought
   bundles, exact stock coverage, reviewed visual/voice intake, freezer refill, fridge, and pantry
@@ -544,6 +548,8 @@ _R2 correction verified 2026-07-29; R3 replacement draft recut remains._
 
 ### Phase 8 — meal decisions and scoped choices
 
+_Draft verified in PR #44, stacked on #43; R3 promotion blocked._
+
 - Deliver BTL-025/026/027/028/029/030/031: leftover follow-through, comparable meal cards,
   one-time/saved substitutions and AH choices, conflict resolution, missed-meal rollover, and
   Cook-this handoff.
@@ -552,6 +558,8 @@ _R2 correction verified 2026-07-29; R3 replacement draft recut remains._
 
 ### Phase 9 — cooking assistance
 
+_Draft verified in PR #45, stacked on #44; R3 promotion blocked._
+
 - Deliver BTL-007/012/032/033/034/035: reviewed after-cook checkout, persistent timer client
   actions, hands-busy cook mode, step-aware timer suggestions, active-recipe rescue, and defrost
   preparation.
@@ -559,6 +567,9 @@ _R2 correction verified 2026-07-29; R3 replacement draft recut remains._
   visible, and notifications/routines outside scope.
 
 ### Phase 10 — simplify, verify, and deliver
+
+_In progress. Local and provider-free gates are complete; the bounded live-model sample is
+unavailable because the configured provider failed before returning any tokens or tool choices._
 
 - Require the Assistant behavior suite after every exposure change and the full repository gate
   after every vertical wave.
@@ -892,7 +903,7 @@ The five N-series tickets are the execution authority for the current run.
 
 ### BTL-11A — Recut the draft stack without Butler service state
 
-**Status: In progress; starts after the verified R2 correction reaches corrected `main`.**
+**Status: Completed 2026-07-29; replacement stack is verified and stopped before R3 merge.**
 
 - **Observable behavior:** the useful Stock/Shopping, meal-decision, and cooking-assistance drafts
   remain reviewable, but none contains Butler candidate, dismiss/snooze, initiative, last-seen,
@@ -916,6 +927,24 @@ The five N-series tickets are the execution authority for the current run.
   one wave fails, leave the old draft unmerged and stop at that boundary; production remains on
   corrected `main`.
 - **Dependencies:** BTL-10 before any replacement base; BTL-11 before the final cooking tip.
+
+Replacement evidence:
+
+- PR #43 (`wide-sweep/schema-inventory-zones-targets-request-driven` → `main`) contains migration
+  `0026_bent_fabian_cortez.sql` with only nullable `inventory_items.par_target_qty` and
+  `inventory_items.par_target_unit`; it contains no Butler table, route, setting, or durable
+  suggestion state.
+- PR #44 stacks request-driven meal decisions on #43. PR #45 stacks request-driven cooking
+  assistance on #44 and keeps timer execution client-authoritative.
+- PRs #35/#36/#39/#40 are closed without merge. PRs #43/#44/#45 remain draft and explicitly say
+  **DO NOT MERGE** until the beta R3 go/no-go.
+- Inventory verification passed 126 files / 707 unit tests and both 26-story household-account
+  browser suites, each with one expected fake-AH skip. Meal verification passed 127 files / 716
+  unit tests and both 28-story suites, each with one expected skip. Cooking verification passed
+  132 files / 741 unit tests before the evaluator-only fix, both 30-story account suites with one
+  expected skip, and the production build; after the evaluator fix, 132 files / 742 unit tests,
+  clean Svelte diagnostics, the production build, and the two transiently failed browser paths
+  passed in a fresh isolated 3/3 run.
 
 ### BTL-12 — Verify and promote one loop at a time
 
@@ -961,9 +990,23 @@ Post-correction evidence: retiring `present_plan` reduces the exposed surface to
 serialized bytes, with a checked ceiling of 27 / 26,000. Provider-free selection, required-read,
 review, external-effect, and truthful-finish cases remain green.
 
+Replacement-wave evidence keeps one consolidated proposal capability instead of adding a tool per
+idea: inventory is 27 / 24,220; meal is 27 / 24,500; cooking is 27 / 24,737. Ordinary fallback
+turns on the cooking tip receive 25 tools, while timer, rescue, defrost, and after-cook requests
+receive small staged packs. The portfolio contains 25 unique bilingual/cross-domain synthetic
+cases. The live evaluator now validates every actionable tool reference while allowing explicitly
+forbidden retired-tool names as regression sentinels.
+
+The authorized bounded live-model sample reached all 25 scenarios with the intended routed
+catalogs, but configured model `z-ai/glm-5` returned `PROVIDER_CALL_FAILED` for every call before
+any token or tool choice: 25 calls, 0 tokens, 0 reported cents. This is unavailable evidence, not
+a selection-quality pass. R3 promotion therefore requires a successful bounded sample or an
+explicit waiver after reviewing the provider-free evidence.
+
 ### BTL-N2 — Restore request-driven trust
 
-**Status: R2 correction shipped and canary-verified 2026-07-29; R3 draft recut pending.**
+**Status: R2 correction shipped and canary-verified 2026-07-29; R3 draft recut completed and
+blocked before merge.**
 
 - **Ideas:** retain BTL-018; reframe BTL-019/020 as explicit answers; exclude BTL-009/016/017.
 - **Risk:** R2 code-only correction on `main`; R3 only for recutting the separate inventory-zone
@@ -975,15 +1018,16 @@ review, external-effect, and truthful-finish cases remain green.
   fallback.
 - **Dependencies:** BTL-N1 and the shipped recommendation/action contracts.
 
-Regression evidence: commit `88835b3` shipped the passive Brief to `main`. The focused authenticated
-browser test passes because it finds that unsolicited region at 375 and 1280 px. Draft PR #35
-then adds precisely the state that the corrected product no longer needs: candidate
-dismiss/snooze, per-domain initiative, and last-seen tables/routes/settings coverage. It is
-unmerged, so `$run` can drop the draft migration instead of shipping and later reversing it.
-Existing request-driven proposal tools and the current system prompt already satisfy the desired
-assertive trigger contract.
+Regression evidence: commit `88835b3` shipped the passive Brief to `main`; PR #41 removed it and
+retired `present_plan`. Draft PR #35 added precisely the state that the corrected product no
+longer needs: candidate dismiss/snooze, per-domain initiative, and last-seen
+tables/routes/settings coverage. PR #35 is now closed without merge, and replacement PRs
+#43/#44/#45 contain none of that state. Existing request-driven proposal tools and the current
+system prompt satisfy the desired assertive trigger contract.
 
 ### BTL-N3 — Deliver stock and Shopping loops
+
+**Status: Draft verified in PR #43; R3 promotion blocked.**
 
 - **Ideas:** BTL-001, BTL-002, BTL-008, BTL-013, BTL-015, BTL-021, BTL-022, BTL-023, BTL-024.
 - **Risk:** R3 fridge/par-level schema; remaining behavior R1/R2.
@@ -998,6 +1042,8 @@ assertive trigger contract.
 
 ### BTL-N4 — Deliver meal decisions and scoped choices
 
+**Status: Draft verified in PR #44; R3 promotion blocked.**
+
 - **Ideas:** BTL-025, BTL-026, BTL-027, BTL-028, BTL-029, BTL-030, BTL-031.
 - **Risk:** R3 only if a new durable substitution scope is required; otherwise R1/R2.
 - **Verification:** comparable facts; one-time choices leave no durable state; explicit saved
@@ -1009,6 +1055,8 @@ assertive trigger contract.
 
 ### BTL-N5 — Deliver cooking assistance
 
+**Status: Draft verified in PR #45; R3 promotion blocked.**
+
 - **Ideas:** BTL-007, BTL-012, BTL-032, BTL-033, BTL-034, BTL-035.
 - **Risk:** R2 unless durable reminder/session schema becomes necessary, which is a stop-and-replan
   R3 gate.
@@ -1018,6 +1066,18 @@ assertive trigger contract.
 - **Rollback:** render client actions as inert suggestions and keep native cook mode/timer
   coordinator authoritative.
 - **Dependencies:** BTL-N1, BTL-N3, and BTL-N4.
+
+## Request-driven replacement record
+
+| Wave | Draft | Base | Catalog | Delivery state |
+| --- | --- | --- | --- | --- |
+| Stock + Shopping | [PR #43](https://github.com/freekmetsch/kitchenbrain/pull/43) | corrected `main` | 27 tools / 24,220 bytes | Verified draft; append-only R3 inventory migration; do not merge |
+| Meal decisions | [PR #44](https://github.com/freekmetsch/kitchenbrain/pull/44) | PR #43 | 27 tools / 24,500 bytes | Verified draft; no additional schema; do not merge |
+| Cooking assistance | [PR #45](https://github.com/freekmetsch/kitchenbrain/pull/45) | PR #44 | 27 tools / 24,737 bytes; fallback 25 | Verified draft; no reminder/Butler schema; do not merge |
+
+The stack is intentionally cumulative so the final gate exercises the combined tool catalog and
+cross-domain contracts. It is not a production rollout sequence yet. The explicit beta R3
+inventory decision controls the entire stack.
 
 ## First-slice implementation record
 
@@ -1120,8 +1180,10 @@ rehearsed on populated data, and subject to the beta wide-sweep/stage gate.
 | Harden | Scoped Assistant integrity review: existing provenance, write latch, recipe review, and inventory confirmation are strong. New privileged boundaries require an exhaustive registry, server validation, exact preconditions, external confirmation, and first-class reset/export/rollback. |
 | Stack discipline | No new dependency or service selected. Existing SvelteKit, SQLite, domain services, OpenRouter seam, and push infrastructure are reused. |
 | Context7 | Not required for option selection: the plan makes no new version-specific framework or third-party API claim. Exact implementation syntax must be checked during `$run` when tickets touch current Svelte/Drizzle APIs. |
-| Independent critique | `opus` was requested in safe mode to challenge the request trigger, `present_plan` retirement, draft-stack recut, and regression gates. The route was unavailable because the Claude session limit resets at 17:50 Europe/Amsterdam; no independent findings were accepted or silently substituted. `$run` must retry this cross-provider review before the R3 inventory recut. |
-| R2 delivery | PR #41 merged as remote `main` `8b4ded624be2d570916e4dc9c7f742fde7d5a7a5`. Railway deployment `3825498d-7aac-4a1e-889b-e961e6bec35d` reached `SUCCESS` for that exact revision. Both household auth guards, the public health route, phone/desktop logged-out boundary, console, application-error, and HTTP-5xx checks passed without a provider turn or household mutation. |
+| Independent critique | `opus` was requested in safe mode before the recut and retried during `$run`. The retry timed out after 240 seconds and returned no review; no independent findings were accepted or silently substituted. The recut proceeded conservatively as draft-only work, and the R3 merge gate remains closed. |
+| R2 delivery | PR #41 merged as code revision `8b4ded624be2d570916e4dc9c7f742fde7d5a7a5`; docs PR #42 then moved remote `main` to `fccef5757b071c83a581b2ac2cf82195bde08159`. Railway code deployment `3825498d-7aac-4a1e-889b-e961e6bec35d` reached `SUCCESS`. Both household auth guards, the public health route, phone/desktop logged-out boundary, console, application-error, and HTTP-5xx checks passed without a provider turn or household mutation. |
+| R3 replacement stack | Draft PRs #43/#44/#45 are verified on corrected ancestry. The inventory migration contains only fridge/par domain fields, and no replacement contains Butler candidate, initiative, dismiss/snooze, last-seen, Brief, routine, notification, or automatic-memory state. Superseded #35/#36/#39/#40 are closed without merge. |
+| Live-model routing sample | The static gate found and fixed a validator bug before publication. The subsequent 25-scenario sample used intended routed catalog sizes but every `z-ai/glm-5` call failed before returning tokens or choices. Result: unavailable evidence, 0 tokens, 0 reported cents; not accepted as a model-quality pass. |
 
 ## Rollout and rollback
 
@@ -1132,8 +1194,8 @@ rehearsed on populated data, and subject to the beta wide-sweep/stage gate.
 - Additive migrations remain append-only and are rehearsed against fresh and populated databases.
 - Correct current `main` first. Do not make later drafts the vehicle for removing a production
   Brief.
-- Draft PR #35 never merges. Create verified replacement PRs for #36/#39/#40 from corrected
-  `main`; avoid force-push and close old drafts only after replacements exist.
+- Draft PR #35 never merges. Verified replacements #43/#44/#45 now supersede #36/#39/#40; all
+  four old drafts are closed without merge.
 - New behavior starts from **Asked** and prepares safe downstream work assertively.
   Nothing auto-applies; no migration enables Act.
 - AH push stays behind exact-preview confirmation.
@@ -1151,26 +1213,27 @@ client-owned working state with a collapsed, grounded “See process” disclosu
 > **Q: How should the R3 inventory branch be promoted after its replacement is verified?** -
 > Default: keep it as a draft `wide-sweep/schema-inventory-zones-targets` PR and stop before merge
 > or production migration. Reason: beta permits development and rehearsal, while real-data schema
-> promotion remains an explicit go/no-go after populated upgrade and rollback evidence.
+> promotion remains an explicit go/no-go after populated upgrade and rollback evidence. Because
+> the configured live provider returned no tool choices, the default also requires one successful
+> bounded synthetic routing sample—or an explicit evidence-based waiver—before merge.
 
 ## Resume pack
 
 - **Goal:** remove unsolicited household noticing, make `/` request-driven again, and preserve
   assertive end-to-end preparation only inside the current user request.
-- **Current state:** PR #41 is live on exact remote `main`: the passive Brief and candidate path
-  are gone, `present_plan` is retired, working/process disclosure is client-owned, and
-  recommendation slots are optional and grounded. Complete local gates and the privacy-safe
-  production canary are green. PR #35 remains unmerged, with useful request-driven work still
-  stacked in draft PRs #36, #39, and #40 on top of it.
+- **Current state:** PR #41 is live on remote `main`: the passive Brief and candidate path are
+  gone, `present_plan` is retired, working/process disclosure is client-owned, and recommendation
+  slots are optional and grounded. Replacement drafts #43/#44/#45 are verified, contain no Butler
+  service state, and remain unmerged. Superseded #35/#36/#39/#40 are closed.
 - **First command:** `$run`.
-- **First files:** this feature list; the current issue file;
-  `tests/e2e/assistant-safety.e2e.ts`; `src/routes/+page.server.ts`;
-  `src/routes/+page.svelte`; `src/lib/components/butler/`; `src/lib/server/butler/`.
-- **First implementation move:** run the required independent R3 critique, then create the
-  replacement inventory branch from corrected `main`.
-- **Pending verification:** replacement PR range/tree comparison; populated inventory migration
-  rehearsal and beta R3 decision.
+- **First files:** this feature list; PR #43 migration and inventory sweep; PR #44 meal decisions;
+  PR #45 cooking assistance; `src/lib/server/ai/assistant_capability_eval.ts`.
+- **First implementation move:** review the R3 evidence and either approve or defer promotion of
+  PR #43. Default to defer; do not merge any replacement draft merely to continue the workflow.
+- **Pending verification:** one successful bounded synthetic live-model routing sample, unless
+  explicitly waived; explicit beta R3 go/no-go; exact-main deployment/canary only after approval.
 - **Open questions:** no R2 product choice remains. Default the R3 replacement inventory branch
-  to a verified draft PR and stop before merge/production migration.
+  and its dependent stack to verified draft PRs and stop before merge/production migration.
 - **Beta wide-sweep note:** the schema/auth split applies only while recutting the fridge/par
-  inventory branch. No Butler service-state migration is selected.
+  inventory branch. No Butler service-state migration is selected or present in the replacement
+  stack.
