@@ -190,6 +190,49 @@ function chatMealPlanProposal(fixture: KitchenFixture) {
 	};
 }
 
+function chatStockActionProposal(fixture: KitchenFixture) {
+	return {
+		kind: 'proposal',
+		summary: 'Review Stock and Shopping',
+		stockActionProposal: {
+			token: `e2e-${fixture.account}-stock-proposal`,
+			status: 'active',
+			title: 'Restock rice and unpack milk',
+			weekStartDate: fixture.weekStart,
+			atomicity: {
+				kind: 'atomic',
+				consequence: 'The selected Stock and Shopping rows commit together.'
+			},
+			recommendation: {
+				whyNow: 'The last rice was used and the bought milk is ready to unpack.',
+				evidence: ['Rice has one pack in pantry.', 'Milk is on the current Shopping list.'],
+				confidence: 'medium',
+				uncertainty: 'The milk expiry date was not dictated.',
+				consequence: 'Sets rice to zero, reopens its Shopping source, and adds milk to the fridge.',
+				alternatives: ['Apply only the rice row.', 'Reject this review.']
+			},
+			operations: [
+				{
+					id: `e2e-${fixture.account}-stock-rice`,
+					kind: 'stock_replace',
+					label: 'Rijst',
+					before: '1 pak',
+					after: '0 pak and reopen the existing Shopping source',
+					reason: 'No rice remains.'
+				},
+				{
+					id: `e2e-${fixture.account}-stock-milk`,
+					kind: 'bought_intake',
+					label: 'Melk',
+					before: 'Not bought',
+					after: 'Bought and 1 l in fridge',
+					reason: 'The milk was unpacked.'
+				}
+			]
+		}
+	};
+}
+
 export function kitchenFixtureFor(testInfo: TestInfo): KitchenFixture {
 	return testInfo.project.name.endsWith('secondary')
 		? KITCHEN_FIXTURES.secondary
@@ -429,6 +472,28 @@ export function seedKitchenFixtures(databasePath: string): void {
 			});
 			const oldToken = `e2e-${fixture.account}-recipe-patch-old`;
 			const newToken = `e2e-${fixture.account}-recipe-patch-new`;
+			insertChatMessage.run({
+				userId,
+				role: 'user',
+				content: 'We used the last rice and bought milk. Prepare the changes.',
+				toolCalls: null,
+				createdAt: now - 8
+			});
+			insertChatMessage.run({
+				userId,
+				role: 'assistant',
+				content: 'The Stock and Shopping review is ready.',
+				toolCalls: JSON.stringify([
+					{
+						id: `stock-proposal-${fixture.account}`,
+						name: 'prepare_stock_action',
+						input: {},
+						result: { ok: true },
+						display: chatStockActionProposal(fixture)
+					}
+				]),
+				createdAt: now - 7
+			});
 			insertChatMessage.run({
 				userId,
 				role: 'user',

@@ -253,3 +253,56 @@ describe('generate_shopping_list', () => {
 		expect(res.error).toMatch(/^Invalid input for week_start_date/);
 	});
 });
+
+describe('prepare_stock_action', () => {
+	it('dispatches the compact tool schema into a read-only reviewed proposal', async () => {
+		const db = createTestDb();
+		const rice = db
+			.insert(schema.inventoryItems)
+			.values({
+				name: 'Rijst',
+				section: 'pantry',
+				qtyNum: 1,
+				unit: 'pak',
+				createdAt: new Date(),
+				updatedAt: new Date()
+			})
+			.returning()
+			.get();
+
+		const result = (await executeToolCall(
+			'prepare_stock_action',
+			{
+				title: 'Restock rice',
+				reason: 'The last rice was used.',
+				operations: [
+					{
+						kind: 'stock_replace',
+						item_id: rice.id,
+						replacement_name: 'Rijst',
+						amount: '1',
+						unit: 'pak',
+						reason: 'No rice remains.'
+					}
+				]
+			},
+			db,
+			1,
+			turnCtx()
+		)) as {
+			ok: boolean;
+			kind: string;
+			status: string;
+			operations: unknown[];
+		};
+
+		expect(result).toMatchObject({
+			ok: true,
+			kind: 'stock_action_proposal',
+			status: 'active'
+		});
+		expect(result.operations).toHaveLength(1);
+		expect(db.select().from(schema.inventoryItems).get()).toMatchObject({ qtyNum: 1 });
+		expect(db.select().from(schema.shoppingWeekEntries).all()).toEqual([]);
+	});
+});

@@ -4,11 +4,11 @@ export const tools: Anthropic.Tool[] = [
 	{
 		name: 'get_inventory',
 		description:
-			'Query inventory items. Filter by section (freezer/pantry), canonical category/type, expiring soon, or older entry date.',
+			'Query inventory items. Filter by section (freezer/fridge/pantry), canonical category/type, expiring soon, or older entry date.',
 		input_schema: {
 			type: 'object',
 			properties: {
-				section: { type: 'string', enum: ['freezer', 'pantry'], description: 'Filter by storage section' },
+				section: { type: 'string', enum: ['freezer', 'fridge', 'pantry'], description: 'Filter by storage section' },
 				category: {
 					type: 'string',
 					description: 'Canonical food category/type, e.g. meat, fish, vegetarian, vegan, other'
@@ -29,12 +29,12 @@ export const tools: Anthropic.Tool[] = [
 	},
 	{
 		name: 'add_to_inventory',
-		description: 'Add an item to the freezer or pantry.',
+		description: 'Add an item to the freezer, fridge, or pantry.',
 		input_schema: {
 			type: 'object',
 			properties: {
 				name: { type: 'string' },
-				section: { type: 'string', enum: ['freezer', 'pantry'] },
+				section: { type: 'string', enum: ['freezer', 'fridge', 'pantry'] },
 				qty_text: { type: 'string', description: 'Human-readable qty e.g. "3 stuks", "500g"' },
 				qty_num: { type: 'number', description: 'Numeric quantity' },
 				unit: { type: 'string', description: 'g, stuks, blik, pak, etc.' },
@@ -80,7 +80,7 @@ export const tools: Anthropic.Tool[] = [
 			properties: {
 				id: { type: 'number', description: 'Item id (preferred if known)' },
 				name: { type: 'string', description: 'Name match when id unknown' },
-				section: { type: 'string', enum: ['freezer', 'pantry'], description: 'Narrows name search' }
+				section: { type: 'string', enum: ['freezer', 'fridge', 'pantry'], description: 'Narrows name search' }
 			},
 			required: []
 		}
@@ -88,7 +88,7 @@ export const tools: Anthropic.Tool[] = [
 	{
 		name: 'update_inventory_item',
 		description:
-			'Update qty, entry date, expiry date, canonical category/type, or storage section (move between freezer/pantry) on an existing item.',
+			'Update qty, entry date, expiry date, canonical category/type, or storage section (freezer/fridge/pantry) on an existing item.',
 		input_schema: {
 			type: 'object',
 			properties: {
@@ -98,7 +98,7 @@ export const tools: Anthropic.Tool[] = [
 				unit: { type: 'string' },
 				section: {
 					type: 'string',
-					enum: ['freezer', 'pantry'],
+					enum: ['freezer', 'fridge', 'pantry'],
 					description: 'Move the item to this section'
 				},
 				expiry_date: { type: 'string', description: 'ISO date, null to clear' },
@@ -143,7 +143,7 @@ export const tools: Anthropic.Tool[] = [
 							unit: { type: 'string', description: 'g, stuks, blik, pak, portie, etc.' },
 							section: {
 								type: 'string',
-								enum: ['freezer', 'pantry'],
+								enum: ['freezer', 'fridge', 'pantry'],
 								description: 'Move the item to this section'
 							},
 							expiry_date: { type: 'string', description: 'ISO date YYYY-MM-DD, null to clear' },
@@ -789,5 +789,216 @@ export const tools: Anthropic.Tool[] = [
 			},
 			required: []
 		}
+	},
+	{
+		name: 'prepare_stock_action',
+		description:
+			'Prepare one reviewed, atomic Stock + Shopping proposal. Use after get_inventory for “out of”/“used the last”, and directly for Shopping edits, bought-to-stock intake, grocery photo/voice intake, or pantry-target refills. For an explicit service request, call this instead of replying with a prose checklist. This only stages a card; nothing changes until the user applies it.',
+		input_schema: {
+			type: 'object',
+			additionalProperties: false,
+			properties: {
+				title: { type: 'string' },
+				reason: { type: 'string', description: 'Why this proposal is useful now' },
+				operations: {
+					type: 'array',
+					minItems: 1,
+					maxItems: 30,
+					items: {
+						type: 'object',
+						additionalProperties: false,
+						properties: {
+							kind: {
+								type: 'string',
+								enum: [
+									'stock_replace',
+									'par_refill',
+									'shopping_add',
+									'shopping_change',
+									'bought_intake',
+									'inventory_intake'
+								]
+							},
+							item_id: { type: 'number' },
+							item_ids: { type: 'array', maxItems: 30, items: { type: 'number' } },
+							name: { type: 'string' },
+							replacement_name: { type: 'string' },
+							shopping_name: { type: 'string' },
+							change: {
+								type: 'string',
+								enum: ['remove', 'mark_bought', 'set_quantity']
+							},
+							amount: { type: ['string', 'null'] },
+							unit: { type: ['string', 'null'] },
+							section: { type: 'string', enum: ['freezer', 'fridge', 'pantry'] },
+							qty_num: { type: ['number', 'null'] },
+							expiry_date: { type: ['string', 'null'] },
+							items: {
+								type: 'array',
+								maxItems: 30,
+								items: {
+									type: 'object',
+									properties: {
+										name: { type: 'string' },
+										section: { type: 'string', enum: ['freezer', 'fridge', 'pantry'] },
+										qty_num: { type: ['number', 'null'] },
+										unit: { type: ['string', 'null'] },
+										expiry_date: { type: ['string', 'null'] }
+									},
+									required: ['name', 'section']
+								}
+							},
+							reason: { type: 'string' }
+						},
+						required: ['kind', 'reason']
+					}
+				}
+			},
+			required: ['title', 'reason', 'operations']
+		}
 	}
 ];
+
+function onlyTools(names: readonly string[]): Anthropic.Tool[] {
+	const allowed = new Set(names);
+	return tools.filter((tool) => allowed.has(tool.name));
+}
+
+export type AssistantToolRoute = {
+	tools: Anthropic.Tool[];
+	forcedToolName?: string;
+};
+
+function forcedSequence(
+	toolNames: readonly string[],
+	completedToolNames: readonly string[]
+): AssistantToolRoute {
+	const nextIndex = toolNames.findIndex((name) => !completedToolNames.includes(name));
+	return nextIndex >= 0
+		? {
+				tools: onlyTools(toolNames.slice(0, nextIndex + 1)),
+				forcedToolName: toolNames[nextIndex]
+			}
+		: { tools: [] };
+}
+
+/**
+ * Route explicit service requests to the smallest capable pack. The consolidated
+ * proposal owns its own current-state reads except for stock replacement, where
+ * the model needs the authoritative inventory id before it can stage a row.
+ */
+export function assistantToolRoute(
+	message: string,
+	hasImages = false,
+	priorToolNames: readonly string[] = [],
+	completedToolNames: readonly string[] = []
+): AssistantToolRoute {
+	const normalized = message.toLocaleLowerCase('nl-NL');
+	const stockReplacement =
+		/\b(out of|used the last|last of)\b/.test(normalized) ||
+		/\b(is op|zijn op|het laatste|de laatste)\b/.test(normalized);
+	const intake =
+		/\b(unpack|grocery haul|i bought|we bought|restock)\b/.test(normalized) ||
+		/\b(uitpakken|boodschappen uitgepakt|ik heb .* gekocht|we hebben .* gekocht)\b/.test(normalized);
+	const parRefill =
+		/\b(par target|pantry target|refill (?:the )?pantry)\b/.test(normalized) ||
+		/\b(streefaantal|voorraaddoel|voorraad aanvullen)\b/.test(normalized);
+	const freezerRefill =
+		(/\b(?:freezer|frozen)\b/.test(normalized) &&
+			/\b(?:refill|restock|targets?|batch[- ]cook)\b/.test(normalized)) ||
+		(/\b(?:vriezer|diepvries)\b/.test(normalized) &&
+			/\b(?:aanvullen|doelen?|batch)\b/.test(normalized));
+	const mealPlanEdit =
+		/\b(?:move|reschedule|replace)\b.*\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|meal|dinner)\b/.test(
+			normalized
+		) ||
+		/\b(?:verplaats|verschuif|vervang)\b.*\b(?:maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag|maaltijd)\b/.test(
+			normalized
+		) ||
+		/\b(?:change|set|wijzig|zet)\b.*\b(?:servings|portions|porties|personen)\b/.test(normalized);
+	const weekProposal =
+		(/\b(?:next|coming) week\b/.test(normalized) &&
+			/\b(?:dinners?|meals?|meal plan|plan)\b/.test(normalized)) ||
+		(/\b(?:volgende|komende) week\b/.test(normalized) &&
+			/\b(?:avondeten|maaltijden|weekmenu|plan)\b/.test(normalized));
+	const tonightChoice =
+		/\b(?:what should we eat|what can we eat).*\btonight\b/.test(normalized) ||
+		/\b(?:wat eten we|wat zullen we eten).*\b(?:vanavond|vandaag)\b/.test(normalized);
+	const cookFromStock =
+		/\b(?:cook|make|meals?).*\b(?:from|with) stock\b/.test(normalized) ||
+		/\b(?:entirely|almost entirely).*\bfrom stock\b/.test(normalized) ||
+		/\b(?:koken|maken).*\b(?:uit|met) (?:de )?voorraad\b/.test(normalized);
+	const shoppingReconcile =
+		/\b(?:reconcile|rebuild|derive)\b.*\bshopping list\b/.test(normalized) ||
+		/\b(?:werk|bouw|leid)\b.*\bboodschappenlijst\b/.test(normalized);
+	const inventoryRead =
+		/\b(?:what|which).*\b(?:have|oldest|stock).*\b(?:freezer|fridge|pantry|stock)\b/.test(
+			normalized
+		) ||
+		/\b(?:what|which).*\b(?:freezer|fridge|pantry|stock).*\b(?:have|oldest)\b/.test(
+			normalized
+		) ||
+		/\b(?:wat|welke).*\b(?:voorraad|vriezer|koelkast|voorraadkast).*\b(?:hebben|oudst|ligt|staat)\b/.test(
+			normalized
+		);
+	const historyRead =
+		/\b(?:who|what).*\b(?:changed|added|removed).*\b(?:stock|inventory|freezer|fridge|pantry)\b/.test(
+			normalized
+		) ||
+		/\b(?:wie|wat).*\b(?:wijzigde|veranderde|voegde|verwijderde).*\b(?:voorraad|vriezer|koelkast|voorraadkast)\b/.test(
+			normalized
+		);
+	const shoppingControl =
+		/\b(add|remove|delete|mark|make|change)\b.*\b(shopping list|groceries)\b/.test(normalized) ||
+		/\bmark\b.*\bbought\b/.test(normalized) ||
+		/\b(voeg|verwijder|markeer|maak|wijzig)\b.*\b(boodschappen|boodschappenlijst)\b/.test(normalized) ||
+		/\bmarkeer\b.*\bgekocht\b/.test(normalized);
+	const contextualQuantityFollowUp =
+		priorToolNames.includes('prepare_stock_action') &&
+		(/^(?:make|change) (?:it|that)(?: to)? (?:\d+|one|two|three|four|five)\b/.test(normalized) ||
+			/^(?:maak|wijzig) (?:het|dat)(?: naar)? (?:\d+|een|twee|drie|vier|vijf)\b/.test(
+				normalized
+			));
+
+	if (shoppingControl || intake || parRefill || contextualQuantityFollowUp) {
+		return forcedSequence(['prepare_stock_action'], completedToolNames);
+	}
+	if (stockReplacement) {
+		return forcedSequence(['get_inventory', 'prepare_stock_action'], completedToolNames);
+	}
+	if (freezerRefill) {
+		return forcedSequence([
+			'get_freezer_staples',
+			'get_meal_plan',
+			'suggest_meals',
+			'propose_meal_plan'
+		], completedToolNames);
+	}
+	if (mealPlanEdit) {
+		return forcedSequence(['get_meal_plan', 'propose_meal_plan'], completedToolNames);
+	}
+	if (weekProposal) {
+		return forcedSequence(
+			['get_meal_plan', 'suggest_meals', 'propose_meal_plan'],
+			completedToolNames
+		);
+	}
+	if (tonightChoice) {
+		return forcedSequence(['get_inventory', 'get_meal_plan', 'suggest_meals'], completedToolNames);
+	}
+	if (cookFromStock) return forcedSequence(['suggest_meals'], completedToolNames);
+	if (shoppingReconcile) return forcedSequence(['generate_shopping_list'], completedToolNames);
+	if (historyRead) return forcedSequence(['get_inventory_history'], completedToolNames);
+	if (inventoryRead) return forcedSequence(['get_inventory'], completedToolNames);
+	if (hasImages) return { tools };
+	return { tools: tools.filter((tool) => tool.name !== 'prepare_stock_action') };
+}
+
+export function toolsForAssistantTurn(
+	message: string,
+	hasImages = false,
+	priorToolNames: readonly string[] = [],
+	completedToolNames: readonly string[] = []
+): Anthropic.Tool[] {
+	return assistantToolRoute(message, hasImages, priorToolNames, completedToolNames).tools;
+}

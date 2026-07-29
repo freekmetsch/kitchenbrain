@@ -17,7 +17,7 @@ import {
 } from '$lib/server/ai/client';
 import { getChatModel, getChatFallbackModel, getVisionModel } from '$lib/server/ai/config';
 import { buildClaudeHistory, stableHistoryWindow } from '$lib/server/ai/history';
-import { tools } from '$lib/server/ai/tools';
+import { assistantToolRoute, tools } from '$lib/server/ai/tools';
 import { assertAssistantToolBudget } from '$lib/server/ai/assistant_capability_eval';
 import { applyMessageCacheAnchors } from '$lib/server/ai/cache';
 import { executeToolCall } from '$lib/server/ai/executors';
@@ -93,6 +93,15 @@ function sse(chunk: object): Uint8Array {
 
 function sseDone(): Uint8Array {
 	return new TextEncoder().encode('data: [DONE]\n\n');
+}
+
+function storedToolNames(raw: unknown): string[] {
+	if (!Array.isArray(raw)) return [];
+	return raw.flatMap((call) => {
+		if (!call || typeof call !== 'object') return [];
+		const name = (call as { name?: unknown }).name;
+		return typeof name === 'string' ? [name] : [];
+	});
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -195,13 +204,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// re-sends a message whose row already exists (its turn failed before any
 	// reply persisted) — skip the duplicate insert iff the newest row is exactly
 	// that user text; anything else means state moved on, so insert normally.
-	const newest = db
-		.select({ role: chatMessages.role, content: chatMessages.content })
+	const recent = db
+		.select({
+			role: chatMessages.role,
+			content: chatMessages.content,
+			toolCalls: chatMessages.toolCalls
+		})
 		.from(chatMessages)
 		.where(eq(chatMessages.userId, user.id))
 		.orderBy(desc(chatMessages.createdAt), desc(chatMessages.id))
-		.limit(1)
-		.get();
+		.limit(2)
+		.all();
+	const newest = recent[0];
+	const priorAssistant = recent.find((row) => row.role === 'assistant');
+	const priorToolNames = storedToolNames(priorAssistant?.toolCalls);
 	if (!(isRetry && newest?.role === 'user' && newest.content === userText)) {
 		db.insert(chatMessages)
 			.values({ userId: user.id, role: 'user', content: userText, createdAt: new Date() })
@@ -300,13 +316,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					if (backendFor(activeModel) === 'anthropic') {
 						prevTailIdx = applyMessageCacheAnchors(messages, prevTailIdx);
 					}
+					const toolRoute = assistantToolRoute(
+						userText,
+						hasImages,
+						priorToolNames,
+						allToolCalls
+							.filter(
+								(call) =>
+									!call.result ||
+									typeof call.result !== 'object' ||
+									!('contract_error' in call.result)
+							)
+							.map((call) => call.name)
+					);
 
 					let turn;
 					try {
 						turn = await streamAgentTurn({
 							model: activeModel,
 							system: systemPrompt,
-							tools,
+							tools: toolRoute.tools,
+							...(toolRoute.forcedToolName
+								? { toolChoice: { name: toolRoute.forcedToolName } }
+								: {}),
 							messages,
 							signal: request.signal,
 							onText: (delta) => {
@@ -351,6 +383,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					}
 
 					const toolResults: Anthropic.ToolResultBlockParam[] = [];
+					const allowedToolNames = new Set(toolRoute.tools.map((tool) => tool.name));
 					for (const tool of turn.toolCalls) {
 						controller.enqueue(
 							sse({
@@ -360,7 +393,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 								summary: describeToolStart(tool.name, tool.input, locale)
 							})
 						);
-						const result = await executeToolCall(tool.name, tool.input, db, user.id, turnCtx);
+						const result = allowedToolNames.has(tool.name)
+							? await executeToolCall(tool.name, tool.input, db, user.id, turnCtx)
+							: {
+									ok: false,
+									contract_error: 'tool_not_offered',
+									error: 'That tool is not available at this workflow stage'
+								};
 						const display = buildToolDisplay(db, tool.name, tool.input, result, locale);
 						allToolCalls.push({ id: tool.id, name: tool.name, input: tool.input, result, display });
 						controller.enqueue(sse({ type: 'tool', id: tool.id, name: tool.name, result, display }));

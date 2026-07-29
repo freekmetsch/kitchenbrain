@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
 import { addDays, todayIso, weekStartFor } from '$lib/week';
@@ -383,6 +383,57 @@ export function removeManualShoppingEntry(
 		)
 		.run();
 	if (result.changes !== 1) throw new ShoppingMutationError('stale', 'Manual shopping item changed');
+}
+
+/** Restore one reviewed manual removal after re-checking its exact post-remove revision. */
+export function restoreManualShoppingEntry(
+	db: DB,
+	input: {
+		entryId: number;
+		expectedRevision: number;
+		weekStartDay: number;
+		before: typeof schema.shoppingWeekEntries.$inferSelect;
+	}
+) {
+	const current = db
+		.select()
+		.from(schema.shoppingWeekEntries)
+		.where(eq(schema.shoppingWeekEntries.id, input.entryId))
+		.get();
+	if (
+		!current ||
+		current.sourceKind !== 'manual' ||
+		current.revision !== input.expectedRevision ||
+		current.retiredAt === null ||
+		input.before.id !== current.id ||
+		input.before.sourceKind !== 'manual'
+	) {
+		throw new ShoppingMutationError('stale', 'Removed manual Shopping item changed');
+	}
+	assertNonpastWeek(current.weekStartDate, input.weekStartDay);
+	const restored = db
+		.update(schema.shoppingWeekEntries)
+		.set({
+			included: input.before.included,
+			selectedName: input.before.selectedName,
+			bought: input.before.bought,
+			amountOverride: input.before.amountOverride,
+			unitOverride: input.before.unitOverride,
+			retiredAt: null,
+			revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
+			updatedAt: new Date()
+		})
+		.where(
+			and(
+				eq(schema.shoppingWeekEntries.id, input.entryId),
+				eq(schema.shoppingWeekEntries.revision, input.expectedRevision),
+				isNotNull(schema.shoppingWeekEntries.retiredAt)
+			)
+		)
+		.returning()
+		.get();
+	if (!restored) throw new ShoppingMutationError('stale', 'Removed manual Shopping item changed');
+	return restored;
 }
 
 export function updateShoppingEntry(

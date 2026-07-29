@@ -87,6 +87,17 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 		requiresReview: false
 	},
 	{
+		id: 'exact-cook-from-stock',
+		domain: 'cross-domain',
+		locale: 'en',
+		prompt:
+			'Compare saved meals we can cook entirely or almost entirely from stock. Show the exact on-hand and missing items for every option.',
+		allowedFirstTools: ['get_inventory', 'suggest_meals'],
+		requiredTools: ['suggest_meals'],
+		forbiddenTools: ['propose_meal_plan', 'prepare_stock_action'],
+		requiresReview: false
+	},
+	{
 		id: 'week-proposal',
 		domain: 'planning',
 		locale: 'en',
@@ -152,10 +163,51 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 		locale: 'en',
 		prompt: 'We are out of rice. Check stock and prepare what should change.',
 		allowedFirstTools: ['get_inventory'],
-		requiredTools: ['get_inventory'],
+		requiredTools: ['get_inventory', 'prepare_stock_action'],
 		forbiddenTools: ['add_to_inventory', 'remove_from_inventory'],
-		requiresReview: true,
-		knownBaselineFailure: 'FORBIDDEN_TOOL:add_to_inventory'
+		requiresReview: true
+	},
+	{
+		id: 'shopping-control',
+		domain: 'shopping',
+		locale: 'en',
+		prompt: 'Remove coriander from this week’s shopping list and bring me the change to review.',
+		allowedFirstTools: ['prepare_stock_action'],
+		requiredTools: ['prepare_stock_action'],
+		forbiddenTools: ['generate_shopping_list'],
+		requiresReview: true
+	},
+	{
+		id: 'used-last-bundle-nl',
+		domain: 'cross-domain',
+		locale: 'nl',
+		prompt: 'We hebben de laatste rijst gebruikt. Zet de juiste wijzigingen voor me klaar.',
+		allowedFirstTools: ['get_inventory'],
+		requiredTools: ['get_inventory', 'prepare_stock_action'],
+		forbiddenTools: ['add_to_inventory', 'remove_from_inventory'],
+		requiresReview: true
+	},
+	{
+		id: 'grocery-voice-intake',
+		domain: 'cross-domain',
+		locale: 'en',
+		prompt:
+			'Unpack this grocery haul from my dictation: one litre of milk for the fridge and two bags of peas for the freezer. Prepare it for review.',
+		allowedFirstTools: ['prepare_stock_action'],
+		requiredTools: ['prepare_stock_action'],
+		forbiddenTools: ['add_to_inventory'],
+		requiresReview: true
+	},
+	{
+		id: 'freezer-refill-plan',
+		domain: 'cross-domain',
+		locale: 'en',
+		prompt:
+			'Prepare a batch-cook refill plan for our freezer targets that fits the coming week, then bring me the plan to review.',
+		allowedFirstTools: ['get_freezer_staples', 'get_meal_plan', 'suggest_meals'],
+		requiredTools: ['get_freezer_staples', 'get_meal_plan', 'suggest_meals', 'propose_meal_plan'],
+		forbiddenTools: ['set_freezer_staple', 'prepare_stock_action'],
+		requiresReview: true
 	},
 	{
 		id: 'history-read',

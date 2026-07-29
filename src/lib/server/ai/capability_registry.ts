@@ -280,6 +280,15 @@ export const ASSISTANT_CAPABILITIES = Object.freeze({
 		undo: 'inventory-op',
 		externalEffect: 'none',
 		display: 'write'
+	}),
+	prepare_stock_action: capability({
+		domain: 'shopping',
+		access: 'proposal',
+		currentRead: 'conditional',
+		confirmation: 'always-review',
+		undo: 'atomic-batch',
+		externalEffect: 'none',
+		display: 'proposal'
 	})
 } satisfies Record<string, AssistantCapability>);
 

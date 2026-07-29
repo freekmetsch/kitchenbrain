@@ -140,3 +140,53 @@ describe('meal-plan proposal display', () => {
 		});
 	});
 });
+
+describe('stock action proposal display', () => {
+	it('keeps recommendation evidence, atomicity, and adjustable operations structured', () => {
+		const display = buildToolDisplay(
+			null as never,
+			'prepare_stock_action',
+			{},
+			{
+				ok: true,
+				kind: 'stock_action_proposal',
+				token: 'stock-token',
+				status: 'active',
+				title: 'Restock rice',
+				weekStartDate: '2026-07-29',
+				atomicity: { kind: 'atomic', consequence: 'Both changes commit together.' },
+				recommendation: {
+					whyNow: 'The last rice was used.',
+					evidence: ['Rijst has 1 pak in pantry.'],
+					confidence: 'high',
+					uncertainty: null,
+					consequence: 'Stock becomes zero and Shopping is reopened.',
+					alternatives: ['Adjust the row', 'Reject this proposal']
+				},
+				operations: [
+					{
+						id: 'stock-operation-1',
+						kind: 'stock_replace',
+						label: 'Rijst',
+						before: '1 pak',
+						after: 'Set stock to 0 and reopen the existing Shopping source',
+						reason: 'No rice remains.'
+					}
+				]
+			}
+		);
+
+		expect(display).toMatchObject({
+			kind: 'proposal',
+			stockActionProposal: {
+				token: 'stock-token',
+				atomicity: { kind: 'atomic' },
+				recommendation: {
+					evidence: ['Rijst has 1 pak in pantry.'],
+					confidence: 'high'
+				},
+				operations: [expect.objectContaining({ id: 'stock-operation-1' })]
+			}
+		});
+	});
+});
