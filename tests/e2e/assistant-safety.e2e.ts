@@ -211,6 +211,8 @@ test('Cooking actions stay reviewed, client-authoritative, grounded, and undoabl
 		const defrost = page.locator('[data-testid="cooking-action-review"][data-action-kind="defrost"]');
 
 		await expect(timer.getByText('Why now', { exact: true })).toBeVisible();
+		await expect(timer.getByText('Evidence', { exact: true })).toBeVisible();
+		await expect(timer.locator('details')).not.toHaveAttribute('open', '');
 		await expect(page.getByRole('timer')).toBeHidden();
 		await timer.getByRole('button', { name: 'Apply' }).click();
 		await expect(page.getByRole('timer')).toContainText('Pasta');
