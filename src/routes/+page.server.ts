@@ -1,40 +1,24 @@
 import type { PageServerLoad } from './$types';
-import { and, isNull, isNotNull, lte } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
-import { inventoryItems } from '$lib/server/db/schema';
 import { checkDailyCap } from '$lib/server/ai/client';
 import { recentChatPage } from '$lib/server/ai/recent_chat';
-import { isoDateInAppTimeZone } from '$lib/week';
-
-function plusDaysIso(days: number): string {
-	const d = new Date();
-	d.setDate(d.getDate() + days);
-	return isoDateInAppTimeZone(d);
-}
+import { getLocale } from '$lib/paraglide/runtime';
+import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import { deriveButlerBrief } from '$lib/server/butler/brief';
+import { buildButlerSnapshot } from '$lib/server/butler/snapshot';
+import { todayIso } from '$lib/week';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const history = recentChatPage(db, locals.user!.id);
-
-	const expiring = db
-		.select({
-			id: inventoryItems.id,
-			name: inventoryItems.name,
-			expiryDate: inventoryItems.expiryDate,
-			section: inventoryItems.section
-		})
-		.from(inventoryItems)
-		.where(
-			and(
-				isNull(inventoryItems.deletedAt),
-				isNotNull(inventoryItems.expiryDate),
-				lte(inventoryItems.expiryDate, plusDaysIso(7))
-			)
-		)
-		.orderBy(inventoryItems.expiryDate)
-		.limit(5)
-		.all();
-
+	const today = todayIso();
+	const brief = deriveButlerBrief(
+		buildButlerSnapshot(db, {
+			today,
+			weekStartDay: getWeekStartDay(db)
+		}),
+		{ locale: getLocale() === 'nl' ? 'nl' : 'en' }
+	);
 	const { exceeded: capExceeded, capEur } = checkDailyCap();
 
-	return { ...history, expiring, capExceeded, capEur };
+	return { ...history, brief, capExceeded, capEur };
 };

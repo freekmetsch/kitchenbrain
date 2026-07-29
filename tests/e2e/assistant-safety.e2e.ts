@@ -17,6 +17,40 @@ const CHAT_VIEWPORTS = [
 	{ name: 'desktop', width: 1280, height: 900 }
 ] as const;
 
+test('Butler brief stays bounded, transparent, and passive above chat', async ({ page }) => {
+	let assistantTurns = 0;
+	page.on('request', (request) => {
+		if (new URL(request.url()).pathname === '/api/chat') assistantTurns += 1;
+	});
+
+	for (const viewport of VIEWPORTS) {
+		await page.setViewportSize(viewport);
+		await page.goto('/');
+
+		const brief = page.getByRole('region', { name: 'Butler brief' });
+		await expect(brief).toBeVisible();
+		const cards = brief.locator('article[data-butler-kind]');
+		const count = await cards.count();
+		expect(count).toBeGreaterThan(0);
+		expect(count).toBeLessThanOrEqual(3);
+		await expect(cards.first().getByText('Why now:', { exact: true })).toBeVisible();
+		await expect(cards.first().getByText('Consequence:', { exact: true })).toBeVisible();
+		await cards.first().getByText('Evidence and options', { exact: true }).click();
+		await expect(cards.first().getByText('Evidence', { exact: true })).toBeVisible();
+		await expect(cards.first().getByText('Uncertainty', { exact: true })).toBeVisible();
+		await expect(cards.first().getByText('Alternatives', { exact: true })).toBeVisible();
+		await expect(page.locator('#home-chat').getByRole('textbox')).toBeVisible();
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth > document.documentElement.clientWidth
+			),
+			`Butler brief must not overflow horizontally at ${viewport.width}px`
+		).toBe(false);
+	}
+
+	expect(assistantTurns).toBe(0);
+});
+
 test('Plan → Shop review is adjustable, atomic, and keeps the AH push behind final confirmation', async ({
 	page
 }, testInfo) => {
