@@ -121,12 +121,12 @@ export function capForCategory(category: SpendCategory): number {
 }
 
 // OpenRouter-only shortcut surface (2026-07-12 amendment, FEATURE_LIST_SETTINGS_MENU.md):
-// the Settings model pickers only ever suggest OpenRouter ids — claude-* rows stay in
+// the Settings model pickers only ever suggest OpenRouter ids — bare claude-* rows stay in
 // MODEL_PRICING purely as the dormant Anthropic-rollback price table (CLAUDE.md
 // §Portability), never offered as a UI shortcut. Mirrors client.ts's backendFor()
 // routing without importing it, so this file stays SDK/db-free.
 function isOpenRouterId(model: string): boolean {
-	return !model.startsWith('claude-') && !model.startsWith('anthropic/');
+	return !model.startsWith('claude-');
 }
 
 /** Curated shortcut chips for a Settings model picker — derived from the live

@@ -923,6 +923,25 @@ export function assistantToolRoute(
 	const stockReplacement =
 		/\b(out of|used the last|last of)\b/.test(normalized) ||
 		/\b(is op|zijn op|het laatste|de laatste)\b/.test(normalized);
+	const stockConsumption =
+		(/\b(?:we|i) (?:finished|used up)\b/u.test(normalized) &&
+			/\b(?:remove|take)\b.*\b(?:stock|inventory|pantry|fridge|freezer)\b/u.test(normalized)) ||
+		/\b(?:we|i) used all(?: of)?\b/u.test(normalized) ||
+		/\b(?:ik|we|wij) (?:heb|hebben) .*\bopgebruikt\b/u.test(normalized);
+	const inventoryAdd =
+		/\b(?:add|put)\b.*\b(?:pantry|inventory|stock|fridge|freezer)\b/u.test(normalized) ||
+		/\b(?:voeg|zet|leg)\b.*\b(?:voorraad|voorraadkast|koelkast|vriezer|diepvries)\b/u.test(
+			normalized
+		);
+	const inventoryBulkCorrection =
+		(/\b(?:set|change|update|correct)\b/u.test(normalized) &&
+			/\b(?:best-before|expiry|frozen date|added date)\b/u.test(normalized) &&
+			/\b(?:and|both|together)\b/u.test(normalized)) ||
+		(/\b(?:zet|wijzig|corrigeer)\b/u.test(normalized) &&
+			/\b(?:ten minste houdbaar|houdbaarheidsdatum|invriesdatum|toegevoegd op)\b/u.test(
+				normalized
+			) &&
+			/\b(?:en|beide|samen)\b/u.test(normalized));
 	const intake =
 		/\b(unpack|grocery haul|i bought|we bought|restock)\b/.test(normalized) ||
 		/\b(uitpakken|boodschappen uitgepakt|ik heb .* gekocht|we hebben .* gekocht)\b/.test(normalized);
@@ -932,7 +951,7 @@ export function assistantToolRoute(
 	const freezerRefill =
 		(/\b(?:freezer|frozen)\b/.test(normalized) &&
 			/\b(?:refill|restock|targets?|batch[- ]cook)\b/.test(normalized)) ||
-		(/\b(?:vriezer|diepvries)\b/.test(normalized) &&
+		(/\b(?:vriezer|diepvries)(?:doelen?)?\b/.test(normalized) &&
 			/\b(?:aanvullen|doelen?|batch)\b/.test(normalized));
 	const mealPlanEdit =
 		/\b(?:move|reschedule|replace)\b.*\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|meal|dinner)\b/.test(
@@ -943,13 +962,16 @@ export function assistantToolRoute(
 		) ||
 		/\b(?:change|set|wijzig|zet)\b.*\b(?:servings|portions|porties|personen)\b/.test(normalized);
 	const weekProposal =
-		(/\b(?:next|coming) week\b/.test(normalized) &&
+		(/\b(?:next|coming) week(?:['’]s)?\b/.test(normalized) &&
 			/\b(?:dinners?|meals?|meal plan|plan)\b/.test(normalized)) ||
 		(/\b(?:volgende|komende) week\b/.test(normalized) &&
 			/\b(?:avondeten|maaltijden|weekmenu|plan)\b/.test(normalized));
 	const tonightChoice =
 		/\b(?:what should we eat|what can we eat).*\btonight\b/.test(normalized) ||
-		/\b(?:wat eten we|wat zullen we eten).*\b(?:vanavond|vandaag)\b/.test(normalized);
+		/\bwhat\b.*\b(?:eat|eating|having|dinner)\b.*\btonight\b/.test(normalized) ||
+		/\bwhat\b.*\btonight\b.*\b(?:eat|eating|having|dinner)\b/.test(normalized) ||
+		/\b(?:wat eten we|wat zullen we eten).*\b(?:vanavond|vandaag)\b/.test(normalized) ||
+		/\bwat\b.*\b(?:vanavond|vandaag)\b.*\beten\b/.test(normalized);
 	const missedMealRollover =
 		(/\b(?:move|roll over|rollover|reschedule|handle|sort out|deal with)\b/.test(normalized) &&
 			/\b(?:missed|uncooked|past)\b.*\b(?:meal|dinner)s?\b/.test(normalized)) ||
@@ -1001,12 +1023,29 @@ export function assistantToolRoute(
 	const defrostCue =
 		/\b(?:defrost|thaw|ontdooi|ontdooien)\b/u.test(normalized);
 	const afterCook =
-		/\b(?:we|i) (?:cooked|ate|finished|served)\b/u.test(normalized) ||
+		/\b(?:we|i) (?:cooked|ate|served)\b/u.test(normalized) ||
+		/\b(?:we|i) finished (?:the )?(?:meal|dinner|lunch|breakfast)\b/u.test(normalized) ||
 		/\b(?:mark|finish|check out)\b.*\b(?:meal|dinner)\b.*\b(?:cooked|eaten)\b/u.test(
 			normalized
 		) ||
-		/\b(?:we|ik) (?:hebben|heb) .*\b(?:gekookt|gegeten|opgegeten)\b/u.test(normalized) ||
+		/\b(?:we|wij|ik) (?:hebben|heb) .*\b(?:gekookt|gegeten|opgegeten)\b/u.test(normalized) ||
 		/\b(?:markeer|rond af)\b.*\b(?:maaltijd|avondeten)\b.*\b(?:gekookt|gegeten)\b/u.test(
+			normalized
+		);
+	const recipeAhChoice =
+		/\b(?:saved|opgeslagen)\b/u.test(normalized) &&
+		/\b(?:ah|albert heijn)\b/u.test(normalized) &&
+		/\b(?:review|controleren|beoordelen)\b/u.test(normalized);
+	const recipeImport =
+		/\b(?:save|import|bewaar|importeer)\b.*\b(?:recipe|recept)\b/u.test(normalized) &&
+		/https?:\/\/\S+/u.test(normalized);
+	const recipeRead =
+		/\b(?:saved|opgeslagen)\b/u.test(normalized) &&
+		/\b(?:recipe|recept|curry|pasta|soup|soep)\b/u.test(normalized) &&
+		/\b(?:how much|how many|what|which|hoeveel|wat|welke)\b/u.test(normalized);
+	const plainCookingKnowledge =
+		/^\s*(?:why|how|what (?:makes|causes)|waarom|hoe)\b/u.test(normalized) &&
+		!/\b(?:our|saved|recipe|stock|inventory|freezer|fridge|pantry|ons|onze|opgeslagen|recept|voorraad|vriezer|koelkast)\b/u.test(
 			normalized
 		);
 
@@ -1019,8 +1058,17 @@ export function assistantToolRoute(
 	if (defrostCue) {
 		return forcedSequence(['get_inventory', 'prepare_cooking_action'], completedToolNames);
 	}
+	if (stockConsumption) {
+		return forcedSequence(['get_inventory', 'remove_from_inventory'], completedToolNames);
+	}
 	if (afterCook) {
 		return forcedSequence(['get_meal_plan', 'prepare_cooking_action'], completedToolNames);
+	}
+	if (inventoryBulkCorrection) {
+		return forcedSequence(['get_inventory', 'bulk_update_inventory'], completedToolNames);
+	}
+	if (inventoryAdd) {
+		return forcedSequence(['get_inventory', 'add_to_inventory'], completedToolNames);
 	}
 	if (shoppingControl || intake || parRefill || contextualQuantityFollowUp) {
 		return forcedSequence(['prepare_stock_action'], completedToolNames);
@@ -1055,6 +1103,17 @@ export function assistantToolRoute(
 	if (shoppingReconcile) return forcedSequence(['generate_shopping_list'], completedToolNames);
 	if (historyRead) return forcedSequence(['get_inventory_history'], completedToolNames);
 	if (inventoryRead) return forcedSequence(['get_inventory'], completedToolNames);
+	if (recipeAhChoice) {
+		return forcedSequence(
+			['search_recipes', 'get_recipe', 'search_ah_products', 'propose_recipe_patch'],
+			completedToolNames
+		);
+	}
+	if (recipeImport) return forcedSequence(['add_recipe_from_url'], completedToolNames);
+	if (recipeRead) {
+		return forcedSequence(['search_recipes', 'get_recipe'], completedToolNames);
+	}
+	if (plainCookingKnowledge && !hasImages) return { tools: [] };
 	if (hasImages) return { tools };
 	return {
 		tools: tools.filter(

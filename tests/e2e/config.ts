@@ -14,6 +14,7 @@ export const E2E_DATA_DIR = path.resolve(
 );
 export const E2E_DATABASE = path.join(E2E_DATA_DIR, 'e2e.db');
 export const E2E_AUTH_DIR = path.join(E2E_DATA_DIR, 'auth');
+export const E2E_HYDRATION_TIMEOUT_MS = 30_000;
 
 export const TEST_ACCOUNTS = {
 	primary: {

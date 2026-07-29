@@ -102,9 +102,9 @@ export const anthropic = new Proxy({} as Anthropic, {
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider seam (P5). The LLM provider is swappable behind this module — the chat
 // route and background jobs call createMessage / streamAgentTurn and never touch a
-// wire shape. The backend is chosen by model id: `claude-*` → Anthropic native
-// (kept as a dormant, env-flip rollback); everything else → OpenRouter's
-// OpenAI-compatible endpoint (GLM et al.). The internal message representation stays
+// wire shape. The backend is chosen by model id: bare `claude-*` → Anthropic native
+// (kept as a dormant, env-flip rollback); every vendor/model id → OpenRouter's
+// OpenAI-compatible endpoint. The internal message representation stays
 // Anthropic content-block shaped (Anthropic.MessageParam) so history.ts, cache.ts,
 // and the chat loop are untouched — the OpenAI translation lives only here.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ export const anthropic = new Proxy({} as Anthropic, {
 // getBackgroundModel there. Nothing here reads them anymore; this seam only
 // knows how to route a model id, not which one is configured.
 export function backendFor(model: string): 'anthropic' | 'openrouter' {
-	return model.startsWith('claude-') || model.startsWith('anthropic/') ? 'anthropic' : 'openrouter';
+	return model.startsWith('claude-') ? 'anthropic' : 'openrouter';
 }
 
 // The chat renders replies as raw text, so any markdown shows as literal clutter.

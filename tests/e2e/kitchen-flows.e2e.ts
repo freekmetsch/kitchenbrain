@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { E2E_HYDRATION_TIMEOUT_MS } from './config';
 import { kitchenFixtureFor } from './fixtures';
 
 test('Stock quantity, delete, and undo stay recoverable', async ({ page }, testInfo) => {
@@ -548,7 +549,7 @@ test('Cook Mode offers explicit hands-busy voice, current-step timers, and groun
 		page.getByText('The microphone never stays on.', { exact: false })
 	).toBeVisible();
 	const whatNow = page.getByRole('button', { name: 'What now?' });
-	await expect(whatNow).toBeEnabled();
+	await expect(whatNow).toBeEnabled({ timeout: E2E_HYDRATION_TIMEOUT_MS });
 	await whatNow.click();
 	await expect(page.getByText('Simmer until ready.', { exact: true })).toBeVisible();
 	await page.getByRole('button', { name: 'Start current timer' }).click();

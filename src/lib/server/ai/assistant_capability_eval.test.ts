@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { tools } from './tools';
+import { assistantToolRoute, tools } from './tools';
 import {
 	ASSISTANT_CAPABILITY_EVAL_CASES,
+	ASSISTANT_ROUTED_TOOL_BUDGET,
 	ASSISTANT_TOOL_BUDGET,
 	assertAssistantCapabilityEvalCatalog,
 	assertAssistantToolBudget,
@@ -84,5 +85,35 @@ describe('Assistant capability quality gate', () => {
 		expect(
 			evaluateAssistantToolOrder(scenario!, ['get_inventory', 'prepare_stock_action'])
 		).toBeNull();
+	});
+
+	it('routes the complete portfolio without exposing the broad fallback catalog', () => {
+		let maximumRoutedToolCount = 0;
+		let maximumRoutedToolBytes = 0;
+
+		for (const scenario of ASSISTANT_CAPABILITY_EVAL_CASES) {
+			const toolOrder: string[] = [];
+			for (let iteration = 0; iteration < 8; iteration++) {
+				const route = assistantToolRoute(scenario.prompt, false, [], toolOrder);
+				const measurement = measureAssistantTools(route.tools);
+				maximumRoutedToolCount = Math.max(maximumRoutedToolCount, measurement.count);
+				maximumRoutedToolBytes = Math.max(maximumRoutedToolBytes, measurement.serializedBytes);
+
+				if (!route.forcedToolName) {
+					expect(route.tools, scenario.id).toHaveLength(0);
+					break;
+				}
+				toolOrder.push(route.forcedToolName);
+			}
+
+			expect(evaluateAssistantToolOrder(scenario, toolOrder), scenario.id).toBeNull();
+		}
+
+		expect(maximumRoutedToolCount).toBeLessThanOrEqual(
+			ASSISTANT_ROUTED_TOOL_BUDGET.maxCount
+		);
+		expect(maximumRoutedToolBytes).toBeLessThanOrEqual(
+			ASSISTANT_ROUTED_TOOL_BUDGET.maxSerializedBytes
+		);
 	});
 });

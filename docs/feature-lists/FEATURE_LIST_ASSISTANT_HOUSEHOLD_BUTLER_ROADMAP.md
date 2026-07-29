@@ -1,6 +1,7 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 6 of 10 (R2 correction live; replacement draft recut next 2026-07-29)_
+_Status: In flight - request-driven R3 draft stack recut and locally verified through Phase 9;
+bounded live-model verification awaits OpenRouter test credit (2026-07-29)._
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -520,7 +521,7 @@ _Completed 2026-07-29._
 
 ### Phase 6 — remove standing Notice; keep contextual trust
 
-_R2 correction verified 2026-07-29; R3 replacement draft recut remains._
+_Completed 2026-07-29. The R2 correction is live and the R3 replacement draft stack is recut._
 
 - Roll back BTL-009 on shipped `main`: remove the Brief UI, home-load household snapshot,
   deterministic candidate ranking, Brief copy, and the browser contract that requires them.
@@ -535,6 +536,8 @@ _R2 correction verified 2026-07-29; R3 replacement draft recut remains._
 
 ### Phase 7 — stock and Shopping loops
 
+_Completed as unmerged draft PR #43 on 2026-07-29; R3 promotion remains gated._
+
 - Deliver BTL-001/002/008/013/015/021/022/023/024: authoritative Shopping controls, out/used/bought
   bundles, exact stock coverage, reviewed visual/voice intake, freezer refill, fridge, and pantry
   par levels.
@@ -544,6 +547,8 @@ _R2 correction verified 2026-07-29; R3 replacement draft recut remains._
 
 ### Phase 8 — meal decisions and scoped choices
 
+_Completed as unmerged draft PR #44 on 2026-07-29; stacked verification is green._
+
 - Deliver BTL-025/026/027/028/029/030/031: leftover follow-through, comparable meal cards,
   one-time/saved substitutions and AH choices, conflict resolution, missed-meal rollover, and
   Cook-this handoff.
@@ -552,6 +557,8 @@ _R2 correction verified 2026-07-29; R3 replacement draft recut remains._
 
 ### Phase 9 — cooking assistance
 
+_Completed as unmerged draft PR #45 on 2026-07-29; stacked verification is green._
+
 - Deliver BTL-007/012/032/033/034/035: reviewed after-cook checkout, persistent timer client
   actions, hands-busy cook mode, step-aware timer suggestions, active-recipe rescue, and defrost
   preparation.
@@ -559,6 +566,9 @@ _R2 correction verified 2026-07-29; R3 replacement draft recut remains._
   visible, and notifications/routines outside scope.
 
 ### Phase 10 — simplify, verify, and deliver
+
+_In progress. Provider-free and browser gates are complete; the bounded four-model live matrix is
+blocked by the existing OpenRouter key's exhausted daily limit._
 
 - Require the Assistant behavior suite after every exposure change and the full repository gate
   after every vertical wave.
@@ -892,7 +902,7 @@ The five N-series tickets are the execution authority for the current run.
 
 ### BTL-11A — Recut the draft stack without Butler service state
 
-**Status: In progress; starts after the verified R2 correction reaches corrected `main`.**
+**Status: Completed as draft PRs #43, #44, and #45 on 2026-07-29; stop before R3 merge.**
 
 - **Observable behavior:** the useful Stock/Shopping, meal-decision, and cooking-assistance drafts
   remain reviewable, but none contains Butler candidate, dismiss/snooze, initiative, last-seen,
@@ -961,6 +971,20 @@ Post-correction evidence: retiring `present_plan` reduces the exposed surface to
 serialized bytes, with a checked ceiling of 27 / 26,000. Provider-free selection, required-read,
 review, external-effect, and truthful-finish cases remain green.
 
+Routing hardening evidence on the cumulative cooking draft: all 25 synthetic capability cases now
+receive a deterministic route of at most 4 tools / 5,095 serialized bytes. This removes six broad
+fallback routes that previously exposed 25 tools / 22,232 bytes. Forty EN/NL paraphrases cover
+the routed intent classes, including the fixed distinction between finishing an ingredient and
+finishing a meal. OpenRouter vendor/model IDs now stay behind the OpenRouter seam; only bare
+`claude-*` IDs select the dormant native Anthropic rollback.
+
+The final free gate is green: clean Svelte diagnostics, 134 Vitest files / 752 tests, production
+build, 30 primary and 30 secondary authenticated browser stories plus one expected disconnected-AH
+skip per account, and a 10/10 repeated Cook Mode hydration stress sample. Four one-case live
+provider probes each reached OpenRouter and returned `PROVIDER_CREDIT_BLOCKED` before generation:
+0 tokens and USD 0 reported. The full four-model matrix was not attempted because the existing
+key's daily USD 1 limit was already exhausted.
+
 ### BTL-N2 — Restore request-driven trust
 
 **Status: R2 correction shipped and canary-verified 2026-07-29; R3 draft recut pending.**
@@ -985,6 +1009,8 @@ assertive trigger contract.
 
 ### BTL-N3 — Deliver stock and Shopping loops
 
+**Status: Completed in unmerged draft PR #43 on 2026-07-29; R3 promotion remains gated.**
+
 - **Ideas:** BTL-001, BTL-002, BTL-008, BTL-013, BTL-015, BTL-021, BTL-022, BTL-023, BTL-024.
 - **Risk:** R3 fridge/par-level schema; remaining behavior R1/R2.
 - **Wide sweep:** `wide-sweep/schema-inventory-zones-targets`; append-only migration, every caller,
@@ -998,6 +1024,8 @@ assertive trigger contract.
 
 ### BTL-N4 — Deliver meal decisions and scoped choices
 
+**Status: Completed in unmerged draft PR #44 on 2026-07-29.**
+
 - **Ideas:** BTL-025, BTL-026, BTL-027, BTL-028, BTL-029, BTL-030, BTL-031.
 - **Risk:** R3 only if a new durable substitution scope is required; otherwise R1/R2.
 - **Verification:** comparable facts; one-time choices leave no durable state; explicit saved
@@ -1008,6 +1036,8 @@ assertive trigger contract.
 - **Dependencies:** BTL-N1, BTL-N3, and the shipped plan/AH preference seams.
 
 ### BTL-N5 — Deliver cooking assistance
+
+**Status: Completed in unmerged draft PR #45 on 2026-07-29.**
 
 - **Ideas:** BTL-007, BTL-012, BTL-032, BTL-033, BTL-034, BTL-035.
 - **Risk:** R2 unless durable reminder/session schema becomes necessary, which is a stop-and-replan
@@ -1148,6 +1178,12 @@ No product decision remains open for the corrective R2 implementation. The selec
 an optional, non-prescriptive Outcome Docket inside the triggering turn plus one generic
 client-owned working state with a collapsed, grounded “See process” disclosure.
 
+> **Q: May the live Assistant matrix use a fresh dedicated OpenRouter test key capped at USD 1?**
+> - Default: create the scoped test key, run the four approved 25-intent matrices, record only
+> synthetic aggregate evidence, then retire the key. Reason: the current household key's daily
+> limit is already exhausted, and changing or creating an external credential requires explicit
+> action-time authority. Alternative: wait for the existing key's daily limit to reset.
+
 > **Q: How should the R3 inventory branch be promoted after its replacement is verified?** -
 > Default: keep it as a draft `wide-sweep/schema-inventory-zones-targets` PR and stop before merge
 > or production migration. Reason: beta permits development and rehearsal, while real-data schema
@@ -1159,18 +1195,19 @@ client-owned working state with a collapsed, grounded “See process” disclosu
   assertive end-to-end preparation only inside the current user request.
 - **Current state:** PR #41 is live on exact remote `main`: the passive Brief and candidate path
   are gone, `present_plan` is retired, working/process disclosure is client-owned, and
-  recommendation slots are optional and grounded. Complete local gates and the privacy-safe
-  production canary are green. PR #35 remains unmerged, with useful request-driven work still
-  stacked in draft PRs #36, #39, and #40 on top of it.
+  recommendation slots are optional and grounded. Obsolete draft PRs #35/#36/#39/#40 are closed.
+  Their useful work was recut without Butler service state as draft PRs #43/#44/#45. The complete
+  cumulative free gate is green and every benchmark intent now receives at most four model-visible
+  tools. No R3 branch has been merged or deployed.
 - **First command:** `$run`.
-- **First files:** this feature list; the current issue file;
-  `tests/e2e/assistant-safety.e2e.ts`; `src/routes/+page.server.ts`;
-  `src/routes/+page.svelte`; `src/lib/components/butler/`; `src/lib/server/butler/`.
-- **First implementation move:** run the required independent R3 critique, then create the
-  replacement inventory branch from corrected `main`.
-- **Pending verification:** replacement PR range/tree comparison; populated inventory migration
-  rehearsal and beta R3 decision.
-- **Open questions:** no R2 product choice remains. Default the R3 replacement inventory branch
-  to a verified draft PR and stop before merge/production migration.
+- **First files:** this feature list; `src/lib/server/ai/tools.ts`;
+  `src/lib/server/ai/assistant_capability_eval.ts`;
+  `scripts/eval/assistant-tool-selection-live.ts`.
+- **First implementation move:** after explicit credential authority, create a dedicated
+  OpenRouter test key capped at USD 1 and run the approved four-model synthetic matrix.
+- **Pending verification:** bounded live-model selection matrix; populated inventory migration
+  rehearsal and explicit beta R3 promotion decision.
+- **Open questions:** dedicated USD 1 test-key authority remains open. No R2 product choice remains.
+  Keep PR #43 as a draft and stop before merge/production migration.
 - **Beta wide-sweep note:** the schema/auth split applies only while recutting the fridge/par
   inventory branch. No Butler service-state migration is selected.

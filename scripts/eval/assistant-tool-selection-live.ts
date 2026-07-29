@@ -1,12 +1,16 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import {
+	classifyAssistantEvalProviderFailure,
+	resolveAssistantEvalCostBound,
+	selectAssistantEvalCases
+} from './assistant-tool-selection-config';
 
 const REPORT_PATH = join(process.cwd(), '.test-data', 'assistant-tool-selection-live.json');
 const MAX_PROVIDER_CALLS = 60;
 const MAX_ITERATIONS_PER_CASE = 4;
 const MAX_TOTAL_TOKENS = 600_000;
-const MAX_REPORTED_COST_USD = 0.25;
 const MAX_OUTPUT_TOKENS_PER_CALL = 1_200;
 const PROVIDER_TIMEOUT_MS = 45_000;
 const REVIEW_BOUNDARY_TOOLS = new Set([
@@ -35,6 +39,7 @@ type EvalReport = {
 	serializedToolBytes: number;
 	totalProviderCalls: number;
 	totalTokens: number;
+	reportedCostUsd: number | null;
 	reportedCostUsdCents: number | null;
 	cases: CaseReport[];
 	failureCode?: string;
@@ -334,6 +339,13 @@ async function run(): Promise<EvalReport> {
 
 	assertAssistantToolBudget(tools);
 	assertAssistantCapabilityEvalCatalog(tools);
+	const scenarios = selectAssistantEvalCases(
+		process.env.ASSISTANT_EVAL_CASE_IDS,
+		ASSISTANT_CAPABILITY_EVAL_CASES
+	);
+	const maxReportedCostUsd = resolveAssistantEvalCostBound(
+		process.env.ASSISTANT_EVAL_MAX_REPORTED_COST_USD
+	);
 	const measurement = measureAssistantTools(tools);
 
 	const model = getChatModel().value;
@@ -348,7 +360,7 @@ async function run(): Promise<EvalReport> {
 	let allCostsReported = true;
 	const caseReports: CaseReport[] = [];
 
-	for (const scenario of ASSISTANT_CAPABILITY_EVAL_CASES) {
+	for (const scenario of scenarios) {
 		const messages: Anthropic.MessageParam[] = [{ role: 'user', content: scenario.prompt }];
 		const startProviderCalls = totalProviderCalls;
 		const toolOrder: string[] = [];
@@ -383,8 +395,12 @@ async function run(): Promise<EvalReport> {
 						signal: controller.signal,
 						onText: () => {}
 					});
-				} catch {
-					fail(controller.signal.aborted ? 'PROVIDER_TIMEOUT' : 'PROVIDER_CALL_FAILED');
+				} catch (error) {
+					fail(
+						controller.signal.aborted
+							? 'PROVIDER_TIMEOUT'
+							: classifyAssistantEvalProviderFailure(error)
+					);
 				} finally {
 					clearTimeout(timeout);
 				}
@@ -393,7 +409,7 @@ async function run(): Promise<EvalReport> {
 				if (totalTokens > MAX_TOTAL_TOKENS) fail('TOTAL_TOKEN_BOUND');
 				if (typeof turn.costUsd === 'number' && Number.isFinite(turn.costUsd)) {
 					reportedCostUsd += turn.costUsd;
-					if (reportedCostUsd > MAX_REPORTED_COST_USD) fail('REPORTED_COST_BOUND');
+					if (reportedCostUsd > maxReportedCostUsd) fail('REPORTED_COST_BOUND');
 				} else {
 					allCostsReported = false;
 				}
@@ -452,6 +468,7 @@ async function run(): Promise<EvalReport> {
 		serializedToolBytes: measurement.serializedBytes,
 		totalProviderCalls,
 		totalTokens,
+		reportedCostUsd: allCostsReported ? Number(reportedCostUsd.toFixed(6)) : null,
 		reportedCostUsdCents: allCostsReported ? Math.round(reportedCostUsd * 100) : null,
 		cases: caseReports,
 		...(failed ? { failureCode: `${failed.id}:${failed.failureCode}` } : {})
@@ -466,6 +483,11 @@ if (process.argv.includes('--validate-only')) {
 		.then(([{ tools }, capabilityEval]) => {
 			capabilityEval.assertAssistantToolBudget(tools);
 			capabilityEval.assertAssistantCapabilityEvalCatalog(tools);
+			selectAssistantEvalCases(
+				process.env.ASSISTANT_EVAL_CASE_IDS,
+				capabilityEval.ASSISTANT_CAPABILITY_EVAL_CASES
+			);
+			resolveAssistantEvalCostBound(process.env.ASSISTANT_EVAL_MAX_REPORTED_COST_USD);
 			process.stdout.write('ASSISTANT-TOOL-SELECTION-EVAL-VALID\n');
 		})
 		.catch(() => {
@@ -483,6 +505,7 @@ if (process.argv.includes('--validate-only')) {
 			serializedToolBytes: 0,
 			totalProviderCalls: 0,
 			totalTokens: 0,
+			reportedCostUsd: null,
 			reportedCostUsdCents: null,
 			cases: [],
 			failureCode: safeFailureCode(error)

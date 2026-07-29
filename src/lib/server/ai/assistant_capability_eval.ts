@@ -7,6 +7,11 @@ export const ASSISTANT_TOOL_BUDGET = Object.freeze({
 	maxSerializedBytes: 26_000
 });
 
+export const ASSISTANT_ROUTED_TOOL_BUDGET = Object.freeze({
+	maxCount: 4,
+	maxSerializedBytes: 6_000
+});
+
 export type AssistantCapabilityEvalCase = {
 	id: string;
 	domain:
