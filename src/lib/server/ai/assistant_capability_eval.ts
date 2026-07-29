@@ -7,9 +7,21 @@ export const ASSISTANT_TOOL_BUDGET = Object.freeze({
 	maxSerializedBytes: 26_000
 });
 
+export const ASSISTANT_ROUTED_TOOL_BUDGET = Object.freeze({
+	maxCount: 4,
+	maxSerializedBytes: 6_000
+});
+
 export type AssistantCapabilityEvalCase = {
 	id: string;
-	domain: 'inventory' | 'planning' | 'recipes' | 'shopping' | 'cross-domain' | 'knowledge';
+	domain:
+		| 'inventory'
+		| 'planning'
+		| 'recipes'
+		| 'shopping'
+		| 'cooking'
+		| 'cross-domain'
+		| 'knowledge';
 	locale: 'en' | 'nl';
 	prompt: string;
 	allowedFirstTools: string[];
@@ -114,7 +126,7 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 		prompt: 'Verplaats de curry van dinsdag naar donderdag en laat me de wijziging controleren.',
 		allowedFirstTools: ['get_meal_plan'],
 		requiredTools: ['get_meal_plan', 'propose_meal_plan'],
-		forbiddenTools: ['mark_meal_cooked'],
+		forbiddenTools: ['prepare_cooking_action'],
 		requiresReview: true
 	},
 	{
@@ -125,17 +137,7 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 			'Schuif de gemiste maaltijden door naar deze week of verwijder ze, en laat me alles eerst controleren.',
 		allowedFirstTools: ['get_meal_plan'],
 		requiredTools: ['get_meal_plan', 'propose_meal_plan'],
-		forbiddenTools: ['mark_meal_cooked', 'remove_meal'],
-		requiresReview: true
-	},
-	{
-		id: 'after-cook-checkout',
-		domain: 'planning',
-		locale: 'en',
-		prompt: 'We ate the freezer curry tonight. Finish it properly.',
-		allowedFirstTools: ['get_meal_plan'],
-		requiredTools: ['get_meal_plan', 'mark_meal_cooked'],
-		forbiddenTools: ['propose_meal_plan', 'remove_from_inventory'],
+		forbiddenTools: ['prepare_cooking_action', 'remove_meal'],
 		requiresReview: true
 	},
 	{
@@ -241,6 +243,46 @@ export const ASSISTANT_CAPABILITY_EVAL_CASES: readonly AssistantCapabilityEvalCa
 		requiresReview: false
 	},
 	{
+		id: 'assistant-timer',
+		domain: 'cooking',
+		locale: 'en',
+		prompt: 'Start a ten minute timer called pasta.',
+		allowedFirstTools: ['prepare_cooking_action'],
+		requiredTools: ['prepare_cooking_action'],
+		forbiddenTools: [],
+		requiresReview: true
+	},
+	{
+		id: 'cooking-rescue-nl',
+		domain: 'cooking',
+		locale: 'nl',
+		prompt: 'De saus van onze opgeslagen curry is te zout. Help me bij de huidige stap.',
+		allowedFirstTools: ['get_recipe'],
+		requiredTools: ['get_recipe', 'prepare_cooking_action'],
+		forbiddenTools: ['edit_recipe'],
+		requiresReview: false
+	},
+	{
+		id: 'defrost-cue',
+		domain: 'cooking',
+		locale: 'en',
+		prompt: 'Prepare a two hour defrost cue for the freezer chili and let me confirm when it is in the fridge.',
+		allowedFirstTools: ['get_inventory'],
+		requiredTools: ['get_inventory', 'prepare_cooking_action'],
+		forbiddenTools: ['update_inventory_item'],
+		requiresReview: true
+	},
+	{
+		id: 'after-cook-checkout',
+		domain: 'cooking',
+		locale: 'en',
+		prompt: 'We ate the freezer curry tonight. Finish it properly.',
+		allowedFirstTools: ['get_meal_plan'],
+		requiredTools: ['get_meal_plan', 'prepare_cooking_action'],
+		forbiddenTools: ['update_inventory_item', 'remove_from_inventory'],
+		requiresReview: true
+	},
+	{
 		id: 'plain-cooking-knowledge',
 		domain: 'knowledge',
 		locale: 'en',
@@ -273,6 +315,20 @@ export function assertAssistantToolBudget(toolSet: readonly Anthropic.Tool[]): v
 			`Assistant tool budget exceeded: ${measurement.count}/${ASSISTANT_TOOL_BUDGET.maxCount} tools, ` +
 				`${measurement.serializedBytes}/${ASSISTANT_TOOL_BUDGET.maxSerializedBytes} serialized bytes`
 		);
+	}
+}
+
+export function assertAssistantCapabilityEvalCatalog(
+	toolSet: readonly Anthropic.Tool[],
+	scenarios: readonly AssistantCapabilityEvalCase[] = ASSISTANT_CAPABILITY_EVAL_CASES
+): void {
+	const toolNames = new Set(toolSet.map((tool) => tool.name));
+	for (const scenario of scenarios) {
+		for (const name of [...scenario.allowedFirstTools, ...scenario.requiredTools]) {
+			if (!toolNames.has(name)) {
+				throw new Error(`Assistant eval scenario "${scenario.id}" references unknown tool "${name}"`);
+			}
+		}
 	}
 }
 

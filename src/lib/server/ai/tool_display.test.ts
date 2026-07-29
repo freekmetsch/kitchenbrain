@@ -6,7 +6,7 @@ describe('recipe tool display actions', () => {
 	it('renders freezer checkout as a write-nothing atomic review', () => {
 		const display = buildToolDisplay(
 			{} as never,
-			'mark_meal_cooked',
+			'prepare_cooking_action',
 			{},
 			{
 				kind: 'after_cook_proposal',
@@ -40,6 +40,97 @@ describe('recipe tool display actions', () => {
 				defaultEatenPortions: 3,
 				atomicity: { kind: 'atomic' }
 			}
+		});
+	});
+
+	it('keeps timer, rescue, and defrost reviews as structured cooking actions', () => {
+		const recommendation = {
+			whyNow: 'Requested now.',
+			evidence: ['Current household state.'],
+			confidence: 'high',
+			uncertainty: null,
+			consequence: 'Nothing happens before approval.',
+			alternatives: ['Adjust', 'Leave unchanged']
+		};
+		const localized = {
+			en: { title: 'Review action', recommendation },
+			nl: { title: 'Actie controleren', recommendation }
+		};
+
+		const timer = buildToolDisplay(
+			null as never,
+			'prepare_cooking_action',
+			{},
+			{
+				ok: true,
+				kind: 'cooking_action',
+				id: 'timer-1',
+				actionKind: 'timer',
+				timer: {
+					operation: 'start',
+					seconds: 600,
+					label: 'Pasta',
+					targetLabel: null
+				},
+				localized
+			}
+		);
+		const rescue = buildToolDisplay(
+			null as never,
+			'prepare_cooking_action',
+			{},
+			{
+				ok: true,
+				kind: 'cooking_action',
+				id: 'rescue-1',
+				actionKind: 'rescue',
+				rescue: { recipeSlug: 'soup', issue: 'too_thin', stepIndex: 1 },
+				localized: {
+					en: {
+						...localized.en,
+						step: 'Simmer.',
+						guidance: ['Reduce gently.'],
+						safetyCaution: null
+					},
+					nl: {
+						...localized.nl,
+						step: 'Laat inkoken.',
+						guidance: ['Laat rustig inkoken.'],
+						safetyCaution: null
+					}
+				}
+			}
+		);
+		const defrost = buildToolDisplay(
+			null as never,
+			'prepare_cooking_action',
+			{},
+			{
+				ok: true,
+				kind: 'cooking_action',
+				id: 'defrost-1',
+				actionKind: 'defrost',
+				defrost: {
+					itemId: 7,
+					itemName: 'Lasagne',
+					expectedUpdatedAt: '2026-07-29T10:00:00.000Z',
+					reminderSeconds: 7200
+				},
+				localized
+			}
+		);
+
+		expect(timer.cookingAction).toMatchObject({
+			kind: 'timer',
+			timer: { operation: 'start', seconds: 600, label: 'Pasta' }
+		});
+		expect(rescue.cookingAction).toMatchObject({
+			kind: 'rescue',
+			rescue: { recipeSlug: 'soup', guidance: ['Reduce gently.'] }
+		});
+		expect(defrost.cookingAction).toMatchObject({
+			kind: 'defrost',
+			defrost: { itemId: 7, reminderSeconds: 7200 }
 		});
 	});
 

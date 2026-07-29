@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Request, type Route } from '@playwright/test';
+import { E2E_HYDRATION_TIMEOUT_MS } from './config';
 import { kitchenFixtureFor } from './fixtures';
 
 const VIEWPORTS = [
@@ -764,7 +765,7 @@ for (const viewport of VIEWPORTS) {
 				'Your earlier cooking session could not be restored safely. Source steps are ready, and old timers were cleared.',
 				{ exact: true }
 			)
-		).toBeVisible({ timeout: 15_000 });
+		).toBeVisible({ timeout: E2E_HYDRATION_TIMEOUT_MS });
 		await expect(firstStep).toHaveAttribute('aria-current', 'step');
 		await expect
 			.poll(() => page.evaluate((key) => localStorage.getItem(key), progressKey))

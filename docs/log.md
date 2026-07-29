@@ -861,3 +861,54 @@ issue is resolved; the R3 replacement draft recut remains active in the authorit
 Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
 docs/known_issues/solved/ISSUE_ASSISTANT_PROACTIVE_NOTICING_20260729-1637.md,
 docs/deploys/2026-07.md, docs/log.md
+
+## 2026-07-29 | run | Request-driven Assistant routing verification
+
+Hardened the cumulative Stock, meal, and cooking Assistant draft after the full 25-intent
+evaluation found an ingredient/meal collision and six intents still receiving the broad fallback
+catalog. Every evaluation case now follows a deterministic route of at most 4 tools / 5,095
+serialized bytes instead of exposing up to 25 / 22,232. Forty EN/NL paraphrases protect natural
+wording, and OpenRouter vendor/model IDs now remain behind the OpenRouter provider seam.
+
+The complete free gate passed clean Svelte diagnostics, 134 Vitest files / 752 tests, production
+build, 30 primary and 30 secondary authenticated browser stories plus one expected
+disconnected-AH skip per account, and a repeated 10/10 Cook Mode hydration sample. Four bounded
+one-case provider probes reached OpenRouter but were credit-blocked before generation because the
+existing key's daily USD 1 limit was already exhausted; they used 0 tokens and reported USD 0.
+The four-model 25-intent matrix remains pending explicit authority for a fresh dedicated test key
+or the existing limit's reset.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+docs/log.md, scripts/eval/assistant-tool-selection-config.ts,
+scripts/eval/assistant-tool-selection-live.ts, src/lib/server/ai/assistant_capability_eval.ts,
+src/lib/server/ai/client.ts, src/lib/server/ai/pricing.ts, src/lib/server/ai/tools.ts,
+tests/e2e/config.ts, tests/e2e/kitchen-flows.e2e.ts,
+tests/e2e/responsive-parity.e2e.ts
+
+## 2026-07-29 | run | Request-driven Assistant four-model matrix
+
+Completed the authorized 25-intent synthetic matrix against GLM-5, Claude Haiku 4.5, GPT-5 Mini,
+and Gemini 2.5 Flash. GLM passed 25/25. Claude reached 25/25 semantic behavior after repeating one
+case that had crossed only a group spend bound. GPT passed 18/25 on its first complete default
+run and recovered four of seven failures on repeat; the three persistent misses returned no tool
+call at a forced proposal stage. Gemini passed 20/25; its five HTTP 400 failures clustered on
+complex action schemas.
+
+Every intent still received at most four model-visible tools / 5,095 serialized bytes, so the
+evidence points to forced-call recovery and provider-schema portability rather than catalog
+overload. The next R2 corrections are recorded in the authoritative roadmap. Provider-measured
+spend, including probes, one slow-run timeout, and repeats, was USD 0.74548598 under the hard
+USD 1 daily cap.
+
+Deleted both temporary OpenRouter keys, archived both temporary 1Password items, restored the
+repository secret-reference template, and retained only aggregate synthetic evidence. No
+household data, AH lookup, AH push, mutation, merge, migration, or deployment was used.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+docs/log.md
+
+## [2026-07-29 23:43] archive-scan | no archive this pass
+
+The only root-lane feature list remains in flight for the two R2 provider corrections and the
+separate R3 promotion gate. This repository still lacks the shared `scripts/archive-scan.ps1`
+helper.

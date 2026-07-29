@@ -48,7 +48,7 @@ export type AfterCookProposal = {
 
 type StoredProposal = Omit<AfterCookProposal, 'token'> & {
 	userId: number;
-	recipeSlug: string;
+	recipeSlug: string | null;
 	expiresAt: number;
 	mealBefore: NonNullable<ReturnType<typeof getMealPlanMeal>>;
 	leftoversBefore: ReturnType<typeof linkedLeftovers>;
@@ -121,10 +121,8 @@ export function stageAfterCookProposal(
 	const meal = getMealPlanMeal(db, input.mealId);
 	if (!meal) throw new Error('Meal not found');
 	if (meal.status !== 'planned') throw new Error('Only a planned meal can be checked out');
-	if (meal.source !== 'freezer' || !meal.recipeSlug) {
-		throw new Error('After-cook portion review is only for a linked freezer meal');
-	}
-	const leftovers = linkedLeftovers(db, meal.recipeSlug);
+	const recipeSlug = meal.source === 'freezer' ? meal.recipeSlug : null;
+	const leftovers = recipeSlug ? linkedLeftovers(db, recipeSlug) : [];
 	const undoableLots = leftovers.slice(0, 10);
 	const availablePortions = undoableLots.reduce(
 		(total, item) => total + (item.qtyNum ?? 0),
@@ -133,7 +131,7 @@ export function stageAfterCookProposal(
 	const requested =
 		input.eatenPortions ??
 		meal.servings ??
-		(availablePortions > 0 ? 1 : 0);
+		(recipeSlug && availablePortions > 0 ? 1 : 0);
 	const defaultEatenPortions =
 		availablePortions > 0
 			? Math.max(1, Math.min(availablePortions, Math.round(requested)))
@@ -150,7 +148,7 @@ export function stageAfterCookProposal(
 	const cookedDate = input.cookedDate ?? todayIso();
 	const token = randomBytes(24).toString('base64url');
 	const uncertainty =
-		availablePortions === 0
+		recipeSlug && availablePortions === 0
 			? 'No linked freezer portions are currently recorded, so only the meal can be marked cooked.'
 			: leftovers.length > 10
 				? 'Only the ten oldest freezer lots are included so the whole action remains undoable.'
@@ -160,7 +158,7 @@ export function stageAfterCookProposal(
 		userId: input.userId,
 		mealId: meal.id,
 		meal: meal.dinner,
-		recipeSlug: meal.recipeSlug,
+		recipeSlug,
 		cookedDate,
 		availablePortions,
 		defaultEatenPortions,
@@ -170,25 +168,31 @@ export function stageAfterCookProposal(
 		atomicity: {
 			kind: 'atomic',
 			consequence:
-				'Marking the meal cooked and consuming the oldest linked freezer portions commit together or not at all.'
+				recipeSlug
+					? 'Marking the meal cooked and consuming the oldest linked freezer portions commit together or not at all.'
+					: 'Marking the meal cooked commits as one reviewed local action.'
 		},
 		recommendation: {
-			whyNow: `${meal.dinner} was served from the freezer and its linked stock still needs checkout.`,
+			whyNow: recipeSlug
+				? `${meal.dinner} was served from the freezer and its linked stock still needs checkout.`
+				: `${meal.dinner} is still planned and can now be closed as cooked.`,
 			evidence:
-				leftovers.length > 0
+				recipeSlug && leftovers.length > 0
 					? leftovers.slice(0, 10).map(
 							(item) =>
 								`${item.name}: ${item.qtyNum} ${item.unit ?? 'portions'} recorded`
 						)
-					: ['No linked freezer leftover is recorded for this recipe.'],
-			confidence: availablePortions > 0 ? 'high' : 'low',
+					: recipeSlug
+						? ['No linked freezer leftover is recorded for this recipe.']
+						: ['The planned meal is still open; no freezer stock change is needed.'],
+			confidence: !recipeSlug || availablePortions > 0 ? 'high' : 'low',
 			uncertainty,
 			consequence:
-				availablePortions > 0
+				recipeSlug && availablePortions > 0
 					? 'The meal is marked cooked and the selected number of portions is consumed oldest first.'
 					: 'The meal is marked cooked; freezer stock does not change.',
 			alternatives: [
-				'Adjust the eaten portion count before applying.',
+				...(recipeSlug ? ['Adjust the eaten portion count before applying.'] : []),
 				'Choose Not now to leave both the meal and freezer stock unchanged.'
 			]
 		}
@@ -230,7 +234,7 @@ export function applyAfterCookProposal(
 				throw new Error('The meal changed; prepare a fresh after-cook review');
 			}
 			if (
-				fingerprint(linkedLeftovers(tx, proposal.recipeSlug)) !==
+				fingerprint(proposal.recipeSlug ? linkedLeftovers(tx, proposal.recipeSlug) : []) !==
 				fingerprint(proposal.leftoversBefore)
 			) {
 				throw new Error('The linked freezer stock changed; prepare a fresh after-cook review');
@@ -238,7 +242,7 @@ export function applyAfterCookProposal(
 			const cooked = cookMealInTransaction(tx, proposal.mealId, proposal.cookedDate);
 			if (!cooked.ok) throw new Error(cooked.error);
 			const consumed =
-				input.eatenPortions > 0
+				proposal.recipeSlug && input.eatenPortions > 0
 					? consumeRecipeInTransaction(
 							tx,
 							{ slug: proposal.recipeSlug, portions: input.eatenPortions },

@@ -11,6 +11,7 @@ import { mealPlanExecutors } from './meal_plan';
 import { recipeExecutors } from './recipes';
 import { shoppingExecutors } from './shopping';
 import { ahExecutors } from './ah';
+import { cookingExecutors } from './cooking';
 import {
 	ContractError,
 	authorizeToolCall,
@@ -25,7 +26,8 @@ const domainMaps = [
 	mealPlanExecutors,
 	recipeExecutors,
 	shoppingExecutors,
-	ahExecutors
+	ahExecutors,
+	cookingExecutors
 ];
 
 const executors: Record<string, ExecutorFn> = Object.assign({}, ...domainMaps);

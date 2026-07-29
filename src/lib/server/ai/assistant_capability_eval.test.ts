@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { tools } from './tools';
+import { assistantToolRoute, tools } from './tools';
 import {
 	ASSISTANT_CAPABILITY_EVAL_CASES,
+	ASSISTANT_ROUTED_TOOL_BUDGET,
 	ASSISTANT_TOOL_BUDGET,
+	assertAssistantCapabilityEvalCatalog,
 	assertAssistantToolBudget,
 	evaluateAssistantToolOrder,
 	measureAssistantTools
@@ -13,7 +15,7 @@ describe('Assistant capability quality gate', () => {
 		const measurement = measureAssistantTools(tools);
 
 		expect(measurement.count).toBe(27);
-		expect(measurement.serializedBytes).toBe(24_500);
+		expect(measurement.serializedBytes).toBe(24_737);
 		expect(() => assertAssistantToolBudget(tools)).not.toThrow();
 		expect(ASSISTANT_TOOL_BUDGET.maxCount).toBe(27);
 	});
@@ -28,6 +30,18 @@ describe('Assistant capability quality gate', () => {
 		expect(() => assertAssistantToolBudget([...tools, extra])).toThrow(/tool budget/i);
 	});
 
+	it('validates actionable catalog references while allowing retired forbidden-tool sentinels', () => {
+		expect(() => assertAssistantCapabilityEvalCatalog(tools)).not.toThrow();
+		expect(() =>
+			assertAssistantCapabilityEvalCatalog(tools, [
+				{
+					...ASSISTANT_CAPABILITY_EVAL_CASES[0],
+					requiredTools: ['retired_or_misspelled_tool']
+				}
+			])
+		).toThrow(/retired_or_misspelled_tool/);
+	});
+
 	it('keeps a bilingual, cross-domain regression portfolio with explicit safety expectations', () => {
 		const ids = new Set(ASSISTANT_CAPABILITY_EVAL_CASES.map((scenario) => scenario.id));
 		const domains = new Set(ASSISTANT_CAPABILITY_EVAL_CASES.map((scenario) => scenario.domain));
@@ -35,7 +49,15 @@ describe('Assistant capability quality gate', () => {
 		expect(ids.size).toBe(ASSISTANT_CAPABILITY_EVAL_CASES.length);
 		expect(ASSISTANT_CAPABILITY_EVAL_CASES.length).toBeGreaterThanOrEqual(12);
 		expect(domains).toEqual(
-			new Set(['inventory', 'planning', 'recipes', 'shopping', 'cross-domain', 'knowledge'])
+			new Set([
+				'inventory',
+				'planning',
+				'recipes',
+				'shopping',
+				'cooking',
+				'cross-domain',
+				'knowledge'
+			])
 		);
 		expect(ASSISTANT_CAPABILITY_EVAL_CASES.some((scenario) => scenario.locale === 'nl')).toBe(true);
 		expect(
@@ -63,5 +85,35 @@ describe('Assistant capability quality gate', () => {
 		expect(
 			evaluateAssistantToolOrder(scenario!, ['get_inventory', 'prepare_stock_action'])
 		).toBeNull();
+	});
+
+	it('routes the complete portfolio without exposing the broad fallback catalog', () => {
+		let maximumRoutedToolCount = 0;
+		let maximumRoutedToolBytes = 0;
+
+		for (const scenario of ASSISTANT_CAPABILITY_EVAL_CASES) {
+			const toolOrder: string[] = [];
+			for (let iteration = 0; iteration < 8; iteration++) {
+				const route = assistantToolRoute(scenario.prompt, false, [], toolOrder);
+				const measurement = measureAssistantTools(route.tools);
+				maximumRoutedToolCount = Math.max(maximumRoutedToolCount, measurement.count);
+				maximumRoutedToolBytes = Math.max(maximumRoutedToolBytes, measurement.serializedBytes);
+
+				if (!route.forcedToolName) {
+					expect(route.tools, scenario.id).toHaveLength(0);
+					break;
+				}
+				toolOrder.push(route.forcedToolName);
+			}
+
+			expect(evaluateAssistantToolOrder(scenario, toolOrder), scenario.id).toBeNull();
+		}
+
+		expect(maximumRoutedToolCount).toBeLessThanOrEqual(
+			ASSISTANT_ROUTED_TOOL_BUDGET.maxCount
+		);
+		expect(maximumRoutedToolBytes).toBeLessThanOrEqual(
+			ASSISTANT_ROUTED_TOOL_BUDGET.maxSerializedBytes
+		);
 	});
 });

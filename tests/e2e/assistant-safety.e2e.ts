@@ -180,6 +180,68 @@ test('Freezer checkout waits for one atomic reviewed portion commit and supports
 	}
 });
 
+test('Cooking actions stay reviewed, client-authoritative, grounded, and undoable', async ({
+	page
+}) => {
+	let defrostCompletions = 0;
+	let defrostUndoes = 0;
+	await page.route('**/api/cooking-action/defrost', async (route) => {
+		if (route.request().method() === 'POST') {
+			defrostCompletions += 1;
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ ok: true, opId: 991, item: { section: 'fridge' } })
+			});
+			return;
+		}
+		defrostUndoes += 1;
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ ok: true, item: { section: 'freezer' } })
+		});
+	});
+
+	for (const viewport of VIEWPORTS) {
+		await page.setViewportSize(viewport);
+		await page.goto('/');
+		const timer = page.locator('[data-testid="cooking-action-review"][data-action-kind="timer"]');
+		const rescue = page.locator('[data-testid="cooking-action-review"][data-action-kind="rescue"]');
+		const defrost = page.locator('[data-testid="cooking-action-review"][data-action-kind="defrost"]');
+
+		await expect(timer.getByText('Why now', { exact: true })).toBeVisible();
+		await expect(timer.getByText('Evidence', { exact: true })).toBeVisible();
+		await expect(timer.locator('details')).not.toHaveAttribute('open', '');
+		await expect(page.getByRole('timer')).toBeHidden();
+		await timer.getByRole('button', { name: 'Apply' }).click();
+		await expect(page.getByRole('timer')).toContainText('Pasta');
+		await timer.getByRole('button', { name: 'Undo' }).click();
+		await expect(page.getByRole('timer')).toBeHidden();
+
+		await expect(rescue.getByText('Simmer uncovered first and stir regularly.')).toBeVisible();
+		await expect(rescue.getByText('Food-safety note', { exact: false })).toBeVisible();
+
+		const completionsBefore = defrostCompletions;
+		const undoesBefore = defrostUndoes;
+		await defrost.getByRole('button', { name: 'Start cue' }).click();
+		expect(defrostCompletions).toBe(completionsBefore);
+		await expect(page.getByRole('timer')).toContainText('Defrost freezer stew');
+		await defrost.getByRole('button', { name: 'Moved to fridge' }).click();
+		await expect.poll(() => defrostCompletions).toBe(completionsBefore + 1);
+		await expect(page.getByRole('timer')).toBeHidden();
+		await defrost.getByRole('button', { name: 'Undo' }).click();
+		await expect.poll(() => defrostUndoes).toBe(undoesBefore + 1);
+
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth > document.documentElement.clientWidth
+			),
+			`cooking reviews must not overflow horizontally at ${viewport.width}px`
+		).toBe(false);
+	}
+});
+
 test('Plan → Shop review is adjustable, atomic, and keeps the AH push behind final confirmation', async ({
 	page
 }, testInfo) => {
