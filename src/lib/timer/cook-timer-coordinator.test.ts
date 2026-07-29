@@ -79,6 +79,54 @@ describe('CookTimerCoordinator', () => {
 		coordinator.destroy();
 	});
 
+	it('supports reviewed Assistant timer start, extend, rename, cancel, and restore', () => {
+		const clock = browserAdapters();
+		const coordinator = new CookTimerCoordinator({
+			browser: clock.browser,
+			storage: null,
+			push: pushAdapters(),
+			uuid: () => crypto.randomUUID()
+		});
+		coordinator.mount();
+		const session = coordinator.session({
+			key: 'assistant:tea',
+			recipeSlug: 'assistant-timer',
+			recipeTitle: 'Assistant timer',
+			href: '/'
+		});
+
+		session.start(0, 600, { label: 'Tea', navigate: '/' });
+		expect(coordinator.visibleTimers[0]).toMatchObject({
+			sessionKey: 'assistant:tea',
+			label: 'Tea',
+			href: '/',
+			remainingSeconds: 600
+		});
+
+		coordinator.extend('assistant:tea', 0, 120);
+		expect(coordinator.visibleTimers[0].remainingSeconds).toBe(720);
+
+		coordinator.rename('assistant:tea', 0, 'Strong tea');
+		expect(coordinator.visibleTimers[0].label).toBe('Strong tea');
+
+		const snapshot = coordinator.timerSnapshot('assistant:tea', 0);
+		expect(snapshot).toMatchObject({
+			identity: { href: '/' },
+			metadata: { label: 'Strong tea' },
+			remainingSeconds: 720
+		});
+
+		coordinator.cancel('assistant:tea', 0);
+		expect(coordinator.visibleTimers).toEqual([]);
+		coordinator.restoreTimer(snapshot!);
+		expect(coordinator.visibleTimers[0]).toMatchObject({
+			label: 'Strong tea',
+			href: '/',
+			remainingSeconds: 720
+		});
+		coordinator.destroy();
+	});
+
 	it('restores the global timer registry before any cooking route mounts', () => {
 		const values = new Map<string, string>();
 		const storage = {
@@ -126,6 +174,40 @@ describe('CookTimerCoordinator', () => {
 			{ recipeTitle: 'Tomato soup', label: 'STIR', done: false }
 		]);
 		reloaded.destroy();
+	});
+
+	it('round-trips a validated non-recipe return path for Assistant timers', () => {
+		const values = new Map<string, string>();
+		const storage = {
+			getItem: (key: string) => values.get(key) ?? null,
+			setItem: (key: string, value: string) => values.set(key, value),
+			removeItem: (key: string) => values.delete(key)
+		};
+		const first = new CookTimerCoordinator({
+			browser: browserAdapters().browser,
+			storage,
+			push: pushAdapters()
+		});
+		first
+			.session({
+				key: 'assistant:pasta',
+				recipeSlug: 'assistant-timer',
+				recipeTitle: 'Assistant timer',
+				href: '/'
+			})
+			.start(0, 60, { label: 'Pasta', navigate: '/' });
+		first.destroy();
+
+		const restored = new CookTimerCoordinator({
+			browser: browserAdapters().browser,
+			storage,
+			push: pushAdapters()
+		});
+		expect(restored.visibleTimers[0]).toMatchObject({
+			href: '/',
+			label: 'Pasta'
+		});
+		restored.destroy();
 	});
 
 	it('keeps failed reset cancellations pending for a later retry', async () => {

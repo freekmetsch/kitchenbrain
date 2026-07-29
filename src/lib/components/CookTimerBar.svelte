@@ -17,7 +17,7 @@
 	>
 		<a
 			class="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
-			href={`${base}/recipes/${timer.recipeSlug}`}
+			href={`${base}${timer.href}`}
 			aria-label={m.cook_timer_bar_return_aria({ recipe: timer.recipeTitle })}
 		>
 			<span class="min-w-0 flex-1">

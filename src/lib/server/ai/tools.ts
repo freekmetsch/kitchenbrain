@@ -189,20 +189,36 @@ export const tools: Anthropic.Tool[] = [
 		}
 	},
 	{
-		name: 'mark_meal_cooked',
+		name: 'prepare_cooking_action',
 		description:
-			'Mark a planned meal as cooked. A linked freezer meal stages one atomic after-cook review that also consumes the oldest linked portions; it writes nothing until the user applies the card.',
+			'Prepare one reviewed after-cook, timer, rescue, or defrost action. Writes nothing.',
 		input_schema: {
 			type: 'object',
 			properties: {
-				id: { type: 'number' },
-				cooked_date: { type: 'string', description: 'ISO date, defaults to today' },
-				eaten_portions: {
-					type: 'number',
-					description: 'Known eaten portions to prefill in the freezer checkout review'
-				}
+				action: {
+					type: 'string',
+					enum: ['after_cook', 'timer', 'rescue', 'defrost']
+				},
+				meal_id: { type: 'number' },
+				cooked_date: { type: 'string' },
+				eaten_portions: { type: 'number' },
+				timer_operation: {
+					type: 'string',
+					enum: ['start', 'extend', 'rename', 'cancel']
+				},
+				seconds: { type: 'number' },
+				label: { type: 'string' },
+				target_label: { type: 'string' },
+				recipe_slug: { type: 'string' },
+				step_index: { type: 'number' },
+				issue: {
+					type: 'string',
+					enum: ['too_salty', 'too_thin', 'not_browning']
+				},
+				inventory_id: { type: 'number' },
+				reminder_seconds: { type: 'number' }
 			},
-			required: ['id']
+			required: ['action']
 		}
 	},
 	{
@@ -941,15 +957,6 @@ export function assistantToolRoute(
 			/\b(?:gemiste|niet gekookte|oude)\b.*\b(?:maaltijd|maaltijden|avondeten)\b/.test(
 				normalized
 			));
-	const afterCookCheckout =
-		/\b(?:we|i) (?:cooked|ate|finished|served)\b/.test(normalized) ||
-		/\b(?:mark|finish|check out)\b.*\b(?:meal|dinner)\b.*\b(?:cooked|eaten)\b/.test(
-			normalized
-		) ||
-		/\b(?:we|ik) (?:hebben|heb) .*\b(?:gekookt|gegeten|opgegeten)\b/.test(normalized) ||
-		/\b(?:markeer|rond af)\b.*\b(?:maaltijd|avondeten)\b.*\b(?:gekookt|gegeten)\b/.test(
-			normalized
-		);
 	const cookFromStock =
 		/\b(?:cook|make|meals?).*\b(?:from|with) stock\b/.test(normalized) ||
 		/\b(?:entirely|almost entirely).*\bfrom stock\b/.test(normalized) ||
@@ -985,7 +992,36 @@ export function assistantToolRoute(
 			/^(?:maak|wijzig) (?:het|dat)(?: naar)? (?:\d+|een|twee|drie|vier|vijf)\b/.test(
 				normalized
 			));
+	const cookingTimer =
+		(/\b(?:start|set|begin|extend|rename|cancel)\b.*\btimer\b/u.test(normalized) ||
+			/\b(?:start|zet|verleng|hernoem|annuleer)\b.*\btimer\b/u.test(normalized));
+	const cookingRescue =
+		/\b(?:too salty|too thin|not browning|won t brown|doesn t brown)\b/u.test(normalized) ||
+		/\b(?:te zout|te dun|wordt niet bruin|bruint niet)\b/u.test(normalized);
+	const defrostCue =
+		/\b(?:defrost|thaw|ontdooi|ontdooien)\b/u.test(normalized);
+	const afterCook =
+		/\b(?:we|i) (?:cooked|ate|finished|served)\b/u.test(normalized) ||
+		/\b(?:mark|finish|check out)\b.*\b(?:meal|dinner)\b.*\b(?:cooked|eaten)\b/u.test(
+			normalized
+		) ||
+		/\b(?:we|ik) (?:hebben|heb) .*\b(?:gekookt|gegeten|opgegeten)\b/u.test(normalized) ||
+		/\b(?:markeer|rond af)\b.*\b(?:maaltijd|avondeten)\b.*\b(?:gekookt|gegeten)\b/u.test(
+			normalized
+		);
 
+	if (cookingTimer) {
+		return forcedSequence(['prepare_cooking_action'], completedToolNames);
+	}
+	if (cookingRescue) {
+		return forcedSequence(['get_recipe', 'prepare_cooking_action'], completedToolNames);
+	}
+	if (defrostCue) {
+		return forcedSequence(['get_inventory', 'prepare_cooking_action'], completedToolNames);
+	}
+	if (afterCook) {
+		return forcedSequence(['get_meal_plan', 'prepare_cooking_action'], completedToolNames);
+	}
 	if (shoppingControl || intake || parRefill || contextualQuantityFollowUp) {
 		return forcedSequence(['prepare_stock_action'], completedToolNames);
 	}
@@ -1002,9 +1038,6 @@ export function assistantToolRoute(
 	}
 	if (missedMealRollover) {
 		return forcedSequence(['get_meal_plan', 'propose_meal_plan'], completedToolNames);
-	}
-	if (afterCookCheckout) {
-		return forcedSequence(['get_meal_plan', 'mark_meal_cooked'], completedToolNames);
 	}
 	if (mealPlanEdit) {
 		return forcedSequence(['get_meal_plan', 'propose_meal_plan'], completedToolNames);
@@ -1023,7 +1056,13 @@ export function assistantToolRoute(
 	if (historyRead) return forcedSequence(['get_inventory_history'], completedToolNames);
 	if (inventoryRead) return forcedSequence(['get_inventory'], completedToolNames);
 	if (hasImages) return { tools };
-	return { tools: tools.filter((tool) => tool.name !== 'prepare_stock_action') };
+	return {
+		tools: tools.filter(
+			(tool) =>
+				tool.name !== 'prepare_stock_action' &&
+				tool.name !== 'prepare_cooking_action'
+		)
+	};
 }
 
 export function toolsForAssistantTurn(

@@ -41,6 +41,27 @@ function strings(v: unknown): string[] {
 	return Array.isArray(v) ? v.filter((item): item is string => typeof item === 'string') : [];
 }
 
+function recommendationDisplay(
+	raw: unknown
+): NonNullable<ToolDisplay['cookingAction']>['recommendation'] | null {
+	const value = asObj(raw);
+	const confidence =
+		value.confidence === 'high' || value.confidence === 'medium' || value.confidence === 'low'
+			? value.confidence
+			: null;
+	const whyNow = str(value.whyNow);
+	const consequence = str(value.consequence);
+	if (!confidence || !whyNow || !consequence) return null;
+	return {
+		whyNow,
+		evidence: strings(value.evidence),
+		confidence,
+		uncertainty: str(value.uncertainty),
+		consequence,
+		alternatives: strings(value.alternatives)
+	};
+}
+
 function mealChoiceOption(raw: unknown): NonNullable<ToolDisplay['mealChoices']>['options'][number] | null {
 	const option = asObj(raw);
 	const slug = str(option.slug);
@@ -172,6 +193,96 @@ export function buildToolDisplay(
 ): ToolDisplay {
 	const result = asObj(rawResult) as Result;
 	if (
+		name === 'prepare_cooking_action' &&
+		result.kind === 'cooking_action' &&
+		typeof result.id === 'string'
+	) {
+		const localized = asObj(result.localized);
+		const copy = asObj(localized[locale]);
+		const title = str(copy.title);
+		const recommendation = recommendationDisplay(copy.recommendation);
+		if (title && recommendation && result.actionKind === 'timer') {
+			const timer = asObj(result.timer);
+			const operation =
+				timer.operation === 'start' ||
+				timer.operation === 'extend' ||
+				timer.operation === 'rename' ||
+				timer.operation === 'cancel'
+					? timer.operation
+					: null;
+			if (operation) {
+				return {
+					kind: 'proposal',
+					summary: title,
+					cookingAction: {
+						id: result.id,
+						kind: 'timer',
+						title,
+						recommendation,
+						timer: {
+							operation,
+							seconds: num(timer.seconds),
+							label: str(timer.label),
+							targetLabel: str(timer.targetLabel)
+						}
+					}
+				};
+			}
+		}
+		if (title && recommendation && result.actionKind === 'rescue') {
+			const rescue = asObj(result.rescue);
+			const recipeSlug = str(rescue.recipeSlug);
+			const issue =
+				rescue.issue === 'too_salty' ||
+				rescue.issue === 'too_thin' ||
+				rescue.issue === 'not_browning'
+					? rescue.issue
+					: null;
+			const stepIndex = num(rescue.stepIndex);
+			const step = str(copy.step);
+			if (recipeSlug && issue && stepIndex !== null && step) {
+				return {
+					kind: 'proposal',
+					summary: title,
+					cookingAction: {
+						id: result.id,
+						kind: 'rescue',
+						title,
+						recommendation,
+						rescue: {
+							recipeSlug,
+							issue,
+							stepIndex,
+							step,
+							guidance: strings(copy.guidance),
+							safetyCaution: str(copy.safetyCaution)
+						}
+					}
+				};
+			}
+		}
+		if (title && recommendation && result.actionKind === 'defrost') {
+			const defrost = asObj(result.defrost);
+			const itemId = num(defrost.itemId);
+			const itemName = str(defrost.itemName);
+			const expectedUpdatedAt = str(defrost.expectedUpdatedAt);
+			const reminderSeconds = num(defrost.reminderSeconds);
+			if (itemId !== null && itemName && expectedUpdatedAt && reminderSeconds !== null) {
+				return {
+					kind: 'proposal',
+					summary: title,
+					cookingAction: {
+						id: result.id,
+						kind: 'defrost',
+						title,
+						recommendation,
+						defrost: { itemId, itemName, expectedUpdatedAt, reminderSeconds }
+					}
+				};
+			}
+		}
+	}
+	if (
 		name === 'prepare_stock_action' &&
 		result.kind === 'stock_action_proposal' &&
 		typeof result.token === 'string' &&
@@ -284,7 +395,7 @@ export function buildToolDisplay(
 		};
 	}
 	if (
-		name === 'mark_meal_cooked' &&
+		(name === 'mark_meal_cooked' || name === 'prepare_cooking_action') &&
 		result.kind === 'after_cook_proposal' &&
 		typeof result.token === 'string' &&
 		typeof result.mealId === 'number' &&
@@ -299,7 +410,7 @@ export function buildToolDisplay(
 	) {
 		return {
 			kind: 'proposal',
-			summary: locale === 'nl' ? 'Diepvriesmaaltijd afronden' : 'Finish freezer meal',
+			summary: locale === 'nl' ? 'Maaltijd afronden' : 'Finish meal',
 			afterCookProposal: {
 				token: result.token,
 				status:

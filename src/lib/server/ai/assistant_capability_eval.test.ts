@@ -13,7 +13,7 @@ describe('Assistant capability quality gate', () => {
 		const measurement = measureAssistantTools(tools);
 
 		expect(measurement.count).toBe(27);
-		expect(measurement.serializedBytes).toBe(24_500);
+		expect(measurement.serializedBytes).toBe(24_737);
 		expect(() => assertAssistantToolBudget(tools)).not.toThrow();
 		expect(ASSISTANT_TOOL_BUDGET.maxCount).toBe(27);
 	});
@@ -35,7 +35,15 @@ describe('Assistant capability quality gate', () => {
 		expect(ids.size).toBe(ASSISTANT_CAPABILITY_EVAL_CASES.length);
 		expect(ASSISTANT_CAPABILITY_EVAL_CASES.length).toBeGreaterThanOrEqual(12);
 		expect(domains).toEqual(
-			new Set(['inventory', 'planning', 'recipes', 'shopping', 'cross-domain', 'knowledge'])
+			new Set([
+				'inventory',
+				'planning',
+				'recipes',
+				'shopping',
+				'cooking',
+				'cross-domain',
+				'knowledge'
+			])
 		);
 		expect(ASSISTANT_CAPABILITY_EVAL_CASES.some((scenario) => scenario.locale === 'nl')).toBe(true);
 		expect(

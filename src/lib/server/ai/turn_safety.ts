@@ -450,6 +450,20 @@ export function authorizeToolCall(
 		}
 		return undefined;
 	}
+	if (name === 'prepare_cooking_action' && input) {
+		const action = str(input.action);
+		if (action === 'after_cook') {
+			const mealId = num(input.meal_id);
+			if (mealId !== undefined) requireMeal(db, state, mealId);
+		} else if (action === 'rescue') {
+			const slug = str(input.recipe_slug);
+			if (slug) requireRecipe(db, state, { slug });
+		} else if (action === 'defrost') {
+			const itemId = num(input.inventory_id);
+			if (itemId !== undefined) requireInventory(db, state, itemId);
+		}
+		return undefined;
+	}
 	if (!isPersistentTool(name)) return undefined;
 	if (state.writeLatched) {
 		throw new ContractError(

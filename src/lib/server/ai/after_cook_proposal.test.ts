@@ -156,4 +156,35 @@ describe('after-cook proposal', () => {
 		).toMatchObject({ status: 'planned' });
 		expect(db.select().from(schema.cookLog).all()).toHaveLength(0);
 	});
+
+	it('reviews a fresh planned meal without inventing a freezer uncertainty', () => {
+		const { db } = setup();
+		const meal = db
+			.insert(schema.mealPlanMeals)
+			.values({
+				weekNumber: 31,
+				weekStartDate: '2026-07-29',
+				dinner: 'Fresh soup',
+				source: 'fresh',
+				status: 'planned',
+				createdAt: new Date('2026-07-29T10:00:00Z')
+			})
+			.returning()
+			.get();
+
+		const proposal = stageAfterCookProposal(db, { userId: 1, mealId: meal.id });
+
+		expect(proposal).toMatchObject({
+			availablePortions: 0,
+			defaultEatenPortions: 0,
+			recommendation: {
+				confidence: 'high',
+				uncertainty: null,
+				consequence: 'The meal is marked cooked; freezer stock does not change.'
+			}
+		});
+		expect(
+			db.select().from(schema.mealPlanMeals).where(eq(schema.mealPlanMeals.id, meal.id)).get()
+		).toMatchObject({ status: 'planned' });
+	});
 });

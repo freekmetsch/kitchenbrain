@@ -16,6 +16,7 @@
 				createdAt: Date;
 				errorCode?: 'interrupted_turn';
 			}[];
+			assistantDraft: string;
 			capExceeded: boolean;
 			capEur: number;
 			hasOlder: boolean;
@@ -26,6 +27,7 @@
 	const chatAgent = useChatAgent();
 	untrack(() =>
 		chatAgent.hydrateOnce(data.messages, {
+			input: data.assistantDraft,
 			capExceeded: data.capExceeded,
 			capEur: data.capEur,
 			hasOlder: data.hasOlder,
