@@ -722,3 +722,20 @@ inline fallback was used.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_QUICK_RULES_AND_INLINE_WEEKLY_ITEMS.md,
 docs/artifacts/archive/2026-07-28-plan-shopping-quick-rules-inline-weekly-items.html
+
+## 2026-07-29 | deploy-canary | Shopping quick rules and inline Weekly items
+
+PR #33 merged as `69b0ca6`. Railway deployment
+`9ef0f712-8370-4542-9ef8-b31156c77f1b` reported `SUCCESS` for that exact remote
+`main` revision, and both household authentication canaries passed.
+
+Authenticated 320 and 1280 px Shopping checks found the inline Weekly entry, no legacy rules
+manager, progress bar, dialog, horizontal overflow, console error, runtime error, or HTTP 4xx/5xx.
+The current household weeks had no recipe-source choices to render, so the direct Need/Buy control
+states remain proven by the complete primary and secondary local matrices. The canary made no
+household mutation, provider turn, AH lookup, or AH push and retained no screenshot, response
+body, cookie, or household content.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_QUICK_RULES_AND_INLINE_WEEKLY_ITEMS.md,
+docs/artifacts/archive/2026-07-28-plan-shopping-quick-rules-inline-weekly-items.html,
+docs/deploys/2026-07.md
