@@ -861,3 +861,23 @@ issue is resolved; the R3 replacement draft recut remains active in the authorit
 Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
 docs/known_issues/solved/ISSUE_ASSISTANT_PROACTIVE_NOTICING_20260729-1637.md,
 docs/deploys/2026-07.md, docs/log.md
+
+## 2026-07-29 | run checkpoint | Request-driven Assistant replacement stack
+
+Recut the useful Stock/Shopping, meal-decision, and cooking-assistance work without the retired
+Butler service-state ancestry. Draft PRs #43/#44/#45 are open on corrected bases; superseded
+#35/#36/#39/#40 are closed without merge. The replacement inventory migration contains only
+nullable pantry-target fields, and no draft contains candidate, initiative, dismiss/snooze,
+last-seen, Brief, routine, notification, or automatic-memory state.
+
+Provider-free and both-account gates pass across the stack. Catalog exposure progressed from
+26 tools / 22,407 bytes on live corrected `main` to 27 / 24,220, 27 / 24,500, and 27 / 24,737;
+the final ordinary fallback route exposes 25. A bounded 25-scenario live-model sample reached the
+intended routed catalogs, but every configured `z-ai/glm-5` call failed before returning tokens or
+tool choices. It is recorded as unavailable evidence with zero tokens and zero reported cents,
+not as a pass.
+
+No R3 draft merged or deployed. No household data, AH lookup/push, automatic memory, or background
+Assistant work was used.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md, docs/log.md
