@@ -18,6 +18,7 @@ export function buildButlerSnapshot(
 
 	return {
 		today,
+		weekStart,
 		expiring: db
 			.select({
 				id: schema.inventoryItems.id,

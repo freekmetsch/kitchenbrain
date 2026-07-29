@@ -1,7 +1,7 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 6 of 10 (passive Butler Brief complete 2026-07-29; durable
-calm-service state next)_
+_Status: In flight - Phase 6 of 10 (durable calm-service implementation ready for its R3
+PR gate; BTL-019 partial and BTL-020 parked after the Assistant performance gate)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -439,6 +439,12 @@ _Completed 2026-07-29._
   write.
 - Route durable dismissals, initiative, and last-seen state through an isolated append-only R3
   migration and the beta wide-sweep PR gate.
+- Do not expose Shopping provenance to the model until a bounded capability pack can preserve the
+  accepted week-proposal baseline. BTL-020 is parked at that gate, not compensated for with prompt
+  rules or an ever-larger tool list.
+- Ship BTL-019 only for Stock operations and AH pushes whose writers already record a real actor.
+  Meal-plan and recipe edits remain visibly omitted until those write paths carry actor
+  provenance; do not infer or backfill an actor.
 
 ### Phase 7 — stock and Shopping loops
 
@@ -805,7 +811,8 @@ now a required failure until BTL-N3 replaces it with the reviewed Stock → Shop
 
 ### BTL-N2 — Deliver calm service and trust
 
-**Status: In progress. Passive Brief tracer completed 2026-07-29.**
+**Status: In progress. Durable implementation ready for R3 PR review 2026-07-29; BTL-019 remains
+partial and BTL-020 is parked by the performance gate.**
 
 - **Ideas:** BTL-009, BTL-016, BTL-017, BTL-018, BTL-019, BTL-020.
 - **Risk:** R3 durable tray/initiative/last-seen state.
@@ -825,8 +832,27 @@ regression proves the snapshot writes nothing, an authenticated 375/1280 px stor
 Brief remains bounded above usable chat with zero `/api/chat` requests, and the complete gate
 passed 125 files / 667 unit tests, all 22 primary browser stories, diagnostics, and build. The
 model-visible surface remains the Phase 5 baseline of 27 tools / 23,125 bytes, so this tracer
-required no paid selection rerun. Durable dismiss/snooze, initiative, and last-seen state remain
-behind the named R3 wide-sweep.
+required no paid selection rerun.
+
+The named R3 wide sweep now adds only user-scoped service state: durable dismiss/snooze/return,
+explicit Quiet/Notice/Prepare choices with per-domain Forget, and an explicit personal change
+marker. Home load remains zero-write and zero-provider; expired snoozes become visible without
+cleanup writes. A separate Settings reset group clears all Butler service state without touching
+users or household content. The populated pre-0026 upgrade rehearsal preserves existing
+inventory, verifies foreign keys, and proves user-deletion cascades.
+
+BTL-019 currently reports only inventory operation-log rows and AH pushes with a joined user.
+Starting or advancing the personal marker is an explicit click; ordinary visits do not update it.
+The UI names the coverage limit: meal-plan and recipe writes are omitted because those writers do
+not yet carry actor provenance. BTL-019 remains open until that writer sweep is complete.
+
+BTL-020 was exercised as one new read-only Shopping tool and then removed. Four guarded synthetic
+live evaluations covered 157 calls / 1,754,941 tokens / 30 reported USD cents: the new provenance
+cases passed, but the established whole-week proposal failed in every configuration, including a
+focused eight-tool planning pack. Prompt strengthening and mutually exclusive packs did not
+restore the baseline reliably. The shipped catalog therefore stays exactly 27 tools / 23,125
+bytes, and BTL-020 is explicitly parked until routing/consolidation can pass the planning suite
+repeatedly.
 
 ### BTL-N3 — Deliver stock and Shopping loops
 
@@ -1003,17 +1029,18 @@ None. Feedback resolved the original gates on 2026-07-28 and promoted the litera
   Assistant capability selection or trust.
 - **Current state:** the Plan → Shop baseline is live; the Next portfolio is promoted; Phase 5
   established the checked exposure budget and fifteen-case regression suite. Phase 6's passive
-  Brief tracer is complete on `codex/assistant-next-trust`; durable service state is next.
-- **First command:** commit and deliver the passive Brief tracer, then obtain the required
-  independent schema opinion before branching `wide-sweep/schema-butler-service-state`.
+  Brief is live. Its durable state is implemented on `wide-sweep/schema-butler-service-state`;
+  BTL-019 is truthful but partial, and BTL-020 is parked after four live regression failures.
+- **First command:** finish the full repository gate, open the R3 wide-sweep PR, and stop before
+  merging the production migration until the beta stage decision is explicit.
 - **First files:** this feature list; `src/lib/server/butler/brief.ts`;
   `src/lib/server/butler/snapshot.ts`; `src/lib/components/butler/ButlerBrief.svelte`;
   `src/routes/+page.server.ts`.
-- **First implementation move:** append durable, user-scoped dismiss/snooze, initiative, and
-  last-seen state without changing the zero-spend candidate derivation.
-- **Pending verification:** targeted red/green per behavior; Assistant regression after every
-  exposure change; full gate and both-account responsive stories per wave; populated migration
-  rehearsals and beta stage decision for R3 branches.
+- **First implementation move:** review the additive 0026 migration and zero-write home-load
+  boundary; do not reintroduce the removed Shopping provenance tool.
+- **Pending verification:** full gate and both-account responsive stories; PR review and beta
+  stage decision for migration 0026. BTL-019 actor-writer completion and BTL-020 tool routing stay
+  explicitly open.
 - **Open questions:** none.
 - **Beta wide-sweep note:** any selected schema-backed action-bundle, fridge, brief-state, or
   preference work must use the schema split and PR path from app-stage delivery guidance.

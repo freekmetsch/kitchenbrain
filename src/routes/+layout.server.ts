@@ -22,16 +22,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		theme = themePref ?? 'light';
 		if (recipeLangPref === 'nl' || recipeLangPref === 'en') {
 			recipeLang = recipeLangPref;
-		} else {
-			db.insert(prefs)
-				.values({
-					userId: locals.user.id,
-					key: 'recipe_view_language',
-					value: recipeLang,
-					updatedAt: new Date()
-				})
-				.onConflictDoNothing()
-				.run();
 		}
 	}
 	return { user: locals.user, theme, recipeLang };

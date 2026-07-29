@@ -107,6 +107,7 @@ describe('Butler household snapshot', () => {
 
 		expect(snapshot).toEqual({
 			today: '2026-07-29',
+			weekStart: '2026-07-29',
 			expiring: [
 				{ id: expect.any(Number), name: 'Spinazie', expiryDate: '2026-07-31', section: 'pantry' }
 			],

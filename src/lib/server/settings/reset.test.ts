@@ -253,6 +253,50 @@ describe('resetGroup(timer_alerts)', () => {
 	});
 });
 
+describe('resetGroup(butler_state)', () => {
+	it('deletes all users’ Butler triage, initiative, and change-marker rows', () => {
+		const db = createTestDb();
+		db.insert(schema.butlerCandidateStates)
+			.values({
+				userId: 1,
+				candidateKey: 'brief:shopping:open:2026-07-27:2',
+				disposition: 'dismissed',
+				createdAt: NOW,
+				updatedAt: NOW
+			})
+			.run();
+		db.insert(schema.butlerInitiativePreferences)
+			.values({
+				userId: 1,
+				domain: 'shopping',
+				level: 'quiet',
+				createdAt: NOW,
+				updatedAt: NOW
+			})
+			.run();
+		db.insert(schema.butlerUserStates)
+			.values({
+				userId: 1,
+				changesSeenThrough: NOW,
+				createdAt: NOW,
+				updatedAt: NOW
+			})
+			.run();
+
+		const result = resetGroup(db, 'butler_state');
+
+		expect(result.deleted).toMatchObject({
+			butler_candidate_states: 1,
+			butler_initiative_preferences: 1,
+			butler_user_states: 1
+		});
+		expect(db.select().from(schema.butlerCandidateStates).all()).toHaveLength(0);
+		expect(db.select().from(schema.butlerInitiativePreferences).all()).toHaveLength(0);
+		expect(db.select().from(schema.butlerUserStates).all()).toHaveLength(0);
+		expect(db.select().from(schema.users).all()).not.toHaveLength(0);
+	});
+});
+
 describe('countGroupRows', () => {
 	it('reflects current row counts per group', () => {
 		const db = createTestDb();
@@ -263,5 +307,6 @@ describe('countGroupRows', () => {
 		expect(counts.inventory).toBe(2);
 		expect(counts.recipes).toBe(1);
 		expect(counts.chat_history).toBe(0);
+		expect(counts.butler_state).toBe(0);
 	});
 });

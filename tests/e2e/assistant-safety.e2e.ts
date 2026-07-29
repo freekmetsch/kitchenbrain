@@ -46,6 +46,56 @@ test('Butler brief stays bounded, transparent, and passive above chat', async ({
 			),
 			`Butler brief must not overflow horizontally at ${viewport.width}px`
 		).toBe(false);
+
+		if (viewport.name === 'phone') {
+			const changes = brief.locator('[data-butler-changes]');
+			await changes.locator('summary').first().click();
+			await expect(
+				changes.getByText('No personal marker exists yet.', { exact: false })
+			).toBeVisible();
+			const startButton = changes.getByRole('button', { name: 'Start from now' });
+			await expect(startButton).toBeEnabled();
+			const markerResponse = page.waitForResponse(
+				(response) =>
+					new URL(response.url()).pathname === '/api/butler' &&
+					response.request().postDataJSON()?.action === 'mark_changes_seen'
+			);
+			await startButton.click();
+			await expect((await markerResponse).ok()).toBe(true);
+			await expect(
+				changes.getByText(
+					'No attributed Stock changes or AH pushes happened after your marker.'
+				)
+			).toBeVisible();
+
+			const firstTitle = await cards.first().locator('h3').textContent();
+			await cards.first().getByRole('button', { name: 'Snooze 1 day' }).click();
+			const hidden = brief.locator('[data-butler-hidden]');
+			await expect(hidden).toBeVisible();
+			await hidden.locator('summary').click();
+			await expect(hidden.getByText(firstTitle!, { exact: true })).toBeVisible();
+			await hidden.getByRole('button', { name: 'Return' }).click();
+			await expect(
+				brief.locator('article[data-butler-kind]').filter({ hasText: firstTitle! })
+			).toBeVisible();
+
+			await brief
+				.locator('article[data-butler-kind]')
+				.filter({ hasText: firstTitle! })
+				.getByRole('button', { name: 'Dismiss' })
+				.click();
+			await expect(hidden).toBeVisible();
+			await hidden.locator('summary').click();
+			await hidden.getByRole('button', { name: 'Return' }).click();
+
+			await brief.locator('summary').filter({ hasText: 'Initiative' }).click();
+			const shoppingSetting = brief.locator('[data-butler-domain="shopping"]');
+			await shoppingSetting.locator('select').selectOption('quiet');
+			await shoppingSetting.getByRole('button', { name: 'Save' }).click();
+			await expect(brief.getByText('Nothing needs attention from the facts currently available.')).toBeVisible();
+			await brief.getByRole('button', { name: 'Forget saved Shopping level' }).click();
+			await expect(brief.locator('article[data-butler-kind]')).toHaveCount(1);
+		}
 	}
 
 	expect(assistantTurns).toBe(0);

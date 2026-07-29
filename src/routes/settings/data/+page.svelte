@@ -88,6 +88,7 @@
 			case 'shopping_data': return m.settings_data_group_shopping_data();
 			case 'ah_favorites': return m.settings_data_group_ah_favorites();
 			case 'timer_alerts': return m.settings_data_group_timer_alerts();
+			case 'butler_state': return m.settings_data_group_butler_state();
 		}
 	}
 
@@ -101,6 +102,7 @@
 			case 'shopping_data': return m.settings_data_group_shopping_data_desc();
 			case 'ah_favorites': return m.settings_data_group_ah_favorites_desc();
 			case 'timer_alerts': return m.settings_data_group_timer_alerts_desc();
+			case 'butler_state': return m.settings_data_group_butler_state_desc();
 		}
 	}
 

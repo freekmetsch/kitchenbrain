@@ -56,6 +56,55 @@ export const sessions = sqliteTable('sessions', {
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 
+export type ButlerCandidateDisposition = 'dismissed' | 'snoozed';
+export type ButlerInitiativeDomain = 'shopping' | 'planning' | 'stock' | 'cooking';
+export type ButlerInitiativeLevel = 'quiet' | 'notice' | 'prepare';
+
+export const butlerCandidateStates = sqliteTable(
+	'butler_candidate_states',
+	{
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		candidateKey: text('candidate_key').notNull(),
+		disposition: text('disposition').notNull().$type<ButlerCandidateDisposition>(),
+		snoozedUntil: integer('snoozed_until', { mode: 'timestamp' }),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => [
+		primaryKey({ columns: [table.userId, table.candidateKey] }),
+		index('butler_candidate_states_user_disposition_idx').on(
+			table.userId,
+			table.disposition,
+			table.snoozedUntil
+		)
+	]
+);
+
+export const butlerInitiativePreferences = sqliteTable(
+	'butler_initiative_preferences',
+	{
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		domain: text('domain').notNull().$type<ButlerInitiativeDomain>(),
+		level: text('level').notNull().$type<ButlerInitiativeLevel>(),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => [primaryKey({ columns: [table.userId, table.domain] })]
+);
+
+export const butlerUserStates = sqliteTable('butler_user_states', {
+	userId: integer('user_id')
+		.primaryKey()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	changesSeenThrough: integer('changes_seen_through', { mode: 'timestamp' }),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+});
+
 export const pushSubscriptions = sqliteTable(
 	'push_subscriptions',
 	{

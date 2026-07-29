@@ -6,9 +6,11 @@ export type ButlerCandidateKind =
 	| 'plan_gap'
 	| 'shopping_open'
 	| 'freezer_shortfall';
+export type ButlerCandidateDomain = 'shopping' | 'planning' | 'stock' | 'cooking';
 
 export type ButlerSnapshot = {
 	today: string;
+	weekStart: string;
 	expiring: Array<{
 		id: number;
 		name: string;
@@ -33,6 +35,7 @@ export type ButlerSnapshot = {
 export type ButlerCandidate = {
 	id: string;
 	kind: ButlerCandidateKind;
+	domain: ButlerCandidateDomain;
 	priority: number;
 	title: string;
 	summary: string;
@@ -198,6 +201,7 @@ export function deriveButlerBrief(
 		candidates.push({
 			id: `brief:pending:${snapshot.pendingReviews}`,
 			kind: 'pending_review',
+			domain: 'planning',
 			priority: 110,
 			title: labels.pending.title,
 			summary: labels.pending.summary(snapshot.pendingReviews),
@@ -217,8 +221,9 @@ export function deriveButlerBrief(
 			(left, right) => left.expiryDate.localeCompare(right.expiryDate) || left.id - right.id
 		);
 		candidates.push({
-			id: `brief:expiring:${ordered.map((item) => item.id).join('-')}`,
+			id: `brief:expiring:${ordered.map((item) => `${item.id}-${item.expiryDate}`).join('_')}`,
 			kind: 'expiring_stock',
+			domain: 'stock',
 			priority: 100 - Math.max(0, daysBetween(snapshot.today, ordered[0].expiryDate)),
 			title: labels.expiring.title,
 			summary: labels.expiring.summary(itemNames(ordered)),
@@ -238,8 +243,9 @@ export function deriveButlerBrief(
 	const unresolved = snapshot.shopping.conflicts + snapshot.shopping.sourcesNeedingReview;
 	if (unresolved > 0) {
 		candidates.push({
-			id: `brief:shopping-conflict:${snapshot.today}`,
+			id: `brief:shopping-conflict:${snapshot.weekStart}:${snapshot.shopping.conflicts}:${snapshot.shopping.sourcesNeedingReview}`,
 			kind: 'shopping_conflict',
+			domain: 'shopping',
 			priority: 90,
 			title: labels.shoppingConflict.title,
 			summary: labels.shoppingConflict.summary(unresolved),
@@ -261,8 +267,9 @@ export function deriveButlerBrief(
 
 	if (snapshot.plannedMeals === 0) {
 		candidates.push({
-			id: `brief:plan-gap:${snapshot.today}`,
+			id: `brief:plan-gap:${snapshot.weekStart}`,
 			kind: 'plan_gap',
+			domain: 'planning',
 			priority: 80,
 			title: labels.planGap.title,
 			summary: labels.planGap.summary,
@@ -279,8 +286,9 @@ export function deriveButlerBrief(
 
 	if (snapshot.shopping.toBuy > 0 && unresolved === 0) {
 		candidates.push({
-			id: `brief:shopping-open:${snapshot.today}`,
+			id: `brief:shopping-open:${snapshot.weekStart}:${snapshot.shopping.toBuy}`,
 			kind: 'shopping_open',
+			domain: 'shopping',
 			priority: 70,
 			title: labels.shoppingOpen.title,
 			summary: labels.shoppingOpen.summary(snapshot.shopping.toBuy),
@@ -307,8 +315,9 @@ export function deriveButlerBrief(
 	if (freezer) {
 		const deficit = freezer.targetPortions - freezer.currentPortions;
 		candidates.push({
-			id: `brief:freezer:${freezer.recipeSlug}`,
+			id: `brief:freezer:${freezer.recipeSlug}:${freezer.currentPortions}:${freezer.targetPortions}`,
 			kind: 'freezer_shortfall',
+			domain: 'stock',
 			priority: 60 + Math.min(deficit, 9),
 			title: labels.freezer.title,
 			summary: labels.freezer.summary(freezer.title, deficit),

@@ -4,6 +4,7 @@ import { deriveButlerBrief, type ButlerSnapshot } from './brief';
 function snapshot(patch: Partial<ButlerSnapshot> = {}): ButlerSnapshot {
 	return {
 		today: '2026-07-29',
+		weekStart: '2026-07-29',
 		expiring: [],
 		plannedMeals: 3,
 		shopping: { toBuy: 0, conflicts: 0, sourcesNeedingReview: 0 },
@@ -55,7 +56,7 @@ describe('deterministic Butler Brief', () => {
 
 		expect(deriveButlerBrief(input)).toEqual(deriveButlerBrief(structuredClone(input)));
 		expect(deriveButlerBrief(input).map((candidate) => candidate.id)).toEqual([
-			'brief:expiring:8',
+			'brief:expiring:8-2026-07-30',
 			'brief:plan-gap:2026-07-29'
 		]);
 	});
