@@ -3,8 +3,7 @@ export type CapabilityDomain =
 	| 'planning'
 	| 'recipes'
 	| 'shopping'
-	| 'ah'
-	| 'trust';
+	| 'ah';
 
 export type AssistantCapability = {
 	exposed?: false;
@@ -14,7 +13,7 @@ export type AssistantCapability = {
 	confirmation: 'none' | 'risk-based' | 'always-review' | 'external-final';
 	undo: 'none' | 'inventory-op' | 'atomic-batch' | 'compensating';
 	externalEffect: 'none' | 'ah-read' | 'ah-basket';
-	display: 'read' | 'write' | 'confirm' | 'proposal' | 'plan';
+	display: 'read' | 'write' | 'confirm' | 'proposal';
 };
 
 function capability(contract: AssistantCapability): AssistantCapability {
@@ -281,15 +280,6 @@ export const ASSISTANT_CAPABILITIES = Object.freeze({
 		undo: 'inventory-op',
 		externalEffect: 'none',
 		display: 'write'
-	}),
-	present_plan: capability({
-		domain: 'trust',
-		access: 'proposal',
-		currentRead: 'none',
-		confirmation: 'none',
-		undo: 'none',
-		externalEffect: 'none',
-		display: 'plan'
 	})
 } satisfies Record<string, AssistantCapability>);
 

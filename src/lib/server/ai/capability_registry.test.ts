@@ -25,7 +25,7 @@ describe('assistant capability registry', () => {
 				),
 				undo: expect.stringMatching(/^(none|inventory-op|atomic-batch|compensating)$/),
 				externalEffect: expect.stringMatching(/^(none|ah-read|ah-basket)$/),
-				display: expect.stringMatching(/^(read|write|confirm|proposal|plan)$/)
+				display: expect.stringMatching(/^(read|write|confirm|proposal)$/)
 			});
 		}
 	});
@@ -37,6 +37,7 @@ describe('assistant capability registry', () => {
 		expect(isPersistentCapability('generate_shopping_list')).toBe(true);
 		expect(tools.map((tool) => tool.name)).not.toContain('plan_meal');
 		expect(tools.map((tool) => tool.name)).not.toContain('remove_meal');
+		expect(tools.map((tool) => tool.name)).not.toContain('present_plan');
 	});
 
 	it('fails closed when a tool is missing or an orphan registry row remains', () => {

@@ -384,9 +384,11 @@ export class ChatAgentController {
 						continue;
 					}
 					const last = this.messages.at(-1)!;
-					if (last.status) last.status = undefined;
-					if (event.type === 'text' && event.text) last.content += event.text;
-					else if (event.type === 'tool_start' && event.id) {
+					if (event.type === 'text' && event.text) {
+						last.status = undefined;
+						last.content += event.text;
+					} else if (event.type === 'tool_start' && event.id) {
+						last.status = m.chat_status_working();
 						last.toolCalls ??= [];
 						last.toolCalls.push({
 							id: event.id,
@@ -414,6 +416,7 @@ export class ChatAgentController {
 						}
 						if (event.display?.kind === 'write') wrote = true;
 					} else if (event.type === 'error') {
+						last.status = undefined;
 						if (event.code === 'cap_exceeded') {
 							this.capExceeded = true;
 							if (typeof event.capEur === 'number') this.capEur = event.capEur;

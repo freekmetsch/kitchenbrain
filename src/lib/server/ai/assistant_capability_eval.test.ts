@@ -12,16 +12,16 @@ describe('Assistant capability quality gate', () => {
 	it('keeps the complete shipped surface inside the checked exposure budget', () => {
 		const measurement = measureAssistantTools(tools);
 
-		expect(measurement.count).toBe(27);
-		expect(measurement.serializedBytes).toBe(23_125);
+		expect(measurement.count).toBe(26);
+		expect(measurement.serializedBytes).toBe(22_407);
 		expect(() => assertAssistantToolBudget(tools)).not.toThrow();
-		expect(ASSISTANT_TOOL_BUDGET.maxCount).toBe(28);
+		expect(ASSISTANT_TOOL_BUDGET.maxCount).toBe(27);
 	});
 
 	it('fails closed when either tool count or schema size exceeds the budget', () => {
 		const extra = {
 			name: 'speculative_tool',
-			description: 'x'.repeat(3_000),
+			description: 'x'.repeat(4_500),
 			input_schema: { type: 'object' as const, properties: {}, required: [] }
 		};
 

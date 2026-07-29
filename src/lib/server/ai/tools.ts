@@ -210,7 +210,7 @@ export const tools: Anthropic.Tool[] = [
 	{
 		name: 'propose_meal_plan',
 		description:
-			'Stage one adjustable meal-plan review after reading the target week and relevant recipes. This writes nothing. Include the complete recommendation, all add/update/remove operations, and every safe preparation step already resolved. The user chooses rows before one atomic apply; Shopping reconciliation commits in the same transaction.',
+			'Stage one adjustable meal-plan review after reading the target week and relevant recipes. This writes nothing. Include all add/update/remove operations and only recommendation context grounded in those reads; omit optional context rather than inventing filler. The user chooses rows before one atomic apply; Shopping reconciliation commits in the same transaction.',
 		input_schema: {
 			type: 'object',
 			properties: {
@@ -225,7 +225,6 @@ export const tools: Anthropic.Tool[] = [
 						why_now: { type: 'string' },
 						evidence: {
 							type: 'array',
-							minItems: 1,
 							maxItems: 12,
 							items: { type: 'string' }
 						},
@@ -237,19 +236,11 @@ export const tools: Anthropic.Tool[] = [
 						consequence: { type: 'string' },
 						alternatives: {
 							type: 'array',
-							minItems: 1,
 							maxItems: 8,
 							items: { type: 'string' }
 						}
 					},
-					required: [
-						'why_now',
-						'evidence',
-						'confidence',
-						'uncertainty',
-						'consequence',
-						'alternatives'
-					]
+					required: []
 				},
 				operations: {
 					type: 'array',
@@ -797,25 +788,6 @@ export const tools: Anthropic.Tool[] = [
 				item_id: { type: 'number', description: 'Undo the latest removal of this item, if op_id unknown' }
 			},
 			required: []
-		}
-	},
-	{
-		name: 'present_plan',
-		description:
-			'Show the user a short ordered checklist of the steps you are about to take, BEFORE executing them. Use for batch or multi-step requests (e.g. stocking several freezer items, a multi-part edit). Then carry out the steps with the other tools. Do not use for a single action or a plain question.',
-		input_schema: {
-			type: 'object',
-			properties: {
-				title: { type: 'string', description: 'Optional short heading, e.g. "Stocking the freezer"' },
-				steps: {
-					type: 'array',
-					items: { type: 'string' },
-					minItems: 1,
-					maxItems: 12,
-					description: 'Ordered, user-facing step labels (2–8 short lines)'
-				}
-			},
-			required: ['steps']
 		}
 	}
 ];

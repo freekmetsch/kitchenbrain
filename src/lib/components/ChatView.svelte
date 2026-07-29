@@ -187,7 +187,7 @@
 	}
 
 	type ToolRenderRow =
-		| { kind: 'tool'; tool: ToolCall; index: number }
+		| { kind: 'tool'; tool: ToolCall }
 		| { kind: 'activity'; tools: ToolCall[] };
 
 	function isRoutineActivity(tool: ToolCall): boolean {
@@ -203,7 +203,7 @@
 		const rows: ToolRenderRow[] = [];
 		for (let index = 0; index < tools.length; ) {
 			if (!isRoutineActivity(tools[index])) {
-				rows.push({ kind: 'tool', tool: tools[index], index });
+				rows.push({ kind: 'tool', tool: tools[index] });
 				index += 1;
 				continue;
 			}
@@ -212,11 +212,7 @@
 				routine.push(tools[index]);
 				index += 1;
 			}
-			if (routine.length === 1) {
-				rows.push({ kind: 'tool', tool: routine[0], index: index - 1 });
-			} else {
-				rows.push({ kind: 'activity', tools: routine });
-			}
+			rows.push({ kind: 'activity', tools: routine });
 		}
 		return rows;
 	}
@@ -240,21 +236,10 @@
 		if (ahSearches) {
 			return m.chat_activity_ah({ count: ahSearches });
 		}
-		return m.chat_activity_checks({ count: tools.length });
-	}
-
-	// Best-effort plan check-off (P5.2): count the completed write-displays that
-	// follow this present_plan in the same turn. No rigid step↔tool binding — a
-	// plan of N steps checks off the first min(N, writesDone) rows. Only writes
-	// advance it, so a plan step that's a read or a confirm won't tick a row —
-	// acceptable for a cosmetic progress cue (the prompt steers plans to writes).
-	function planStepsDone(tools: ToolCall[], planIndex: number): number {
-		let n = 0;
-		for (let i = planIndex + 1; i < tools.length; i++) {
-			const t = tools[i];
-			if (!t.pending && t.display?.kind === 'write') n++;
+		if (tools.length === 1) {
+			return tools[0].display?.summary ?? m.chat_activity_checks({ count: 1 });
 		}
-		return n;
+		return m.chat_activity_checks({ count: tools.length });
 	}
 
 	async function undo(tool: ToolCall, opId: number | number[]) {
@@ -367,9 +352,18 @@
 						<div class="mb-2 flex min-w-0 flex-col gap-1.5">
 							{#each toolRows(msg.toolCalls) as row}
 								{#if row.kind === 'activity'}
-									<details class="rounded-md bg-base-100/40 px-2 py-1.5 text-xs text-base-content/60">
-										<summary class="min-h-6 cursor-pointer font-medium">
-											{activitySummary(row.tools)}
+									<details
+										class="rounded-md bg-base-100/40 px-2 py-1.5 text-xs text-base-content/60"
+										data-chat-process
+									>
+										<summary class="flex min-h-6 cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 font-medium">
+											{#if row.tools.some((tool) => tool.pending)}
+												<Spinner size="xs" class="opacity-60" />
+											{/if}
+											<span>{m.chat_activity_see_process()}</span>
+											<span class="font-normal text-base-content/45">
+												{activitySummary(row.tools)}
+											</span>
 										</summary>
 										<ul class="mt-1 space-y-1 pl-4">
 											{#each row.tools as activity}
@@ -379,29 +373,7 @@
 									</details>
 								{:else}
 									{@const tool = row.tool}
-									{@const ti = row.index}
-								{#if tool.display && tool.display.kind === 'plan' && tool.display.steps}
-									{@const d = tool.display}
-									{@const done = planStepsDone(msg.toolCalls, ti)}
-									<div class="flex min-w-0 flex-col gap-1.5 rounded-md bg-base-100/50 px-2 py-1.5">
-										<div class="flex items-center gap-1.5">
-											<svg class="h-3.5 w-3.5 shrink-0 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-											<span class="min-w-0 break-words text-xs font-medium leading-tight text-base-content/80 [overflow-wrap:anywhere]">{d.summary}</span>
-										</div>
-										<ol class="flex flex-col gap-1 pl-5">
-											{#each d.steps as step, si}
-												<li class="flex items-start gap-1.5 text-xs leading-tight {si < done ? 'text-base-content/45' : 'text-base-content/80'}">
-													{#if si < done}
-														<svg class="mt-px h-3 w-3 shrink-0 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-													{:else}
-														<span class="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full border border-current opacity-40"></span>
-													{/if}
-													<span class={si < done ? 'line-through' : ''}>{step}</span>
-												</li>
-											{/each}
-										</ol>
-									</div>
-								{:else if tool.display}
+								{#if tool.display}
 									{@const d = tool.display}
 									{@const opId = undoTarget(tool)}
 									{@const entityHref = toolEntityHref(d.entityAction, base)}

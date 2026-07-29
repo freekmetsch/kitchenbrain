@@ -19,12 +19,12 @@ import { isoWeekNumber, weekStartFor } from '$lib/week';
 
 export const RecommendationEnvelopeSchema = z
 	.object({
-		whyNow: z.string().trim().min(1).max(500),
-		evidence: z.array(z.string().trim().min(1).max(500)).min(1).max(12),
-		confidence: z.enum(['high', 'medium', 'low']),
-		uncertainty: z.string().trim().min(1).max(500).nullable(),
-		consequence: z.string().trim().min(1).max(500),
-		alternatives: z.array(z.string().trim().min(1).max(500)).min(1).max(8)
+		whyNow: z.string().trim().min(1).max(500).optional(),
+		evidence: z.array(z.string().trim().min(1).max(500)).max(12).default([]),
+		confidence: z.enum(['high', 'medium', 'low']).optional(),
+		uncertainty: z.string().trim().min(1).max(500).nullable().optional(),
+		consequence: z.string().trim().min(1).max(500).optional(),
+		alternatives: z.array(z.string().trim().min(1).max(500)).max(8).default([])
 	})
 	.strict();
 
@@ -88,7 +88,8 @@ export const MealPlanProposalInputSchema = z
 	.strict();
 
 export type RecommendationEnvelope = z.infer<typeof RecommendationEnvelopeSchema>;
-export type MealPlanProposalInput = z.infer<typeof MealPlanProposalInputSchema>;
+export type MealPlanProposalInput = z.input<typeof MealPlanProposalInputSchema>;
+type ParsedMealPlanProposalInput = z.output<typeof MealPlanProposalInputSchema>;
 
 export type MealPlanProposalOperation = {
 	id: string;
@@ -130,7 +131,7 @@ type AppliedMealPlanOperation = {
 type StoredMealPlanProposal = Omit<MealPlanProposal, 'token'> & {
 	userId: number;
 	expiresAt: number;
-	input: MealPlanProposalInput;
+	input: ParsedMealPlanProposalInput;
 	applied?: AppliedMealPlanOperation[];
 	weekFingerprints: Record<string, string>;
 };

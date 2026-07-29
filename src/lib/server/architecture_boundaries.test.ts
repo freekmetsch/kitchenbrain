@@ -168,6 +168,18 @@ function runtimeModuleImports(file: string): string[] {
 }
 
 describe('server architecture boundaries', () => {
+	it('keeps Assistant home loading request-driven with no Butler candidate service', () => {
+		const pageServer = readFileSync(path.join(routesRoot, '+page.server.ts'), 'utf8');
+		const pageView = readFileSync(path.join(routesRoot, '+page.svelte'), 'utf8');
+		const butlerModules = productionSourceFiles(serverRoot)
+			.map(toRepoPath)
+			.filter((file) => file.startsWith('lib/server/butler/'));
+
+		expect(pageServer).not.toMatch(/Butler|butler|household snapshot/i);
+		expect(pageView).not.toMatch(/ButlerBrief|data\.brief|data-butler/);
+		expect(butlerModules).toEqual([]);
+	});
+
 	it('centralizes the Drizzle database and transaction types', () => {
 		const filesWithDatabaseType = productionSourceFiles(serverRoot)
 			.filter((file) =>

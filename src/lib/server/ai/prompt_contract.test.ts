@@ -35,4 +35,12 @@ describe('assistant system prompt contracts', () => {
 			'Use `propose_meal_plan` instead of direct meal-plan writes'
 		);
 	});
+
+	it('keeps presentation bespoke and process narration out of the model toolset', () => {
+		expect(systemPrompt).not.toContain('`present_plan`');
+		expect(systemPrompt).toContain(
+			'Include only decision-useful recommendation context supported by the reads you performed'
+		);
+		expect(systemPrompt).toContain('Omit a recommendation field rather than inventing content');
+	});
 });

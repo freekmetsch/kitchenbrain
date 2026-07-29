@@ -1,7 +1,6 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 6 of 10 (passive Butler Brief complete 2026-07-29; durable
-calm-service state next)_
+_Status: In flight - Phase 6 of 10 (R2 correction verified; replacement draft recut next 2026-07-29)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -14,12 +13,32 @@ The first implementation slice is **Plan → Shop**:
 1. after a person asks for an outcome, perform the safe preparation needed to finish it—including
    reads, comparisons, list reconciliation, and AH lookup/preview—without repeatedly asking
    permission to continue;
-2. present one understandable, adjustable review with the recommendation, why now, evidence,
-   confidence or uncertainty, consequences, and alternatives;
+2. present one understandable, adjustable review with the recommendation plus only the grounded,
+   decision-useful evidence, uncertainty, consequences, and alternatives available for that result;
 3. apply only the reviewed choices, then return a truthful receipt and Undo where supported;
 4. always stop separately before destructive, ambiguous, paid, or external AH effects;
 5. leave every other Wave 1, Next, Later, Park, and Exclude idea inert until it is explicitly
    promoted.
+
+Correction accepted on 2026-07-29: **assertive is request-driven, never standing Notice UI.**
+Opening `/` shows the conversation and composer, not a household scan, cue, tray, digest,
+initiative dial, or prepared job. Once a person asks, the Assistant quietly completes the safe
+implied work and returns an **Outcome Docket** inside that conversation: one recommendation,
+adjustable operations, alternatives, exact consequences, and the required review controls.
+
+Design feedback accepted on 2026-07-29:
+
+- **Outcome Docket is a flexible display treatment, not a response template.** Existing typed
+  results keep their bespoke shapes. The shared shell renders only grounded fields the current
+  result actually has; it never asks the model to invent evidence, alternatives, or filler to
+  satisfy a fixed layout.
+- **Working state is client-owned and has optional “See process”.** The collapsed state names the
+  outcome being prepared. The disclosure may summarize real tool/activity events already emitted
+  by the turn, but the model does not narrate or manufacture a plan.
+- User note (verbatim): “looks good, but make sure it's not too prescriptive (that usually
+  generates slop because the model will try to force the format and invent content to fill that
+  format instead of making something bespoke).”
+- User note (verbatim): “I like working state with optional 'see process' option.”
 
 This is deliberately not a new agent framework, vector-memory system, or autonomous background
 worker. The existing tool loop, domain services, SQLite database, review cards, and safety ledger
@@ -43,8 +62,9 @@ a person naturally describes:
 - “Start a ten-minute timer” is natural while cooking, but the chat agent cannot reach the
   persistent timer coordinator already present in the app.
 - The app contains useful signals—expiry, stale freezer stock, repeat rotation, low freezer
-  targets, recipe review flags, and shopping conflicts—but the Assistant waits to be asked and
-  has no calm place to surface them.
+  targets, recipe review flags, and shopping conflicts. Those signals should improve an answer
+  only when the current request makes them relevant; they should not compete for attention merely
+  because the app opened.
 
 The goal is an assertive but trustworthy household butler. **Assertive** means it finishes all
 safe preparatory work implied by a user-requested goal and returns with a considered proposal
@@ -59,19 +79,19 @@ should become more useful through explicit choices, not covert memory.
   cooking or handling children.
 - **Objective:** reduce repeated household coordination and cross-screen bookkeeping without
   creating an unpredictable autonomous system.
-- **Product feeling:** observant, concise, ready with a recommendation, honest about uncertainty,
-  and conservative with external or hard-to-reverse actions.
+- **Product feeling:** attentive once addressed, concise, ready with a recommendation, honest
+  about uncertainty, and conservative with external or hard-to-reverse actions.
 - **Success criteria:**
   - a natural household request maps to one visible outcome, even when several domains are
     involved;
-  - every proposal says why it appeared, what evidence it used, and what will change;
-  - low-risk work can become one-tap or explicitly auto-applied per domain, while destructive,
-    ambiguous, paid, and external work remains reviewed;
+  - every proposal shows the grounded facts and consequences needed for its decision, while
+    omitting absent context instead of inventing it;
+  - all writes remain reviewed one-tap actions until a future explicit routine contract exists;
+    destructive, ambiguous, paid, and external work remains separately reviewed;
   - durable preferences are explicit, scoped, reviewable, and forgettable;
   - triggered preparation happens in the current request and appears as one review, not a chain
     of permission-seeking questions;
-  - a future Butler Brief may show deterministic cues above chat on `/`, but it cannot initiate
-    work or write anything; automatically prepared work requires an explicit routine;
+  - opening `/` performs no Butler candidate scan and shows no unsolicited household cue;
   - no new Assistant entry point competes with `/`;
   - Dutch recipe ingredient names remain the only AH lookup source;
   - spend stays bounded by deterministic local reads/ranking plus the existing AI caps;
@@ -87,18 +107,18 @@ should become more useful through explicit choices, not covert memory.
 - A reusable capability/risk registry for present and future agent tools.
 - Reviewed multi-domain action bundles with exact preconditions and truthful partial/blocked
   states.
-- The shipped First slice plus all twenty ideas explicitly ranked **Next**: BTL-016 through
-  BTL-035.
+- The shipped First slice plus the eighteen request-driven ideas still ranked **Next**:
+  BTL-018 through BTL-035.
 - The smallest Wave 1 dependency set required to make those Next behaviors real rather than
-  decorative: BTL-001, BTL-002, BTL-007, BTL-008, BTL-009, BTL-012, BTL-013, and BTL-015.
+  decorative: BTL-001, BTL-002, BTL-007, BTL-008, BTL-012, BTL-013, and BTL-015.
 - Explicit scoped preference proposal contracts where the First slice needs them; the full
   preference center and initiative controls remain outside this run.
 - Reuse of existing domain services, push infrastructure, model seam, tool displays, and
   authenticated browser fixtures.
 - English and Dutch copy, phone-first interactions, keyboard behavior, and reduced-motion-safe
   feedback.
-- Additive migrations only when durable proposals, dismissals, or permission receipts actually
-  require them.
+- Additive migrations only when durable domain data or explicit preference receipts require them;
+  no schema is created for noticing, dismissing, snoozing, initiative, or last-seen state.
 
 ### Out
 
@@ -108,6 +128,8 @@ should become more useful through explicit choices, not covert memory.
 - Vector databases, embeddings, an external agent framework, or a second backend service.
 - Silent preference inference, silent external basket pushes, silent destructive actions, or
   background LLM turns without an explicit product surface and cap.
+- Butler Briefs, trays, initiative dials, opt-in digests, home-load candidate ranking, and any
+  other unsolicited noticing surface.
 - Multi-tenancy, SaaS roles, household signup, or general-purpose task management.
 - Replacing the current OpenRouter/Anthropic-compatible client seam.
 - Making non-AH retailer support part of the first wave.
@@ -129,8 +151,8 @@ active only where named above as direct dependencies of the promoted Next portfo
 | Read an explicit shared household profile | `src/routes/settings/ai/+page.svelte`; `household_prefs` | This is manually edited context, not learned memory. |
 | Configure chat, fallback, vision, and background model roles | `src/lib/server/ai/config.ts`; Settings AI | The chat tool set is shared across models and must stay provider-neutral. |
 | Fall back once when the primary provider fails | `src/routes/api/chat/+server.ts` | Failed partial prose is discarded; a whole unfinished household job is not queued. |
-| Enforce daily chat/background caps and show seven-day spend | AI Settings and pricing/config modules | A cap stops AI work; deterministic local brief generation can still work. |
-| Show three editable sentence starters | `src/lib/chat/prompt_starters.ts` | Starters are general, not a proactive household state summary. |
+| Enforce daily chat/background caps and show seven-day spend | AI Settings and pricing/config modules | A cap stops provider work; request-scoped local reads may still support native pages, but `/` performs no Butler scan. |
+| Show three editable sentence starters | `src/lib/chat/prompt_starters.ts` | Starters are general, not an unsolicited household state summary. |
 
 ### Inventory and freezer
 
@@ -195,7 +217,7 @@ active only where named above as direct dependencies of the promoted Next portfo
 | Human gates | Existing deletion/merge, bulk inventory, and recipe content changes have explicit review paths. |
 | Tool truth | The final prose may claim completion only after a committed successful result. |
 | Compact activity | Routine reads/searches aggregate; writes, confirmations, proposals, and terminal failures remain visible. |
-| Plan card | `present_plan` shows and best-effort checks off multi-step work. It is descriptive, not an atomic cross-domain transaction. |
+| Working and process state | One generic client-owned working label may disclose real compact activity from the triggering turn. The model does not narrate a plan and no progress state persists. |
 | Browser evidence | The dense persisted recipe decision story passes at 320–1280 px with keyboard controls and no overflow. |
 
 ## The product gap: operations versus household outcomes
@@ -208,20 +230,19 @@ active only where named above as direct dependencies of the promoted Next portfo
 | “Get us ready to shop.” | List derivation and AH UI push exist. | No end-to-end plan → list → conflict review → AH preview in Assistant. |
 | “We made four portions and froze two.” | Each underlying write mostly exists. | No after-cook checkout that closes every related domain. |
 | “Start the pasta timer.” | A persistent timer system exists elsewhere in the app. | No safe client-action card from Assistant or cooking steps. |
-| “What should I deal with?” | All underlying signals exist. | No bounded brief, dismissal, or explanation surface. |
+| “What should I deal with?” | All underlying signals exist. | The Assistant should inspect them only after this request, rank the answer, and explain its evidence without creating a standing feed. |
 | “Remember we prefer blocks of Parmesan for this recipe.” | Recipe-scoped product preference is being added. | No general explicit preference proposal/management contract. |
 
 ## Butler contract
 
 Every new service follows seven rules:
 
-1. **Wait for a trigger.** Start from a user request or an explicitly configured routine. Merely
-   opening `/` may derive future brief candidates locally, but must not start a job or provider
-   turn.
+1. **Wait for a trigger.** Start from a user request or an explicitly configured future routine.
+   Merely opening `/` performs no Butler scan, ranking, job, or provider turn.
 2. **Prepare assertively.** Once asked for an outcome, complete safe reads, searches, comparisons,
    reconciliation, and preview work without asking permission for each intermediate step.
-3. **Explain the recommendation.** Show why now, evidence, confidence or uncertainty, exact
-   consequence, and alternatives.
+3. **Explain the recommendation.** Show the grounded why-now facts, evidence, uncertainty, exact
+   consequence, or alternatives that materially help this decision; omit slots with no support.
 4. **Recommend one default.** Keep alternatives, adjust, reject, and “not now” available.
 5. **Bundle the outcome.** Stage all related domain changes together; never leave the user to
    remember the assistant’s own follow-up.
@@ -237,11 +258,10 @@ Every new service follows seven rules:
 | --- | --- | --- |
 | Asked | A person states the household outcome they want. | **Default trigger.** Prepare the full safe chain and show one adjustable review. |
 | Routine | The household explicitly configures a reusable trigger and scope. | Nice-to-have later; may prepare a card, never silently broaden scope. |
-| Notice | A deterministic cue is visible above chat on `/`. | Wave 1, not First slice; it is not a started job or a write. |
 | Act | Apply explicitly designated reversible actions and leave an Undo receipt. | Off; no First-slice auto-apply and never available for external/destructive work. |
 
-The first slice has no initiative dial. Future controls are per domain (Shopping, planning, stock,
-cooking) rather than one dangerous global “autonomy” switch.
+There is no initiative dial. Until a separately planned routine system exists, **Asked** is the
+only enabled trigger and **Act** remains off.
 
 ## Option comparison
 
@@ -250,7 +270,71 @@ cooking) rather than one dangerous global “autonomy” switch.
 | Keep adding one tool or prompt rule per symptom | Small individual diffs. | Repeats the current fragmentation; every natural request creates another cross-screen follow-up. | Rejected |
 | Make the current model broadly autonomous | Fastest path to apparent magic. | Weak rollback, preference presumption, chat spam, external-action risk, and model-dependent behavior. | Rejected |
 | Adopt an external agent framework plus vector memory | Rich orchestration vocabulary. | New service/dependency, duplicated state authority, automatic-memory pressure, and migration away from proven safety seams. | Rejected |
-| **Layer a Butler service model over current domain services** | Completes jobs, reuses safety infrastructure, and grows autonomy through explicit trust. | Requires shared action-bundle and suggestion contracts before feature velocity resumes. | **Chosen** |
+| **Layer request-driven Butler contracts over current domain services** | Completes asked-for jobs, reuses safety infrastructure, and earns authority through explicit review. | Requires shared action-bundle and recommendation contracts before feature velocity resumes. | **Chosen** |
+
+## Corrective diagnosis and design shotgun — request-driven assertiveness
+
+### Reproduction and root cause
+
+The regression is deterministic. On current `main`, the focused authenticated command
+`$env:E2E_PORT='4195'; npx playwright test tests/e2e/assistant-safety.e2e.ts
+--project=chromium-primary --grep "Butler brief stays"` passes because `/` renders the unwanted
+Brief above chat at both phone and desktop sizes. The browser story is therefore protecting the
+wrong product contract.
+
+| Hypothesis | Evidence for | Evidence against | Confidence |
+| --- | --- | --- | --- |
+| Standing Notice UI was mistaken for assertiveness | `ButlerBrief.svelte`, the home loader, deterministic snapshot/brief modules, and the passing browser story all run before a request. | The surface is read-only and zero-spend, but attention initiation—not mutation—is the reported problem. | High; confirmed |
+| Contextual preparation needs the Brief | The Brief and request proposals share household facts and recommendation language. | The system prompt already says “Assertive preparation, not autonomous initiation”; existing plan, stock, recipe, and cooking proposal tools prepare reviewed outcomes after a request. | High confidence this is false |
+| The durable state draft has already created production cleanup work | PR #35 adds dismiss/snooze/initiative/last-seen tables and callers. | PR #35 is still a draft based on `main`; migration 0026 has not shipped. | High confidence no production data cleanup is required |
+
+The correct seam is the Assistant route and its authenticated browser story: home load must remain
+request-driven, while the same test file continues through an explicit user request into a fully
+prepared review.
+
+### Three comparable directions
+
+All directions use the approved **Ledger Compact** house style: flat sections, compact 8 px
+controls, terra committed action, olive outline secondary, serif section titles, tight 4/8/12
+rhythm, and no decorative leading stripe.
+
+| Direction | Layout and interaction | Strength | Trade-off | Decision |
+| --- | --- | --- | --- | --- |
+| **A — Quiet Conversation** | A short assistant answer followed by a small embedded proposal; evidence and alternatives sit in disclosure rows. | Feels most like ordinary chat and adds the least visual furniture. | Multi-domain consequences can become too easy to skim past. | Rejected |
+| **B — Outcome Docket** | One compact ledger sheet appears inside the requested turn: outcome first, “prepared from” evidence, recommended default selected, adjustable operations, alternatives, then reject/apply. | Best match for “just do the preparation and bring me the work”; trustworthy without narrating every tool call. | The card can become dense unless only the current decision is expanded. | **Recommended** |
+| **C — Turn Workbench** | A temporary rail above the composer shows preparation stages and opens a contextual decision drawer. | Strong progress visibility for long jobs and keeps the transcript compact. | Recreates a second service surface, hides history context, and risks feeling like the removed Brief in miniature. | Rejected |
+
+### Chosen interaction contract
+
+1. `/` opens directly to the existing conversation and composer. No snapshot, card, count, cue,
+   badge, digest, initiative control, or personal last-seen marker appears.
+2. The user names an outcome. The Assistant performs safe reads, comparisons, list
+   reconciliation, and read-only AH preview without asking whether to continue and without
+   narrating each tool call.
+3. A generic working state may say what outcome is being prepared, but it is client-owned; an
+   optional “See process” disclosure is assembled only from real turn/tool activity. Retire the
+   model-visible `present_plan` narration tool instead of replacing it with another tool.
+4. A result that benefits from structured review renders an Outcome Docket. It leads with the
+   bespoke result and recommended default, then progressively discloses only grounded evidence,
+   uncertainty, exact consequence, and alternatives supplied by that result type. Plain answers
+   and simple client actions remain plain; there is no universal form for the model to fill.
+5. Questions and read-only recommendations finish immediately. Writes remain reviewed. AH push,
+   destructive, ambiguous, and paid effects retain a separate final confirmation.
+6. The Docket belongs to the conversation that triggered it. Historical Dockets remain readable;
+   only the latest compatible revision remains actionable.
+
+### How it should feel in common requests
+
+| User asks | Assistant prepares without another permission question | What returns |
+| --- | --- | --- |
+| “Sort dinners for next week.” | Reads current plan, relevant recipes, stock/freezer coverage, conflicts, Shopping consequences, and connected AH preview evidence. | One week Docket with a recommended schedule, selectable meals, servings/source choices, alternatives, one local Apply, then separate AH confirmation. |
+| “We’re out of milk.” | Checks known fridge/pantry stock and the authoritative Shopping row before staging changes. | One reviewed Stock + Shopping bundle; it does not ask whether to look up or add milk. |
+| “What should we eat tonight?” | Compares time, stock coverage, age pressure, repeat distance, and freezer readiness. | One recommendation plus two comparable alternatives; no write card until the user chooses an action. |
+| “We cooked the curry.” | Reads the planned meal and linked stock, then stages cook log, portions eaten, deductions, leftovers, and Shopping reconciliation. | One after-cook Docket with exact atomicity, consequence, apply, and Undo. |
+| “Start ten minutes for pasta.” | Prepares the validated client timer action. | One timer review; the browser coordinator starts it only after the tap. |
+
+The comparison workspace is
+`docs/artifacts/2026-07-29-design-shotgun-request-driven-assistant.html`.
 
 ## Chosen architecture
 
@@ -273,18 +357,21 @@ flowchart LR
 - **Capability registry:** tool name, domain, read/write class, current-read requirement, risk,
   confirmation rule, undo class, external effect, and display type. Tests fail when a persistent
   tool is unregistered.
-- **Household state snapshot:** a bounded server read model used on demand by the selected flow.
-  Future Brief candidates remain deterministic and zero-spend on home load; they do not start
-  work.
+- **Request-scoped household reads:** bounded authoritative reads selected on demand by the
+  current flow; no household snapshot is derived on home load.
 - **Recommendation envelope:** stable ID, reason, evidence references, confidence, consequence,
   alternatives, expiry, and suggested next action.
 - **Action bundle:** typed operations across supported domains, preconditions captured server-side,
   dry-run result, confirmation requirements, atomicity class, and compensating rollback.
 - **Preference proposal:** explicit scope (`one occasion`, `recipe`, `ingredient`, `person`, or
   `household`), value, reason, source action, and edit/forget control.
-- **Butler Brief:** future Wave 1 work above chat on `/`, separate from transcript history. It may
-  show deterministic cues; only an explicit routine may automatically prepare work. Merely
-  viewing it is neither a trigger nor a preference signal.
+- **Outcome Docket:** a flexible client display treatment inside the conversation that asked for
+  the work. Existing typed proposal/result components opt into relevant slots and keep their
+  bespoke content; absent or ungrounded slots are omitted rather than generated as filler. It
+  appears only after safe preparation, and only the latest compatible Docket remains actionable.
+- **Grounded process disclosure:** a client-owned summary of real turn/tool activity beneath the
+  generic working state. It adds no model-visible tool, accepts no model-authored stages, and
+  disappears when the turn has no useful process to show.
 
 ## Ranked opportunity portfolio
 
@@ -296,8 +383,8 @@ file is authoritative.
 Selected lanes:
 
 - **First slice:** shipped Plan → Shop baseline.
-- **Wave 1:** active only for the eight named dependency enablers.
-- **Next:** ranks 16–35; all twenty are active in the current `$run`.
+- **Wave 1:** active only for the seven named dependency enablers.
+- **Next:** ranks 18–35; all eighteen remain request-driven in the current portfolio.
 - **Later:** ranks 36–65; retain as inert opportunities.
 - **Park:** ranks 66–75; interesting but lower evidence, new integration, or weaker fit.
 - **Exclude:** deliberately removed from the intended product.
@@ -312,17 +399,17 @@ Selected lanes:
 | 6 | BTL-006 | Conversational meal-plan edits | Move a meal, set its day, change servings/batch, switch fresh/freezer, add a note, or replace it without remove-and-recreate drift. | Planning | M / R2 | First slice |
 | 7 | BTL-007 | After-cook checkout | “We cooked this” stages mark-cooked, rating, actual portions, stock deductions, frozen leftovers, and Shopping reconciliation as one finish. | Cooking + Stock + Planning | L / R2 | Wave 1 |
 | 8 | BTL-008 | Exact cook-from-stock answers | Compare recipes by complete/near-complete coverage and show the exact missing items, not a generic suggestion. | Recipes + Stock | M / R1 | Wave 1 |
-| 9 | BTL-009 | Butler Brief | On opening `/`, show at most a few high-value cues: expiring food, plan gaps, low freezer targets, unresolved Shopping, and unfinished actions. | Cross-domain | L / R3 | Wave 1 |
+| 9 | BTL-009 | Butler Brief | On opening `/`, show household cues before a person asks. This contradicts the accepted request-driven contract and must be removed. | Cross-domain | M / R2 | Exclude |
 | 10 | BTL-010 | Use-it-up rescue | Turn expiring or long-frozen ingredients into a ranked rescue meal or recipe adjustment, with the item and urgency visible. | Stock + Recipes | M / R1 | Exclude |
 | 11 | BTL-011 | AH preview and push from Assistant | Render the existing product/conflict preview in chat and require a final external-action confirmation before pushing exactly that revision. | Shopping + AH | L / R2 | First slice |
 | 12 | BTL-012 | Assistant timer controls | “Start ten minutes for pasta,” extend, rename, or cancel via a client-action card connected to the existing persistent timer coordinator. | Cooking | M / R2 | Wave 1 |
 | 13 | BTL-013 | “I bought…” reconciliation | Mark list rows bought and offer a reviewed stock intake with quantities/storage instead of making the user re-enter groceries. | Shopping + Stock | L / R2 | Wave 1 |
 | 14 | BTL-014 | Cross-domain action bundle + Undo | Replace a descriptive checklist with exact staged operations, preconditions, consequence summary, commit receipt, and all-or-none/compensating rollback. | Trust foundation | L / R3 | First slice |
 | 15 | BTL-015 | Fridge as first-class stock | Add fridge alongside freezer/pantry so milk, produce, open packs, and near-term expiry can participate in the same grounded Assistant flows. | Stock | L / R3 | Wave 1 |
-| 16 | BTL-016 | Butler tray with dismiss/snooze/act | Keep proactive suggestions and unfinished jobs out of transcript history while preserving deliberate triage and return paths. | Cross-domain | L / R3 | Next |
-| 17 | BTL-017 | Per-domain initiative dial | Set Quiet, Notice, Prepare, or approved Act separately for Shopping, planning, stock, and cooking. | Trust | M / R3 | Next |
-| 18 | BTL-018 | Why/confidence/consequence on proposals | Every suggestion exposes the facts used, missing evidence, confidence, and exact consequence in one consistent disclosure. | Trust | M / R2 | Next |
-| 19 | BTL-019 | “What changed since I last looked?” | Summarize household changes since this user’s last visit across stock, plans, recipes, and Shopping, attributed to the real actor. | Household | L / R3 | Next |
+| 16 | BTL-016 | Butler tray with dismiss/snooze/act | A standing triage surface still initiates attention before a request and creates durable state for work the household did not ask for. | Cross-domain | L / R3 | Exclude |
+| 17 | BTL-017 | Per-domain initiative dial | Quiet/Notice/Prepare controls legitimize unsolicited behavior instead of keeping the trigger contract simple. | Trust | M / R3 | Exclude |
+| 18 | BTL-018 | Why/confidence/consequence on proposals | Every suggestion exposes the grounded facts and consequences needed for its decision in one consistent but optional disclosure; absent context stays absent. | Trust | M / R2 | Next |
+| 19 | BTL-019 | Asked change summary | When a person asks what changed, summarize only actor-attributed Stock, plan, recipe, Shopping, and AH history that the app can prove; do not track or surface a personal last-seen feed. | Household | M / R2 | Next |
 | 20 | BTL-020 | Shopping source explanations | Answer “Why is this here?” and show the meals, recipe ingredients, manual entry, recurring rule, or substitution that produced a row. | Shopping | M / R1 | Next |
 | 21 | BTL-021 | Grocery unpack from photo or voice | Parse a bag/counter photo or dictated haul into a reviewed bulk stock intake, merging existing items safely. | Stock + Vision | L / R2 | Next |
 | 22 | BTL-022 | “I used the last…” bundle | Decrement/remove stock and add a replacement to Shopping in one reversible, source-aware action. | Stock + Shopping | M / R2 | Next |
@@ -333,12 +420,12 @@ Selected lanes:
 | 27 | BTL-027 | One-time versus saved substitutions | When swapping an ingredient, choose this cook, this week, this recipe, or durable household preference before anything persists. | Recipes + Preferences | L / R3 | Next |
 | 28 | BTL-028 | One-time versus saved AH choice | Reuse the recipe-product work but make scope explicit when choosing a product from Shopping: this push, this ingredient, this recipe, or household-wide. | AH + Preferences | M / R2 | Next |
 | 29 | BTL-029 | Quantity and duplicate conflict resolver | Detect incompatible units, duplicate manual/recipe sources, and suspicious totals; propose merge/keep-separate decisions before AH preview. | Shopping | L / R2 | Next |
-| 30 | BTL-030 | Missed-meal rollover | Notice uncooked past meals and offer move, drop, or keep; reconcile their Shopping sources without silent leftovers. | Planning + Shopping | M / R2 | Next |
+| 30 | BTL-030 | Missed-meal rollover | When a planning request touches a week with uncooked past meals, include explicit move, drop, or keep options and reconcile their Shopping sources. | Planning + Shopping | M / R2 | Next |
 | 31 | BTL-031 | “Cook this” handoff | Turn a meal suggestion into an opened recipe/cook mode with chosen servings, source, and any needed pre-cook actions ready. | Planning + Cooking | M / R1 | Next |
 | 32 | BTL-032 | Hands-busy voice mode | Large, minimal controls for read-next, repeat, timer, and “what now?” while cooking; no free-running microphone. | Cooking | L / R2 | Next |
 | 33 | BTL-033 | Step-aware timer suggestions | Parse timed recipe steps and offer named timers at the right step, requiring one tap to start. | Cooking | M / R1 | Next |
 | 34 | BTL-034 | Cooking rescue | Ground “too salty,” “too thin,” or “not browning” help in the active recipe, ingredients, step, and elapsed context, with food-safety cautions. | Cooking | M / R1 | Next |
-| 35 | BTL-035 | Defrost planner | Notice freezer meals or ingredients needed soon and prepare a timed “move to fridge” cue with an explicit completion check. | Freezer + Cooking | M / R2 | Next |
+| 35 | BTL-035 | Defrost planner | When a requested plan or cook action uses freezer stock, prepare a timed “move to fridge” cue with an explicit completion check. | Freezer + Cooking | M / R2 | Next |
 | 36 | BTL-036 | Prep-ahead splitter | Turn a recipe/week into “do tonight / finish tomorrow” steps and optionally prepare reminder cards. | Cooking | M / R1 | Later |
 | 37 | BTL-037 | Learn actual cook time explicitly | After cooking, compare predicted and actual duration and offer a recipe metadata correction for review. | Recipes + Feedback | M / R2 | Later |
 | 38 | BTL-038 | Tiny post-meal feedback | Capture liked, effort, kid response, and “make again” with one-tap answers that inform later ranking only after explicit save. | Preferences | M / R3 | Later |
@@ -374,7 +461,7 @@ Selected lanes:
 | 68 | BTL-068 | Durable unfinished-task recovery | Preserve a failed or interrupted multi-step job as a resumable task with completed, blocked, and not-started operations. | Reliability | L / R3 | Park |
 | 69 | BTL-069 | Anomaly scout | Deterministically flag impossible quantities, duplicate links, stale plans, missing roles, or suspicious Assistant outcomes and offer reviewed repairs. | Integrity | L / R2 | Park |
 | 70 | BTL-070 | What-if sandbox | Ask “What if we cook double?” or “What if we skip Tuesday?” and see stock/list/AH consequences with zero writes. | Planning | L / R2 | Park |
-| 71 | BTL-071 | Opt-in digest | Summarize the Butler Brief through existing push infrastructure at a household-chosen cadence; default remains in-app only. | Notifications | L / R3 | Park |
+| 71 | BTL-071 | Opt-in digest | Push a standing household-noticing feed. This remains outside the intended product even if notifications are technically available. | Notifications | L / R3 | Exclude |
 | 72 | BTL-072 | Prep/defrost reminders | Turn approved prep or defrost steps into durable notifications with completion and stale-state handling. | Cooking + Notifications | L / R3 | Park |
 | 73 | BTL-073 | Household handoff note | Leave a bounded in-app note tied to a meal/list/action for the other seeded user and show when it was acknowledged. | Household | L / R3 | Park |
 | 74 | BTL-074 | Occasion signals | With explicit opt-in, use calendar or weather signals to shape one-off suggestions without making either source authoritative. | Integrations | XL / R3 | Park |
@@ -394,15 +481,15 @@ The selected First slice is one complete **Plan → Shop** loop sharing a reusab
    without asking whether to do each safe intermediate step;
 6. stop for a separate explicit confirmation before pushing the exact preview revision to AH.
 
-Stock → Shopping, Cook → Close, fridge, timers, and Butler Brief remain Wave 1 but are not
-independent scope; the eight named enablers now ship only as dependencies of the promoted Next
-portfolio. BTL-010 is excluded. Later and Park remain inert.
+Stock → Shopping, Cook → Close, fridge, and timers remain Wave 1 dependencies. The seven named
+enablers ship only where a request-driven Next behavior requires them. BTL-009, BTL-010, BTL-016,
+BTL-017, and BTL-071 are excluded. Later and Park remain inert.
 
 ## Active Next portfolio run
 
-The current run delivers BTL-016 through BTL-035 in five dependency-ordered vertical waves. It
-also closes the eight named Wave 1 enablers where a promoted behavior cannot work without them.
-No Later or Park idea is silently pulled forward.
+The current run first removes the shipped unsolicited surface, then delivers BTL-018 through
+BTL-035 in request-driven vertical waves. It also closes the seven named Wave 1 enablers where a
+promoted behavior cannot work without them. No Later or Park idea is silently pulled forward.
 
 ### Assistant performance guard
 
@@ -431,14 +518,20 @@ _Completed 2026-07-29._
 - Add the smallest routing/consolidation seam needed to keep later capabilities from flattening
   into twenty additional model-visible tools.
 
-### Phase 6 — calm service and trust
+### Phase 6 — remove standing Notice; keep contextual trust
 
-- Deliver BTL-009/016/017/018/019/020: zero-spend Brief candidates, tray triage, per-domain
-  initiative, the shared recommendation disclosure, change summary, and Shopping provenance.
-- Keep opening `/` read-only; no routine, provider call, chat insertion, or automatically prepared
-  write.
-- Route durable dismissals, initiative, and last-seen state through an isolated append-only R3
-  migration and the beta wide-sweep PR gate.
+_R2 correction verified 2026-07-29; R3 replacement draft recut remains._
+
+- Roll back BTL-009 on shipped `main`: remove the Brief UI, home-load household snapshot,
+  deterministic candidate ranking, Brief copy, and the browser contract that requires them.
+- Cancel BTL-016/017 and draft PR #35. Do not merge migration 0026 or create replacement
+  dismiss/snooze/initiative/last-seen state.
+- Keep BTL-018 on every request-driven Docket. Reframe BTL-019 as an explicitly asked, provable
+  change summary without a last-seen marker. Keep BTL-020 behind its Assistant performance gate.
+- Retire model-visible `present_plan`; use one client-owned working state with optional grounded
+  “See process” and a flexible final Docket instead of model-authored process narration.
+- Recut the useful PR #36/#39/#40 work onto corrected `main` without PR #35. Replace the obsolete
+  draft stack rather than force-pushing or carrying the unshipped Butler tables forward.
 
 ### Phase 7 — stock and Shopping loops
 
@@ -721,47 +814,108 @@ The five N-series tickets are the execution authority for the current run.
   rehearsed forward-fix/export path rather than destructive downgrade.
 - **Dependencies:** BTL-00; selection in HTML.
 
-### BTL-10 — Render the zero-spend Butler Brief
+### BTL-10 — Remove the standing Butler Brief
 
-- **Observable behavior:** opening `/` shows a bounded, prioritized brief derived without an LLM;
-  each cue has evidence and why-now, never starts a job merely by appearing, and never becomes
-  chat history merely by appearing. Only an explicit future routine may prepare an action card.
-- **Scope in:** household snapshot, deterministic candidate rules, ranking cap, brief UI,
-  dismissal state, links/action envelopes, empty/error states.
-- **Scope out:** push digest and autonomous background writes.
-- **Targets:** new Butler snapshot/candidate modules; home loader/page; shared recommendation UI;
-  optional additive suggestion-state table; tests.
+**Status: Completed and verified locally 2026-07-29; delivery pending.**
+
+- **Observable behavior:** opening `/` shows the existing conversation and composer with no
+  household cue, candidate count, tray, initiative control, last-seen summary, or provider call.
+- **Scope in:** invert the authenticated Brief browser story first; remove `ButlerBrief`, its
+  home-loader snapshot/derivation, unused messages, candidate/snapshot tests, and all main-branch
+  callers.
+- **Scope out:** proposal cards created by an explicit request; chat history; domain-native stock,
+  plan, Shopping, recipe, and cooking surfaces.
+- **Targets:** `src/routes/+page.server.ts`; `src/routes/+page.svelte`;
+  `src/lib/components/butler/`; `src/lib/server/butler/`; `messages/en.json`;
+  `messages/nl.json`; `tests/e2e/assistant-safety.e2e.ts`; architecture-boundary tests.
+- **Impact / effort / confidence:** 5 / M / high.
+- **Risk:** R2 shared Assistant entry surface; no schema change on shipped `main`.
+- **Verification:** red/green home contract under 30 seconds; no Butler region/data on 320, 375,
+  768, and 1280 px; chat remains usable; zero `/api/chat` request before submit; both users;
+  EN/NL; full repository gate.
+- **Rollback:** revert the code-only corrective commit if chat layout regresses. Do not restore
+  unsolicited noticing as a fallback for a request-flow defect.
+- **Dependencies:** BTL-N1; issue
+  `docs/known_issues/current/ISSUE_ASSISTANT_PROACTIVE_NOTICING_20260729-1637.md`.
+
+### BTL-11 — Render request-scoped Outcome Dockets
+
+**Status: Completed and verified locally 2026-07-29; delivery pending.**
+
+- **Observable behavior:** after an explicit request, the Assistant quietly completes the safe
+  implied work and, when structured review helps, returns one compact, adjustable Docket inside
+  that turn; simple or bespoke answers are not forced into it.
+- **Scope in:** optional shared Docket treatment around existing typed proposal displays;
+  result-first composition; typed slots for only the grounded evidence, uncertainty, consequence,
+  alternatives, and actions each result already owns; latest compatible card stays active.
+- **Scope out:** a universal model response schema, required filler sections, new model tools,
+  standing UI, process narration, automatic writes, implicit preferences, routine scheduling,
+  and external AH confirmation changes.
+- **Targets:** `src/lib/components/ChatView.svelte`; existing
+  `src/lib/components/chat/*Review.svelte` displays; `src/lib/server/ai/tool_display.ts`;
+  `src/lib/server/ai/prompts/system.md`; `src/lib/server/ai/tools.ts`; capability registry and
+  selection evaluator; English/Dutch messages; authenticated browser fixtures.
+- **Impact / effort / confidence:** 5 / M / high.
+- **Risk:** R2 shared Assistant boundary.
+- **Verification:** provider-free requested-versus-unasked cases; plain answers and timer actions
+  remain bespoke; sparse proposal fixtures render no invented/empty sections; no
+  permission-seeking intermediate response; all proposal types retain preconditions,
+  confirmation, receipt, and Undo; 320–1280 px; 200%; keyboard; long EN/NL copy; both household
+  accounts.
+- **Rollback:** retain the existing individual typed review components and revert only the shared
+  Docket shell. The request trigger and safety contracts remain binding either way.
+- **Dependencies:** BTL-10 and the existing recommendation/action contracts.
+
+### BTL-11B — Replace model planning narration with grounded working progress
+
+**Status: Completed and verified locally 2026-07-29; delivery pending.**
+
+- **Observable behavior:** while a requested outcome is running, the composer area shows one
+  generic client-owned working label. “See process” is optional and contains only actual
+  tool/activity events from that turn; no model-authored stages or standing task surface appear.
+- **Scope in:** remove `present_plan` from model exposure, executor/display/registry/prompt copy;
+  reuse the existing compact activity stream as the factual process source; collapsed-by-default
+  disclosure; accessible live-state semantics.
+- **Scope out:** a new progress tool, chain-of-thought, raw model reasoning, synthetic stage
+  percentages, durable task state, or process UI before a request.
+- **Targets:** `src/lib/components/ChatView.svelte`; compact tool activity components/store;
+  `src/lib/server/ai/tools.ts`; executors; capability registry; `system.md`; EN/NL messages;
+  behavior-budget and browser tests.
+- **Impact / effort / confidence:** 4 / M / medium-high.
+- **Risk:** R2 shared turn-state and model capability boundary.
+- **Verification:** exact tool count and serialized-size delta; old/new intent-selection suite;
+  no `present_plan` symbol in exposed schemas; disclosure events equal committed tool-display
+  events; empty/one/many/failure cases; keyboard/screen-reader state; 320–1280 px and 200%.
+- **Rollback:** keep the generic working label and remove only the disclosure; do not re-expose
+  `present_plan`.
+- **Dependencies:** BTL-10. It can ship independently of BTL-11’s visual treatment.
+
+### BTL-11A — Recut the draft stack without Butler service state
+
+**Status: In progress; starts after the verified R2 correction reaches corrected `main`.**
+
+- **Observable behavior:** the useful Stock/Shopping, meal-decision, and cooking-assistance drafts
+  remain reviewable, but none contains Butler candidate, dismiss/snooze, initiative, last-seen,
+  home Brief, or migration-0026 service-state code.
+- **Scope in:** ship the code-only correction from current `main`; create replacement branches/PRs
+  for #36, #39, and #40 on top of corrected `main`; regenerate the inventory-zone migration as
+  the first unshipped migration with only fridge/par changes; compare old/new trees and commit
+  ranges; close obsolete #35/#36/#39/#40 only after replacements exist and pass.
+- **Scope out:** force-pushing old draft branches, down migrations, production migration, merging
+  the R3 inventory schema, or changing the already accepted domain behavior.
+- **Targets:** draft PR metadata/branches; Drizzle migration and journal on the replacement
+  inventory branch; roadmap references; tests that currently mention Butler service state.
 - **Impact / effort / confidence:** 5 / L / medium-high.
-- **Risk:** R3 if durable dismissal/initiative state adds schema; otherwise R2.
-- **requires_stage_gate:** true when an additive state table is selected.
-- **wide_sweep:** true when schema-backed brief state is selected.
-- **Verification:** zero model/client calls and zero work initiation on load, priority cap, stable
-  IDs, dismiss/snooze expiry, stale evidence, both users, empty state, 320–1280 px, 200%,
-  keyboard, EN/NL.
-- **Rollback:** hide the brief and leave its additive state inert; chat remains the sole Assistant
-  interaction.
-- **Dependencies:** BTL-02; selected source-domain tickets.
-
-### BTL-11 — Add explicit initiative and preference receipts
-
-- **Observable behavior:** each domain shows its initiative level and every durable Butler-used
-  preference has scope, source, timestamp, edit, and forget controls.
-- **Scope in:** per-domain controls; preference proposal/receipt contract; Settings trust center;
-  enforcement in brief/action execution.
-- **Scope out:** extracting preferences from ordinary chat, a generic memory database, or
-  auto-escalating initiative from use.
-- **Targets:** household prefs or additive typed table; Settings AI/trust UI; Butler contracts;
-  tests/export/import/reset.
-- **Impact / effort / confidence:** 5 / L / medium.
-- **Risk:** R3 persistent behavior/permission boundary.
+- **Risk:** R3 because the replacement inventory branch still changes the beta schema.
 - **requires_stage_gate:** true.
-- **wide_sweep:** true if a typed preference/permission table is selected.
-- **Verification:** default Asked trigger, per-domain overrides only after explicit setup,
-  cross-user household scope, explicit person scope where supported, reset/export/import,
-  forgotten preference no longer influences output, no implicit writes.
-- **Rollback:** force all domains to Notice/Quiet and ignore stored Act levels/preferences without
-  deleting them.
-- **Dependencies:** BTL-10.
+- **wide_sweep:** true.
+- **Verification:** PR base/head truth; `git range-diff` and tree comparison for each replacement;
+  no Butler tables/modules/routes/messages in the replacement tip; fresh and populated inventory
+  migration rehearsal; exact catalog budget; focused and full gates; both household accounts.
+- **Rollback:** do not close an old draft until its replacement is open and verified. If recutting
+  one wave fails, leave the old draft unmerged and stop at that boundary; production remains on
+  corrected `main`.
+- **Dependencies:** BTL-10 before any replacement base; BTL-11 before the final cooking tip.
 
 ### BTL-12 — Verify and promote one loop at a time
 
@@ -803,30 +957,31 @@ ceiling of 28 / 26,000. Fifteen synthetic EN/NL live-model cases cost six report
 found one explicit known gap: “we are out of rice” selected `add_to_inventory`. That collision is
 now a required failure until BTL-N3 replaces it with the reviewed Stock → Shopping proposal.
 
-### BTL-N2 — Deliver calm service and trust
+Post-correction evidence: retiring `present_plan` reduces the exposed surface to 26 tools / 22,407
+serialized bytes, with a checked ceiling of 27 / 26,000. Provider-free selection, required-read,
+review, external-effect, and truthful-finish cases remain green.
 
-**Status: In progress. Passive Brief tracer completed 2026-07-29.**
+### BTL-N2 — Restore request-driven trust
 
-- **Ideas:** BTL-009, BTL-016, BTL-017, BTL-018, BTL-019, BTL-020.
-- **Risk:** R3 durable tray/initiative/last-seen state.
-- **Wide sweep:** `wide-sweep/schema-butler-service-state`; append-only migration and populated
-  upgrade rehearsal.
-- **Verification:** zero provider/network/write on home load; deterministic priority cap;
-  dismiss/snooze/return; per-domain enforcement; cross-user attribution; recommendation envelope;
-  exact Shopping provenance.
-- **Rollback:** hide the service region and ignore durable initiative/dismissal rows without
-  deleting them.
+**Status: R2 correction implemented and verified 2026-07-29; R3 draft recut pending.**
+
+- **Ideas:** retain BTL-018; reframe BTL-019/020 as explicit answers; exclude BTL-009/016/017.
+- **Risk:** R2 code-only correction on `main`; R3 only for recutting the separate inventory-zone
+  branch.
+- **Verification:** no home-load candidate derivation or unsolicited region; complete safe
+  preparation after explicit requests; recommendation envelope; exact Shopping provenance when
+  asked; no new model tool; lower catalog exposure after retiring `present_plan`.
+- **Rollback:** revert only presentation changes if needed; never restore standing Notice as a
+  fallback.
 - **Dependencies:** BTL-N1 and the shipped recommendation/action contracts.
 
-Checkpoint evidence: `/` now derives at most three stable candidates from read-only Stock,
-planning, Shopping-provenance, and freezer-target projections. Every card exposes why now,
-evidence, confidence, uncertainty, consequence, and alternatives. A SQLite `total_changes()`
-regression proves the snapshot writes nothing, an authenticated 375/1280 px story proves the
-Brief remains bounded above usable chat with zero `/api/chat` requests, and the complete gate
-passed 125 files / 667 unit tests, all 22 primary browser stories, diagnostics, and build. The
-model-visible surface remains the Phase 5 baseline of 27 tools / 23,125 bytes, so this tracer
-required no paid selection rerun. Durable dismiss/snooze, initiative, and last-seen state remain
-behind the named R3 wide-sweep.
+Regression evidence: commit `88835b3` shipped the passive Brief to `main`. The focused authenticated
+browser test passes because it finds that unsolicited region at 375 and 1280 px. Draft PR #35
+then adds precisely the state that the corrected product no longer needs: candidate
+dismiss/snooze, per-domain initiative, and last-seen tables/routes/settings coverage. It is
+unmerged, so `$run` can drop the draft migration instead of shipping and later reversing it.
+Existing request-driven proposal tools and the current system prompt already satisfy the desired
+assertive trigger contract.
 
 ### BTL-N3 — Deliver stock and Shopping loops
 
@@ -873,7 +1028,7 @@ background provider turn, Butler Brief, notification, or second Assistant surfac
 | --- | --- |
 | Capability registry | `capability_registry.ts` registers every exposed tool and preserves legacy internal persistence classification; exhaustiveness tests fail closed. |
 | Reviewed planning only | `propose_meal_plan` is the sole model-exposed plan mutation path; legacy direct add/remove executors are not in the tool schema. |
-| Recommendation envelope | Every meal-plan card renders why now, evidence, confidence, uncertainty, consequence, and alternatives. |
+| Recommendation envelope | Meal-plan cards accept why now, evidence, confidence, uncertainty, consequence, and alternatives, but render only the grounded fields present for that proposal. |
 | Tonight ranking | Deterministic comparison uses freezer readiness, on-hand coverage, stock age pressure, listed time, rating, and repeat rotation to return one default plus two alternatives. |
 | Exact edits | One update command changes day, dinner, recipe, servings, fresh/freezer source, and note without replacing the row ID. |
 | Atomic bundle | Selected plan operations and Shopping reconciliation share one SQLite transaction; injected later-operation failure rolls everything back. |
@@ -889,19 +1044,22 @@ background provider turn, Butler Brief, notification, or second Assistant surfac
 | Failure mode | Trigger | Impact | Detectability | Mitigation | Residual risk |
 | --- | --- | --- | --- | --- | --- |
 | “Assertive” becomes autonomous | The Assistant starts a job without a request/routine, or asks permission before every safe read/search | Either trust is lost or the flow remains tedious | Trigger-contract tests and one-turn browser story | Asked-by-default trigger; safe preparation proceeds inside that request; writes and external effects stay reviewed | Low |
-| “Helpful” becomes nagging | Too many deterministic candidates or chat-injected suggestions | Assistant feels presumptuous and gets ignored | Brief count/dismiss behavior in household use | Future Brief shows only a few deterministic cues above chat and starts no job; no notifications in the first delivery | Low-medium taste risk |
+| “Helpful” becomes nagging | Any household cue appears before a request | Assistant feels presumptuous and gets ignored | Home contract asserts no Butler region/data before submit | Delete home-load candidate derivation and exclude Brief/tray/digest/initiative ideas | Low |
 | Preference becomes covert memory | Repeated choices are written automatically | Trust loss and hard-to-debug recommendations | Preference-center/source audit | Only explicit save proposals; scope and forget path required | Low |
 | Multi-domain action partially commits | One later domain fails after earlier writes | Household state disagrees with receipt | Injected-failure and operation-log tests | Declare atomicity class; one transaction where services share DB; otherwise preflight plus compensating operations and truthful blocked state | Low-medium where compensation is unavoidable |
 | Model names a target it did not read | New tools bypass the current safety ledger | Wrong item/meal/list row changes | Registry and provenance tests | Persistent registry is exhaustive; server resolves all targets and captures preconditions | Low |
 | External AH push repeats or uses stale list | User reviews one preview, data changes, retry occurs | Duplicate/wrong basket additions | Preview fingerprint and push history | Exact preview revision, stale rejection, last-push diff, explicit final confirmation | Low |
 | Fridge migration misses a section union | Existing freezer/pantry assumption survives in one caller | Fridge item disappears or is ignored | Exhaustive symbol/type/test sweep | One wide-sweep ticket updates every caller, export/import, and shopping path together | Low after full gate |
-| Brief costs money on every app open | Candidate generation invokes the model | Recurring spend and cap exhaustion | Network/spend test | Deterministic snapshot/ranking; AI only after user opens a request needing explanation/generation | Low |
-| New proactive UI recreates retired bubble clutter | Suggestions appear across every page | Duplicate Assistant journey returns | Route browser sweep | Butler Brief exists only on `/`; domain pages keep their native flows | Low |
+| Removed Brief logic survives invisibly | UI is removed but the home loader still derives household candidates | Unwanted coupling and work remain; a later caller can resurrect the feature | Architecture-boundary test and no-Butler symbol sweep | Delete component, loader path, snapshot/ranking modules, messages, and tests together | Low |
+| Outcome Docket becomes a new standing surface | Shared Docket is mounted above the composer without a triggering turn | The same regression returns under a new name | Unasked/asked browser pair at every priority viewport | Render Dockets only from persisted tool displays belonging to a user turn | Low |
+| Docket contract produces model slop | A prompt or universal schema requires every result to fill evidence/uncertainty/alternatives fields | The model invents content to satisfy presentation instead of answering naturally | Sparse and bespoke result fixtures; exposed-schema snapshot; prompt review | Keep the shell optional and client-side; typed result owners provide grounded slots; omit absent slots | Low |
+| “See process” invents progress | Working stages come from model text or guessed percentages | False transparency and another tool-selection burden | Activity-to-disclosure equality test and exposed-tool budget | Derive disclosure solely from actual turn/tool display events; no new model tool or durable state | Low |
 | Two household users act on stale shared state | One reviews while the other changes data | Conflict or overwritten intent | Revision/precondition conflict | User-bound proposal plus household-state preconditions and a rebase/regenerate path | Low |
 | Chat tool schemas become unmaintainable | Every portfolio item adds ad hoc tools | Model reliability falls and safety sets drift | Registry size/tests and prompt-contract review | Favor a few typed proposal/build/apply tools over exposing every database operation; retire superseded tools in the same change | Medium |
 | Large roadmap becomes permanent half-scope | “Next” ideas leak into active implementation | Caller/schema debt and endless branch | Scope diff against selected Wave 1 IDs | Non-Wave ideas stay inert; promotion requires editing this source before `/run` | Low |
 | Phone review becomes too dense | One bundle contains many unrelated choices | User approves without understanding | 320/375 px browser fixtures and apply behavior | Split by household outcome, progressive disclosure, summary before consequence, no hidden selected defaults | Low |
-| Preference/initiative reset is incomplete | New state is omitted from export/import/reset | Household cannot recover or understand behavior | Settings tests | Treat every durable Butler row as first-class data-control scope in the same migration | Low |
+| Draft stack reintroduces cancelled state | Replacement work remains based on PR #35 or copies migration 0026 | Unwanted tables/routes ship despite the UI rollback | PR base truth, schema snapshot inspection, and no-Butler symbol sweep | Recut new branches from corrected `main`; close old drafts only after verified replacements exist | Low after replacement review |
+| Recut inventory migration drifts | Removing unshipped Butler migration changes the next migration snapshot or omits fridge callers | Upgrade failure or lost inventory-zone coverage | Fresh/populated rehearsal plus old/new range/tree comparison | Regenerate the inventory migration on the corrected base; keep the R3 stage gate | Medium until rehearsal |
 | Model failure strands a job | Turn stops after some safe work | User repeats work or loses orientation | Interrupted-turn browser/API tests | Bundle receipt records completed/blocked/not-started; no false completion; resumable task is promoted only if needed | Medium until BTL-068 |
 
 ### Persona lenses
@@ -910,42 +1068,43 @@ background provider turn, Butler Brief, notification, or second Assistant surfac
   Plan → Shop loop; scattered tools would recreate the original problem.
 - **Architecture/integrity:** every new mutation must still pass domain services, current-read
   provenance, stale checks, and the Dutch AH seam; the registry proves no tool bypasses them.
-- **Design/mobile:** action bundles must reduce cross-screen memory without turning one phone
-  screen into a 15-decision form. The later Butler Brief remains outside this run.
-- **Developer loop:** deterministic candidates and provider-free fixtures keep fast tests cheap;
-  each household loop gets one focused browser story before the full gate.
+- **Design/mobile:** the Outcome Docket must reduce cross-screen memory without turning one phone
+  screen into a 15-decision form or a model fill-in-the-blanks exercise; only grounded content
+  relevant to the current choice is rendered and expanded.
+- **Developer loop:** removing candidate derivation and `present_plan` should shrink both the home
+  path and model-visible surface; each household request keeps one focused browser story.
 
 ### Steelman
 
-The strongest alternative is to expose the missing Shopping, meal-edit, and timer tools one by one
-and avoid a new action-bundle/brief layer. That would ship the first visible wins sooner. The
-chosen foundation is still the sustainable option because nearly every top-ranked request crosses
-two or more domains, and individual tools cannot truthfully express shared preconditions, total
-consequence, external confirmation, or a coherent rollback. Building the bundle and recommendation
-contracts once is what allows future features to feel simpler rather than making the prompt, chat,
-and safety sets grow without bound.
+The strongest corrective alternative is to delete only `ButlerBrief.svelte` and leave its loader,
+candidate modules, draft state PR, process-narration tool, and stacked bases alone. That would make
+the symptom disappear fastest, but it would preserve every path that can resurrect the same
+product mistake and would merge an unneeded R3 schema into later useful work. The Outcome Docket
+approach is still the sustainable choice because it deletes unsolicited state at the source,
+reduces model tool exposure, keeps preparation attached to the request that caused it, and recuts
+the useful stack before any unshipped migration becomes public history.
 
-**Plan critique recommendation: GO for the promoted Next portfolio in gated vertical waves.**
-The main P1 risks are model capability-selection degradation and schema breadth. BTL-N1 blocks
-each exposure wave on measurable behavior, while the R3 state changes are isolated from code-only
-delivery and cannot ride along in an ordinary branch.
+**Plan critique recommendation: GO for the request-driven correction, then resume the reduced Next
+portfolio in gated vertical waves.** The main P1 risks are accidentally carrying PR #35 into the
+replacement stack and weakening contextual follow-through while removing standing Notice. The
+branch-base/schema sweep and the paired unasked/asked Assistant tests block both failures.
 
 ## Risk and verification matrix
 
-The active Next portfolio is **R3** because it intentionally adds durable service-state,
-inventory-zone/target, and scoped-preference behavior. Schema changes are split from code-only
-waves, append-only, rehearsed on populated data, and subject to the beta wide-sweep/stage gate.
-Assistant routing, recommendations, cooking actions, and reviewed bundles remain R1/R2.
+The corrective Assistant change is **R2** and code-only. The replacement portfolio remains **R3**
+only because fridge/par targets change the inventory schema; there is no durable Butler
+service-state migration. Schema changes stay split from code-only waves, append-only once public,
+rehearsed on populated data, and subject to the beta wide-sweep/stage gate.
 
 | Boundary | Risk | Required proof |
 | --- | --- | --- |
-| Existing tools | R2 | Registry exhaustiveness; all current safety/tool tests unchanged before migrations |
+| Existing tools | R2 | Registry exhaustiveness; all current safety/tool tests unchanged before migrations; exact count/serialized budget after removing `present_plan` |
 | LLM output crossing writes | R2/R3 | Server-owned schema validation, target resolution, preconditions, consequence gates, write latch |
 | Multi-domain bundle | R3 when durable | Atomicity-class tests, transaction/compensation injection, token/user/expiry/replay tests |
 | Fridge | R3 | Append-only migration, populated upgrade, compatibility/export/import, every section caller |
-| Initiative/preferences | R3 (later) | Asked-by-default; explicit routine/save/scope/forget, reset/export/import, no chat extraction |
+| Request trigger/preferences | R2 | No home scan; Asked-only default; explicit save/scope/forget; no chat extraction or initiative state |
 | AH preview/push | R2 + external | Dutch-source lineage, exact preview fingerprint, no push before confirmation, duplicate protection |
-| UI/UX | R2 | One `/` surface, progressive review, 320/375/768/1280 px, 200%, keyboard/touch, EN/NL |
+| UI/UX | R2 | One `/` surface; optional non-prescriptive Dockets; grounded process disclosure; 320/375/768/1280 px, 200%, keyboard/touch, EN/NL |
 | Spend | R1 | No background provider turns; existing caps; paid canary only with action-time approval |
 | Auth/household | R2 | Per-user chat/proposals, shared household data, stale cross-user conflict, no tenant/RBAC expansion |
 | Privacy/evidence | R2 | No household contents in public logs/artifacts/screenshots; authenticated canary records structure only |
@@ -956,12 +1115,12 @@ Assistant routing, recommendations, cooking actions, and reviewed bundles remain
 
 | Audit | Result |
 | --- | --- |
-| UI | Source inventory plus the existing authenticated recipe-decision browser story. The story passed at the current responsive matrix; no new runtime defect is claimed. The plan preserves `/` as the sole Assistant surface and requires narrow-screen proposal coverage. |
-| UX | The largest journey gap is end-to-end completion: natural requests cross domains but current tools stop at individual operations. The plan groups work by recognizable household loops and preserves reversible/editable paths. |
+| UI | Runtime evidence at 375/1280 px confirms the current Brief occupies a distinct region above chat. The corrective design keeps the approved Ledger Compact system and compares three equivalent post-request phone compositions; no production UI was changed during planning. |
+| UX | The current successful browser story proves the wrong entry journey: household work appears before intent. The selected journey is `/` → user request → quiet safe preparation → one adjustable Outcome Docket → reviewed apply/receipt/Undo. |
 | Harden | Scoped Assistant integrity review: existing provenance, write latch, recipe review, and inventory confirmation are strong. New privileged boundaries require an exhaustive registry, server validation, exact preconditions, external confirmation, and first-class reset/export/rollback. |
 | Stack discipline | No new dependency or service selected. Existing SvelteKit, SQLite, domain services, OpenRouter seam, and push infrastructure are reused. |
 | Context7 | Not required for option selection: the plan makes no new version-specific framework or third-party API claim. Exact implementation syntax must be checked during `$run` when tickets touch current Svelte/Drizzle APIs. |
-| Independent critique | Model `opus` [verify] was unavailable after a 120-second safe-mode timeout; no findings were accepted. The local failure-mode critique remains the accepted planning evidence. |
+| Independent critique | `opus` was requested in safe mode to challenge the request trigger, `present_plan` retirement, draft-stack recut, and regression gates. The route was unavailable because the Claude session limit resets at 17:50 Europe/Amsterdam; no independent findings were accepted or silently substituted. `$run` should retry this cross-provider review before the R3 inventory recut, but the R2 Brief correction is not blocked by an unavailable advisory review. |
 
 ## Rollout and rollback
 
@@ -970,50 +1129,47 @@ Assistant routing, recommendations, cooking actions, and reviewed bundles remain
 - Schema/auth wide-sweep work in beta follows the required `wide-sweep/schema-<topic>` split and
   PR path. Code-only loop work stays on the ordinary route.
 - Additive migrations remain append-only and are rehearsed against fresh and populated databases.
-- New First-slice behavior starts from **Asked** and prepares safe downstream work assertively.
+- Correct current `main` first. Do not make later drafts the vehicle for removing a production
+  Brief.
+- Draft PR #35 never merges. Create verified replacement PRs for #36/#39/#40 from corrected
+  `main`; avoid force-push and close old drafts only after replacements exist.
+- New behavior starts from **Asked** and prepares safe downstream work assertively.
   Nothing auto-applies; no migration enables Act.
-- AH push stays behind exact-preview confirmation regardless of initiative level.
-- Feature-level rollback disables the new tool/brief/action exposure and leaves additive rows
-  inert. Data rollback never restores an old whole database over newer household changes.
+- AH push stays behind exact-preview confirmation.
+- Feature-level rollback reverts the shared Docket shell without restoring standing Notice. Data
+  rollback never restores an old whole database over newer household changes.
 - Promote Next/Later ideas only by editing this authoritative plan (or a clearly named successor
   if this program is terminal), with new tickets and verification. No `V2` chain.
 
 ## Open Questions
 
-None. Feedback resolved the original gates on 2026-07-28 and promoted the literal Next lane on
-2026-07-29:
+No product decision remains open for the corrective R2 implementation. The selected treatment is
+an optional, non-prescriptive Outcome Docket inside the triggering turn plus one generic
+client-owned working state with a collapsed, grounded “See process” disclosure.
 
-- First slice is Plan → Shop: BTL-003, BTL-004, BTL-005, BTL-006, BTL-011, and BTL-014 only.
-- Assertive means completing safe preparation inside a user-requested goal, not initiating work.
-- Fridge remains Wave 1 as its own R3 wide-sweep ticket, outside this run.
-- Durable preferences require explicit scoped proposal cards with edit and forget.
-- No First-slice action auto-applies; every write is a reviewed one-tap action.
-- A future deterministic Butler Brief belongs above chat on `/`, but only explicit routines may
-  automatically prepare work.
-- The first delivery sends no Butler push notifications.
-- BTL-010 is excluded.
-- “All next options” is interpreted as the twenty rows whose authoritative portfolio lane is
-  **Next** (BTL-016 through BTL-035), plus only the eight explicitly named Wave 1 dependencies.
-- Iterative Assistant testing is a release gate: no exposure wave may reduce the accepted
-  selection/safety baseline or exceed the checked schema budget.
+> **Q: How should the R3 inventory branch be promoted after its replacement is verified?** -
+> Default: keep it as a draft `wide-sweep/schema-inventory-zones-targets` PR and stop before merge
+> or production migration. Reason: beta permits development and rehearsal, while real-data schema
+> promotion remains an explicit go/no-go after populated upgrade and rollback evidence.
 
 ## Resume pack
 
-- **Goal:** deliver BTL-016 through BTL-035 and their eight named Wave 1 enablers without degrading
-  Assistant capability selection or trust.
-- **Current state:** the Plan → Shop baseline is live; the Next portfolio is promoted; Phase 5
-  established the checked exposure budget and fifteen-case regression suite. Phase 6's passive
-  Brief tracer is complete on `codex/assistant-next-trust`; durable service state is next.
-- **First command:** commit and deliver the passive Brief tracer, then obtain the required
-  independent schema opinion before branching `wide-sweep/schema-butler-service-state`.
-- **First files:** this feature list; `src/lib/server/butler/brief.ts`;
-  `src/lib/server/butler/snapshot.ts`; `src/lib/components/butler/ButlerBrief.svelte`;
-  `src/routes/+page.server.ts`.
-- **First implementation move:** append durable, user-scoped dismiss/snooze, initiative, and
-  last-seen state without changing the zero-spend candidate derivation.
-- **Pending verification:** targeted red/green per behavior; Assistant regression after every
-  exposure change; full gate and both-account responsive stories per wave; populated migration
-  rehearsals and beta stage decision for R3 branches.
-- **Open questions:** none.
-- **Beta wide-sweep note:** any selected schema-backed action-bundle, fridge, brief-state, or
-  preference work must use the schema split and PR path from app-stage delivery guidance.
+- **Goal:** remove unsolicited household noticing, make `/` request-driven again, and preserve
+  assertive end-to-end preparation only inside the current user request.
+- **Current state:** the clean delivery branch removes the shipped passive Brief and candidate
+  path, retires `present_plan`, adds generic client-owned working/process disclosure, and makes
+  recommendation slots optional and grounded. The complete repository gate and the second-account
+  browser gate are green; publication is next. PR #35 remains unmerged, with useful request-driven
+  work still stacked in draft PRs #36, #39, and #40 on top of it.
+- **First command:** `$run`.
+- **First files:** this feature list; the current issue file;
+  `tests/e2e/assistant-safety.e2e.ts`; `src/routes/+page.server.ts`;
+  `src/routes/+page.svelte`; `src/lib/components/butler/`; `src/lib/server/butler/`.
+- **First implementation move:** publish the verified code-only R2 correction, then create the
+  replacement inventory branch from corrected `main`.
+- **Pending verification:** exact-revision production canary for the R2 correction; replacement PR
+  range/tree comparison; populated inventory migration rehearsal and beta R3 decision.
+- **Open questions:** no R2 product choice remains. Default the R3 replacement inventory branch
+  to a verified draft PR and stop before merge/production migration.
+- **Beta wide-sweep note:** the schema/auth split applies only while recutting the fridge/par
+  inventory branch. No Butler service-state migration is selected.

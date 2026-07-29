@@ -20,6 +20,36 @@ function seedRecipe(db: ReturnType<typeof createTestDb>, slug: string, title: st
 }
 
 describe('meal-plan action bundle', () => {
+	it('accepts a bespoke sparse recommendation without manufacturing display filler', () => {
+		const db = createTestDb();
+		seedRecipe(db, 'linzencurry', 'Linzencurry');
+
+		const proposal = stageMealPlanProposal(db, {
+			userId: 1,
+			weekStartDate: '2026-07-29',
+			title: 'Volgende week',
+			recommendation: {},
+			operations: [
+				{
+					kind: 'add',
+					dinner: 'Linzencurry',
+					recipeSlug: 'linzencurry',
+					plannedDate: '2026-07-31',
+					servings: 4,
+					source: 'fresh',
+					note: null,
+					reason: 'Past bij de gevraagde week.'
+				}
+			]
+		});
+
+		expect(proposal.recommendation).toEqual({
+			evidence: [],
+			alternatives: []
+		});
+		expect(db.select().from(schema.mealPlanMeals).all()).toHaveLength(0);
+	});
+
 	it('stages a no-write atomic review with the complete recommendation envelope', () => {
 		const db = createTestDb();
 		seedRecipe(db, 'linzencurry', 'Linzencurry');

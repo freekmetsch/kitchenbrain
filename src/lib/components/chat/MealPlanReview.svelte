@@ -42,6 +42,14 @@
 	let externalAttempted = $state(false);
 	let selectedCount = $derived(Object.values(selected).filter(Boolean).length);
 	let active = $derived(isLatest && status === 'active');
+	let hasRecommendationSummary = $derived(
+		Boolean(proposal.recommendation.whyNow || proposal.recommendation.consequence)
+	);
+	let hasRecommendationDetails = $derived(
+		proposal.recommendation.evidence.length > 0 ||
+			Boolean(proposal.recommendation.uncertainty) ||
+			proposal.recommendation.alternatives.length > 0
+	);
 
 	onMount(() => {
 		let cancelled = false;
@@ -66,7 +74,9 @@
 		};
 	});
 
-	function confidenceLabel(level: MealPlanProposalDisplay['recommendation']['confidence']) {
+	function confidenceLabel(
+		level: NonNullable<MealPlanProposalDisplay['recommendation']['confidence']>
+	) {
 		if (level === 'high') return m.chat_meal_plan_confidence_high();
 		if (level === 'medium') return m.chat_meal_plan_confidence_medium();
 		return m.chat_meal_plan_confidence_low();
@@ -164,42 +174,61 @@
 			<h3 class="break-words text-sm font-semibold">{proposal.title}</h3>
 			<p class="mt-0.5 text-xs text-base-content/55">{proposal.weekStartDate}</p>
 		</div>
-		<span class="badge badge-outline badge-sm">
-			{m.chat_meal_plan_confidence({
-				level: confidenceLabel(proposal.recommendation.confidence)
-			})}
-		</span>
+		{#if proposal.recommendation.confidence}
+			<span class="badge badge-outline badge-sm">
+				{m.chat_meal_plan_confidence({
+					level: confidenceLabel(proposal.recommendation.confidence)
+				})}
+			</span>
+		{/if}
 	</header>
 
-	<div class="mt-3 grid gap-2 text-xs md:grid-cols-2">
-		<section class="rounded-lg bg-base-200/55 p-2.5">
-			<h4 class="font-semibold">{m.chat_meal_plan_why_now()}</h4>
-			<p class="mt-1 leading-relaxed">{proposal.recommendation.whyNow}</p>
-		</section>
-		<section class="rounded-lg bg-base-200/55 p-2.5">
-			<h4 class="font-semibold">{m.chat_meal_plan_consequence()}</h4>
-			<p class="mt-1 leading-relaxed">{proposal.recommendation.consequence}</p>
-		</section>
-	</div>
+	{#if hasRecommendationSummary}
+		<div
+			class="mt-3 grid gap-2 text-xs {proposal.recommendation.whyNow &&
+			proposal.recommendation.consequence
+				? 'md:grid-cols-2'
+				: ''}"
+		>
+			{#if proposal.recommendation.whyNow}
+				<section class="rounded-lg bg-base-200/55 p-2.5">
+					<h4 class="font-semibold">{m.chat_meal_plan_why_now()}</h4>
+					<p class="mt-1 leading-relaxed">{proposal.recommendation.whyNow}</p>
+				</section>
+			{/if}
+			{#if proposal.recommendation.consequence}
+				<section class="rounded-lg bg-base-200/55 p-2.5">
+					<h4 class="font-semibold">{m.chat_meal_plan_consequence()}</h4>
+					<p class="mt-1 leading-relaxed">{proposal.recommendation.consequence}</p>
+				</section>
+			{/if}
+		</div>
+	{/if}
 
-	<details class="mt-2 rounded-lg border border-base-300/60 px-2.5 py-2 text-xs">
-		<summary class="min-h-6 cursor-pointer font-semibold">{m.chat_meal_plan_evidence()}</summary>
-		<ul class="mt-1 list-disc space-y-1 pl-4">
-			{#each proposal.recommendation.evidence as fact}
-				<li>{fact}</li>
-			{/each}
-		</ul>
-		{#if proposal.recommendation.uncertainty}
-			<h4 class="mt-2 font-semibold">{m.chat_meal_plan_uncertainty()}</h4>
-			<p class="mt-1 text-base-content/65">{proposal.recommendation.uncertainty}</p>
-		{/if}
-		<h4 class="mt-2 font-semibold">{m.chat_meal_plan_alternatives()}</h4>
-		<ul class="mt-1 list-disc space-y-1 pl-4 text-base-content/65">
-			{#each proposal.recommendation.alternatives as alternative}
-				<li>{alternative}</li>
-			{/each}
-		</ul>
-	</details>
+	{#if hasRecommendationDetails}
+		<details class="mt-2 rounded-lg border border-base-300/60 px-2.5 py-2 text-xs">
+			<summary class="min-h-6 cursor-pointer font-semibold">{m.chat_meal_plan_evidence()}</summary>
+			{#if proposal.recommendation.evidence.length > 0}
+				<ul class="mt-1 list-disc space-y-1 pl-4">
+					{#each proposal.recommendation.evidence as fact}
+						<li>{fact}</li>
+					{/each}
+				</ul>
+			{/if}
+			{#if proposal.recommendation.uncertainty}
+				<h4 class="mt-2 font-semibold">{m.chat_meal_plan_uncertainty()}</h4>
+				<p class="mt-1 text-base-content/65">{proposal.recommendation.uncertainty}</p>
+			{/if}
+			{#if proposal.recommendation.alternatives.length > 0}
+				<h4 class="mt-2 font-semibold">{m.chat_meal_plan_alternatives()}</h4>
+				<ul class="mt-1 list-disc space-y-1 pl-4 text-base-content/65">
+					{#each proposal.recommendation.alternatives as alternative}
+						<li>{alternative}</li>
+					{/each}
+				</ul>
+			{/if}
+		</details>
+	{/if}
 
 	<div class="mt-3 divide-y divide-base-300/60 border-y border-base-300/60">
 		{#each proposal.operations as operation (operation.id)}

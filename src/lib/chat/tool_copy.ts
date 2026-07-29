@@ -66,8 +66,6 @@ export function toolStartSummary(
 				return 'Ongedaan maken…';
 			case 'get_inventory_history':
 				return 'Recente wijzigingen bekijken…';
-			case 'present_plan':
-				return 'Plan maken…';
 			case 'link_leftover_recipe':
 				return 'Restje koppelen…';
 			case 'set_staple':
@@ -132,8 +130,6 @@ export function toolStartSummary(
 			return 'Undoing…';
 		case 'get_inventory_history':
 			return 'Checking recent changes…';
-		case 'present_plan':
-			return 'Making a plan…';
 		case 'link_leftover_recipe':
 			return 'Linking the leftover…';
 		case 'set_staple':
