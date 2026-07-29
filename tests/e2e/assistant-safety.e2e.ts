@@ -55,10 +55,17 @@ test('Meal choices remain comparable and hand off source and servings to cook mo
 		await expect(choices.locator('article')).toHaveCount(3);
 		await expect(choices.getByText('Why now', { exact: true })).toBeVisible();
 		await expect(choices.getByText('What will change', { exact: true })).toBeVisible();
+		await expect(choices.getByText('Evidence', { exact: true })).toBeVisible();
 		await expect(choices.getByText('On hand', { exact: true }).first()).toBeVisible();
 		await expect(choices.getByText('Missing', { exact: true }).first()).toBeVisible();
 		await expect(choices.getByText('Use soon', { exact: true })).toBeVisible();
 		await expect(choices.getByText('Freezer effect', { exact: true }).first()).toBeVisible();
+		await expect(choices.getByRole('link', { name: 'Cook this' })).toHaveCount(1);
+		const alternatives = choices.getByTestId('meal-choice-alternatives');
+		await expect(alternatives).not.toHaveAttribute('open', '');
+		await expect(choices.getByTestId('cook-meal-choice-1')).toBeHidden();
+		await alternatives.locator('summary').click();
+		await expect(choices.getByTestId('cook-meal-choice-1')).toBeVisible();
 		await expect(choices.getByRole('link', { name: 'Cook this' })).toHaveCount(3);
 		await expect(choices.getByTestId('cook-meal-choice-0')).toHaveAttribute(
 			'href',
@@ -142,6 +149,9 @@ test('Freezer checkout waits for one atomic reviewed portion commit and supports
 		await expect(review).toBeVisible();
 		await expect(review.getByText('Why now', { exact: true })).toBeVisible();
 		await expect(review.getByText('What will change', { exact: true })).toBeVisible();
+		await expect(review.getByText('Evidence', { exact: true })).toBeVisible();
+		const alternatives = review.locator('details');
+		await expect(alternatives).not.toHaveAttribute('open', '');
 		await expect(review.getByText(/commit together or not at all/)).toBeVisible();
 		await expect(review.getByLabel('Portions eaten')).toHaveValue('2');
 		expect(applies).toBe(appliesBefore);

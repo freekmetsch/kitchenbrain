@@ -168,10 +168,8 @@
 		</section>
 	</div>
 
-	<details class="mt-2 rounded-lg border border-base-300/60 px-2.5 py-2 text-xs">
-		<summary class="min-h-6 cursor-pointer font-semibold">
-			{m.chat_meal_plan_evidence()}
-		</summary>
+	<section class="mt-2 rounded-lg border border-base-300/60 px-2.5 py-2 text-xs">
+		<h4 class="font-semibold">{m.chat_meal_plan_evidence()}</h4>
 		<ul class="mt-1 list-disc space-y-1 pl-4">
 			{#each proposal.recommendation.evidence as fact}
 				<li class="break-words">{fact}</li>
@@ -183,13 +181,20 @@
 				{proposal.recommendation.uncertainty}
 			</p>
 		{/if}
-		<h4 class="mt-2 font-semibold">{m.chat_meal_plan_alternatives()}</h4>
-		<ul class="mt-1 list-disc space-y-1 pl-4 text-base-content/65">
-			{#each proposal.recommendation.alternatives as alternative}
-				<li>{alternative}</li>
-			{/each}
-		</ul>
-	</details>
+	</section>
+
+	{#if proposal.recommendation.alternatives.length > 0}
+		<details class="mt-2 rounded-lg border border-base-300/60 px-2.5 py-2 text-xs">
+			<summary class="min-h-6 cursor-pointer font-semibold">
+				{m.chat_meal_plan_alternatives()}
+			</summary>
+			<ul class="mt-1 list-disc space-y-1 pl-4 text-base-content/65">
+				{#each proposal.recommendation.alternatives as alternative}
+					<li>{alternative}</li>
+				{/each}
+			</ul>
+		</details>
+	{/if}
 
 	<div class="mt-3 rounded-xl border border-base-300/70 p-3">
 		{#if proposal.availablePortions > 0}
