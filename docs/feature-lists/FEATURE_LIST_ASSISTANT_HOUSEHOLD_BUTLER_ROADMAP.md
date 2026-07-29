@@ -1,7 +1,7 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
 _Status: In flight - Phase 9 of 10 (stock and Shopping loops isolated in stacked draft PR #36;
-meal decisions and scoped choices locally complete; cooking assistance starting)_
+meal decisions and scoped choices isolated in stacked draft PR #39; cooking assistance starting)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -943,7 +943,7 @@ claim that the monolithic gate is green. Repeat the exact gate on a quiet machin
 
 ### BTL-N4 — Deliver meal decisions and scoped choices
 
-**Status: Implemented and locally verified 2026-07-29; draft delivery is pending.**
+**Status: Implemented and isolated in stacked draft PR #39 on 2026-07-29.**
 
 - **Ideas:** BTL-025, BTL-026, BTL-027, BTL-028, BTL-029, BTL-030, BTL-031.
 - **Risk:** R3 only if a new durable substitution scope is required; otherwise R1/R2.
@@ -1151,7 +1151,8 @@ None. Feedback resolved the original gates on 2026-07-28 and promoted the litera
   `wide-sweep/schema-inventory-zones-targets`: migration 0027, fridge/par levels, the reviewed
   Stock/Shopping proposal, and deterministic staged Assistant routing. The production build and
   all 704 unit tests pass; the canonical browser run is 21/24 under documented machine contention.
-  Phase 8 is locally complete on `feature/assistant-meal-decisions`: comparable meal cards,
+  Phase 8 is locally complete in stacked draft PR #39 on `feature/assistant-meal-decisions`:
+  comparable meal cards,
   source/serving cook handoff, reviewed atomic freezer checkout with Undo, missed-meal staging,
   AH conflict disclosure, and explicit one-time/save/forget choice scope. The catalog is still 28
   tools / 25,300 bytes; its focused provider-free matrix is 46/46 and the full primary Assistant
