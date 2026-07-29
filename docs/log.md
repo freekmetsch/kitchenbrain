@@ -816,3 +816,33 @@ screenshot, response body, cookie, or household content.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_INTERACTION_STABILITY.md,
 docs/deploys/2026-07.md
+
+## 2026-07-29 | run | Request-driven Assistant correction
+
+Removed unsolicited household noticing from `/`: the Assistant now opens directly to its existing
+conversation and composer, with no Butler Brief, candidate derivation, cue, tray, initiative, or
+last-seen state. Once asked, safe preparation remains request-scoped. Structured meal results use
+optional grounded recommendation fields, while the client owns one generic working state and a
+collapsed “See process” disclosure sourced only from real tool activity.
+
+Retired the model-visible `present_plan` tool and its executor/display path. The exposed catalog
+shrunk from 27 tools / 23,125 serialized bytes to 26 / 22,407. Focused red/green coverage and the
+complete primary repository gate pass: clean Svelte diagnostics, 123 test files / 684 unit tests,
+25 authenticated browser stories with one expected fake-connected AH skip, and the production
+build. The second-account browser gate also passes 25 stories with the same expected AH-connected
+skip. Publication, production canary, and the R3 replacement draft recut are the remaining
+delivery steps.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+docs/artifacts/2026-07-29-design-shotgun-request-driven-assistant.html,
+docs/known_issues/current/ISSUE_ASSISTANT_PROACTIVE_NOTICING_20260729-1637.md,
+messages/en.json, messages/nl.json, scripts/eval/assistant-tool-selection-live.ts,
+src/lib/components/ChatView.svelte, src/lib/components/chat/MealPlanReview.svelte,
+src/lib/server/ai/, src/lib/server/butler/, src/lib/stores/chat-agent.svelte.ts,
+src/lib/tool_display.ts, src/routes/+page.server.ts, src/routes/+page.svelte,
+tests/e2e/assistant-safety.e2e.ts
+
+## [2026-07-29 18:05] archive-scan | no archive this pass
+
+The only root-lane feature list remains in flight, so no feature list or linked HTML moved. This
+repository still lacks the shared `scripts/archive-scan.ps1` helper.

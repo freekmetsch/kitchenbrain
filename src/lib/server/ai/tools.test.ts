@@ -53,19 +53,27 @@ describe('recipe continuity tool contracts', () => {
 		expect(JSON.stringify(productChoices)).toContain('Canonical purchase-form category');
 	});
 
-	it('stages one reviewed meal-plan bundle with a complete recommendation envelope', () => {
+	it('stages one reviewed meal-plan bundle without forcing recommendation filler', () => {
 		const proposal = tool('propose_meal_plan').input_schema as {
-			properties?: Record<string, { required?: string[]; items?: { oneOf?: unknown[] } }>;
+			properties?: Record<
+				string,
+				{
+					required?: string[];
+					items?: { oneOf?: unknown[] };
+					properties?: Record<string, unknown>;
+				}
+			>;
 		};
-		expect(proposal.properties?.recommendation?.required).toEqual(
-			expect.arrayContaining([
-				'why_now',
-				'evidence',
-				'confidence',
-				'uncertainty',
-				'consequence',
-				'alternatives'
-			])
+		expect(proposal.properties?.recommendation?.required).toEqual([]);
+		expect(proposal.properties?.recommendation?.properties).toEqual(
+			expect.objectContaining({
+				why_now: expect.any(Object),
+				evidence: expect.any(Object),
+				confidence: expect.any(Object),
+				uncertainty: expect.any(Object),
+				consequence: expect.any(Object),
+				alternatives: expect.any(Object)
+			})
 		);
 		expect(proposal.properties?.operations?.items?.oneOf).toHaveLength(3);
 		expect(JSON.stringify(proposal)).toContain('meal_id');

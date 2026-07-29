@@ -147,12 +147,12 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 				title: z.string(),
 				recommendation: z
 					.object({
-						why_now: z.string(),
-						evidence: z.array(z.string()).min(1).max(12),
-						confidence: z.enum(['high', 'medium', 'low']),
-						uncertainty: z.string().nullable(),
-						consequence: z.string(),
-						alternatives: z.array(z.string()).min(1).max(8)
+						why_now: z.string().optional(),
+						evidence: z.array(z.string()).max(12).default([]),
+						confidence: z.enum(['high', 'medium', 'low']).optional(),
+						uncertainty: z.string().nullable().optional(),
+						consequence: z.string().optional(),
+						alternatives: z.array(z.string()).max(8).default([])
 					})
 					.strict(),
 				operations: z.array(MealPlanProposalOperationSchema).min(1).max(14)
@@ -164,11 +164,19 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			weekStartDate: input.week_start_date,
 			title: input.title,
 			recommendation: {
-				whyNow: input.recommendation.why_now,
+				...(input.recommendation.why_now
+					? { whyNow: input.recommendation.why_now }
+					: {}),
 				evidence: input.recommendation.evidence,
-				confidence: input.recommendation.confidence,
-				uncertainty: input.recommendation.uncertainty,
-				consequence: input.recommendation.consequence,
+				...(input.recommendation.confidence
+					? { confidence: input.recommendation.confidence }
+					: {}),
+				...(input.recommendation.uncertainty !== undefined
+					? { uncertainty: input.recommendation.uncertainty }
+					: {}),
+				...(input.recommendation.consequence
+					? { consequence: input.recommendation.consequence }
+					: {}),
 				alternatives: input.recommendation.alternatives
 			},
 			operations: input.operations.map((operation) => {

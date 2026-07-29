@@ -85,4 +85,58 @@ describe('ChatAgentController state integrity', () => {
 		expect(fetchSpy).not.toHaveBeenCalled();
 		fetchSpy.mockRestore();
 	});
+
+	it('uses one generic working state while preserving factual tool activity', async () => {
+		const controller = new ChatAgentController('freek');
+		const encoder = new TextEncoder();
+		let stream!: ReadableStreamDefaultController<Uint8Array>;
+		const body = new ReadableStream<Uint8Array>({
+			start(controller) {
+				stream = controller;
+			}
+		});
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
+
+		try {
+			const request = controller.send('Check the freezer');
+			stream.enqueue(
+				encoder.encode(
+					'data: {"type":"tool_start","id":"tool-1","name":"get_inventory","summary":"Checking inventory…"}\n'
+				)
+			);
+
+			await vi.waitFor(() => {
+				expect(controller.messages.at(-1)?.status).toBe('Working on your request…');
+			});
+			expect(controller.messages.at(-1)?.toolCalls?.[0]).toMatchObject({
+				name: 'get_inventory',
+				pending: true,
+				display: { kind: 'read', summary: 'Checking inventory…' }
+			});
+
+			stream.enqueue(
+				encoder.encode(
+					'data: {"type":"tool","id":"tool-1","name":"get_inventory","result":{"items":[]},"display":{"kind":"read","summary":"Checked inventory"}}\n'
+				)
+			);
+			stream.enqueue(
+				encoder.encode('data: {"type":"text","text":"The freezer is empty."}\ndata: [DONE]\n')
+			);
+			stream.close();
+			await request;
+
+			expect(controller.messages.at(-1)).toMatchObject({
+				content: 'The freezer is empty.',
+				status: undefined,
+				toolCalls: [
+					expect.objectContaining({
+						pending: false,
+						display: { kind: 'read', summary: 'Checked inventory' }
+					})
+				]
+			});
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
 });

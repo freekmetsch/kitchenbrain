@@ -1,9 +1,9 @@
 import type Anthropic from '@anthropic-ai/sdk';
 
 export const ASSISTANT_TOOL_BUDGET = Object.freeze({
-	baselineCount: 27,
-	baselineSerializedBytes: 23_125,
-	maxCount: 28,
+	baselineCount: 26,
+	baselineSerializedBytes: 22_407,
+	maxCount: 27,
 	maxSerializedBytes: 26_000
 });
 

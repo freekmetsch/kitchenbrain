@@ -47,6 +47,43 @@ describe('recipe tool display actions', () => {
 });
 
 describe('meal-plan proposal display', () => {
+	it('preserves a sparse typed result without adding recommendation sections', () => {
+		const display = buildToolDisplay(
+			null as never,
+			'propose_meal_plan',
+			{},
+			{
+				ok: true,
+				kind: 'meal_plan_proposal',
+				token: 'sparse-token',
+				status: 'active',
+				title: 'Volgende week',
+				weekStartDate: '2026-07-29',
+				atomicity: {
+					kind: 'atomic',
+					consequence:
+						'The selected meal-plan changes and Shopping reconciliation commit together.'
+				},
+				recommendation: { evidence: [], alternatives: [] },
+				operations: [
+					{
+						id: 'operation-1',
+						kind: 'add',
+						label: 'Linzencurry',
+						before: null,
+						after: '2026-07-31 · fresh · 4 servings',
+						reason: 'Past bij de gevraagde week.'
+					}
+				]
+			}
+		);
+
+		expect(display.mealPlanProposal?.recommendation).toEqual({
+			evidence: [],
+			alternatives: []
+		});
+	});
+
 	it('keeps the recommendation, atomicity, and adjustable operations structured', () => {
 		const display = buildToolDisplay(
 			null as never,

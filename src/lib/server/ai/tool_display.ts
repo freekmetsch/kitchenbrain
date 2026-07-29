@@ -213,15 +213,6 @@ export function buildToolDisplay(
 		};
 	}
 
-	// Plan-first (P5.2): render an ordered checklist the UI checks off best-effort
-	// as the subsequent write-displays in this turn complete. No inventory op.
-	// Guard on a real steps array so a rejected present_plan (zod threw → { error })
-	// falls through to the error path instead of rendering a blank plan card.
-	if (name === 'present_plan' && Array.isArray(result.steps)) {
-		const steps = result.steps.filter((s): s is string => typeof s === 'string');
-		return { kind: 'plan', summary: str(result.title) ?? 'Plan', steps };
-	}
-
 	// Deferred for approval (P5.3): render an Approve/Cancel card. The client
 	// posts confirmationId to /api/chat/confirm; nothing executed yet.
 	if (result.needs_confirmation === true) {

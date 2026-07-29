@@ -276,8 +276,6 @@ function syntheticToolResult(name: string, scenarioId: string, input: unknown): 
 			return { ok: true, synthetic: true };
 		case 'get_freezer_staples':
 			return { ok: true, staples: [] };
-		case 'present_plan':
-			return { ok: true, steps: ['Synthetic preparation'] };
 		default:
 			return { ok: false, error: 'Synthetic evaluator has no result for this tool' };
 	}

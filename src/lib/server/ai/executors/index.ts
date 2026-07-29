@@ -10,7 +10,6 @@ import { inventoryExecutors } from './inventory';
 import { mealPlanExecutors } from './meal_plan';
 import { recipeExecutors } from './recipes';
 import { shoppingExecutors } from './shopping';
-import { miscExecutors } from './misc';
 import { ahExecutors } from './ah';
 import {
 	ContractError,
@@ -26,8 +25,7 @@ const domainMaps = [
 	mealPlanExecutors,
 	recipeExecutors,
 	shoppingExecutors,
-	ahExecutors,
-	miscExecutors
+	ahExecutors
 ];
 
 const executors: Record<string, ExecutorFn> = Object.assign({}, ...domainMaps);

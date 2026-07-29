@@ -17,7 +17,7 @@ const CHAT_VIEWPORTS = [
 	{ name: 'desktop', width: 1280, height: 900 }
 ] as const;
 
-test('Butler brief stays bounded, transparent, and passive above chat', async ({ page }) => {
+test('Assistant home stays request-driven until a person submits a request', async ({ page }) => {
 	let assistantTurns = 0;
 	page.on('request', (request) => {
 		if (new URL(request.url()).pathname === '/api/chat') assistantTurns += 1;
@@ -27,24 +27,14 @@ test('Butler brief stays bounded, transparent, and passive above chat', async ({
 		await page.setViewportSize(viewport);
 		await page.goto('/');
 
-		const brief = page.getByRole('region', { name: 'Butler brief' });
-		await expect(brief).toBeVisible();
-		const cards = brief.locator('article[data-butler-kind]');
-		const count = await cards.count();
-		expect(count).toBeGreaterThan(0);
-		expect(count).toBeLessThanOrEqual(3);
-		await expect(cards.first().getByText('Why now:', { exact: true })).toBeVisible();
-		await expect(cards.first().getByText('Consequence:', { exact: true })).toBeVisible();
-		await cards.first().getByText('Evidence and options', { exact: true }).click();
-		await expect(cards.first().getByText('Evidence', { exact: true })).toBeVisible();
-		await expect(cards.first().getByText('Uncertainty', { exact: true })).toBeVisible();
-		await expect(cards.first().getByText('Alternatives', { exact: true })).toBeVisible();
+		await expect(page.getByRole('region', { name: 'Butler brief' })).toHaveCount(0);
+		await expect(page.locator('[data-butler-kind]')).toHaveCount(0);
 		await expect(page.locator('#home-chat').getByRole('textbox')).toBeVisible();
 		expect(
 			await page.evaluate(
 				() => document.documentElement.scrollWidth > document.documentElement.clientWidth
 			),
-			`Butler brief must not overflow horizontally at ${viewport.width}px`
+			`Assistant home must not overflow horizontally at ${viewport.width}px`
 		).toBe(false);
 	}
 
@@ -429,6 +419,7 @@ test('Recipe patch review stays selective and responsive at phone and desktop', 
 test('Persisted chat keeps only the latest dense recipe decision surface active', async ({
 	page
 }, testInfo) => {
+	test.slow();
 	const fixture = kitchenFixtureFor(testInfo);
 	const oldToken = `e2e-${fixture.account}-recipe-patch-old`;
 	const newToken = `e2e-${fixture.account}-recipe-patch-new`;
@@ -464,6 +455,7 @@ test('Persisted chat keeps only the latest dense recipe decision surface active'
 			.filter({ hasText: 'Checked the recipe and 2 AH searches' })
 			.last();
 		await expect(activity).toBeVisible();
+		await expect(activity.getByText('See process', { exact: true })).toBeVisible();
 		await activity.locator('summary').click();
 		await expect(activity.locator('li')).toHaveCount(3);
 
