@@ -10,6 +10,7 @@ param(
         'VerifyYlfaAuth',
         'VerifyOpenRouterNew',
         'RunRecipeOptionsCanary',
+        'RunAssistantToolSelectionEval',
         'CapOpenRouterOld',
         'DeleteOpenRouterOld'
     )]
@@ -62,6 +63,7 @@ $openRouterAdmin = Join-Path $PSScriptRoot 'production\openrouter-key-admin.ps1'
 $openRouterCreator = Join-Path $PSScriptRoot 'production\create-openrouter-app-key.ps1'
 $authCanary = Join-Path $PSScriptRoot 'production\verify-production-auth.mjs'
 $recipeOptionsCanary = Join-Path $PSScriptRoot 'canary\recipe-options-live.ts'
+$assistantToolSelectionEval = Join-Path $PSScriptRoot 'eval\assistant-tool-selection-live.ts'
 $tsxCli = Join-Path $repoRoot 'node_modules\tsx\dist\cli.mjs'
 
 $childArguments = switch ($Tool) {
@@ -89,6 +91,9 @@ $childArguments = switch ($Tool) {
     'RunRecipeOptionsCanary' {
         @($tsxCli, $recipeOptionsCanary)
     }
+    'RunAssistantToolSelectionEval' {
+        @($tsxCli, $assistantToolSelectionEval)
+    }
     'CapOpenRouterOld' {
         @('-NoProfile', '-File', $openRouterAdmin, '-Action', 'CapOld')
     }
@@ -98,9 +103,10 @@ $childArguments = switch ($Tool) {
 }
 
 try {
-    $isNodeTool = $Tool -like 'Verify*Auth' -or $Tool -eq 'RunRecipeOptionsCanary'
-    $childScript = if ($Tool -eq 'RunRecipeOptionsCanary') {
-        $recipeOptionsCanary
+    $isTsxTool = $Tool -in @('RunRecipeOptionsCanary', 'RunAssistantToolSelectionEval')
+    $isNodeTool = $Tool -like 'Verify*Auth' -or $isTsxTool
+    $childScript = if ($isTsxTool) {
+        $childArguments[1]
     } elseif ($Tool -like 'Verify*Auth') {
         $childArguments[0]
     } else {
@@ -109,7 +115,7 @@ try {
     if (
         -not (Test-Path -LiteralPath $envTemplate -PathType Leaf) -or
         -not (Test-Path -LiteralPath $childScript -PathType Leaf) -or
-        ($Tool -eq 'RunRecipeOptionsCanary' -and -not (Test-Path -LiteralPath $tsxCli -PathType Leaf))
+        ($isTsxTool -and -not (Test-Path -LiteralPath $tsxCli -PathType Leaf))
     ) {
         throw 'Production tool input is missing.'
     }
