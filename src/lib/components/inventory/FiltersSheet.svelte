@@ -23,6 +23,7 @@
 	const sectionTabs = $derived([
 		{ value: 'all' as const, label: m.inventory_facet_all() },
 		{ value: 'freezer' as const, label: m.inventory_section_freezer() },
+		{ value: 'fridge' as const, label: m.inventory_section_fridge() },
 		{ value: 'pantry' as const, label: m.inventory_section_pantry() }
 	]);
 

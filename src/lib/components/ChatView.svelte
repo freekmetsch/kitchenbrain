@@ -20,6 +20,7 @@
 	import { MOTION_MICRO_MS } from '$lib/motion';
 	import RecipeEnhancementReview from '$lib/components/chat/RecipeEnhancementReview.svelte';
 	import MealPlanReview from '$lib/components/chat/MealPlanReview.svelte';
+	import StockActionReview from '$lib/components/chat/StockActionReview.svelte';
 	import { toolEntityHref } from '$lib/tool_display';
 
 	let { controller }: { controller: ChatAgentController } = $props();
@@ -58,6 +59,15 @@
 			for (const tool of message.toolCalls ?? []) {
 				const proposal = tool.display?.mealPlanProposal;
 				if (proposal) latest.set(proposal.weekStartDate, proposal.token);
+			}
+		}
+		return latest;
+	});
+	let latestStockActionProposalToken = $derived.by(() => {
+		let latest: string | null = null;
+		for (const message of messages) {
+			for (const tool of message.toolCalls ?? []) {
+				if (tool.display?.stockActionProposal) latest = tool.display.stockActionProposal.token;
 			}
 		}
 		return latest;
@@ -482,6 +492,12 @@
 												isLatest={latestMealPlanProposalTokens.get(
 													d.mealPlanProposal.weekStartDate
 												) === d.mealPlanProposal.token}
+											/>
+										{/if}
+										{#if d.kind === 'proposal' && d.stockActionProposal}
+											<StockActionReview
+												proposal={d.stockActionProposal}
+												isLatest={latestStockActionProposalToken === d.stockActionProposal.token}
 											/>
 										{/if}
 									</div>

@@ -13,12 +13,15 @@ const REVIEW_BOUNDARY_TOOLS = new Set([
 	'remove_from_inventory',
 	'bulk_update_inventory',
 	'propose_meal_plan',
-	'propose_recipe_patch'
+	'propose_recipe_patch',
+	'prepare_stock_action'
 ]);
 
 type CaseReport = {
 	id: string;
 	status: 'passed' | 'known_gap' | 'failed';
+	toolCount: number;
+	serializedToolBytes: number;
 	toolOrder: string[];
 	providerCalls: number;
 	failureCode?: string;
@@ -194,6 +197,13 @@ function syntheticToolResult(name: string, scenarioId: string, input: unknown): 
 					]
 				}
 			};
+		case 'prepare_stock_action':
+			return {
+				ok: true,
+				kind: 'stock_action_proposal',
+				status: 'active',
+				operations: [{ id: 'synthetic-operation' }]
+			};
 		case 'search_recipes':
 			if (scenarioId === 'recipe-ah-choice') {
 				return {
@@ -275,7 +285,17 @@ function syntheticToolResult(name: string, scenarioId: string, input: unknown): 
 		case 'undo_op':
 			return { ok: true, synthetic: true };
 		case 'get_freezer_staples':
-			return { ok: true, staples: [] };
+			return {
+				freezer_staples: [
+					{
+						slug: 'synthetic-tomato-pasta',
+						title: 'Synthetic Tomato Pasta',
+						target_portions: 6,
+						on_hand_portions: 1,
+						below_target: true
+					}
+				]
+			};
 		default:
 			return { ok: false, error: 'Synthetic evaluator has no result for this tool' };
 	}
@@ -297,7 +317,7 @@ async function run(): Promise<EvalReport> {
 	const [
 		{ streamAgentTurn, loadPrompt },
 		{ getChatModel },
-		{ tools },
+		{ assistantToolRoute, tools },
 		{
 			ASSISTANT_CAPABILITY_EVAL_CASES,
 			assertAssistantToolBudget,
@@ -340,10 +360,19 @@ async function run(): Promise<EvalReport> {
 		const messages: Anthropic.MessageParam[] = [{ role: 'user', content: scenario.prompt }];
 		const startProviderCalls = totalProviderCalls;
 		const toolOrder: string[] = [];
+		let scenarioToolCount = 0;
+		let scenarioSerializedToolBytes = 0;
 		let failureCode: string | undefined;
 
 		try {
 			for (let iteration = 0; iteration < MAX_ITERATIONS_PER_CASE; iteration++) {
+				const route = assistantToolRoute(scenario.prompt, false, [], toolOrder);
+				const routeMeasurement = measureAssistantTools(route.tools);
+				scenarioToolCount = Math.max(scenarioToolCount, routeMeasurement.count);
+				scenarioSerializedToolBytes = Math.max(
+					scenarioSerializedToolBytes,
+					routeMeasurement.serializedBytes
+				);
 				totalProviderCalls++;
 				if (totalProviderCalls > MAX_PROVIDER_CALLS) fail('TOTAL_PROVIDER_CALL_BOUND');
 				const controller = new AbortController();
@@ -354,7 +383,10 @@ async function run(): Promise<EvalReport> {
 						model,
 						system,
 						messages,
-						tools,
+						tools: route.tools,
+						...(route.forcedToolName
+							? { toolChoice: { name: route.forcedToolName } }
+							: {}),
 						maxTokens: MAX_OUTPUT_TOKENS_PER_CALL,
 						signal: controller.signal,
 						onText: () => {}
@@ -380,7 +412,9 @@ async function run(): Promise<EvalReport> {
 
 				const toolResults: Anthropic.ToolResultBlockParam[] = [];
 				let reachedReviewBoundary = false;
+				const allowedToolNames = new Set(route.tools.map((tool) => tool.name));
 				for (const toolCall of turn.toolCalls) {
+					if (!allowedToolNames.has(toolCall.name)) fail('OUT_OF_ROUTE_TOOL');
 					toolOrder.push(toolCall.name);
 					reachedReviewBoundary ||= isReviewBoundary(toolCall.name);
 					toolResults.push({
@@ -410,6 +444,8 @@ async function run(): Promise<EvalReport> {
 					: failureCode
 						? 'failed'
 						: 'passed',
+			toolCount: scenarioToolCount,
+			serializedToolBytes: scenarioSerializedToolBytes,
 			toolOrder,
 			providerCalls: totalProviderCalls - startProviderCalls,
 			...(failureCode ? { failureCode } : {})

@@ -24,6 +24,8 @@ function item(id: number, qtyNum = 1): Item {
 		needsReview: false,
 		reviewReason: null,
 		isStaple: false,
+		parTargetQty: null,
+		parTargetUnit: null,
 		expiryDate: null,
 		tags: [],
 		createdAt: now,

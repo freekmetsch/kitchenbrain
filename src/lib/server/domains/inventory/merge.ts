@@ -8,9 +8,10 @@ import type { Kind } from '$lib/food_class';
 import { normalizeNameKey, tokenizeNameKey } from '$lib/match';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
+import type { InventorySection } from '$lib/inventory_section';
 
 type InventoryItem = typeof schema.inventoryItems.$inferSelect;
-type Section = 'freezer' | 'pantry';
+type Section = InventorySection;
 
 export type FindOrMergeInventoryInput = {
 	name: string;

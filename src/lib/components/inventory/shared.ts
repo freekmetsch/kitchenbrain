@@ -8,6 +8,8 @@ import { normalizeUnit } from '$lib/food_class';
 import { formatNumber, type AppLocale } from '$lib/i18n';
 import { getLocale } from '$lib/paraglide/runtime';
 import { m } from '$lib/paraglide/messages';
+import type { InventorySection } from '$lib/inventory_section';
+import { inventoryParStatus } from '$lib/par_level';
 
 export type Item = PageData['items'][number];
 export type RecipeLink = PageData['recipeLinks'][number];
@@ -16,7 +18,7 @@ export type RecipeOption = PageData['recipeOptions'][number];
 export type StapleGhost = PageData['stapleGhosts'][number];
 
 export type Kind = 'ingredient' | 'leftover' | 'processed';
-export type Section = 'freezer' | 'pantry';
+export type Section = InventorySection;
 export type InventoryScope = 'meals' | 'ingredients' | 'all';
 export type InventoryQuickView = 'ready' | 'below_target';
 
@@ -26,6 +28,10 @@ export type StockRadarItem = {
 	kind: Item['kind'];
 	expiryDate: string | null;
 	createdAt: string | Date;
+	section?: InventorySection;
+	unit?: string | null;
+	parTargetQty?: number | null;
+	parTargetUnit?: string | null;
 };
 
 export type StockRadarLink = {
@@ -68,6 +74,8 @@ export type EditDraft = {
 	foodClass: string;
 	expiry: string;
 	staple: boolean;
+	parTargetQty: number | null;
+	parTargetUnit: string;
 	keepStocked: boolean;
 	target: number | null;
 };
@@ -137,12 +145,27 @@ export function matchesInventoryScope(
 }
 
 export function matchesInventoryQuickView(
-	item: Pick<StockRadarItem, 'kind' | 'qtyNum'>,
+	item: Pick<
+		StockRadarItem,
+		'kind' | 'qtyNum' | 'section' | 'unit' | 'parTargetQty' | 'parTargetUnit'
+	>,
 	link: StockRadarLink | null,
 	quickView: InventoryQuickView | null
 ): boolean {
 	if (quickView === null) return true;
 	if (quickView === 'ready') return item.kind === 'leftover' && (item.qtyNum ?? 0) > 0;
+	if (
+		item.section &&
+		inventoryParStatus({
+			section: item.section,
+			qtyNum: item.qtyNum,
+			unit: item.unit ?? null,
+			parTargetQty: item.parTargetQty ?? null,
+			parTargetUnit: item.parTargetUnit ?? null
+		}).state === 'below'
+	) {
+		return true;
+	}
 	return (
 		item.kind === 'leftover' &&
 		link?.isFreezerStaple === true &&

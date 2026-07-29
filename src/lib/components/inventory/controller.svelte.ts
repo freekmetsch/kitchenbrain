@@ -5,6 +5,7 @@ import { rollsUpTo } from '$lib/food_class';
 import { patchKeepStocked } from '$lib/keep_stocked';
 import { captureRemoval, restoreRemoval, type RemovedListItem } from '$lib/inventory_undo';
 import { m } from '$lib/paraglide/messages';
+import { inventoryParStatus } from '$lib/par_level';
 import { toast } from '$lib/stores/toast.svelte';
 import {
 	composeQty,
@@ -70,6 +71,8 @@ const SYNC_FIELDS = [
 	'needsReview',
 	'reviewReason',
 	'isStaple',
+	'parTargetQty',
+	'parTargetUnit',
 	'expiryDate'
 ] as const;
 
@@ -105,6 +108,8 @@ export class InventoryController {
 		foodClass: '',
 		expiry: '',
 		staple: false,
+		parTargetQty: null,
+		parTargetUnit: '',
 		keepStocked: false,
 		target: null
 	});
@@ -159,6 +164,20 @@ export class InventoryController {
 			matchesInventoryQuickView(item, this.linkFor(item), 'below_target')
 		).length;
 		return itemCount + this.belowTargetGhosts.length;
+	}
+
+	parLevelText(item: Item): string | null {
+		const status = inventoryParStatus(item);
+		if (status.state === 'below') {
+			return m.inventory_attention_par_deficit({
+				amount: status.deficitQty,
+				unit: status.unit
+			});
+		}
+		if (status.state === 'unknown') {
+			return m.inventory_attention_par_unknown();
+		}
+		return null;
 	}
 
 	get hasActiveFilters(): boolean {
@@ -637,6 +656,8 @@ export class InventoryController {
 			foodClass: item.foodClass ?? '',
 			expiry: item.expiryDate ?? '',
 			staple: item.isStaple,
+			parTargetQty: item.parTargetQty,
+			parTargetUnit: item.parTargetUnit ?? item.unit ?? '',
 			keepStocked: link?.isFreezerStaple ?? false,
 			target: link?.targetPortions ?? null
 		};
@@ -696,6 +717,12 @@ export class InventoryController {
 		}
 		if (this.editDraft.staple !== item.isStaple) {
 			payload.is_staple = this.editDraft.staple;
+		}
+		if (this.editDraft.parTargetQty !== item.parTargetQty) {
+			payload.par_target_qty = this.editDraft.parTargetQty;
+		}
+		if ((this.editDraft.parTargetUnit || null) !== (item.parTargetUnit ?? null)) {
+			payload.par_target_unit = this.editDraft.parTargetUnit || null;
 		}
 
 		this.editSaving = true;
@@ -917,20 +944,20 @@ export class InventoryController {
 	}
 
 	setScope(value: InventoryScope): void {
-		if (value !== 'meals') this.quickView = null;
+		if (value !== 'meals' && this.quickView === 'ready') this.quickView = null;
 		this.scope = value;
 	}
 
 	toggleQuickView(value: InventoryQuickView): void {
 		this.quickView = this.quickView === value ? null : value;
-		this.scope = 'meals';
+		this.scope = value === 'ready' ? 'meals' : 'all';
 	}
 
 	quickViewStatus(): string {
 		return this.quickView === 'ready'
 			? m.inventory_quick_view_ready_status({ count: this.visibleMealResultCount })
 			: m.inventory_quick_view_below_target_status({
-					count: this.visibleMealResultCount
+					count: this.filtered.length + this.ghostsVisible.length
 				});
 	}
 

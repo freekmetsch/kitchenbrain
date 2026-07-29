@@ -13,13 +13,15 @@ const PatchSchema = z.object({
 	unit: z.string().nullable().optional(),
 	expiry_date: isoDateSchema.nullable().optional(),
 	created_at: isoDateSchema.optional(),
-	section: z.enum(['freezer', 'pantry']).optional(),
+	section: z.enum(['freezer', 'fridge', 'pantry']).optional(),
 	category: z.string().nullable().optional(),
 	kind: z.enum(['ingredient', 'leftover', 'processed']).nullable().optional(),
 	food_class: z.string().nullable().optional(),
 	made_from_recipe_id: z.number().int().positive().nullable().optional(),
 	recipe_status: z.enum(['linked', 'plan_to_add', 'no_recipe']).nullable().optional(),
 	is_staple: z.boolean().optional(),
+	par_target_qty: z.number().positive().nullable().optional(),
+	par_target_unit: z.string().nullable().optional(),
 	needs_review: z.boolean().optional(),
 	review_reason: z.string().nullable().optional(),
 	tags: z.array(z.string()).optional()
@@ -55,13 +57,17 @@ export const PATCH: RequestHandler = async ({ request, params, locals }) => {
 			madeFromRecipeId: input.made_from_recipe_id,
 			recipeStatus: input.recipe_status,
 			isStaple: input.is_staple,
+			parTargetQty: input.par_target_qty,
+			parTargetUnit: input.par_target_unit,
 			needsReview: input.needs_review,
 			reviewReason: input.review_reason,
 			tags: input.tags
 		},
 		{ actor: locals.user.username, userId: locals.user.id }
 	);
-	if (!result.ok) throw error(404, 'Not found');
+	if (!result.ok) {
+		throw error(result.error === 'Item not found' ? 404 : 400, result.error);
+	}
 
 	return json({ item: result.item });
 };

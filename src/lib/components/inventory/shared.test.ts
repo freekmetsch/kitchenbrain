@@ -151,6 +151,34 @@ describe('stock quick views', () => {
 		).toBe(true);
 		expect(
 			matchesInventoryQuickView(
+				{
+					kind: 'ingredient',
+					qtyNum: 1,
+					section: 'pantry',
+					unit: 'pak',
+					parTargetQty: 3,
+					parTargetUnit: 'pak'
+				},
+				null,
+				'below_target'
+			)
+		).toBe(true);
+		expect(
+			matchesInventoryQuickView(
+				{
+					kind: 'ingredient',
+					qtyNum: null,
+					section: 'pantry',
+					unit: 'pak',
+					parTargetQty: 3,
+					parTargetUnit: 'pak'
+				},
+				null,
+				'below_target'
+			)
+		).toBe(false);
+		expect(
+			matchesInventoryQuickView(
 				{ kind: 'leftover', qtyNum: 4 },
 				{ isFreezerStaple: true, targetPortions: 4 },
 				'below_target'

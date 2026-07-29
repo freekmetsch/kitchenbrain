@@ -69,6 +69,8 @@ function baseInventoryItem(overrides: Record<string, unknown> = {}) {
 		needsReview: false,
 		reviewReason: null,
 		isStaple: false,
+		parTargetQty: null,
+		parTargetUnit: null,
 		expiryDate: null,
 		tags: [],
 		createdAt: NOW,
@@ -104,6 +106,55 @@ describe('validateImportFile', () => {
 			emptyFile({ recipes: [baseRecipe()], inventory: [baseInventoryItem({ madeFromRecipeId: 1 })] })
 		);
 		expect(result.ok).toBe(true);
+	});
+
+	it('accepts fridge items and valid pantry par targets', () => {
+		const result = validateImportFile(
+			emptyFile({
+				inventory: [
+					baseInventoryItem({ id: 1, section: 'fridge', name: 'Melk' }),
+					baseInventoryItem({
+						id: 2,
+						section: 'pantry',
+						name: 'Rijst',
+						unit: 'pak',
+						parTargetQty: 3,
+						parTargetUnit: 'pakken'
+					})
+				]
+			})
+		);
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.data.inventory[1]).toMatchObject({
+				parTargetQty: 3,
+				parTargetUnit: 'pak',
+				isStaple: true
+			});
+		}
+	});
+
+	it('keeps pre-par-level exports compatible and rejects invalid targets', () => {
+		const {
+			parTargetQty: _parTargetQty,
+			parTargetUnit: _parTargetUnit,
+			...legacy
+		} = baseInventoryItem();
+		expect(validateImportFile(emptyFile({ inventory: [legacy] }))).toMatchObject({ ok: true });
+
+		const fridgeTarget = validateImportFile(
+			emptyFile({
+				inventory: [
+					baseInventoryItem({
+						section: 'fridge',
+						parTargetQty: 2,
+						parTargetUnit: 'l'
+					})
+				]
+			})
+		);
+		expect(fridgeTarget.ok).toBe(false);
+		if (!fridgeTarget.ok) expect(fridgeTarget.error).toMatch(/pantry/i);
 	});
 
 	it('rejects malformed shape', () => {

@@ -73,4 +73,66 @@ describe('inventory service', () => {
 			targetPortions: null
 		});
 	});
+
+	it('stores fridge items and round-trips pantry targets through undo', () => {
+		const inventory = createInventoryService(createTestDb());
+		const milk = inventory.add(
+			{ name: 'Melk', section: 'fridge', qtyNum: 1, unit: 'l' },
+			{ actor: 'alice', userId: 1 }
+		);
+		expect(milk.item).toMatchObject({ name: 'Melk', section: 'fridge' });
+
+		const rice = inventory.add(
+			{ name: 'Rijst', section: 'pantry', qtyNum: 1, unit: 'pak' },
+			{ actor: 'alice', userId: 1 }
+		);
+		const changed = inventory.update(
+			rice.item.id,
+			{ parTargetQty: 3, parTargetUnit: 'pakken' },
+			{ actor: 'alice', userId: 1 }
+		);
+		expect(changed).toMatchObject({
+			ok: true,
+			item: { parTargetQty: 3, parTargetUnit: 'pak', isStaple: true }
+		});
+		if (!changed.ok || changed.opId === null) throw new Error('Expected an undoable target update');
+
+		expect(inventory.undo(changed.opId, { actor: 'alice', userId: 1 })).toMatchObject({
+			ok: true,
+			item: { parTargetQty: null, parTargetUnit: null, isStaple: false }
+		});
+	});
+
+	it('rejects target drift unless the same reviewed update clears it', () => {
+		const inventory = createInventoryService(createTestDb());
+		const rice = inventory.add(
+			{ name: 'Rijst', section: 'pantry', qtyNum: 1, unit: 'pak' },
+			{ actor: 'alice', userId: 1 }
+		);
+		expect(
+			inventory.update(
+				rice.item.id,
+				{ parTargetQty: 3, parTargetUnit: 'pak' },
+				{ actor: 'alice', userId: 1 }
+			)
+		).toMatchObject({ ok: true });
+
+		expect(
+			inventory.update(rice.item.id, { section: 'fridge' }, { actor: 'alice', userId: 1 })
+		).toEqual({ ok: false, error: 'Par targets are only available for pantry items.' });
+		expect(
+			inventory.update(rice.item.id, { unit: 'kg' }, { actor: 'alice', userId: 1 })
+		).toEqual({ ok: false, error: 'Current quantity and par target units must match.' });
+
+		expect(
+			inventory.update(
+				rice.item.id,
+				{ section: 'fridge', parTargetQty: null, parTargetUnit: null },
+				{ actor: 'alice', userId: 1 }
+			)
+		).toMatchObject({
+			ok: true,
+			item: { section: 'fridge', parTargetQty: null, parTargetUnit: null, isStaple: true }
+		});
+	});
 });
