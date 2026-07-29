@@ -10,7 +10,7 @@
 <header class="mb-5 flex items-center gap-2">
 	<a
 		href="{base}/settings"
-		class="btn btn-ghost btn-sm h-9 min-h-0 w-9 shrink-0 p-0"
+		class="ui-action ui-action-tertiary ui-action-icon shrink-0"
 		aria-label={m.settingsshell_back_aria()}><Icon name="chevronLeft" /></a
 	>
 	<h1 class="text-xl font-bold tracking-tight">{title}</h1>

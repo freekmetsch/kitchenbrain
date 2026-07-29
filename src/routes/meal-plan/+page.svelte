@@ -8,10 +8,13 @@
 	import FreezePortionsModal from '$lib/components/FreezePortionsModal.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import FilterChip from '$lib/components/ui/FilterChip.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { APP_TIME_ZONE } from '$lib/week';
 	import { m } from '$lib/paraglide/messages';
@@ -73,7 +76,7 @@
 			{#if controller.selectedWeek}
 			<details class="dropdown dropdown-end">
 				<summary
-					class="plan-more ui-kitchen-header-action ui-kitchen-header-action-icon"
+					class="plan-more ui-action ui-action-tertiary ui-action-on-dark ui-action-icon"
 					aria-label={m.mealplan_more_options_aria()}
 				>
 					<span aria-hidden="true">⋯</span>
@@ -150,14 +153,14 @@
 				<div class="plan-actions">
 			<a
 				href="{base}/shopping?week={week.weekStartDate}"
-				class="plan-action plan-shopping"
+				class="ui-action ui-action-secondary ui-action-on-dark"
 			>
 				<Icon name="cart" class="h-4 w-4" />
 				{m.mealplan_shopping_link()}
 			</a>
 			<button
 				type="button"
-				class="plan-action plan-suggest"
+				class="ui-action ui-action-tertiary ui-action-on-dark"
 				onclick={() => controller.startSuggest(week.weekStartDate)}
 				disabled={controller.suggestLoading && controller.suggestActive === week.weekStartDate}
 			>
@@ -167,7 +170,7 @@
 			</button>
 			<button
 				type="button"
-				class="plan-action plan-add"
+				class="ui-action ui-action-primary"
 				onclick={() => controller.openAddDrawer(week.weekStartDate)}
 			>
 				<Icon name="plus" class="h-4 w-4" />
@@ -184,7 +187,7 @@
 		<div>
 			<section
 				id="week-{week.weekStartDate}"
-				class="ui-list-card {week.weekStartDate === controller.currentWeekStart ? 'border-primary/60' : ''}"
+				class="ui-section-frame {week.weekStartDate === controller.currentWeekStart ? 'border-primary/60' : ''}"
 			>
 				{#if week.meals.length > 0}
 					<ul class="divide-y divide-base-200">
@@ -219,7 +222,7 @@
 								{/if}
 								<button
 									type="button"
-									class="meal-remove btn btn-ghost"
+									class="meal-remove ui-action ui-action-danger ui-action-icon"
 									onclick={() => controller.removeMeal(meal)}
 									disabled={!!controller.pendingDeletes[meal.id]}
 									aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
@@ -229,7 +232,7 @@
 								<div class="meal-details">
 									{#if controller.dayPlanning && meal.status !== 'cooked'}
 										<select
-											class="select select-bordered select-xs w-24 {meal.plannedDate ? '' : 'text-base-content/40'}"
+											class="ui-field w-24 {meal.plannedDate ? '' : 'text-base-content/40'}"
 											value={meal.plannedDate ?? ''}
 											disabled={!!controller.pendingToggles[meal.id] || meal.id < 0}
 											aria-label={m.mealplan_day_picker_aria({ dinner: meal.dinner })}
@@ -324,8 +327,8 @@
 				{#if controller.suggestActive === week.weekStartDate}
 					<div class="border-t border-base-200 bg-base-200/35 px-3 py-3" transition:slide={{ duration: MOTION_CONTENT_MS }}>
 						<div class="mb-2 flex items-center justify-between gap-2">
-							<p class="ui-section-label">{m.mealplan_ai_suggestions_label()}</p>
-							<button type="button" class="btn btn-ghost btn-xs" onclick={controller.closeSuggest}>
+							<h3 class="ui-section-title">{m.mealplan_ai_suggestions_label()}</h3>
+							<button type="button" class="ui-action ui-action-tertiary" onclick={controller.closeSuggest}>
 								{m.mealplan_close_suggest_button()}
 							</button>
 						</div>
@@ -340,10 +343,13 @@
 								</div>
 							{/if}
 						{:else if controller.suggestError}
-							<div class="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error" role="alert">
-								{controller.suggestError}
-							</div>
-							<button type="button" class="btn btn-outline btn-xs mt-2" onclick={() => controller.startSuggest(week.weekStartDate)}>
+							<KitchenNotice tone="error" class="text-sm" role="alert">
+								<span class="flex items-start gap-2">
+									<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-error" />
+									{controller.suggestError}
+								</span>
+							</KitchenNotice>
+							<button type="button" class="ui-action ui-action-secondary mt-2" onclick={() => controller.startSuggest(week.weekStartDate)}>
 								{m.mealplan_retry_button()}
 							</button>
 						{:else if controller.suggestLines.length > 0}
@@ -360,7 +366,7 @@
 										{:else}
 											<button
 												type="button"
-												class="btn btn-primary btn-xs"
+												class="ui-action ui-action-primary"
 												onclick={() => controller.applySuggestion(suggestion)}
 												disabled={!!controller.applyingSuggestion[key] || !!controller.pendingAdds[key]}
 											>
@@ -456,42 +462,10 @@
 		gap: 0.4rem;
 	}
 
-	.plan-action {
-		display: inline-flex;
+	.plan-actions :global(.ui-action) {
 		min-width: 0;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-		border-radius: 0.72rem;
-		padding: 0 0.55rem;
+		padding-inline: 0.55rem;
 		font-size: 0.72rem;
-		font-weight: 750;
-	}
-
-	.plan-shopping {
-		border: 1px solid rgb(255 255 255 / 25%);
-		background: rgb(255 255 255 / 8%);
-	}
-
-	.plan-suggest {
-		color: #e4ebe6;
-	}
-
-	.plan-add {
-		background: var(--kitchen-terra);
-		color: white;
-		box-shadow: 0 5px 16px rgb(20 28 23 / 20%);
-	}
-
-	.plan-action:hover,
-	.plan-action:focus-visible {
-		background-color: rgb(255 255 255 / 16%);
-	}
-
-	.plan-add:hover,
-	.plan-add:focus-visible {
-		background-color: color-mix(in oklab, var(--kitchen-terra) 86%, white);
 	}
 
 	.plan-ledger {
@@ -532,14 +506,14 @@
 		white-space: nowrap;
 	}
 
-	.meal-remove.btn {
+	.meal-remove {
 		width: 2.75rem;
 		padding: 0;
 		color: color-mix(in oklab, var(--color-base-content) 52%, transparent);
 	}
 
-	.meal-remove.btn:hover,
-	.meal-remove.btn:focus-visible {
+	.meal-remove:hover,
+	.meal-remove:focus-visible {
 		color: var(--color-error);
 	}
 
@@ -601,7 +575,7 @@
 			grid-row: 1;
 		}
 
-		.meal-remove.btn {
+		.meal-remove {
 			grid-column: 3;
 			grid-row: 1;
 		}
@@ -628,7 +602,7 @@
 	>
 		<input
 			type="search"
-			class="input input-bordered input-sm w-full"
+			class="ui-field w-full"
 			placeholder={m.mealplan_search_recipes_placeholder()}
 			aria-label={m.mealplan_search_recipes_aria()}
 			autocomplete="off"
@@ -638,36 +612,34 @@
 
 	<div class="mt-3 flex flex-wrap gap-1.5">
 		{#each DRAWER_CATEGORIES as cat}
-			<button
-				type="button"
-				class={controller.drawerCategory === cat ? 'ui-chip-active' : 'ui-chip'}
-				aria-pressed={controller.drawerCategory === cat}
+			<FilterChip
+				selected={controller.drawerCategory === cat}
 				onclick={() => (controller.drawerCategory = controller.drawerCategory === cat ? '' : cat)}
 			>
 				{cat}
-			</button>
+			</FilterChip>
 		{/each}
 	</div>
 
 	{#if controller.drawerSearch.trim()}
 		<button
 			type="button"
-			class="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-base-300 px-3 py-2.5 text-left transition-colors hover:bg-base-200/60 disabled:opacity-50"
+			class="ui-action ui-action-secondary mt-3 w-full justify-between text-left"
 			onclick={controller.addCustomFromSearch}
 			disabled={controller.drawerSubmitting}
 			transition:slide={{ duration: MOTION_MICRO_MS }}
 		>
 			<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: controller.drawerSearch.trim() })}</span>
-			<span class="ui-chip-muted shrink-0">{m.mealplan_custom_chip()}</span>
+			<StatusBadge class="shrink-0">{m.mealplan_custom_chip()}</StatusBadge>
 		</button>
 	{/if}
 
 	<section class="mt-5">
-		<h3 class="ui-section-label mb-2">{m.mealplan_recipe_library_heading()}</h3>
+		<h3 class="ui-section-title mb-2">{m.mealplan_recipe_library_heading()}</h3>
 		{#if controller.filteredRecipes.length === 0}
 			<EmptyState mini title={m.mealplan_no_recipes_found_title()} description={m.mealplan_no_recipes_found_desc()} />
 		{:else}
-			<ul class="ui-list-card divide-y divide-base-200">
+			<ul class="ui-section-frame divide-y divide-base-200">
 				{#each controller.filteredRecipes as recipe}
 					{@const title = controller.recipeDisplayTitle(recipe)}
 					{@const cat = controller.recipeDisplayCategory(recipe)}

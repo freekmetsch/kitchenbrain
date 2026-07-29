@@ -1,0 +1,1816 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Keukenbrein house style — five-direction design shotgun</title>
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23334638'/%3E%3Cpath d='M18 14v36M45 14 26 32l20 18' fill='none' stroke='%23f2ca74' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+	<style>
+		:root {
+			color-scheme: light;
+			--ink: #202923;
+			--muted: #68736b;
+			--paper: #f4efe3;
+			--sheet: #fffdf7;
+			--line: #d7cfc0;
+			--olive: #334638;
+			--olive-2: #49614f;
+			--olive-deep: #293b30;
+			--terra: #a84d2a;
+			--terra-deep: #8f3f22;
+			--honey: #d3a046;
+			--honey-soft: #f5e6c6;
+			--success: #44735a;
+			--danger: #a43d32;
+			--workspace: #171d19;
+			--workspace-2: #202923;
+			--workspace-line: rgba(255,255,255,.12);
+			--sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			--serif: Georgia, "Times New Roman", serif;
+			--shadow: 0 16px 50px rgba(18, 25, 20, .14);
+		}
+
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			background: var(--paper);
+			color: var(--ink);
+			font-family: var(--sans);
+			font-size: 16px;
+			line-height: 1.5;
+		}
+		button, input, textarea { font: inherit; }
+		button, label, input[type="radio"], input[type="checkbox"] { cursor: pointer; }
+		button:focus-visible, input:focus-visible, textarea:focus-visible {
+			outline: 3px solid #e7ae4f;
+			outline-offset: 3px;
+		}
+		a { color: inherit; }
+
+		.review-header {
+			position: relative;
+			overflow: hidden;
+			background:
+				radial-gradient(circle at 88% -15%, rgba(255,255,255,.13), transparent 27rem),
+				linear-gradient(135deg, var(--olive-deep), var(--olive-2));
+			color: white;
+		}
+		.review-header::after {
+			position: absolute;
+			right: -10rem;
+			bottom: -14rem;
+			width: 32rem;
+			height: 32rem;
+			border: 1px solid rgba(255,255,255,.08);
+			border-radius: 50%;
+			content: "";
+		}
+		.header-inner {
+			position: relative;
+			z-index: 1;
+			width: min(1180px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 64px 0 54px;
+		}
+		.kicker {
+			margin: 0 0 12px;
+			color: #f2ca74;
+			font-size: .72rem;
+			font-weight: 800;
+			letter-spacing: .14em;
+			text-transform: uppercase;
+		}
+		h1, h2, h3, p { margin-top: 0; }
+		h1 {
+			max-width: 870px;
+			margin-bottom: 18px;
+			font-family: var(--serif);
+			font-size: clamp(2.5rem, 7vw, 5.6rem);
+			font-weight: 500;
+			line-height: .92;
+			letter-spacing: -.055em;
+		}
+		.lede {
+			max-width: 760px;
+			margin-bottom: 28px;
+			color: rgba(255,255,255,.78);
+			font-size: clamp(1rem, 2vw, 1.18rem);
+		}
+		.fact-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+		.fact {
+			display: inline-flex;
+			min-height: 36px;
+			align-items: center;
+			border: 1px solid rgba(255,255,255,.18);
+			border-radius: 999px;
+			padding: 6px 12px;
+			background: rgba(255,255,255,.08);
+			color: rgba(255,255,255,.86);
+			font-size: .78rem;
+			font-weight: 650;
+		}
+
+		.review-nav {
+			position: sticky;
+			top: 0;
+			z-index: 30;
+			border-bottom: 1px solid var(--line);
+			background: color-mix(in srgb, var(--sheet) 94%, transparent);
+			backdrop-filter: blur(16px);
+		}
+		.nav-inner {
+			display: flex;
+			width: min(1180px, calc(100% - 32px));
+			min-height: 58px;
+			margin: 0 auto;
+			align-items: center;
+			justify-content: space-between;
+			gap: 16px;
+		}
+		.nav-links {
+			display: flex;
+			overflow-x: auto;
+			align-items: center;
+			gap: 6px;
+			scrollbar-width: none;
+		}
+		.nav-links a {
+			flex: 0 0 auto;
+			border-radius: 8px;
+			padding: 8px 10px;
+			color: var(--muted);
+			font-size: .78rem;
+			font-weight: 750;
+			text-decoration: none;
+		}
+		.nav-links a:hover { background: #eee8db; color: var(--ink); }
+		.top-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+		.utility-button {
+			min-height: 40px;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			padding: 7px 11px;
+			background: var(--sheet);
+			color: var(--ink);
+			font-size: .78rem;
+			font-weight: 750;
+		}
+		.utility-button:hover { border-color: #bcb19f; background: white; }
+
+		.content {
+			width: min(1180px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 54px 0 84px;
+		}
+		.section-intro {
+			display: grid;
+			grid-template-columns: minmax(0, 1.5fr) minmax(260px, .7fr);
+			gap: 32px;
+			align-items: end;
+			margin-bottom: 26px;
+		}
+		.section-intro h2 {
+			margin-bottom: 8px;
+			font-family: var(--serif);
+			font-size: clamp(2rem, 4vw, 3.6rem);
+			font-weight: 500;
+			line-height: 1;
+			letter-spacing: -.04em;
+		}
+		.section-intro p { margin-bottom: 0; color: var(--muted); }
+		.recommendation {
+			border-left: 3px solid var(--terra);
+			padding: 4px 0 4px 16px;
+			color: var(--ink);
+			font-size: .9rem;
+		}
+		.recommendation strong { display: block; color: var(--terra-deep); }
+
+		.evidence-grid {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 12px;
+			margin-bottom: 58px;
+		}
+		.evidence-card {
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			padding: 18px;
+			background: rgba(255,253,247,.66);
+		}
+		.evidence-card b {
+			display: block;
+			margin-bottom: 6px;
+			font-family: var(--serif);
+			font-size: 1.05rem;
+		}
+		.evidence-card p { margin: 0; color: var(--muted); font-size: .84rem; }
+
+		.toolbar {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			margin: 22px 0 18px;
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			padding: 10px;
+			background: var(--sheet);
+		}
+		.toolbar-group { display: flex; flex-wrap: wrap; gap: 6px; }
+		.segment {
+			display: inline-flex;
+			border-radius: 10px;
+			padding: 3px;
+			background: #eee8dc;
+		}
+		.segment button {
+			min-height: 38px;
+			border: 0;
+			border-radius: 8px;
+			padding: 7px 12px;
+			background: transparent;
+			color: var(--muted);
+			font-size: .76rem;
+			font-weight: 750;
+		}
+		.segment button[aria-pressed="true"] {
+			background: var(--sheet);
+			color: var(--ink);
+			box-shadow: 0 1px 5px rgba(25,31,26,.12);
+		}
+
+		.directions-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 18px;
+		}
+		.direction-card {
+			display: flex;
+			min-width: 0;
+			flex-direction: column;
+			border: 1px solid var(--line);
+			border-radius: 18px;
+			background: var(--sheet);
+			box-shadow: 0 6px 24px rgba(42, 49, 43, .06);
+			transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+		}
+		.direction-card:has(input[type="radio"]:checked) {
+			border-color: var(--terra);
+			box-shadow: 0 0 0 3px rgba(168,77,42,.12), var(--shadow);
+			transform: translateY(-2px);
+		}
+		.direction-card.wide { grid-column: 1 / -1; }
+		.direction-head {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto auto;
+			gap: 12px;
+			align-items: start;
+			padding: 18px 18px 14px;
+		}
+		.direction-head input {
+			width: 20px;
+			height: 20px;
+			margin: 3px 0 0;
+			accent-color: var(--terra);
+		}
+		.direction-index {
+			display: inline-flex;
+			height: 28px;
+			min-width: 28px;
+			align-items: center;
+			justify-content: center;
+			border-radius: 8px;
+			background: #eee7da;
+			color: var(--muted);
+			font-size: .72rem;
+			font-weight: 850;
+		}
+		.direction-card:has(input:checked) .direction-index {
+			background: var(--terra);
+			color: white;
+		}
+		.direction-head h3 {
+			margin: 0 0 4px;
+			font-family: var(--serif);
+			font-size: 1.5rem;
+			font-weight: 500;
+			line-height: 1;
+			letter-spacing: -.025em;
+		}
+		.direction-head p { margin: 0; color: var(--muted); font-size: .82rem; }
+		.recommended-badge {
+			display: inline-flex;
+			align-items: center;
+			border: 1px solid rgba(168,77,42,.26);
+			border-radius: 999px;
+			padding: 4px 8px;
+			background: rgba(168,77,42,.08);
+			color: var(--terra-deep);
+			font-size: .64rem;
+			font-weight: 850;
+			letter-spacing: .04em;
+			text-transform: uppercase;
+		}
+
+		.preview-shell {
+			overflow: auto;
+			margin: 0 14px;
+			border: 1px solid #313c34;
+			border-radius: 16px;
+			background:
+				linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+				var(--workspace);
+			background-size: 24px 24px;
+			padding: 18px;
+		}
+		.direction-card.wide .preview-shell { display: flex; justify-content: center; }
+		.specimen {
+			width: 393px;
+			min-width: 393px;
+			overflow: hidden;
+			border: 1px solid rgba(25,32,27,.18);
+			background: #f7f3e9;
+			color: #243128;
+			box-shadow: 0 18px 38px rgba(0,0,0,.25);
+			font-family: var(--sans);
+		}
+		.specimen button, .specimen input { cursor: default; }
+		.spec-header {
+			position: relative;
+			overflow: hidden;
+			padding: 14px 16px 12px;
+			background:
+				radial-gradient(circle at 90% 0, rgba(255,255,255,.1), transparent 11rem),
+				linear-gradient(135deg, #293b30, #49614f);
+			color: white;
+		}
+		.spec-title-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+		}
+		.spec-eyebrow {
+			color: #f2ca74;
+			font-size: 9px;
+			font-weight: 850;
+			letter-spacing: .14em;
+			text-transform: uppercase;
+		}
+		.spec-title {
+			margin-top: 2px;
+			font-family: var(--serif);
+			font-size: 21px;
+			font-weight: 600;
+			line-height: 1;
+			letter-spacing: -.02em;
+		}
+		.spec-header-actions { display: flex; gap: 7px; }
+		.spec-header-button {
+			min-height: 40px;
+			border: 1px solid rgba(255,255,255,.23);
+			border-radius: 11px;
+			padding: 0 12px;
+			background: rgba(255,255,255,.08);
+			color: white;
+			font-size: 11px;
+			font-weight: 750;
+		}
+		.spec-header-button.primary { border-color: transparent; background: #a84d2a; }
+		.spec-stats {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+			margin-top: 11px;
+		}
+		.spec-stat {
+			display: flex;
+			min-height: 48px;
+			align-items: center;
+			gap: 8px;
+			border: 1px solid rgba(255,255,255,.22);
+			border-radius: 12px;
+			padding: 8px 11px;
+			background: rgba(255,255,255,.07);
+			color: rgba(255,255,255,.82);
+			font-size: 10px;
+			font-weight: 700;
+		}
+		.spec-stat strong { color: white; font-family: var(--serif); font-size: 24px; line-height: 1; }
+		.spec-main { padding: 14px 16px 18px; }
+		.spec-search {
+			display: flex;
+			height: 44px;
+			align-items: center;
+			gap: 8px;
+			border: 1px solid #d8d0c2;
+			border-radius: 12px;
+			padding: 0 12px;
+			background: #fffdf7;
+			color: #74796f;
+			font-size: 11px;
+		}
+		.search-mark {
+			width: 13px;
+			height: 13px;
+			border: 1.6px solid currentColor;
+			border-radius: 50%;
+			position: relative;
+		}
+		.search-mark::after {
+			position: absolute;
+			right: -4px;
+			bottom: -2px;
+			width: 5px;
+			height: 1.6px;
+			background: currentColor;
+			content: "";
+			transform: rotate(45deg);
+		}
+		.spec-filters {
+			display: flex;
+			gap: 6px;
+			margin: 10px 0 15px;
+			overflow: hidden;
+		}
+		.spec-pill {
+			flex: 0 0 auto;
+			min-height: 36px;
+			border: 1px solid #d8d0c2;
+			border-radius: 999px;
+			padding: 0 11px;
+			background: transparent;
+			color: #626a63;
+			font-size: 10px;
+			font-weight: 700;
+		}
+		.spec-pill.active {
+			border-color: #334638;
+			background: #334638;
+			color: white;
+		}
+		.spec-section-head {
+			display: flex;
+			align-items: baseline;
+			justify-content: space-between;
+			gap: 12px;
+			margin: 0 2px 7px;
+		}
+		.spec-section-head b {
+			font-family: var(--serif);
+			font-size: 20px;
+			line-height: 1.1;
+		}
+		.spec-section-head span { color: #6d766e; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+		.spec-list {
+			overflow: hidden;
+			border: 1px solid #d8d0c2;
+			border-radius: 14px;
+			background: #fffdf7;
+		}
+		.spec-row {
+			display: grid;
+			grid-template-columns: 4px minmax(0, 1fr) auto;
+			gap: 10px;
+			align-items: center;
+			min-height: 74px;
+			padding: 10px 11px;
+			border-bottom: 1px solid #e3dccf;
+		}
+		.spec-row:last-child { border-bottom: 0; }
+		.row-rule { align-self: stretch; border-radius: 999px; background: #ddbd78; }
+		.row-title {
+			overflow: hidden;
+			color: #293129;
+			font-size: 11px;
+			font-weight: 760;
+			line-height: 1.35;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.row-meta { margin-top: 4px; color: #6f766f; font-size: 9px; }
+		.status-pill {
+			display: inline-flex;
+			min-height: 28px;
+			align-items: center;
+			border: 1px solid #e3b45d;
+			border-radius: 999px;
+			padding: 4px 8px;
+			background: #fff3da;
+			color: #8a5713;
+			font-size: 8px;
+			font-weight: 800;
+			white-space: nowrap;
+		}
+		.spec-notice {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 9px;
+			margin-top: 10px;
+			border: 1px solid #e1b86f;
+			border-radius: 12px;
+			padding: 10px;
+			background: #fff3dc;
+			color: #714c18;
+			font-size: 9px;
+			line-height: 1.4;
+		}
+		.notice-mark {
+			display: inline-flex;
+			width: 24px;
+			height: 24px;
+			align-items: center;
+			justify-content: center;
+			border-radius: 50%;
+			background: #f3d69f;
+			font-size: 11px;
+			font-weight: 900;
+		}
+		.spec-actions {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+			margin-top: 10px;
+		}
+		.spec-action {
+			min-height: 42px;
+			border: 1px solid #334638;
+			border-radius: 11px;
+			padding: 0 10px;
+			background: transparent;
+			color: #334638;
+			font-size: 10px;
+			font-weight: 800;
+		}
+		.spec-action.primary { border-color: #a84d2a; background: #a84d2a; color: white; }
+		.spec-action[disabled] { border-color: #d9d3c7; background: #eee9df; color: #999d97; }
+		.spinner {
+			display: inline-block;
+			width: 10px;
+			height: 10px;
+			margin-right: 5px;
+			border: 1.5px solid currentColor;
+			border-right-color: transparent;
+			border-radius: 50%;
+			vertical-align: -1px;
+		}
+		.stress-only { display: none; }
+		.show-stress .normal-only { display: none; }
+		.show-stress .stress-only { display: block; }
+		.show-stress .spec-row.stress-only { display: grid; }
+
+		/* Five isolated concept systems. */
+		.v-ledger .specimen { border-radius: 18px; }
+		.v-ledger .spec-list { box-shadow: 0 2px 6px rgba(40,49,42,.06); }
+
+		.v-compact .specimen { border-radius: 8px; background: #f3eee3; }
+		.v-compact .spec-header { padding: 11px 13px 10px; background: #2f4235; }
+		.v-compact .spec-title { font-size: 18px; }
+		.v-compact .spec-header-button { min-height: 36px; border-radius: 7px; }
+		.v-compact .spec-stat { min-height: 40px; border-radius: 7px; }
+		.v-compact .spec-main { padding: 10px 13px 13px; }
+		.v-compact .spec-search { height: 39px; border-radius: 7px; }
+		.v-compact .spec-filters { margin: 7px 0 10px; }
+		.v-compact .spec-pill { min-height: 31px; border-radius: 7px; padding-inline: 9px; }
+		.v-compact .spec-section-head b { font-family: var(--sans); font-size: 14px; letter-spacing: -.01em; }
+		.v-compact .spec-list { border-radius: 7px; box-shadow: none; }
+		.v-compact .spec-row { min-height: 60px; padding: 8px 9px; }
+		.v-compact .status-pill { min-height: 24px; border-radius: 5px; }
+		.v-compact .spec-notice { border-radius: 6px; padding: 8px; }
+		.v-compact .spec-action { min-height: 38px; border-radius: 7px; }
+
+		.v-counter .specimen {
+			border: 2px solid #27342b;
+			border-radius: 5px;
+			background: #f1eadc;
+		}
+		.v-counter .spec-header {
+			border-bottom: 3px solid #d3a046;
+			background: #293b30;
+		}
+		.v-counter .spec-header-button,
+		.v-counter .spec-stat,
+		.v-counter .spec-search,
+		.v-counter .spec-pill,
+		.v-counter .spec-list,
+		.v-counter .spec-notice,
+		.v-counter .spec-action { border-radius: 5px; }
+		.v-counter .spec-stats { gap: 5px; }
+		.v-counter .spec-main { background-image: linear-gradient(rgba(51,70,56,.045) 1px, transparent 1px); background-size: 100% 24px; }
+		.v-counter .spec-filters {
+			padding: 5px;
+			border: 1px solid #cfc4b1;
+			background: #e8dfcf;
+		}
+		.v-counter .spec-pill { border-color: transparent; }
+		.v-counter .spec-pill.active { background: #334638; }
+		.v-counter .spec-section-head b { font-family: var(--sans); font-size: 15px; font-weight: 850; text-transform: uppercase; letter-spacing: .06em; }
+		.v-counter .spec-list { border-color: #9d9d8e; box-shadow: inset 0 0 0 2px rgba(51,70,56,.04); }
+		.v-counter .spec-row { border-color: #bbb5a8; }
+		.v-counter .row-rule { border-radius: 0; background: #a84d2a; }
+		.v-counter .status-pill { border-radius: 4px; background: #f2dfb9; }
+
+		.v-folio .specimen {
+			border-radius: 2px;
+			background:
+				linear-gradient(90deg, transparent 31px, rgba(168,77,42,.12) 32px, transparent 33px),
+				#fbf7ed;
+		}
+		.v-folio .spec-header {
+			padding: 13px 18px;
+			border-bottom: 1px solid #b7aa94;
+			background: #f5efe3;
+			color: #243128;
+		}
+		.v-folio .spec-eyebrow { color: #9b5a30; }
+		.v-folio .spec-title { font-size: 24px; }
+		.v-folio .spec-header-button { border-color: #b9ae9b; background: transparent; color: #334638; }
+		.v-folio .spec-header-button.primary { border-color: #a84d2a; background: transparent; color: #a84d2a; }
+		.v-folio .spec-stats { border-top: 1px solid #c9bfae; border-bottom: 1px solid #c9bfae; padding: 8px 0; }
+		.v-folio .spec-stat { min-height: 38px; border: 0; border-radius: 0; padding: 0 10px; background: transparent; color: #68736b; }
+		.v-folio .spec-stat + .spec-stat { border-left: 1px solid #c9bfae; }
+		.v-folio .spec-stat strong { color: #334638; }
+		.v-folio .spec-main { padding: 15px 18px 20px; }
+		.v-folio .spec-search { border-width: 0 0 1px; border-radius: 0; background: transparent; }
+		.v-folio .spec-pill { min-height: 32px; border-radius: 999px; background: #fbf7ed; }
+		.v-folio .spec-pill.active { background: transparent; color: #a84d2a; border-color: #a84d2a; }
+		.v-folio .spec-section-head { margin-top: 2px; border-bottom: 1px solid #a59b8b; padding-bottom: 5px; }
+		.v-folio .spec-section-head b { font-size: 23px; font-weight: 500; }
+		.v-folio .spec-list { border: 0; border-radius: 0; background: transparent; }
+		.v-folio .spec-row { padding-inline: 3px; border-color: #d4c9b7; }
+		.v-folio .row-rule { width: 2px; background: #a84d2a; }
+		.v-folio .status-pill { border: 0; border-radius: 0; background: transparent; color: #9b5a30; text-decoration: underline; text-underline-offset: 3px; }
+		.v-folio .spec-notice { border-width: 0 0 0 3px; border-radius: 0; background: transparent; }
+		.v-folio .spec-action { border-width: 0 0 1px; border-radius: 0; }
+		.v-folio .spec-action.primary { background: #334638; border-color: #334638; }
+
+		.v-tiles .specimen { border-radius: 25px; background: #f6f0e5; }
+		.v-tiles .spec-header {
+			padding: 16px;
+			border-radius: 0 0 24px 24px;
+			background:
+				radial-gradient(circle at 90% 0, rgba(255,255,255,.18), transparent 10rem),
+				#49614f;
+		}
+		.v-tiles .spec-header-button { border-radius: 15px; background: rgba(255,255,255,.12); }
+		.v-tiles .spec-header-button.primary { background: #b35632; }
+		.v-tiles .spec-stat { min-height: 54px; border: 0; border-radius: 17px; background: rgba(255,255,255,.12); }
+		.v-tiles .spec-main { padding: 16px; }
+		.v-tiles .spec-search { border: 0; border-radius: 17px; box-shadow: 0 3px 12px rgba(52,63,54,.1); }
+		.v-tiles .spec-pill { border: 0; background: #e8e2d6; min-height: 38px; }
+		.v-tiles .spec-pill.active { background: #d9a552; color: #47300d; }
+		.v-tiles .spec-section-head b { font-size: 20px; }
+		.v-tiles .spec-list { display: grid; gap: 8px; border: 0; border-radius: 0; background: transparent; overflow: visible; }
+		.v-tiles .spec-row { min-height: 78px; border: 0; border-radius: 18px; background: #fffdf7; box-shadow: 0 3px 12px rgba(52,63,54,.08); }
+		.v-tiles .row-rule { background: #d3a046; }
+		.v-tiles .status-pill { border: 0; background: #f2deb6; }
+		.v-tiles .spec-notice { border: 0; border-radius: 17px; background: #f5e3c3; }
+		.v-tiles .spec-action { border: 0; border-radius: 15px; background: #e8e2d6; }
+		.v-tiles .spec-action.primary { background: #a84d2a; }
+
+		.direction-meta {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 10px;
+			padding: 14px 18px 4px;
+		}
+		.meta-cell {
+			border-top: 1px solid #e5ded2;
+			padding-top: 10px;
+			font-size: .77rem;
+		}
+		.meta-cell b { display: block; margin-bottom: 2px; color: var(--muted); font-size: .65rem; letter-spacing: .06em; text-transform: uppercase; }
+		.direction-note { padding: 12px 18px 18px; }
+		.direction-note label { display: block; margin-bottom: 5px; color: var(--muted); font-size: .72rem; font-weight: 750; }
+		.direction-note textarea,
+		.decision-note,
+		#general-notes {
+			width: 100%;
+			min-height: 66px;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			padding: 10px 11px;
+			background: #fffefb;
+			color: var(--ink);
+			font-size: .82rem;
+		}
+
+		.refinement-choice {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 10px;
+			align-items: start;
+			margin: 18px 0 56px;
+			border: 1px dashed #b9ae9a;
+			border-radius: 14px;
+			padding: 14px;
+			background: rgba(255,253,247,.55);
+		}
+		.refinement-choice input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--terra); }
+		.refinement-choice b { display: block; }
+		.refinement-choice span { display: block; color: var(--muted); font-size: .8rem; }
+
+		.subdecision-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 16px;
+			margin-bottom: 52px;
+		}
+		.decision-card {
+			min-width: 0;
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			padding: 18px;
+			background: var(--sheet);
+		}
+		.decision-card legend {
+			width: 100%;
+			padding: 0;
+		}
+		.decision-number {
+			display: inline-flex;
+			width: 28px;
+			height: 28px;
+			align-items: center;
+			justify-content: center;
+			margin-bottom: 9px;
+			border-radius: 8px;
+			background: var(--olive);
+			color: white;
+			font-size: .72rem;
+			font-weight: 850;
+		}
+		.decision-card h3 {
+			margin-bottom: 3px;
+			font-family: var(--serif);
+			font-size: 1.25rem;
+			font-weight: 500;
+		}
+		.decision-question { margin-bottom: 14px; color: var(--muted); font-size: .8rem; }
+		.option-list { display: grid; gap: 7px; }
+		.option {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 9px;
+			border: 1px solid #dfd7ca;
+			border-radius: 11px;
+			padding: 10px;
+			background: #fffefa;
+			transition: border-color .15s ease, background .15s ease;
+		}
+		.option:hover { border-color: #b9ae9c; }
+		.option:has(input:checked) {
+			border-color: var(--terra);
+			background: #fff7ef;
+			box-shadow: inset 3px 0 var(--terra);
+		}
+		.option input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--terra); }
+		.option b { display: block; font-size: .82rem; }
+		.option small { display: block; margin-top: 2px; color: var(--muted); font-size: .72rem; line-height: 1.35; }
+		.option .rec { color: var(--terra-deep); }
+		.decision-note { min-height: 58px; margin-top: 9px; }
+
+		.workbench-wrap {
+			margin-bottom: 58px;
+			border-radius: 20px;
+			background:
+				radial-gradient(circle at 10% 10%, rgba(211,160,70,.08), transparent 20rem),
+				var(--workspace);
+			color: white;
+			box-shadow: var(--shadow);
+		}
+		.workbench-head {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: end;
+			justify-content: space-between;
+			gap: 18px;
+			padding: 22px;
+			border-bottom: 1px solid var(--workspace-line);
+		}
+		.workbench-head h2 {
+			margin: 0 0 4px;
+			font-family: var(--serif);
+			font-size: 2rem;
+			font-weight: 500;
+		}
+		.workbench-head p { max-width: 650px; margin: 0; color: rgba(255,255,255,.65); font-size: .85rem; }
+		.workbench-controls { display: flex; gap: 6px; }
+		.workbench-controls button {
+			min-height: 40px;
+			border: 1px solid rgba(255,255,255,.17);
+			border-radius: 9px;
+			padding: 7px 11px;
+			background: rgba(255,255,255,.07);
+			color: rgba(255,255,255,.72);
+			font-size: .73rem;
+			font-weight: 750;
+		}
+		.workbench-controls button[aria-pressed="true"] { background: white; color: #1f2822; }
+		.workbench-stage {
+			display: flex;
+			min-height: 720px;
+			align-items: start;
+			justify-content: center;
+			overflow: auto;
+			padding: 28px;
+		}
+		#workbench {
+			width: 393px;
+			min-width: 393px;
+			transition: width .25s ease;
+		}
+		#workbench.desktop {
+			width: 820px;
+			min-width: 820px;
+		}
+		#workbench.desktop .specimen {
+			width: 820px;
+			min-width: 820px;
+		}
+		#workbench.desktop .spec-main {
+			display: grid;
+			grid-template-columns: minmax(0, 1.45fr) minmax(260px, .85fr);
+			gap: var(--wb-gap, 16px);
+		}
+		#workbench.desktop .spec-tools { grid-column: 1 / -1; }
+		#workbench.desktop .spec-side { grid-column: 2; grid-row: 2; }
+		#workbench.desktop .spec-list-area { grid-column: 1; }
+
+		/* Workbench sub-option overrides. */
+		#workbench.control-compact .spec-header-button,
+		#workbench.control-compact .spec-search,
+		#workbench.control-compact .spec-pill,
+		#workbench.control-compact .spec-list,
+		#workbench.control-compact .spec-notice,
+		#workbench.control-compact .spec-action { border-radius: 8px !important; }
+		#workbench.control-soft .spec-header-button,
+		#workbench.control-soft .spec-search,
+		#workbench.control-soft .spec-pill,
+		#workbench.control-soft .spec-list,
+		#workbench.control-soft .spec-notice,
+		#workbench.control-soft .spec-action { border-radius: 16px !important; }
+		#workbench.control-balanced .spec-header-button,
+		#workbench.control-balanced .spec-search,
+		#workbench.control-balanced .spec-list,
+		#workbench.control-balanced .spec-notice,
+		#workbench.control-balanced .spec-action { border-radius: 12px !important; }
+		#workbench.control-balanced .spec-pill { border-radius: 999px !important; }
+
+		#workbench.surface-card .spec-list,
+		#workbench.surface-card .spec-notice {
+			border: 1px solid #d8d0c2 !important;
+			border-radius: 14px !important;
+			background: #fffdf7 !important;
+			box-shadow: 0 3px 12px rgba(42,49,43,.08) !important;
+		}
+		#workbench.surface-card .spec-list { padding: 4px; }
+		#workbench.surface-flat .spec-list,
+		#workbench.surface-flat .spec-notice {
+			border-width: 1px 0 0 !important;
+			border-radius: 0 !important;
+			background: transparent !important;
+			box-shadow: none !important;
+		}
+		#workbench.surface-mixed .spec-list { background: #fffdf7 !important; }
+		#workbench.surface-mixed .spec-notice { background: #fff3dc !important; }
+
+		#workbench.pills-selection .status-pill {
+			border: 0 !important;
+			border-radius: 0 !important;
+			padding-inline: 0 !important;
+			background: transparent !important;
+		}
+		#workbench.pills-broad .row-meta {
+			display: inline-flex;
+			margin-top: 5px;
+			border-radius: 999px;
+			padding: 3px 7px;
+			background: #e8e2d6;
+		}
+
+		#workbench.action-olive .spec-action.primary,
+		#workbench.action-olive .spec-header-button.primary { border-color: #334638 !important; background: #334638 !important; color: white !important; }
+		#workbench.action-context .spec-action.primary,
+		#workbench.action-context .spec-header-button.primary { border-color: #d3a046 !important; background: #d3a046 !important; color: #3d2b0d !important; }
+		#workbench.action-terra .spec-action.primary,
+		#workbench.action-terra .spec-header-button.primary { border-color: #a84d2a !important; background: #a84d2a !important; color: white !important; }
+
+		#workbench.type-sans .spec-section-head b,
+		#workbench.type-sans .row-title { font-family: var(--sans) !important; }
+		#workbench.type-sans .spec-section-head b { font-size: 15px !important; font-weight: 850 !important; }
+		#workbench.type-editorial .spec-section-head b,
+		#workbench.type-editorial .row-title { font-family: var(--serif) !important; }
+		#workbench.type-editorial .row-title { font-size: 13px; font-weight: 600; }
+		#workbench.type-hybrid .spec-section-head b { font-family: var(--serif) !important; }
+		#workbench.type-hybrid .row-title { font-family: var(--sans) !important; }
+
+		#workbench.density-tight { --wb-gap: 10px; }
+		#workbench.density-tight .spec-main { padding: 10px 12px 13px !important; }
+		#workbench.density-tight .spec-filters { margin-block: 7px 10px !important; }
+		#workbench.density-tight .spec-row { min-height: 58px !important; padding-block: 7px !important; }
+		#workbench.density-roomy { --wb-gap: 24px; }
+		#workbench.density-roomy .spec-main { padding: 18px 20px 24px !important; }
+		#workbench.density-roomy .spec-filters { margin-block: 14px 20px !important; }
+		#workbench.density-roomy .spec-row { min-height: 88px !important; padding-block: 14px !important; }
+		#workbench.density-balanced { --wb-gap: 16px; }
+
+		.preview-dark .specimen { background: #1c221e; color: #f0eee7; }
+		.preview-dark .spec-main { background-color: #1c221e; }
+		.preview-dark .spec-search,
+		.preview-dark .spec-list,
+		.preview-dark .spec-row { border-color: #404943; background: #252c27; color: #f0eee7; }
+		.preview-dark .spec-section-head b,
+		.preview-dark .row-title { color: #f0eee7; }
+		.preview-dark .spec-section-head span,
+		.preview-dark .row-meta { color: #aeb9b1; }
+		.preview-dark .spec-pill { border-color: #4a554e; color: #b9c2bc; }
+		.preview-dark .spec-pill.active { background: #d3a046; color: #34240b; }
+		.preview-dark .spec-notice { border-color: #765a28; background: #3c3220; color: #f0c569; }
+		.preview-dark .status-pill { border-color: #765a28; background: #3c3220; color: #f0c569; }
+		.preview-dark .spec-action { border-color: #95a79b; color: #e7ece8; }
+		.preview-dark .v-folio .spec-header { background: #252c27; color: #f0eee7; }
+		.preview-dark .v-folio .spec-stat strong { color: #f0eee7; }
+		.preview-dark .v-tiles .spec-row { background: #252c27; }
+
+		.handoff-grid {
+			display: grid;
+			grid-template-columns: minmax(260px, .65fr) minmax(0, 1.35fr);
+			gap: 18px;
+			align-items: start;
+		}
+		.summary-panel, .prompt-panel {
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			background: var(--sheet);
+		}
+		.summary-panel { padding: 18px; }
+		.summary-panel h3, .prompt-panel h3 {
+			margin-bottom: 5px;
+			font-family: var(--serif);
+			font-size: 1.35rem;
+			font-weight: 500;
+		}
+		.summary-panel p { color: var(--muted); font-size: .8rem; }
+		#selection-summary {
+			display: grid;
+			gap: 7px;
+			margin: 14px 0;
+		}
+		.summary-row {
+			display: flex;
+			align-items: baseline;
+			justify-content: space-between;
+			gap: 12px;
+			border-top: 1px solid #e8e1d5;
+			padding-top: 7px;
+			font-size: .78rem;
+		}
+		.summary-row span { color: var(--muted); }
+		.summary-row b { text-align: right; }
+		.prompt-panel { overflow: hidden; }
+		.prompt-head {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			border-bottom: 1px solid var(--line);
+			padding: 14px 16px;
+		}
+		.prompt-head h3 { margin: 0; }
+		.prompt-actions { display: flex; gap: 6px; }
+		#handoff {
+			display: block;
+			width: 100%;
+			min-height: 520px;
+			resize: vertical;
+			border: 0;
+			padding: 16px;
+			background: #262d28;
+			color: #eff3f0;
+			font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		}
+		#general-notes { min-height: 130px; margin-top: 8px; }
+		.save-status { margin: 10px 0 0; color: var(--muted); font-size: .72rem; }
+		.save-status.error { color: var(--danger); }
+
+		footer {
+			border-top: 1px solid var(--line);
+			padding: 26px 16px 50px;
+			color: var(--muted);
+			text-align: center;
+			font-size: .76rem;
+		}
+
+		@media (max-width: 820px) {
+			.header-inner { padding-block: 44px 38px; }
+			.section-intro, .handoff-grid { grid-template-columns: 1fr; }
+			.evidence-grid, .directions-grid, .subdecision-grid { grid-template-columns: 1fr; }
+			.direction-card.wide { grid-column: auto; }
+			.nav-inner { width: calc(100% - 20px); }
+			.content, .header-inner { width: min(100% - 24px, 1180px); }
+			.top-actions .reset-top { display: none; }
+			.preview-shell { padding: 12px; }
+		}
+		@media (max-width: 470px) {
+			.direction-head { grid-template-columns: auto minmax(0, 1fr) auto; }
+			.direction-head .recommended-badge { grid-column: 2; justify-self: start; }
+			.direction-head .direction-index { grid-column: 3; grid-row: 1; }
+			.preview-shell {
+				justify-content: center;
+				margin-inline: 8px;
+			}
+			.direction-card .preview-shell .specimen { zoom: .78; }
+			.direction-meta { grid-template-columns: 1fr; }
+			.toolbar { align-items: stretch; }
+			.toolbar-group { width: 100%; }
+			.segment { width: 100%; }
+			.segment button { flex: 1; }
+			.workbench-stage { justify-content: flex-start; padding: 14px; }
+			#workbench:not(.desktop) { zoom: .82; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+		}
+	</style>
+</head>
+<body>
+	<header class="review-header">
+		<div class="header-inner">
+			<p class="kicker">Design shotgun · App house style · 29 July 2026</p>
+			<h1>One kitchen.<br />Five component grammars.</h1>
+			<p class="lede">
+				The atmosphere is already right. This review tests five ways to make sections, buttons,
+				fields, pills, and states feel consistently related without flattening every route into
+				the same layout.
+			</p>
+			<div class="fact-row" aria-label="Review constraints">
+				<span class="fact">Same 393 px fixture</span>
+				<span class="fact">Identical content and states</span>
+				<span class="fact">Current Kitchen Ledger palette</span>
+				<span class="fact">No production UI changes</span>
+			</div>
+		</div>
+	</header>
+
+	<nav class="review-nav" aria-label="Artifact sections">
+		<div class="nav-inner">
+			<div class="nav-links">
+				<a href="#evidence">Evidence</a>
+				<a href="#directions">Five directions</a>
+				<a href="#contract">Sub-options</a>
+				<a href="#workbench-section">Workbench</a>
+				<a href="#handoff-section">Handoff</a>
+			</div>
+			<div class="top-actions">
+				<button class="utility-button" id="theme-toggle" type="button" aria-pressed="false">Preview dark</button>
+				<button class="utility-button reset-top" type="button" data-reset>Reset</button>
+			</div>
+		</div>
+	</nav>
+
+	<main class="content">
+		<section id="evidence">
+			<div class="section-intro">
+				<div>
+					<p class="kicker" style="color:var(--terra)">Current truth</p>
+					<h2>Unify meaning, not page layout.</h2>
+					<p>
+						Stock, Meal plan, Shopping, and Recipes now share the olive page frame. The
+						remaining drift sits in body-level recipes that are individually reasonable but
+						collectively ambiguous.
+					</p>
+				</div>
+				<div class="recommendation">
+					<strong>Starting recommendation</strong>
+					Ledger Grammar plus the six recommended contracts below. It changes the least while
+					giving future components a clear owner.
+				</div>
+			</div>
+			<div class="evidence-grid">
+				<div class="evidence-card">
+					<b>Keep route-specific composition</b>
+					<p>Stock can stay ruled, Recipes can stay visual, and Shopping can stay operational. Shared roles—not whole pages—need shared treatments.</p>
+				</div>
+				<div class="evidence-card">
+					<b>Reduce semantic ambiguity</b>
+					<p>A capsule should not sometimes mean filter, sometimes metadata, and sometimes an action unless its state language makes that distinction unmistakable.</p>
+				</div>
+				<div class="evidence-card">
+					<b>Design for repeated phone use</b>
+					<p>Maintain 44 px touch targets, but allow compact visual density through inner geometry, type, separators, and invisible hit-area padding.</p>
+				</div>
+			</div>
+		</section>
+
+		<section id="directions">
+			<div class="section-intro">
+				<div>
+					<p class="kicker" style="color:var(--terra)">Decision 0</p>
+					<h2>Choose the base character.</h2>
+					<p>Every specimen contains the same long title, selected filter, status, warning, and action set. Use the state switch to stress the systems equally.</p>
+				</div>
+			</div>
+
+			<div class="toolbar" aria-label="Specimen controls">
+				<div class="toolbar-group">
+					<div class="segment" aria-label="Specimen state">
+						<button type="button" data-demo-state="normal" aria-pressed="true">Normal</button>
+						<button type="button" data-demo-state="stress" aria-pressed="false">State stress</button>
+					</div>
+				</div>
+				<div class="toolbar-group">
+					<span style="align-self:center;color:var(--muted);font-size:.76rem">Select the radio on the direction you want to carry forward.</span>
+				</div>
+			</div>
+
+			<div class="directions-grid preview-zone" id="direction-zone">
+				<article class="direction-card v-ledger">
+					<label class="direction-head">
+						<input type="radio" name="direction" value="ledger" checked />
+						<span>
+							<h3>Ledger Grammar</h3>
+							<p>Current warmth, reduced to strict semantic families.</p>
+						</span>
+						<span class="recommended-badge">Recommended</span>
+						<span class="direction-index">A</span>
+					</label>
+					<div class="preview-shell">
+						<div class="specimen">
+							<header class="spec-header">
+								<div class="spec-title-row">
+									<div><div class="spec-eyebrow">Household</div><div class="spec-title">Stock</div></div>
+									<div class="spec-header-actions"><button class="spec-header-button">Activity</button><button class="spec-header-button primary">Add</button></div>
+								</div>
+								<div class="spec-stats"><div class="spec-stat"><strong>14</strong> ready meals</div><div class="spec-stat">Targets covered</div></div>
+							</header>
+							<div class="spec-main">
+								<div class="spec-tools">
+									<div class="spec-search"><span class="search-mark"></span>Search stock…</div>
+									<div class="spec-filters"><button class="spec-pill active">Meals</button><button class="spec-pill">Ingredients</button><button class="spec-pill">All stock</button><button class="spec-pill">Filters</button></div>
+								</div>
+								<div class="spec-list-area">
+									<div class="spec-section-head"><b>Use next</b><span>4 meals</span></div>
+									<div class="spec-list normal-only">
+										<div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Primary freezer meal with a deliberately long name</div><div class="row-meta">Low stock · 2 portions</div></div><span class="status-pill">Recipe needed</span></div>
+										<div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Secondary stew</div><div class="row-meta">Enough for Tuesday</div></div><span class="status-pill">Ready</span></div>
+									</div>
+									<div class="spec-list stress-only">
+										<div class="spec-row stress-only"><i class="row-rule"></i><div><div class="row-title">A very long household freezer meal title that must not break the action</div><div class="row-meta">Provider update pending · 2 portions</div></div><span class="status-pill">Needs review</span></div>
+									</div>
+								</div>
+								<div class="spec-side">
+									<div class="spec-notice"><span class="notice-mark">!</span><span><b>Review needed</b><br />Two meals are missing a linked recipe.</span></div>
+									<div class="spec-actions normal-only"><button class="spec-action">View activity</button><button class="spec-action primary">Manage stock</button></div>
+									<div class="spec-actions stress-only"><button class="spec-action" disabled>Unavailable</button><button class="spec-action primary"><span class="spinner"></span>Saving</button></div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="direction-meta">
+						<div class="meta-cell"><b>Strength</b>Highest continuity and clearest migration path.</div>
+						<div class="meta-cell"><b>Trade-off</b>Consistency comes from rules, not identical shells.</div>
+					</div>
+					<div class="direction-note"><label for="note-ledger">Notes on Ledger Grammar</label><textarea id="note-ledger" data-note="direction-ledger" placeholder="What should this keep, change, or borrow?"></textarea></div>
+				</article>
+
+				<article class="direction-card v-compact">
+					<label class="direction-head">
+						<input type="radio" name="direction" value="compact" />
+						<span><h3>Ledger Compact</h3><p>Flatter, tighter, and optimized for fast scanning.</p></span>
+						<span></span>
+						<span class="direction-index">B</span>
+					</label>
+					<div class="preview-shell">
+						<div class="specimen">
+							<header class="spec-header">
+								<div class="spec-title-row"><div><div class="spec-eyebrow">Household</div><div class="spec-title">Stock</div></div><div class="spec-header-actions"><button class="spec-header-button">Activity</button><button class="spec-header-button primary">Add</button></div></div>
+								<div class="spec-stats"><div class="spec-stat"><strong>14</strong> ready meals</div><div class="spec-stat">Targets covered</div></div>
+							</header>
+							<div class="spec-main">
+								<div class="spec-tools"><div class="spec-search"><span class="search-mark"></span>Search stock…</div><div class="spec-filters"><button class="spec-pill active">Meals</button><button class="spec-pill">Ingredients</button><button class="spec-pill">All stock</button><button class="spec-pill">Filters</button></div></div>
+								<div class="spec-list-area"><div class="spec-section-head"><b>Use next</b><span>4 meals</span></div>
+									<div class="spec-list normal-only"><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Primary freezer meal with a deliberately long name</div><div class="row-meta">Low stock · 2 portions</div></div><span class="status-pill">Recipe needed</span></div><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Secondary stew</div><div class="row-meta">Enough for Tuesday</div></div><span class="status-pill">Ready</span></div></div>
+									<div class="spec-list stress-only"><div class="spec-row stress-only"><i class="row-rule"></i><div><div class="row-title">A very long household freezer meal title that must not break the action</div><div class="row-meta">Provider update pending · 2 portions</div></div><span class="status-pill">Needs review</span></div></div>
+								</div>
+								<div class="spec-side"><div class="spec-notice"><span class="notice-mark">!</span><span><b>Review needed</b><br />Two meals are missing a linked recipe.</span></div><div class="spec-actions normal-only"><button class="spec-action">View activity</button><button class="spec-action primary">Manage stock</button></div><div class="spec-actions stress-only"><button class="spec-action" disabled>Unavailable</button><button class="spec-action primary"><span class="spinner"></span>Saving</button></div></div>
+							</div>
+						</div>
+					</div>
+					<div class="direction-meta"><div class="meta-cell"><b>Strength</b>Maximum useful content with little visual furniture.</div><div class="meta-cell"><b>Trade-off</b>Can feel administrative if pushed too far.</div></div>
+					<div class="direction-note"><label for="note-compact">Notes on Ledger Compact</label><textarea id="note-compact" data-note="direction-compact" placeholder="What should this keep, change, or borrow?"></textarea></div>
+				</article>
+
+				<article class="direction-card v-counter">
+					<label class="direction-head">
+						<input type="radio" name="direction" value="counter" />
+						<span><h3>Prep Counter</h3><p>Sturdy work panels and explicit physical controls.</p></span>
+						<span></span>
+						<span class="direction-index">C</span>
+					</label>
+					<div class="preview-shell">
+						<div class="specimen">
+							<header class="spec-header"><div class="spec-title-row"><div><div class="spec-eyebrow">Household</div><div class="spec-title">Stock</div></div><div class="spec-header-actions"><button class="spec-header-button">Activity</button><button class="spec-header-button primary">Add</button></div></div><div class="spec-stats"><div class="spec-stat"><strong>14</strong> ready meals</div><div class="spec-stat">Targets covered</div></div></header>
+							<div class="spec-main">
+								<div class="spec-tools"><div class="spec-search"><span class="search-mark"></span>Search stock…</div><div class="spec-filters"><button class="spec-pill active">Meals</button><button class="spec-pill">Ingredients</button><button class="spec-pill">All stock</button><button class="spec-pill">Filters</button></div></div>
+								<div class="spec-list-area"><div class="spec-section-head"><b>Use next</b><span>4 meals</span></div><div class="spec-list normal-only"><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Primary freezer meal with a deliberately long name</div><div class="row-meta">Low stock · 2 portions</div></div><span class="status-pill">Recipe needed</span></div><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Secondary stew</div><div class="row-meta">Enough for Tuesday</div></div><span class="status-pill">Ready</span></div></div><div class="spec-list stress-only"><div class="spec-row stress-only"><i class="row-rule"></i><div><div class="row-title">A very long household freezer meal title that must not break the action</div><div class="row-meta">Provider update pending · 2 portions</div></div><span class="status-pill">Needs review</span></div></div></div>
+								<div class="spec-side"><div class="spec-notice"><span class="notice-mark">!</span><span><b>Review needed</b><br />Two meals are missing a linked recipe.</span></div><div class="spec-actions normal-only"><button class="spec-action">View activity</button><button class="spec-action primary">Manage stock</button></div><div class="spec-actions stress-only"><button class="spec-action" disabled>Unavailable</button><button class="spec-action primary"><span class="spinner"></span>Saving</button></div></div>
+							</div>
+						</div>
+					</div>
+					<div class="direction-meta"><div class="meta-cell"><b>Strength</b>Clearest separation of tools, information, and commitment.</div><div class="meta-cell"><b>Trade-off</b>Firm geometry is a visible shift from recipe tiles.</div></div>
+					<div class="direction-note"><label for="note-counter">Notes on Prep Counter</label><textarea id="note-counter" data-note="direction-counter" placeholder="What should this keep, change, or borrow?"></textarea></div>
+				</article>
+
+				<article class="direction-card v-folio">
+					<label class="direction-head">
+						<input type="radio" name="direction" value="folio" />
+						<span><h3>Recipe Folio</h3><p>Editorial paper, rules, and content-led hierarchy.</p></span>
+						<span></span>
+						<span class="direction-index">D</span>
+					</label>
+					<div class="preview-shell">
+						<div class="specimen">
+							<header class="spec-header"><div class="spec-title-row"><div><div class="spec-eyebrow">Household</div><div class="spec-title">Stock</div></div><div class="spec-header-actions"><button class="spec-header-button">Activity</button><button class="spec-header-button primary">Add</button></div></div><div class="spec-stats"><div class="spec-stat"><strong>14</strong> ready meals</div><div class="spec-stat">Targets covered</div></div></header>
+							<div class="spec-main">
+								<div class="spec-tools"><div class="spec-search"><span class="search-mark"></span>Search stock…</div><div class="spec-filters"><button class="spec-pill active">Meals</button><button class="spec-pill">Ingredients</button><button class="spec-pill">All stock</button><button class="spec-pill">Filters</button></div></div>
+								<div class="spec-list-area"><div class="spec-section-head"><b>Use next</b><span>4 meals</span></div><div class="spec-list normal-only"><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Primary freezer meal with a deliberately long name</div><div class="row-meta">Low stock · 2 portions</div></div><span class="status-pill">Recipe needed</span></div><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Secondary stew</div><div class="row-meta">Enough for Tuesday</div></div><span class="status-pill">Ready</span></div></div><div class="spec-list stress-only"><div class="spec-row stress-only"><i class="row-rule"></i><div><div class="row-title">A very long household freezer meal title that must not break the action</div><div class="row-meta">Provider update pending · 2 portions</div></div><span class="status-pill">Needs review</span></div></div></div>
+								<div class="spec-side"><div class="spec-notice"><span class="notice-mark">!</span><span><b>Review needed</b><br />Two meals are missing a linked recipe.</span></div><div class="spec-actions normal-only"><button class="spec-action">View activity</button><button class="spec-action primary">Manage stock</button></div><div class="spec-actions stress-only"><button class="spec-action" disabled>Unavailable</button><button class="spec-action primary"><span class="spinner"></span>Saving</button></div></div>
+							</div>
+						</div>
+					</div>
+					<div class="direction-meta"><div class="meta-cell"><b>Strength</b>Most distinctive, calm, and content-led.</div><div class="meta-cell"><b>Trade-off</b>Operational screens need disciplined control weight.</div></div>
+					<div class="direction-note"><label for="note-folio">Notes on Recipe Folio</label><textarea id="note-folio" data-note="direction-folio" placeholder="What should this keep, change, or borrow?"></textarea></div>
+				</article>
+
+				<article class="direction-card v-tiles wide">
+					<label class="direction-head">
+						<input type="radio" name="direction" value="tiles" />
+						<span><h3>Pantry Tiles</h3><p>Friendly modules, soft fills, and obvious tap states.</p></span>
+						<span></span>
+						<span class="direction-index">E</span>
+					</label>
+					<div class="preview-shell">
+						<div class="specimen">
+							<header class="spec-header"><div class="spec-title-row"><div><div class="spec-eyebrow">Household</div><div class="spec-title">Stock</div></div><div class="spec-header-actions"><button class="spec-header-button">Activity</button><button class="spec-header-button primary">Add</button></div></div><div class="spec-stats"><div class="spec-stat"><strong>14</strong> ready meals</div><div class="spec-stat">Targets covered</div></div></header>
+							<div class="spec-main">
+								<div class="spec-tools"><div class="spec-search"><span class="search-mark"></span>Search stock…</div><div class="spec-filters"><button class="spec-pill active">Meals</button><button class="spec-pill">Ingredients</button><button class="spec-pill">All stock</button><button class="spec-pill">Filters</button></div></div>
+								<div class="spec-list-area"><div class="spec-section-head"><b>Use next</b><span>4 meals</span></div><div class="spec-list normal-only"><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Primary freezer meal with a deliberately long name</div><div class="row-meta">Low stock · 2 portions</div></div><span class="status-pill">Recipe needed</span></div><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Secondary stew</div><div class="row-meta">Enough for Tuesday</div></div><span class="status-pill">Ready</span></div></div><div class="spec-list stress-only"><div class="spec-row stress-only"><i class="row-rule"></i><div><div class="row-title">A very long household freezer meal title that must not break the action</div><div class="row-meta">Provider update pending · 2 portions</div></div><span class="status-pill">Needs review</span></div></div></div>
+								<div class="spec-side"><div class="spec-notice"><span class="notice-mark">!</span><span><b>Review needed</b><br />Two meals are missing a linked recipe.</span></div><div class="spec-actions normal-only"><button class="spec-action">View activity</button><button class="spec-action primary">Manage stock</button></div><div class="spec-actions stress-only"><button class="spec-action" disabled>Unavailable</button><button class="spec-action primary"><span class="spinner"></span>Saving</button></div></div>
+							</div>
+						</div>
+					</div>
+					<div class="direction-meta"><div class="meta-cell"><b>Strength</b>Most approachable with the clearest large tap areas.</div><div class="meta-cell"><b>Trade-off</b>Tile and pill excess could recreate visual noise.</div></div>
+					<div class="direction-note"><label for="note-tiles">Notes on Pantry Tiles</label><textarea id="note-tiles" data-note="direction-tiles" placeholder="What should this keep, change, or borrow?"></textarea></div>
+				</article>
+			</div>
+
+			<label class="refinement-choice">
+				<input type="checkbox" id="request-refinement" />
+				<span><b>Do not approve a direction yet; request one focused refinement round.</b><span>This overrides the selected radio in the handoff while retaining it as the starting point for refinement. Explain the requested change in the relevant direction note or general notes.</span></span>
+			</label>
+		</section>
+
+		<section id="contract">
+			<div class="section-intro">
+				<div>
+					<p class="kicker" style="color:var(--terra)">Decisions 1–6</p>
+					<h2>Define the reusable contract.</h2>
+					<p>These choices are independent of the base direction. “Defer” deliberately excludes a decision from the next implementation plan.</p>
+				</div>
+			</div>
+
+			<div class="subdecision-grid">
+				<fieldset class="decision-card" data-decision-card="surface">
+					<legend><span class="decision-number">1</span><h3>Surface grammar</h3><p class="decision-question">What should make sections feel related?</p></legend>
+					<div class="option-list">
+						<label class="option"><input type="radio" name="surface" value="mixed" checked /><span><b>Mixed by job <span class="rec">· Recommended</span></b><small>Ruled lists, framed work panels, and tinted notices each have one meaning.</small></span></label>
+						<label class="option"><input type="radio" name="surface" value="card" /><span><b>One framed container</b><small>Easiest literal consistency; highest dashboard/card risk.</small></span></label>
+						<label class="option"><input type="radio" name="surface" value="flat" /><span><b>Flat dividers</b><small>Calm and dense; needs strong type hierarchy for focus and warnings.</small></span></label>
+						<label class="option"><input type="radio" name="surface" value="defer" /><span><b>Defer from implementation</b><small>Keep current surfaces until more evidence is available.</small></span></label>
+					</div>
+					<textarea class="decision-note" data-note="decision-surface" aria-label="Surface grammar clarification" placeholder="Clarification or exception…"></textarea>
+				</fieldset>
+
+				<fieldset class="decision-card" data-decision-card="control">
+					<legend><span class="decision-number">2</span><h3>Control silhouette</h3><p class="decision-question">How round should interactive controls be?</p></legend>
+					<div class="option-list">
+						<label class="option"><input type="radio" name="control" value="balanced" checked /><span><b>Balanced 12 px <span class="rec">· Recommended</span></b><small>Moderate corners; full capsules reserved for compact filters and status.</small></span></label>
+						<label class="option"><input type="radio" name="control" value="compact" /><span><b>Compact 8 px</b><small>Tool-like, dense, and visually distinct from cards.</small></span></label>
+						<label class="option"><input type="radio" name="control" value="soft" /><span><b>Soft 16 px</b><small>Friendlier, but controls approach the current tile silhouette.</small></span></label>
+						<label class="option"><input type="radio" name="control" value="defer" /><span><b>Defer from implementation</b><small>Do not normalize geometry in the first pass.</small></span></label>
+					</div>
+					<textarea class="decision-note" data-note="decision-control" aria-label="Control silhouette clarification" placeholder="Clarification or exception…"></textarea>
+				</fieldset>
+
+				<fieldset class="decision-card" data-decision-card="pills">
+					<legend><span class="decision-number">3</span><h3>Pill contract</h3><p class="decision-question">What is allowed to use a capsule?</p></legend>
+					<div class="option-list">
+						<label class="option"><input type="radio" name="pills" value="selection-status" checked /><span><b>Selection + short status <span class="rec">· Recommended</span></b><small>Filters and compact state share the shape, with clear interactive treatment.</small></span></label>
+						<label class="option"><input type="radio" name="pills" value="selection" /><span><b>Selection only</b><small>One unambiguous meaning; statuses become inline text or badges.</small></span></label>
+						<label class="option"><input type="radio" name="pills" value="broad" /><span><b>Broad metadata</b><small>Expressive and friendly, but most likely to produce capsule noise.</small></span></label>
+						<label class="option"><input type="radio" name="pills" value="defer" /><span><b>Defer from implementation</b><small>Leave current pill roles intact for now.</small></span></label>
+					</div>
+					<textarea class="decision-note" data-note="decision-pills" aria-label="Pill contract clarification" placeholder="Clarification or exception…"></textarea>
+				</fieldset>
+
+				<fieldset class="decision-card" data-decision-card="action">
+					<legend><span class="decision-number">4</span><h3>Action hierarchy</h3><p class="decision-question">What means “the next committed action”?</p></legend>
+					<div class="option-list">
+						<label class="option"><input type="radio" name="action" value="terra" checked /><span><b>Terra primary <span class="rec">· Recommended</span></b><small>One terra commitment, olive outline secondary, quiet tertiary.</small></span></label>
+						<label class="option"><input type="radio" name="action" value="olive" /><span><b>Olive primary</b><small>Calmer default; terra is reserved for attention or consequences.</small></span></label>
+						<label class="option"><input type="radio" name="action" value="context" /><span><b>Contextual primary</b><small>Route-local accents strengthen context but weaken predictability.</small></span></label>
+						<label class="option"><input type="radio" name="action" value="defer" /><span><b>Defer from implementation</b><small>Keep page-local action hierarchy in the first pass.</small></span></label>
+					</div>
+					<textarea class="decision-note" data-note="decision-action" aria-label="Action hierarchy clarification" placeholder="Clarification or exception…"></textarea>
+				</fieldset>
+
+				<fieldset class="decision-card" data-decision-card="type">
+					<legend><span class="decision-number">5</span><h3>Section typography</h3><p class="decision-question">How should body sections announce hierarchy?</p></legend>
+					<div class="option-list">
+						<label class="option"><input type="radio" name="type" value="hybrid" checked /><span><b>Serif title + sans metadata <span class="rec">· Recommended</span></b><small>Meaningful section titles get warmth; controls remain crisp.</small></span></label>
+						<label class="option"><input type="radio" name="type" value="sans" /><span><b>Sans throughout</b><small>Serif stays at route identity; body hierarchy becomes utilitarian.</small></span></label>
+						<label class="option"><input type="radio" name="type" value="editorial" /><span><b>Editorial serif</b><small>Strongest folio character, including selected content labels.</small></span></label>
+						<label class="option"><input type="radio" name="type" value="defer" /><span><b>Defer from implementation</b><small>Do not normalize body typography yet.</small></span></label>
+					</div>
+					<textarea class="decision-note" data-note="decision-type" aria-label="Section typography clarification" placeholder="Clarification or exception…"></textarea>
+				</fieldset>
+
+				<fieldset class="decision-card" data-decision-card="density">
+					<legend><span class="decision-number">6</span><h3>Density rhythm</h3><p class="decision-question">How much breathing room should the default recipe use?</p></legend>
+					<div class="option-list">
+						<label class="option"><input type="radio" name="density" value="balanced" checked /><span><b>Balanced 8/12/16 <span class="rec">· Recommended</span></b><small>Compact groups, comfortable rows, and clear section separation.</small></span></label>
+						<label class="option"><input type="radio" name="density" value="tight" /><span><b>Tight 4/8/12</b><small>Maximum scan density while invisible padding protects touch size.</small></span></label>
+						<label class="option"><input type="radio" name="density" value="roomy" /><span><b>Roomy 12/16/24</b><small>Easiest casual parsing; less operational content per viewport.</small></span></label>
+						<label class="option"><input type="radio" name="density" value="defer" /><span><b>Defer from implementation</b><small>Allow page-local spacing to remain in the first pass.</small></span></label>
+					</div>
+					<textarea class="decision-note" data-note="decision-density" aria-label="Density rhythm clarification" placeholder="Clarification or exception…"></textarea>
+				</fieldset>
+			</div>
+		</section>
+
+		<section id="workbench-section">
+			<div class="workbench-wrap preview-zone">
+				<div class="workbench-head">
+					<div><h2>Live house-style workbench</h2><p>Your selected direction and sub-options combine here. Deferred choices fall back to the direction's native rendering in this preview.</p></div>
+					<div class="workbench-controls">
+						<button type="button" data-workbench-size="phone" aria-pressed="true">393 px</button>
+						<button type="button" data-workbench-size="desktop" aria-pressed="false">820 px</button>
+					</div>
+				</div>
+				<div class="workbench-stage">
+					<div id="workbench" class="v-ledger surface-mixed control-balanced pills-selection-status action-terra type-hybrid density-balanced">
+						<div class="specimen">
+							<header class="spec-header"><div class="spec-title-row"><div><div class="spec-eyebrow">Household</div><div class="spec-title">Stock</div></div><div class="spec-header-actions"><button class="spec-header-button">Activity</button><button class="spec-header-button primary">Add</button></div></div><div class="spec-stats"><div class="spec-stat"><strong>14</strong> ready meals</div><div class="spec-stat">Targets covered</div></div></header>
+							<div class="spec-main">
+								<div class="spec-tools"><div class="spec-search"><span class="search-mark"></span>Search stock…</div><div class="spec-filters"><button class="spec-pill active">Meals</button><button class="spec-pill">Ingredients</button><button class="spec-pill">All stock</button><button class="spec-pill">Filters</button></div></div>
+								<div class="spec-list-area"><div class="spec-section-head"><b>Use next</b><span>4 meals</span></div><div class="spec-list normal-only"><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Primary freezer meal with a deliberately long name</div><div class="row-meta">Low stock · 2 portions</div></div><span class="status-pill">Recipe needed</span></div><div class="spec-row"><i class="row-rule"></i><div><div class="row-title">Secondary stew</div><div class="row-meta">Enough for Tuesday</div></div><span class="status-pill">Ready</span></div></div><div class="spec-list stress-only"><div class="spec-row stress-only"><i class="row-rule"></i><div><div class="row-title">A very long household freezer meal title that must not break the action</div><div class="row-meta">Provider update pending · 2 portions</div></div><span class="status-pill">Needs review</span></div></div></div>
+								<div class="spec-side"><div class="spec-notice"><span class="notice-mark">!</span><span><b>Review needed</b><br />Two meals are missing a linked recipe.</span></div><div class="spec-actions normal-only"><button class="spec-action">View activity</button><button class="spec-action primary">Manage stock</button></div><div class="spec-actions stress-only"><button class="spec-action" disabled>Unavailable</button><button class="spec-action primary"><span class="spinner"></span>Saving</button></div></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section id="handoff-section">
+			<div class="section-intro">
+				<div><p class="kicker" style="color:var(--terra)">Review output</p><h2>Make the next pass unambiguous.</h2><p>The prompt includes the source, evidence, alternatives, consequences, accepted recommendations, overrides, exclusions, and your notes verbatim.</p></div>
+			</div>
+			<div class="handoff-grid">
+				<div class="summary-panel">
+					<h3>Current selection</h3>
+					<p>The untouched workspace is valid: it approves the recommended direction and contracts.</p>
+					<div id="selection-summary"></div>
+					<label for="general-notes" style="font-size:.78rem;font-weight:750">General notes or requested follow-up</label>
+					<textarea id="general-notes" data-note="general" placeholder="Anything the next agent must preserve, test, borrow, or avoid…"></textarea>
+					<p class="save-status" id="save-status" role="status">Selections save locally in this browser.</p>
+				</div>
+				<div class="prompt-panel">
+					<div class="prompt-head">
+						<h3>Paste-ready handoff</h3>
+						<div class="prompt-actions"><button class="utility-button" type="button" id="copy-prompt">Copy</button><button class="utility-button" type="button" data-reset>Reset</button></div>
+					</div>
+					<textarea id="handoff" readonly aria-label="Generated handoff prompt"></textarea>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<footer>
+		Authoritative source: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md · This HTML is a temporary decision workspace.
+	</footer>
+
+	<script>
+		(() => {
+			const VERSION = "app-house-style-v1";
+			const STORAGE_KEY = `${location.pathname || "local-app-house-style"}::${VERSION}`;
+			const defaultState = {
+				direction: "ledger",
+				refinement: false,
+				decisions: {
+					surface: "mixed",
+					control: "balanced",
+					pills: "selection-status",
+					action: "terra",
+					type: "hybrid",
+					density: "balanced"
+				},
+				notes: {},
+				demoState: "normal",
+				dark: false,
+				workbenchSize: "phone"
+			};
+			let state = structuredClone(defaultState);
+			let storageAvailable = true;
+
+			const directions = {
+				ledger: {
+					label: "A — Ledger Grammar",
+					thesis: "Keep Kitchen Ledger almost exactly as it feels today, but reduce it to a strict grammar: ruled lists for repeated rows, framed panels for focused work, and capsules only for compact selection or status.",
+					strength: "Highest continuity with the current app and lowest visual migration cost.",
+					tradeoff: "Consistency comes from rules rather than making every surface literally alike.",
+					optimizes: "Frequent users who already like the app and want drift removed.",
+					recommended: true
+				},
+				compact: {
+					label: "B — Ledger Compact",
+					thesis: "Treat the app as a dense household instrument: flatter surfaces, tighter rhythm, small-radius controls, and strong separators carry hierarchy.",
+					strength: "Fits the most information with the least visual furniture.",
+					tradeoff: "Can feel administrative if whitespace and type hierarchy are not carefully protected.",
+					optimizes: "Rapid scanning during shopping and stock triage.",
+					recommended: false
+				},
+				counter: {
+					label: "C — Prep Counter",
+					thesis: "Build from sturdy work surfaces: squared panels, inset tool strips, clear grid alignment, and controls that feel like physical kitchen equipment.",
+					strength: "Clearest distinction between tools, information, and committed actions.",
+					tradeoff: "The firmer geometry is a visible change from current soft recipe cards.",
+					optimizes: "Error-resistant action under time pressure.",
+					recommended: false
+				},
+				folio: {
+					label: "D — Recipe Folio",
+					thesis: "Lean into the warm paper identity with editorial headings, generous rules, quiet outlined controls, and content-led sections rather than card-led layout.",
+					strength: "Most distinctive and calm; recipes and meal content feel authored.",
+					tradeoff: "Operational screens need disciplined controls to avoid feeling too delicate.",
+					optimizes: "Browsing, reading, and recipe-led use.",
+					recommended: false
+				},
+				tiles: {
+					label: "E — Pantry Tiles",
+					thesis: "Use friendly modular tiles, soft filled surfaces, larger rounding, and obvious selected states to make household information approachable.",
+					strength: "Most approachable and easiest to parse at a glance.",
+					tradeoff: "Tile and pill overuse could recreate inconsistency through excess visual furniture.",
+					optimizes: "Low-friction casual use and clear touch interaction.",
+					recommended: false
+				}
+			};
+
+			const decisions = {
+				surface: {
+					number: 1,
+					question: "What should make sections feel related?",
+					source: "Sub-decisions §1 — Surface grammar",
+					recommendation: "mixed",
+					rationale: "Mixed by job preserves route-specific composition while giving repeated rows, focused work, and notices one dependable material each.",
+					uncertainty: "If the current app feels too card-heavy in regular use, the flatter option may deserve a route-level trial.",
+					options: {
+						mixed: ["Mixed by job", "Ruled list for repeated rows, framed panel for focused work, tinted inset for notices. Preserves meaning without copying one layout."],
+						card: ["One framed container", "Every major section shares a card shell. Fastest literal unification, but risks a dashboard of boxes."],
+						flat: ["Flat dividers", "Spacing and rules carry hierarchy. Calm and dense, but focus, warning, and overlay states need extra care."],
+						defer: ["Deferred / excluded", "Do not normalize surface grammar in the next implementation plan."]
+					}
+				},
+				control: {
+					number: 2,
+					question: "How round should interactive controls be?",
+					source: "Sub-decisions §2 — Control silhouette",
+					recommendation: "balanced",
+					rationale: "Twelve-pixel corners distinguish controls from large cards while retaining the current friendly character; capsules stay semantic.",
+					uncertainty: "A real 320 px interaction test may show that compact geometry scans better on the densest Shopping rows.",
+					options: {
+						balanced: ["Balanced 12 px", "Fields and buttons use moderate corners; filters and short statuses alone use full capsules."],
+						compact: ["Compact 8 px", "Tool-like and dense, with a sharper distinction from cards."],
+						soft: ["Soft 16 px", "Friendlier touch expression, but control and tile silhouettes move closer together."],
+						defer: ["Deferred / excluded", "Do not normalize control geometry in the next implementation plan."]
+					}
+				},
+				pills: {
+					number: 3,
+					question: "What is allowed to use a capsule?",
+					source: "Sub-decisions §3 — Pill contract",
+					recommendation: "selection-status",
+					rationale: "Filters and short states both benefit from compact width, while fill, border, and interaction feedback can keep selectable and informational pills distinct.",
+					uncertainty: "If even careful styling leaves status looking tappable, move to selection-only before implementation.",
+					options: {
+						"selection-status": ["Selection + short status", "Filters, selected scope, connection state, and short status may use capsules; interactivity must remain explicit."],
+						selection: ["Selection only", "Capsules have one unambiguous meaning. Status becomes inline text or a non-capsule badge."],
+						broad: ["Broad metadata", "Filters, status, counts, sources, and metadata may all use capsules. Expressive, but likely to create pill noise."],
+						defer: ["Deferred / excluded", "Keep current pill roles in the next implementation plan."]
+					}
+				},
+				action: {
+					number: 4,
+					question: "Which treatment should mean the next committed action?",
+					source: "Sub-decisions §4 — Action hierarchy",
+					recommendation: "terra",
+					rationale: "A single terra action creates a stable next-step signal against the olive working frame; olive outline and quiet actions remain clearly subordinate.",
+					uncertainty: "If terra appears too often after caller inventory, the system should reduce simultaneous primaries rather than weaken the color.",
+					options: {
+						terra: ["Terra primary", "One terra committed action, olive outline secondary, quiet text or ghost tertiary."],
+						olive: ["Olive primary", "Olive fill is the default action; terra is reserved for attention or irreversible consequences."],
+						context: ["Contextual primary", "Each route chooses its accent. Reinforces local context but weakens cross-app predictability."],
+						defer: ["Deferred / excluded", "Keep page-local action hierarchy in the next implementation plan."]
+					}
+				},
+				type: {
+					number: 5,
+					question: "How should body sections announce hierarchy?",
+					source: "Sub-decisions §5 — Section typography",
+					recommendation: "hybrid",
+					rationale: "Serif section headings carry the warm identity while sans-serif controls and metadata remain compact and easy to scan.",
+					uncertainty: "Long Dutch headings may require a slightly smaller serif token or a sans fallback at narrow widths.",
+					options: {
+						hybrid: ["Serif title + sans metadata", "Sentence-case serif for meaningful sections; uppercase sans micro-labels only for small categories and status strips."],
+						sans: ["Sans throughout", "Route identity keeps the serif; body hierarchy becomes compact and utilitarian."],
+						editorial: ["Editorial serif", "Serif extends to card titles and selected content labels, producing the strongest folio character."],
+						defer: ["Deferred / excluded", "Do not normalize body typography in the next implementation plan."]
+					}
+				},
+				density: {
+					number: 6,
+					question: "How much breathing room should the default component recipe use?",
+					source: "Sub-decisions §6 — Density rhythm",
+					recommendation: "balanced",
+					rationale: "The 8/12/16 rhythm preserves current operational density while creating enough separation to keep warnings and sections legible.",
+					uncertainty: "Real Shopping use may support the tight option; real Recipe browsing may support roomy. A shared default can still allow justified route-level density.",
+					options: {
+						balanced: ["Balanced 8/12/16", "Eight pixels inside compact groups, twelve within controls and rows, sixteen between sections."],
+						tight: ["Tight 4/8/12", "Highest information density; touch targets stay at least 44 CSS pixels through invisible padding."],
+						roomy: ["Roomy 12/16/24", "Easiest casual scanning, with less content visible on operational pages."],
+						defer: ["Deferred / excluded", "Allow current page-local spacing to remain in the next implementation plan."]
+					}
+				}
+			};
+
+			function loadState() {
+				try {
+					const raw = localStorage.getItem(STORAGE_KEY);
+					if (!raw) return;
+					const saved = JSON.parse(raw);
+					state = {
+						...structuredClone(defaultState),
+						...saved,
+						decisions: { ...defaultState.decisions, ...(saved.decisions || {}) },
+						notes: { ...(saved.notes || {}) }
+					};
+				} catch (error) {
+					storageAvailable = false;
+				}
+			}
+
+			function saveState() {
+				const status = document.getElementById("save-status");
+				try {
+					localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+					storageAvailable = true;
+					status.textContent = "Selections saved locally in this browser.";
+					status.classList.remove("error");
+				} catch (error) {
+					storageAvailable = false;
+					status.textContent = "Local saving is unavailable. Keep this tab open or copy the handoff before leaving.";
+					status.classList.add("error");
+				}
+			}
+
+			function selectedRadio(name) {
+				return document.querySelector(`input[name="${name}"]:checked`)?.value;
+			}
+
+			function applyStateToControls() {
+				const directionInput = document.querySelector(`input[name="direction"][value="${state.direction}"]`);
+				if (directionInput) directionInput.checked = true;
+				document.getElementById("request-refinement").checked = !!state.refinement;
+				Object.entries(state.decisions).forEach(([key, value]) => {
+					const input = document.querySelector(`input[name="${key}"][value="${value}"]`);
+					if (input) input.checked = true;
+				});
+				document.querySelectorAll("[data-note]").forEach((field) => {
+					field.value = state.notes[field.dataset.note] || "";
+				});
+				document.querySelectorAll("[data-demo-state]").forEach((button) => {
+					button.setAttribute("aria-pressed", String(button.dataset.demoState === state.demoState));
+				});
+				document.querySelectorAll("[data-workbench-size]").forEach((button) => {
+					button.setAttribute("aria-pressed", String(button.dataset.workbenchSize === state.workbenchSize));
+				});
+				document.getElementById("theme-toggle").setAttribute("aria-pressed", String(state.dark));
+				document.getElementById("theme-toggle").textContent = state.dark ? "Preview light" : "Preview dark";
+			}
+
+			function updateStateFromControls() {
+				state.direction = selectedRadio("direction") || "ledger";
+				state.refinement = document.getElementById("request-refinement").checked;
+				Object.keys(decisions).forEach((key) => {
+					state.decisions[key] = selectedRadio(key) || defaultState.decisions[key];
+				});
+				document.querySelectorAll("[data-note]").forEach((field) => {
+					state.notes[field.dataset.note] = field.value;
+				});
+			}
+
+			function applyPreview() {
+				document.querySelectorAll(".preview-zone").forEach((zone) => zone.classList.toggle("preview-dark", state.dark));
+				document.querySelectorAll(".specimen").forEach((specimen) => specimen.classList.toggle("show-stress", state.demoState === "stress"));
+				const workbench = document.getElementById("workbench");
+				workbench.className = "";
+				workbench.classList.add(`v-${state.direction}`);
+				Object.entries(state.decisions).forEach(([key, value]) => {
+					if (value !== "defer") workbench.classList.add(`${key}-${value}`);
+				});
+				workbench.classList.toggle("desktop", state.workbenchSize === "desktop");
+			}
+
+			function noteBlock(key, label) {
+				const value = (state.notes[key] || "").trim();
+				return value ? `\nUser note under ${label} (verbatim):\n${value}\n` : "";
+			}
+
+			function buildPrompt() {
+				const dir = directions[state.direction];
+				const decisionBlocks = Object.entries(decisions).map(([key, decision]) => {
+					const selectedKey = state.decisions[key];
+					const selected = decision.options[selectedKey];
+					const accepted = selectedKey === decision.recommendation;
+					const outcome = selectedKey === "defer"
+						? "EXCLUDED from the next implementation plan"
+						: accepted
+							? "Accepted recommendation"
+							: "Override";
+					const alternatives = Object.entries(decision.options)
+						.map(([optionKey, option]) => `- ${option[0]}${optionKey === decision.recommendation ? " (recommended)" : ""}: ${option[1]}`)
+						.join("\n");
+					return `## Decision ${decision.number}: ${decision.source}
+Question: ${decision.question}
+Outcome: ${outcome}
+Selected: ${selected[0]}
+Practical consequence: ${selected[1]}
+Recommendation: ${decision.options[decision.recommendation][0]}
+Why recommended: ${decision.rationale}
+Evidence/assumption: the current atmosphere is successful; the remaining problem is repeated component-level drift rather than route information architecture.
+Uncertainty that could change it: ${decision.uncertainty}
+Options considered:
+${alternatives}${noteBlock(`decision-${key}`, `Decision ${decision.number}: ${decision.source}`)}`;
+				}).join("\n\n");
+
+				const directionOptions = Object.values(directions)
+					.map((option) => `- ${option.label}${option.recommended ? " (recommended)" : ""}: ${option.thesis} Strength: ${option.strength} Trade-off: ${option.tradeoff} Optimizes: ${option.optimizes}`)
+					.join("\n");
+
+				const refinementOutcome = state.refinement
+					? `Do not treat the selected direction as approved. Use ${dir.label} only as the starting point for one focused refinement round, applying the user's verbatim notes before asking for another decision.`
+					: `Treat ${dir.label} as the approved base direction.`;
+
+				const notesWithValues = Object.entries(state.notes)
+					.filter(([key, value]) => value.trim() && !key.startsWith("decision-") && key !== `direction-${state.direction}` && key !== "general")
+					.map(([key, value]) => `\nAdditional note under ${key} (verbatim):\n${value.trim()}`)
+					.join("\n");
+
+				return `Continue the App House Style design workflow in the Keukenbrein repository.
+
+Load the authoritative source in full:
+docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md
+
+Do not use the HTML artifact as source truth. Preserve the repository's shipped Kitchen Ledger invariants: the olive header is useful working space, route payloads stay job-specific, touch targets remain at least 44 CSS pixels, and no navigation, mutation, data, schema, auth, AH, AI, or Dutch canonical lookup behavior changes as part of this design decision.
+
+# Direction decision
+Question: Which component-level character should become the app house style?
+Outcome: ${state.refinement ? "Focused refinement requested; no direction approved yet" : "Direction approved"}
+Selected starting point: ${dir.label}
+Visual thesis: ${dir.thesis}
+Main strength: ${dir.strength}
+Main trade-off: ${dir.tradeoff}
+User behavior optimized: ${dir.optimizes}
+Recommendation: A — Ledger Grammar.
+Why recommended: the user said the vibes are good and the problem is minor variation. Ledger Grammar keeps the current identity while giving repeated roles one strict semantic owner.
+Evidence: a 2026-07-29 repository and synthetic authenticated 393 × 852 audit found the four main routes already share page-header, palette, gutters, icon, and navigation grammar. Remaining drift is in sections, button hierarchy, pill meaning, fields, body typography, and density.
+Assumption: route-specific layouts are intentional and should remain.
+Uncertainty: if real Shopping and Stock use feels too dense, borrow larger touch expression from Pantry Tiles without adopting its tile-heavy surface system; if the app feels too card-heavy, borrow flatter sections from Ledger Compact.
+Practical consequence: ${refinementOutcome}
+
+Options considered:
+${directionOptions}
+${noteBlock(`direction-${state.direction}`, `selected direction ${dir.label}`)}
+${decisionBlocks}
+
+# Cross-cutting review notes
+${state.notes.general?.trim() ? `User general note (verbatim):\n${state.notes.general.trim()}` : "No general user note was entered."}
+${notesWithValues}
+
+# Required next step
+${state.refinement
+	? "Produce one focused comparison round that changes only the elements named in the notes. Keep equivalent content, viewport, and stress states across variants. Do not implement production UI."
+	: "Confirm the understood direction once, then create a scoped implementation plan. Inventory callers before defining shared primitives; consolidate components only when their semantic role is the same. Preserve genuinely route-specific composition. Include 320/393/768/1280 px, light/dark, English/Dutch, keyboard, reduced motion, long copy, empty/populated, warning/error, loading, disabled, and selected states in verification. Do not implement until explicitly asked."}
+`;
+			}
+
+			function updateSummary() {
+				const summary = document.getElementById("selection-summary");
+				const rows = [
+					["Direction", `${directions[state.direction].label}${state.refinement ? " · refine" : ""}`],
+					...Object.entries(decisions).map(([key, decision]) => [decision.source.replace(/^Sub-decisions §\d+ — /, ""), decision.options[state.decisions[key]][0]])
+				];
+				summary.innerHTML = rows.map(([label, value]) => `<div class="summary-row"><span>${label}</span><b>${value}</b></div>`).join("");
+				document.getElementById("handoff").value = buildPrompt();
+			}
+
+			function refresh({ save = true } = {}) {
+				updateStateFromControls();
+				applyPreview();
+				updateSummary();
+				if (save) saveState();
+			}
+
+			function resetAll() {
+				state = structuredClone(defaultState);
+				try { localStorage.removeItem(STORAGE_KEY); } catch (error) { storageAvailable = false; }
+				applyStateToControls();
+				applyPreview();
+				updateSummary();
+				saveState();
+			}
+
+			loadState();
+			applyStateToControls();
+			applyPreview();
+			updateSummary();
+			if (!storageAvailable) {
+				const status = document.getElementById("save-status");
+				status.textContent = "Local saving is unavailable. Keep this tab open or copy the handoff before leaving.";
+				status.classList.add("error");
+			}
+
+			document.addEventListener("change", (event) => {
+				if (event.target.matches('input[type="radio"], input[type="checkbox"]')) refresh();
+			});
+			document.addEventListener("input", (event) => {
+				if (event.target.matches("[data-note]")) refresh();
+			});
+			document.querySelectorAll("[data-demo-state]").forEach((button) => {
+				button.addEventListener("click", () => {
+					state.demoState = button.dataset.demoState;
+					applyStateToControls();
+					applyPreview();
+					saveState();
+				});
+			});
+			document.querySelectorAll("[data-workbench-size]").forEach((button) => {
+				button.addEventListener("click", () => {
+					state.workbenchSize = button.dataset.workbenchSize;
+					applyStateToControls();
+					applyPreview();
+					requestAnimationFrame(() => {
+						document.querySelector(".workbench-stage").scrollLeft = 0;
+					});
+					saveState();
+				});
+			});
+			window.addEventListener("resize", () => {
+				if (window.innerWidth > 820) document.querySelector(".workbench-stage").scrollLeft = 0;
+			});
+			document.getElementById("theme-toggle").addEventListener("click", () => {
+				state.dark = !state.dark;
+				applyStateToControls();
+				applyPreview();
+				saveState();
+			});
+			document.querySelectorAll("[data-reset]").forEach((button) => button.addEventListener("click", resetAll));
+			document.getElementById("copy-prompt").addEventListener("click", async () => {
+				const handoff = document.getElementById("handoff");
+				const button = document.getElementById("copy-prompt");
+				try {
+					await navigator.clipboard.writeText(handoff.value);
+					button.textContent = "Copied";
+					setTimeout(() => button.textContent = "Copy", 1600);
+				} catch (error) {
+					handoff.focus();
+					handoff.select();
+					button.textContent = "Selected — copy manually";
+					setTimeout(() => button.textContent = "Copy", 2600);
+				}
+			});
+		})();
+	</script>
+</body>
+</html>

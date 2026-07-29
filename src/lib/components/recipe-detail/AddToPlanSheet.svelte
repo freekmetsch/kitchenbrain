@@ -120,7 +120,7 @@
 				{/if}
 			</div>
 			{#if scalingMode === 'fixed_batch' && addToPlanSource === 'fresh' && !batchOverride}
-				<button type="button" class="btn btn-ghost btn-xs min-h-9" onclick={() => (batchOverride = true)}>{m.recipes_addplan_change_batch()}</button>
+				<button type="button" class="ui-action ui-action-tertiary" onclick={() => (batchOverride = true)}>{m.recipes_addplan_change_batch()}</button>
 			{:else}
 				<div class="flex items-center gap-2">
 					<button type="button" class="btn btn-circle btn-sm btn-ghost border border-base-300" disabled={servings <= 1} onclick={() => (servings = Math.max(1, servings - 1))}>−</button>
@@ -147,7 +147,7 @@
 	</div>
 	<div>
 		<button
-			class="btn btn-primary btn-sm w-full"
+			class="ui-action ui-action-primary w-full"
 			onclick={addToPlan}
 			disabled={addToPlanSubmitting}
 		>

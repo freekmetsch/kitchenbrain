@@ -5,6 +5,7 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import IngredientListEditor from '$lib/components/recipe-edit/IngredientListEditor.svelte';
 	import DirectionListEditor from '$lib/components/recipe-edit/DirectionListEditor.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -165,14 +166,14 @@
 	<header class="sticky top-0 z-30 -mx-4 mb-4 flex items-center gap-2 border-b border-base-200 bg-base-100/95 px-4 py-2 backdrop-blur">
 		<a
 			href="{base}/recipes/{data.recipe.slug}"
-			class="btn btn-sm btn-ghost -ml-2 h-9 w-9 shrink-0 p-0"
+			class="ui-action ui-action-tertiary ui-action-icon -ml-2 shrink-0"
 			aria-label={m.recipes_cancel_button()}><Icon name="chevronLeft" /></a
 		>
 		<h1 class="min-w-0 flex-1 truncate text-lg font-bold">{m.recipes_edit_heading()}</h1>
 		<button
 			type="submit"
 			form="recipe-edit-form"
-			class="btn btn-sm btn-primary shrink-0"
+			class="ui-action ui-action-primary shrink-0"
 			disabled={submitting || !dirty}
 		>
 			{#if submitting}<Spinner size="xs" />{/if}
@@ -181,27 +182,37 @@
 	</header>
 
 	{#if form?.error}
-		<div
-			bind:this={errorSummary}
-			tabindex="-1"
+		<KitchenNotice
+			bind:element={errorSummary}
+			tone="error"
+			tabindex={-1}
 			role="alert"
-			class="mb-3 rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error"
+			class="mb-3 text-sm"
 		>
-			{form.error}
-		</div>
+			<span class="flex items-start gap-2">
+				<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-error" />
+				{form.error}
+			</span>
+		</KitchenNotice>
 	{/if}
 	{#if draftRecovered}
-		<div class="mb-3 flex items-center gap-3 rounded-xl border border-info/30 bg-info/10 px-3 py-2 text-sm text-info">
-			<span class="min-w-0 flex-1">{m.recipes_edit_draft_restored()}</span>
-			<button type="button" class="btn btn-ghost btn-sm min-h-9" onclick={discardRecoveredDraft}>
-				{m.recipes_edit_draft_discard()}
-			</button>
-		</div>
+		<KitchenNotice tone="info" class="mb-3 text-sm">
+			<div class="flex items-center gap-3">
+				<Icon name="clock" class="h-4 w-4 shrink-0 text-info" />
+				<span class="min-w-0 flex-1">{m.recipes_edit_draft_restored()}</span>
+				<button type="button" class="ui-action ui-action-tertiary" onclick={discardRecoveredDraft}>
+					{m.recipes_edit_draft_discard()}
+				</button>
+			</div>
+		</KitchenNotice>
 	{/if}
 	{#if data.reviewingStructureDraft}
-		<div class="mb-3 rounded-xl border border-info/30 bg-info/10 px-3 py-2 text-sm text-info">
-			{m.recipes_edit_structure_review_hint()}
-		</div>
+		<KitchenNotice tone="info" class="mb-3 text-sm">
+			<span class="flex items-start gap-2">
+				<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-info" />
+				{m.recipes_edit_structure_review_hint()}
+			</span>
+		</KitchenNotice>
 	{/if}
 
 	<form
@@ -227,15 +238,15 @@
 		class="flex flex-col gap-3"
 	>
 		<section class="ui-form-card flex flex-col gap-2" aria-labelledby="basics-heading">
-			<h2 id="basics-heading" class="ui-section-label">{m.recipes_edit_basics_label()}</h2>
+			<h2 id="basics-heading" class="ui-section-title">{m.recipes_edit_basics_label()}</h2>
 			<label class="flex flex-col gap-1">
 				<span class="ui-field-label">{m.recipes_edit_title_label()}</span>
-				<input type="text" name="title" bind:value={title} required class="input input-bordered input-sm" />
+				<input type="text" name="title" bind:value={title} required class="ui-field" />
 			</label>
 			<div class="grid grid-cols-[1fr_6rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1.5fr)]">
 				<label class="flex flex-col gap-1">
 					<span class="ui-field-label">{m.recipes_edit_language_label()}</span>
-					<select bind:value={language} name="language" class="select select-bordered select-sm">
+					<select bind:value={language} name="language" class="ui-field">
 						<option value="nl">{m.recipes_edit_language_dutch()}</option>
 						<option value="en">{m.recipes_edit_language_english()}</option>
 					</select>
@@ -248,7 +259,7 @@
 						min="1"
 						max="99"
 						bind:value={servings}
-						class="input input-bordered input-sm"
+						class="ui-field"
 					/>
 				</label>
 				<label class="col-span-2 flex flex-col gap-1 sm:col-span-1">
@@ -257,7 +268,7 @@
 						type="url"
 						name="sourceUrl"
 						bind:value={sourceUrl}
-						class="input input-bordered input-sm"
+						class="ui-field"
 						placeholder="https://…"
 					/>
 				</label>
@@ -268,12 +279,12 @@
 		<DirectionListEditor bind:directions />
 
 		<label class="ui-form-card flex flex-col gap-1">
-			<span class="ui-section-label">{m.recipes_edit_notes_label()}</span>
+			<span class="ui-section-title">{m.recipes_edit_notes_label()}</span>
 			<textarea
 				name="notes"
 				bind:value={notes}
 				rows="3"
-				class="textarea textarea-bordered textarea-sm leading-snug"
+				class="ui-field leading-snug"
 				placeholder={m.recipes_edit_notes_placeholder()}
 			></textarea>
 		</label>

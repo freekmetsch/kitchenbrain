@@ -2,6 +2,8 @@
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import RecipeEnhancementReview from '$lib/components/chat/RecipeEnhancementReview.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -57,7 +59,7 @@
 <div class="flex h-full min-w-0 flex-col rounded-2xl border border-primary/20 bg-primary/5 p-2 md:p-3">
 	<button
 		type="button"
-		class="btn btn-outline btn-sm min-h-11 w-full min-w-0 whitespace-normal border-primary/40 bg-base-100 px-2 text-xs md:px-3 md:text-sm"
+		class="ui-action ui-action-secondary w-full min-w-0 whitespace-normal px-2 text-xs md:px-3 md:text-sm"
 		aria-haspopup={proposal ? 'dialog' : undefined}
 		disabled={loading}
 		onclick={openReview}
@@ -73,13 +75,17 @@
 		{/if}
 	</button>
 	{#if loading}
-		<p class="mt-2 flex items-center gap-2 text-xs text-base-content/65" role="status">
+		<KitchenNotice tone="info" class="mt-2 text-xs" role="status" aria-busy="true">
 			<Spinner size="xs" />{m.recipe_enhance_background_status()}
-		</p>
+		</KitchenNotice>
 	{:else if status === 'ready'}
-		<p class="mt-2 text-xs text-success" role="status">{m.recipe_enhance_ready()}</p>
+		<KitchenNotice tone="success" class="mt-2 text-xs" role="status">
+			<span class="flex items-center gap-2"><Icon name="check" class="h-4 w-4 shrink-0 text-success" />{m.recipe_enhance_ready()}</span>
+		</KitchenNotice>
 	{:else if status === 'error'}
-		<p class="mt-2 text-xs text-error" role="status">{m.recipe_enhance_failed()}</p>
+		<KitchenNotice tone="error" class="mt-2 text-xs" role="status">
+			<span class="flex items-center gap-2"><Icon name="warn" class="h-4 w-4 shrink-0 text-error" />{m.recipe_enhance_failed()}</span>
+		</KitchenNotice>
 	{/if}
 </div>
 

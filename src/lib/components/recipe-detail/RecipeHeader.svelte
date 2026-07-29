@@ -98,16 +98,16 @@
 	<div class="flex items-center gap-1.5 px-3 py-2">
 		<a
 			href="{base}/recipes"
-			class="btn btn-ghost btn-sm h-9 min-h-0 w-9 shrink-0 p-0"
+			class="ui-action ui-action-tertiary ui-action-icon shrink-0"
 			aria-label={m.recipes_header_back_aria()}><Icon name="chevronLeft" /></a
 		>
 		<h1 class="min-w-0 flex-1 truncate text-[15px] font-semibold leading-tight">{displayTitle}</h1>
 		<button
 			type="button"
-			class="btn btn-sm btn-primary shrink-0 gap-1"
+			class="ui-action ui-action-primary shrink-0"
 			onclick={onAddToPlan}><Icon name="plus" class="h-3.5 w-3.5" /> {m.recipes_header_plan_button()}</button
 		>
-		<button bind:this={editButton} type="button" class="btn btn-sm btn-ghost shrink-0" onclick={onEditRaw}>
+		<button bind:this={editButton} type="button" class="ui-action ui-action-tertiary shrink-0" onclick={onEditRaw}>
 			{m.recipes_edit_heading()}
 		</button>
 		{#if hasOverflow}
@@ -115,7 +115,7 @@
 				<button
 					bind:this={menuButton}
 					type="button"
-					class="btn btn-sm btn-ghost border border-base-300"
+					class="ui-action ui-action-tertiary ui-action-icon"
 					aria-haspopup="menu"
 					aria-expanded={menuOpen}
 					aria-label={m.recipes_header_more_actions_aria()}
@@ -167,14 +167,14 @@
 	{:else if viewLang === 'en' && translationMessage}
 		<div class="flex items-center gap-2 px-3 pb-2 text-[11px] text-warning" role="status">
 			<span class="min-w-0 flex-1">{translationMessage}</span>
-			<button type="button" class="btn btn-ghost btn-xs shrink-0" onclick={() => onRetryTranslation(false)}>
+			<button type="button" class="ui-action ui-action-tertiary shrink-0" onclick={() => onRetryTranslation(false)}>
 				{m.recipes_translation_retry_button()}
 			</button>
 		</div>
 	{:else if viewLang === 'en' && recipe.translationStatus === 'error'}
 		<div class="flex items-center gap-2 px-3 pb-2 text-[11px] text-warning" role="status">
 			<span class="min-w-0 flex-1">{m.recipes_translation_failed_retry()}</span>
-			<button type="button" class="btn btn-ghost btn-xs shrink-0" onclick={() => onRetryTranslation(true)}>
+			<button type="button" class="ui-action ui-action-tertiary shrink-0" onclick={() => onRetryTranslation(true)}>
 				{m.recipes_translation_retry_button()}
 			</button>
 		</div>

@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { fade } from 'svelte/transition';
 	import type { AhPushOutcome } from './types';
@@ -16,37 +17,36 @@
 	let { result, onClose }: Props = $props();
 </script>
 
-<div
-	class="rounded-2xl border {result.uncertain || result.failed.length
-		? 'border-warning/30 bg-warning/10'
-		: 'border-success/30 bg-success/10'} px-3 py-3"
-	role={result.uncertain ? 'alert' : 'status'}
-	in:fade={{ duration: MOTION_MICRO_MS }}
->
-	<div class="flex gap-2.5">
-		<Icon
-			name={result.uncertain || result.failed.length ? 'warn' : 'check'}
-			class="mt-0.5 h-5 w-5 shrink-0 {result.uncertain || result.failed.length ? 'text-warning' : 'text-success'}"
-		/>
-		<span class="text-sm leading-relaxed">
-			{#if result.uncertain}
-				<strong class="block">{m.shopping_ah_uncertain_heading()}</strong>
-				{m.shopping_ah_uncertain_body()}
-			{:else}
-				{result.pushed === 1
-					? m.shopping_ah_result_added_singular({
-							count: result.pushed,
-							account: result.accountName ? m.shopping_ah_account_named({ name: result.accountName }) : m.shopping_ah_account_default(),
-							destination: result.destination === 'order' ? m.shopping_ah_destination_order() : m.shopping_ah_destination_list()
-						})
-					: m.shopping_ah_result_added_plural({
-							count: result.pushed,
-							account: result.accountName ? m.shopping_ah_account_named({ name: result.accountName }) : m.shopping_ah_account_default(),
-							destination: result.destination === 'order' ? m.shopping_ah_destination_order() : m.shopping_ah_destination_list()
-						})}
-			{/if}
-		</span>
-	</div>
+<div in:fade={{ duration: MOTION_MICRO_MS }}>
+	<KitchenNotice
+		tone={result.uncertain || result.failed.length ? 'warning' : 'success'}
+		role={result.uncertain ? 'alert' : 'status'}
+	>
+		<div class="flex gap-2.5">
+			<Icon
+				name={result.uncertain || result.failed.length ? 'warn' : 'check'}
+				class="mt-0.5 h-5 w-5 shrink-0 {result.uncertain || result.failed.length ? 'text-warning' : 'text-success'}"
+			/>
+			<span class="text-sm leading-relaxed">
+				{#if result.uncertain}
+					<strong class="block">{m.shopping_ah_uncertain_heading()}</strong>
+					{m.shopping_ah_uncertain_body()}
+				{:else}
+					{result.pushed === 1
+						? m.shopping_ah_result_added_singular({
+								count: result.pushed,
+								account: result.accountName ? m.shopping_ah_account_named({ name: result.accountName }) : m.shopping_ah_account_default(),
+								destination: result.destination === 'order' ? m.shopping_ah_destination_order() : m.shopping_ah_destination_list()
+							})
+						: m.shopping_ah_result_added_plural({
+								count: result.pushed,
+								account: result.accountName ? m.shopping_ah_account_named({ name: result.accountName }) : m.shopping_ah_account_default(),
+								destination: result.destination === 'order' ? m.shopping_ah_destination_order() : m.shopping_ah_destination_list()
+							})}
+				{/if}
+			</span>
+		</div>
+	</KitchenNotice>
 </div>
 {#if result.markedBought > 0}
 	<p class="mt-3 text-sm text-base-content/60">
@@ -72,6 +72,6 @@
 	{/if}
 {/if}
 <div class="mt-4 flex flex-wrap justify-end gap-2">
-	<button type="button" class="btn min-h-11" onclick={() => onClose()}>{m.ui_bottomsheet_close()}</button>
-	<a href="https://www.ah.nl" target="_blank" rel="noopener noreferrer" class="btn btn-primary min-h-11">{m.shopping_ah_open_button()}</a>
+	<button type="button" class="ui-action ui-action-secondary" onclick={() => onClose()}>{m.ui_bottomsheet_close()}</button>
+	<a href="https://www.ah.nl" target="_blank" rel="noopener noreferrer" class="ui-action ui-action-primary">{m.shopping_ah_open_button()}</a>
 </div>

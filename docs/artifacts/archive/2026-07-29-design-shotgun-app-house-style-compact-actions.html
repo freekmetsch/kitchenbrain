@@ -1,0 +1,1641 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Ledger Compact — component configurator</title>
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23334638'/%3E%3Cpath d='M18 14v36M45 14 26 32l20 18' fill='none' stroke='%23f2ca74' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #f3eee2;
+			--sheet: #fffdf7;
+			--ink: #243128;
+			--muted: #68736b;
+			--line: #d8d0c2;
+			--line-dark: #b9ae9a;
+			--olive: #334638;
+			--olive-deep: #26372d;
+			--olive-mid: #49614f;
+			--olive-pale: #e4e9e3;
+			--terra: #a84d2a;
+			--terra-deep: #79331e;
+			--terra-soft: #f1ddd3;
+			--honey: #d3a046;
+			--honey-pale: #f6e7c8;
+			--danger: #a43d32;
+			--workspace: #18201b;
+			--sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			--serif: Georgia, "Times New Roman", serif;
+			--shadow: 0 18px 54px rgba(27, 35, 29, .14);
+		}
+
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			background: var(--paper);
+			color: var(--ink);
+			font-family: var(--sans);
+			line-height: 1.48;
+		}
+		button, textarea, input { font: inherit; }
+		button, label, input[type="radio"], input[type="checkbox"] { cursor: pointer; }
+		button:focus-visible, textarea:focus-visible, input:focus-visible {
+			outline: 3px solid #e4ad4d;
+			outline-offset: 3px;
+		}
+
+		.hero {
+			position: relative;
+			overflow: hidden;
+			background:
+				linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+				linear-gradient(135deg, #1f2f26, #405847);
+			background-size: 26px 26px, 26px 26px, auto;
+			color: white;
+		}
+		.hero::after {
+			position: absolute;
+			right: -8rem;
+			bottom: -12rem;
+			width: 28rem;
+			height: 28rem;
+			border: 1px solid rgba(255,255,255,.08);
+			border-radius: 50%;
+			content: "";
+		}
+		.hero-inner {
+			position: relative;
+			z-index: 1;
+			width: min(1400px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 50px 0 42px;
+		}
+		.kicker {
+			margin: 0 0 9px;
+			color: #f2ca74;
+			font-size: .7rem;
+			font-weight: 850;
+			letter-spacing: .14em;
+			text-transform: uppercase;
+		}
+		h1 {
+			max-width: 850px;
+			margin: 0;
+			font-family: var(--serif);
+			font-size: clamp(2rem, 5vw, 4.35rem);
+			font-weight: 700;
+			letter-spacing: -.045em;
+			line-height: .98;
+		}
+		.hero-copy {
+			max-width: 760px;
+			margin: 20px 0 0;
+			color: rgba(255,255,255,.78);
+			font-size: clamp(.96rem, 1.4vw, 1.1rem);
+		}
+		.fixed-contract {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			margin: 23px 0 0;
+			padding: 0;
+			list-style: none;
+		}
+		.fixed-contract li {
+			padding: 6px 9px;
+			border: 1px solid rgba(255,255,255,.16);
+			border-radius: 7px;
+			background: rgba(255,255,255,.07);
+			color: rgba(255,255,255,.88);
+			font-size: .72rem;
+			font-weight: 760;
+		}
+
+		.workspace {
+			width: min(1400px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 28px 0 72px;
+		}
+		.start-bar {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 18px;
+			align-items: center;
+			margin-bottom: 18px;
+			padding: 17px;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			background: rgba(255,253,247,.72);
+		}
+		.start-bar h2, .panel-heading h2, .decision-header h2, .handoff h2 {
+			margin: 0;
+			font-family: var(--serif);
+			font-size: 1.28rem;
+			letter-spacing: -.02em;
+		}
+		.start-bar p, .panel-heading p, .decision-header p {
+			margin: 4px 0 0;
+			color: var(--muted);
+			font-size: .83rem;
+		}
+		.preset-list {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 7px;
+			justify-content: flex-end;
+		}
+		.preset, .tool-button, .summary-link {
+			min-height: 40px;
+			border: 1px solid var(--line-dark);
+			border-radius: 8px;
+			background: var(--sheet);
+			color: var(--olive);
+			font-weight: 820;
+		}
+		.preset { padding: 0 11px; font-size: .75rem; }
+		.preset:hover, .tool-button:hover, .summary-link:hover { border-color: var(--olive); }
+		.preset.active { border-color: var(--olive); background: var(--olive-pale); }
+
+		.config-layout {
+			display: grid;
+			grid-template-columns: minmax(0, 1.03fr) minmax(440px, .97fr);
+			gap: 18px;
+			align-items: start;
+		}
+		.chooser, .preview-panel, .summary-panel, .handoff {
+			border: 1px solid var(--line);
+			border-radius: 13px;
+			background: var(--sheet);
+			box-shadow: 0 6px 26px rgba(36,49,40,.05);
+		}
+		.chooser { overflow: hidden; }
+		.panel-heading {
+			display: flex;
+			justify-content: space-between;
+			gap: 16px;
+			align-items: start;
+			padding: 18px 18px 13px;
+			border-bottom: 1px solid var(--line);
+		}
+		.progress {
+			flex: 0 0 auto;
+			padding: 5px 8px;
+			border-radius: 999px;
+			background: var(--olive-pale);
+			color: var(--olive);
+			font-size: .7rem;
+			font-weight: 850;
+		}
+		.family-tabs {
+			display: flex;
+			gap: 7px;
+			overflow-x: auto;
+			padding: 11px 12px;
+			border-bottom: 1px solid var(--line);
+			scrollbar-width: thin;
+		}
+		.family-tab {
+			position: relative;
+			flex: 0 0 auto;
+			min-height: 44px;
+			padding: 5px 11px;
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			background: white;
+			color: var(--muted);
+			font-size: .74rem;
+			font-weight: 820;
+			white-space: nowrap;
+		}
+		.family-tab span {
+			display: block;
+			margin-top: 1px;
+			color: var(--muted);
+			font-size: .61rem;
+			font-weight: 650;
+		}
+		.family-tab.active {
+			border-color: var(--olive);
+			background: var(--olive);
+			color: white;
+		}
+		.family-tab.active span { color: rgba(255,255,255,.7); }
+		.family-tab.deferred::after {
+			position: absolute;
+			top: -4px;
+			right: -4px;
+			width: 10px;
+			height: 10px;
+			border: 2px solid var(--sheet);
+			border-radius: 50%;
+			background: var(--honey);
+			content: "";
+		}
+		.decision-body { padding: 18px; }
+		.decision-header {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 16px;
+			align-items: start;
+			margin-bottom: 14px;
+		}
+		.decision-header h2 { font-size: 1.42rem; }
+		.family-count {
+			display: inline-flex;
+			margin-top: 8px;
+			padding: 4px 7px;
+			border-radius: 5px;
+			background: var(--terra-soft);
+			color: var(--terra-deep);
+			font-size: .65rem;
+			font-weight: 850;
+			letter-spacing: .05em;
+			text-transform: uppercase;
+		}
+		.defer-toggle {
+			display: flex;
+			gap: 7px;
+			align-items: center;
+			min-height: 44px;
+			padding: 0 10px;
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			color: var(--muted);
+			font-size: .73rem;
+			font-weight: 800;
+			white-space: nowrap;
+		}
+		.defer-toggle input { width: 17px; height: 17px; accent-color: var(--honey); }
+		.option-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 10px;
+		}
+		.option-card {
+			position: relative;
+			display: grid;
+			grid-template-rows: 116px auto;
+			min-width: 0;
+			overflow: hidden;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			background: white;
+			transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+		}
+		.option-card:hover {
+			border-color: var(--line-dark);
+			box-shadow: 0 6px 16px rgba(36,49,40,.07);
+			transform: translateY(-1px);
+		}
+		.option-card.selected {
+			border-color: var(--olive);
+			box-shadow: 0 0 0 2px rgba(51,70,56,.14);
+		}
+		.option-card input {
+			position: absolute;
+			z-index: 3;
+			top: 9px;
+			right: 9px;
+			width: 18px;
+			height: 18px;
+			accent-color: var(--olive);
+		}
+		.option-card.deferred-card { opacity: .55; }
+		.mini-canvas {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 0;
+			overflow: hidden;
+			padding: 13px;
+			border-bottom: 1px solid var(--line);
+			background:
+				linear-gradient(rgba(51,70,56,.035) 1px, transparent 1px),
+				#f8f4eb;
+			background-size: 100% 22px;
+			pointer-events: none;
+		}
+		.mini-canvas.green {
+			background:
+				linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+				var(--olive);
+			background-size: 100% 22px;
+		}
+		.option-copy { padding: 11px 12px 13px; }
+		.option-name {
+			display: flex;
+			gap: 7px;
+			align-items: center;
+			padding-right: 20px;
+			font-size: .8rem;
+			font-weight: 860;
+		}
+		.recommended {
+			padding: 2px 5px;
+			border-radius: 4px;
+			background: var(--olive-pale);
+			color: var(--olive);
+			font-size: .55rem;
+			font-weight: 900;
+			letter-spacing: .05em;
+			text-transform: uppercase;
+		}
+		.option-copy p {
+			margin: 5px 0 0;
+			color: var(--muted);
+			font-size: .71rem;
+			line-height: 1.4;
+		}
+		.note-wrap { display: block; margin-top: 14px; }
+		.note-wrap span {
+			display: block;
+			margin-bottom: 5px;
+			color: var(--muted);
+			font-size: .68rem;
+			font-weight: 820;
+			letter-spacing: .04em;
+			text-transform: uppercase;
+		}
+		.note-wrap textarea, .handoff textarea {
+			width: 100%;
+			resize: vertical;
+			border: 1px solid var(--line-dark);
+			border-radius: 8px;
+			background: white;
+			color: var(--ink);
+		}
+		.note-wrap textarea { min-height: 74px; padding: 9px 10px; font-size: .78rem; }
+
+		.preview-panel {
+			position: sticky;
+			top: 14px;
+			overflow: hidden;
+		}
+		.preview-toolbar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 7px;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px 14px;
+			border-bottom: 1px solid var(--line);
+		}
+		.preview-toolbar strong { font-family: var(--serif); font-size: 1.05rem; }
+		.toolbar-groups { display: flex; flex-wrap: wrap; gap: 7px; }
+		.tool-group {
+			display: inline-flex;
+			overflow: hidden;
+			border: 1px solid var(--line-dark);
+			border-radius: 8px;
+		}
+		.tool-button {
+			min-height: 36px;
+			padding: 0 9px;
+			border: 0;
+			border-right: 1px solid var(--line);
+			border-radius: 0;
+			font-size: .68rem;
+		}
+		.tool-button:last-child { border-right: 0; }
+		.tool-button.active { background: var(--olive); color: white; }
+		.preview-stage {
+			display: flex;
+			justify-content: center;
+			overflow: auto;
+			padding: 18px;
+			background: var(--workspace);
+		}
+		.preview-shell {
+			width: min(393px, 100%);
+			flex: 0 0 auto;
+			transition: width .2s ease;
+		}
+		.preview-shell.size-desktop { width: min(760px, 100%); }
+		.app-preview {
+			overflow: hidden;
+			min-height: 688px;
+			border: 1px solid rgba(255,255,255,.1);
+			border-radius: 13px;
+			background: var(--paper);
+			box-shadow: 0 24px 80px rgba(0,0,0,.34);
+			color: var(--ink);
+		}
+		.kitchen-header {
+			padding: 18px 16px 13px;
+			background: var(--olive);
+			color: white;
+		}
+		.header-top {
+			display: flex;
+			gap: 12px;
+			justify-content: space-between;
+			align-items: end;
+		}
+		.eyebrow {
+			margin: 0 0 2px;
+			color: rgba(255,255,255,.63);
+			font-size: .59rem;
+			font-weight: 850;
+			letter-spacing: .12em;
+			text-transform: uppercase;
+		}
+		.kitchen-header h3 {
+			margin: 0;
+			font-family: var(--serif);
+			font-size: 1.65rem;
+			line-height: 1;
+		}
+		.header-actions, .content-actions {
+			display: flex;
+			gap: 7px;
+			align-items: center;
+		}
+		.app-body { padding: 14px 14px 22px; }
+		.body-heading {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 10px;
+			margin: 0 0 6px;
+		}
+		.body-heading h4 { margin: 0; font-family: var(--serif); font-size: 1.08rem; }
+		.body-heading span { color: var(--muted); font-size: .67rem; font-weight: 760; }
+		.long-only { display: none; }
+		.state-long .long-only { display: inline; }
+		.state-long .short-only { display: none; }
+
+		/* Shared specimen components */
+		.ui-primary, .ui-secondary, .ui-tertiary, .field-sort {
+			display: inline-flex;
+			gap: 6px;
+			align-items: center;
+			justify-content: center;
+			min-height: 44px;
+			border-radius: 8px;
+			font-size: .73rem;
+			font-weight: 850;
+			line-height: 1;
+			white-space: nowrap;
+		}
+		.ui-primary {
+			padding: 0 12px;
+			border: 1px solid var(--terra);
+			background: var(--terra);
+			color: white;
+		}
+		.ui-secondary {
+			padding: 0 11px;
+			border: 1px solid #6f8274;
+			background: var(--sheet);
+			color: var(--olive);
+		}
+		.ui-tertiary {
+			padding: 0 6px;
+			border: 1px solid transparent;
+			background: transparent;
+			color: var(--olive);
+		}
+		.btn-icon { font-size: .95rem; line-height: 1; }
+
+		/* Primary action: 8 */
+		.primary-flat-terra .ui-primary { border-color: var(--terra); background: var(--terra); color: white; box-shadow: none; }
+		.primary-deep-terra .ui-primary { border-color: #672b1a; background: linear-gradient(#a94f2e, #7f351f); color: white; }
+		.primary-inset-terra .ui-primary { border-color: #74301d; background: var(--terra); color: white; box-shadow: inset 0 -3px 0 #71301e, 0 1px 0 rgba(255,255,255,.25); transform: translateY(-1px); }
+		.primary-tonal-terra .ui-primary { border-color: #c48366; background: var(--terra-soft); color: var(--terra-deep); }
+		.primary-outline-terra .ui-primary { border: 2px solid var(--terra); background: transparent; color: var(--terra-deep); }
+		.primary-split-key .ui-primary { gap: 8px; padding: 4px 11px 4px 4px; border-color: var(--terra-deep); background: var(--terra); color: white; }
+		.primary-split-key .ui-primary .btn-icon { display: grid; width: 32px; height: 34px; place-items: center; border-radius: 5px; background: rgba(72,22,10,.34); }
+		.primary-wide-key .ui-primary { min-width: 158px; justify-content: space-between; border-color: var(--terra); background: var(--terra); color: white; }
+		.primary-terra-rule .ui-primary { border: 1px solid var(--line-dark); border-bottom: 3px solid var(--terra); background: var(--sheet); color: var(--terra-deep); }
+
+		/* Secondary action: 8 */
+		.secondary-olive-outline .ui-secondary { border-color: #6f8274; background: var(--sheet); color: var(--olive); }
+		.secondary-olive-tonal .ui-secondary { border-color: transparent; background: var(--olive-pale); color: var(--olive); }
+		.secondary-dark-olive .ui-secondary { border-color: var(--olive); background: var(--olive); color: white; }
+		.secondary-paper-shadow .ui-secondary { border-color: var(--line-dark); background: white; color: var(--olive); box-shadow: 0 3px 0 #cfc4b2; transform: translateY(-1px); }
+		.secondary-text-key .ui-secondary { border-color: transparent; background: transparent; color: var(--olive); }
+		.secondary-ghost-key .ui-secondary { border-color: rgba(51,70,56,.22); background: rgba(255,255,255,.42); color: var(--olive); }
+		.secondary-inset-key .ui-secondary { border-color: #718375; background: var(--sheet); color: var(--olive); box-shadow: inset 0 0 0 2px var(--olive-pale); }
+		.secondary-split-key .ui-secondary { gap: 8px; padding: 4px 10px 4px 4px; border-color: #6f8274; background: var(--sheet); color: var(--olive); }
+		.secondary-split-key .ui-secondary .btn-icon { display: grid; width: 31px; height: 34px; place-items: center; border-radius: 5px; background: var(--olive-pale); }
+
+		/* Tertiary action: 6 */
+		.tertiary-text-icon .ui-tertiary { padding: 0 6px; border-color: transparent; background: transparent; color: var(--olive); }
+		.tertiary-icon-box .ui-tertiary { width: 44px; padding: 0; border-color: var(--line-dark); background: var(--sheet); color: var(--olive); }
+		.tertiary-icon-box .ui-tertiary .btn-label,
+		.tertiary-icon-circle .ui-tertiary .btn-label,
+		.tertiary-ghost-square .ui-tertiary .btn-label,
+		.tertiary-menu-dots .ui-tertiary .btn-label { display: none; }
+		.tertiary-icon-circle .ui-tertiary { width: 44px; padding: 0; border-color: var(--line); border-radius: 50%; background: var(--olive-pale); color: var(--olive); }
+		.tertiary-underlined-text .ui-tertiary { border-color: transparent; border-bottom-color: var(--olive); border-radius: 0; color: var(--olive); }
+		.tertiary-ghost-square .ui-tertiary { width: 44px; padding: 0; border-color: transparent; background: rgba(51,70,56,.08); color: var(--olive); }
+		.tertiary-menu-dots .ui-tertiary { width: 44px; padding: 0; border-color: transparent; background: transparent; color: transparent; }
+		.tertiary-menu-dots .ui-tertiary::after { color: var(--olive); content: "•••"; letter-spacing: 2px; }
+
+		/* Compact filters and pills: 10. The button is 44px; its visual is 32px. */
+		.ui-pills {
+			display: flex;
+			gap: 2px;
+			align-items: center;
+			overflow-x: auto;
+			margin: 4px 0 10px;
+			scrollbar-width: none;
+		}
+		.pill-hit {
+			display: inline-flex;
+			flex: 0 0 auto;
+			align-items: center;
+			justify-content: center;
+			min-width: 44px;
+			min-height: 44px;
+			padding: 6px 3px;
+			border: 0;
+			background: transparent;
+			color: var(--olive);
+		}
+		.pill-visual {
+			display: inline-flex;
+			gap: 5px;
+			align-items: center;
+			justify-content: center;
+			min-height: 32px;
+			padding: 0 10px;
+			border: 1px solid var(--line-dark);
+			border-radius: 999px;
+			background: var(--sheet);
+			font-size: .67rem;
+			font-weight: 830;
+			white-space: nowrap;
+		}
+		.pill-hit.active .pill-visual { border-color: var(--olive); background: var(--olive); color: white; }
+		.pill-count, .pill-check { display: none; }
+		.pills-compact-outline .pill-visual { border-color: var(--line-dark); background: var(--sheet); }
+		.pills-compact-outline .pill-hit.active .pill-visual { border-color: var(--olive); background: var(--olive); color: white; }
+		.pills-compact-filled .pill-visual { border-color: transparent; background: var(--olive-pale); }
+		.pills-compact-filled .pill-hit.active .pill-visual { background: var(--olive); color: white; }
+		.pills-tonal-capsule .pill-visual { border-color: transparent; background: #eee9de; }
+		.pills-tonal-capsule .pill-hit.active .pill-visual { background: var(--terra-soft); color: var(--terra-deep); }
+		.pills-borderless .pill-visual { border-color: transparent; background: transparent; }
+		.pills-borderless .pill-hit.active .pill-visual { background: var(--olive-pale); color: var(--olive); }
+		.pills-segmented-rail .ui-pills { gap: 0; width: max-content; max-width: 100%; margin-top: 4px; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--sheet); }
+		.pills-segmented-rail .pill-hit { padding: 5px 0; border-right: 1px solid var(--line); }
+		.pills-segmented-rail .pill-hit:last-child { border-right: 0; }
+		.pills-segmented-rail .pill-visual { border: 0; border-radius: 5px; background: transparent; }
+		.pills-segmented-rail .pill-hit.active .pill-visual { background: var(--olive); color: white; }
+		.pills-underline-tabs .ui-pills { gap: 5px; border-bottom: 1px solid var(--line); }
+		.pills-underline-tabs .pill-visual { border: 0; border-radius: 0; background: transparent; }
+		.pills-underline-tabs .pill-hit.active .pill-visual { border-bottom: 3px solid var(--olive); background: transparent; color: var(--olive); }
+		.pills-square-chips .pill-visual { border-radius: 6px; }
+		.pills-square-chips .pill-hit.active .pill-visual { background: var(--olive); color: white; }
+		.pills-counter-pills .pill-count { display: inline-grid; min-width: 17px; height: 17px; place-items: center; border-radius: 999px; background: var(--olive-pale); color: var(--olive); font-size: .55rem; }
+		.pills-counter-pills .pill-hit.active .pill-count { background: rgba(255,255,255,.22); color: white; }
+		.pills-check-pills .pill-check { display: inline; font-size: .65rem; }
+		.pills-check-pills .pill-hit:not(.active) .pill-check { visibility: hidden; }
+		.pills-paper-tabs .ui-pills { gap: 5px; }
+		.pills-paper-tabs .pill-visual { border-radius: 5px 5px 2px 2px; box-shadow: 0 2px 0 #d3c8b7; }
+		.pills-paper-tabs .pill-hit.active .pill-visual { border-color: var(--terra); background: var(--sheet); color: var(--terra-deep); box-shadow: 0 3px 0 var(--terra); }
+
+		/* Header grouping: 5, independently selectable */
+		.header-separate .header-actions { gap: 7px; }
+		.header-joined .header-actions { gap: 0; }
+		.header-joined .header-actions > :first-child { border-radius: 8px 0 0 8px; }
+		.header-joined .header-actions > :last-child { margin-left: -1px; border-radius: 0 8px 8px 0; }
+		.header-primary-icon .header-actions .ui-secondary { width: 44px; padding: 0; }
+		.header-primary-icon .header-actions .ui-secondary .btn-label { display: none; }
+		.header-quiet-primary .header-actions .ui-secondary { padding-inline: 6px; border-color: transparent; background: transparent; color: inherit; }
+		.header-split-rail .header-actions { gap: 0; min-width: 220px; }
+		.header-split-rail .header-actions .ui-secondary { flex: 1 1 42%; border-radius: 8px 0 0 8px; }
+		.header-split-rail .header-actions .ui-primary { flex: 1 1 58%; margin-left: -1px; border-radius: 0 8px 8px 0; }
+		.header-overflow .header-actions .ui-secondary { width: 44px; padding: 0; color: transparent; }
+		.header-overflow .header-actions .ui-secondary .btn-icon,
+		.header-overflow .header-actions .ui-secondary .btn-label { display: none; }
+		.header-overflow .header-actions .ui-secondary::after { color: var(--olive); content: "•••"; letter-spacing: 2px; }
+
+		/* In-content grouping: 7, independently selectable */
+		.content-separate .content-actions { gap: 7px; }
+		.content-joined-rail .content-actions { gap: 0; }
+		.content-joined-rail .content-actions > :first-child { border-radius: 8px 0 0 8px; }
+		.content-joined-rail .content-actions > :last-child { margin-left: -1px; border-radius: 0 8px 8px 0; }
+		.content-split-footer .content-actions { justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--line); }
+		.content-inline-primary .content-actions .ui-secondary { padding-inline: 6px; border-color: transparent; background: transparent; }
+		.content-inline-primary .content-actions .ui-primary { margin-left: auto; }
+		.content-full-primary .content-actions { flex-wrap: wrap; }
+		.content-full-primary .content-actions .ui-primary { flex: 1 0 100%; order: 2; }
+		.content-full-primary .content-actions .ui-secondary { margin-left: auto; }
+		.content-stacked .content-actions { align-items: stretch; flex-direction: column-reverse; }
+		.content-stacked .content-actions > * { width: 100%; }
+		.content-soft-dock .content-actions { justify-content: flex-end; margin: 12px -4px -4px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #eee8dc; }
+
+		/* Fields: 7 */
+		.field-cluster { margin-bottom: 6px; }
+		.field-label {
+			display: none;
+			margin-bottom: 4px;
+			color: var(--muted);
+			font-size: .61rem;
+			font-weight: 820;
+			letter-spacing: .05em;
+			text-transform: uppercase;
+		}
+		.field-row { display: flex; gap: 7px; }
+		.ui-field {
+			display: flex;
+			flex: 1 1 auto;
+			gap: 7px;
+			align-items: center;
+			min-width: 0;
+			min-height: 44px;
+			padding: 0 11px;
+			border: 1px solid var(--line-dark);
+			border-radius: 8px;
+			background: var(--sheet);
+			color: var(--muted);
+			font-size: .72rem;
+		}
+		.field-sort {
+			flex: 0 0 auto;
+			padding: 0 10px;
+			border: 1px solid var(--line-dark);
+			background: var(--sheet);
+			color: var(--olive);
+		}
+		.fields-outline .ui-field { border-color: var(--line-dark); background: var(--sheet); }
+		.fields-tonal .ui-field { border-color: transparent; background: var(--olive-pale); }
+		.fields-inset .ui-field { border-color: var(--line-dark); background: #efe9de; box-shadow: inset 0 2px 4px rgba(36,49,40,.1); }
+		.fields-underline .ui-field { border: 0; border-bottom: 2px solid var(--olive); border-radius: 0; background: transparent; }
+		.fields-joined-sort .field-row { gap: 0; }
+		.fields-joined-sort .ui-field { border-radius: 8px 0 0 8px; }
+		.fields-joined-sort .field-sort { margin-left: -1px; border-radius: 0 8px 8px 0; }
+		.fields-search-pill .ui-field { border-radius: 999px; background: white; }
+		.fields-label-over .field-label { display: block; }
+		.fields-label-over .ui-field { border-color: var(--olive); background: var(--sheet); }
+
+		/* Sections: 6, with no generic leading stripe */
+		.ui-section {
+			overflow: hidden;
+			margin: 2px 0 10px;
+			border: 0;
+			border-radius: 0;
+			background: transparent;
+		}
+		.ui-section h5 {
+			margin: 0;
+			padding: 7px 0;
+			font-family: var(--serif);
+			font-size: .92rem;
+		}
+		.ui-row {
+			display: grid;
+			grid-template-columns: 1fr auto;
+			gap: 10px;
+			align-items: center;
+			min-height: 52px;
+			border-top: 1px solid var(--line);
+		}
+		.row-copy strong { display: block; font-size: .73rem; }
+		.row-copy small { display: block; color: var(--muted); font-size: .62rem; }
+		.sections-flat-ruled .ui-section { border-bottom: 1px solid var(--line); }
+		.sections-framed-list .ui-section { padding: 0 10px; border: 1px solid var(--line-dark); border-radius: 9px; background: var(--sheet); }
+		.sections-tinted-group .ui-section { padding: 7px 10px; border-radius: 9px; background: var(--olive-pale); }
+		.sections-tinted-group .ui-row { border-color: rgba(51,70,56,.14); }
+		.sections-paper-card .ui-section { padding: 0 11px 7px; border: 1px solid var(--line); border-radius: 10px; background: white; box-shadow: 0 4px 12px rgba(36,49,40,.07); }
+		.sections-header-strip .ui-section { border: 1px solid var(--line); border-radius: 9px; background: var(--sheet); }
+		.sections-header-strip .ui-section h5 { padding: 8px 10px; background: var(--olive-pale); }
+		.sections-header-strip .ui-row { margin: 0 10px; }
+		.sections-split-panel .ui-section { display: grid; grid-template-columns: 105px 1fr; border: 1px solid var(--line); border-radius: 9px; background: var(--sheet); }
+		.sections-split-panel .ui-section h5 { padding: 12px 9px; border-right: 1px solid var(--line); background: #eee8dc; }
+		.sections-split-panel .section-rows { padding: 0 10px; }
+
+		/* Notices: 6, with no generic leading stripe */
+		.ui-notice {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 9px;
+			align-items: start;
+			margin: 8px 0 10px;
+			padding: 9px 10px;
+			border: 1px solid #d1b878;
+			border-radius: 8px;
+			background: var(--honey-pale);
+		}
+		.notice-icon {
+			display: grid;
+			width: 23px;
+			height: 23px;
+			place-items: center;
+			border-radius: 5px;
+			background: var(--honey);
+			color: #3b2b0e;
+			font-size: .7rem;
+			font-weight: 900;
+		}
+		.notice-copy strong { display: block; font-size: .7rem; }
+		.notice-copy span { display: block; color: #695526; font-size: .62rem; }
+		.notices-tinted-inset .ui-notice { border-color: #d1b878; background: var(--honey-pale); }
+		.notices-top-rule .ui-notice { border: 0; border-top: 3px solid var(--honey); border-radius: 2px; background: transparent; }
+		.notices-icon-tile .ui-notice { border-color: var(--line); background: var(--sheet); }
+		.notices-icon-tile .notice-icon { width: 32px; height: 32px; }
+		.notices-inline-status .ui-notice { display: flex; padding: 5px 0; border: 0; background: transparent; }
+		.notices-inline-status .notice-icon { width: 20px; height: 20px; border-radius: 50%; }
+		.notices-inline-status .notice-copy span { display: none; }
+		.notices-compact-banner .ui-notice { align-items: center; padding: 7px 9px; border-color: var(--honey); border-radius: 4px; background: #fff9e9; }
+		.notices-compact-banner .notice-copy strong { display: inline; margin-right: 4px; }
+		.notices-compact-banner .notice-copy span { display: inline; }
+		.notices-paper-alert .ui-notice { border-color: var(--line); background: white; box-shadow: 0 3px 0 #ded3c1; }
+
+		/* Recipe category marker: 5. This is the stripe exception. */
+		.recipe-card {
+			position: relative;
+			display: grid;
+			grid-template-columns: 52px 1fr auto;
+			gap: 9px;
+			align-items: center;
+			overflow: hidden;
+			margin: 9px 0 12px;
+			padding: 9px;
+			border: 1px solid var(--line);
+			border-radius: 9px;
+			background: var(--sheet);
+		}
+		.recipe-thumb {
+			height: 48px;
+			border-radius: 6px;
+			background: linear-gradient(145deg, #c78458, #704d31);
+		}
+		.recipe-copy strong { display: block; font-family: var(--serif); font-size: .83rem; }
+		.recipe-copy small { display: block; color: var(--muted); font-size: .61rem; }
+		.category-label { display: none; }
+		.recipe-left-stripe .recipe-card { padding-left: 13px; }
+		.recipe-left-stripe .recipe-card::before {
+			position: absolute;
+			inset: 0 auto 0 0;
+			width: 4px;
+			background: var(--terra);
+			content: "";
+		}
+		.recipe-top-stripe .recipe-card { padding-top: 13px; }
+		.recipe-top-stripe .recipe-card::before {
+			position: absolute;
+			inset: 0 0 auto;
+			height: 4px;
+			background: var(--terra);
+			content: "";
+		}
+		.recipe-category-dot .recipe-card::after {
+			position: absolute;
+			top: 9px;
+			right: 9px;
+			width: 9px;
+			height: 9px;
+			border-radius: 50%;
+			background: var(--terra);
+			content: "";
+		}
+		.recipe-corner-tab .recipe-card::after {
+			position: absolute;
+			top: 0;
+			right: 0;
+			width: 26px;
+			height: 26px;
+			background: linear-gradient(45deg, transparent 50%, var(--terra) 50%);
+			content: "";
+		}
+		.recipe-side-label .category-label {
+			display: block;
+			align-self: stretch;
+			padding: 6px 4px;
+			border-radius: 4px;
+			background: var(--terra-soft);
+			color: var(--terra-deep);
+			font-size: .53rem;
+			font-weight: 900;
+			letter-spacing: .05em;
+			text-transform: uppercase;
+			writing-mode: vertical-rl;
+		}
+
+		.state-stress .ui-secondary { opacity: .48; }
+		.state-stress .preview-primary .btn-label { font-size: 0; }
+		.state-stress .preview-primary .btn-label::after { font-size: .73rem; content: "Saving…"; }
+		.state-stress .ui-notice { border-color: #d4877f; background: #f7e4e1; }
+		.state-stress .notice-icon { background: var(--danger); color: white; }
+		.state-stress .notice-copy span { color: #7b352e; }
+
+		/* Dark specimen, scoped to the preview only */
+		.preview-shell.dark .app-preview {
+			--paper: #1f2822;
+			--sheet: #27322b;
+			--ink: #edf1ed;
+			--muted: #aeb9b1;
+			--line: #455148;
+			--line-dark: #647168;
+			--olive-pale: #35463b;
+			--terra-soft: #593527;
+			--honey-pale: #4a3d24;
+			background: var(--paper);
+			color: var(--ink);
+		}
+		.preview-shell.dark .app-body { background: var(--paper); }
+		.preview-shell.dark .ui-field,
+		.preview-shell.dark .field-sort,
+		.preview-shell.dark .ui-secondary,
+		.preview-shell.dark .pill-visual,
+		.preview-shell.dark .recipe-card { color: var(--ink); }
+		.preview-shell.dark .ui-secondary,
+		.preview-shell.dark .field-sort { border-color: var(--line-dark); }
+		.preview-shell.dark .ui-tertiary { color: #d6e2d8; }
+		.preview-shell.dark .notice-copy span { color: #e1c981; }
+		.preview-shell.dark .primary-outline-terra .ui-primary,
+		.preview-shell.dark .primary-tonal-terra .ui-primary,
+		.preview-shell.dark .primary-terra-rule .ui-primary { color: #efac8d; }
+
+		.summary-panel {
+			grid-column: 1 / -1;
+			margin-top: 18px;
+			padding: 18px;
+		}
+		.summary-grid {
+			display: grid;
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+			gap: 8px;
+			margin-top: 13px;
+		}
+		.summary-link {
+			display: block;
+			min-width: 0;
+			padding: 9px 10px;
+			text-align: left;
+		}
+		.summary-link span, .summary-link strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.summary-link span { color: var(--muted); font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; }
+		.summary-link strong { margin-top: 2px; font-size: .72rem; }
+		.summary-link.deferred { border-color: var(--honey); background: var(--honey-pale); }
+
+		.handoff {
+			grid-column: 1 / -1;
+			margin-top: 18px;
+			padding: 18px;
+		}
+		.handoff-head {
+			display: flex;
+			gap: 12px;
+			justify-content: space-between;
+			align-items: start;
+			margin-bottom: 10px;
+		}
+		.handoff-head p { max-width: 760px; margin: 4px 0 0; color: var(--muted); font-size: .78rem; }
+		.handoff textarea {
+			min-height: 260px;
+			padding: 12px;
+			font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+			font-size: .7rem;
+			line-height: 1.5;
+		}
+		.handoff-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+		.action-button {
+			min-height: 44px;
+			padding: 0 13px;
+			border: 1px solid var(--olive);
+			border-radius: 8px;
+			background: var(--olive);
+			color: white;
+			font-weight: 850;
+		}
+		.action-button.secondary { border-color: var(--line-dark); background: var(--sheet); color: var(--olive); }
+		.save-status { margin: 8px 0 0; color: var(--muted); font-size: .68rem; }
+		.save-status.error { color: var(--danger); }
+
+		@media (max-width: 1120px) {
+			.config-layout { grid-template-columns: 1fr; }
+			.preview-panel { position: static; }
+			.summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		}
+		@media (max-width: 700px) {
+			.hero-inner, .workspace { width: min(100% - 20px, 1400px); }
+			.hero-inner { padding: 38px 0 34px; }
+			.start-bar { grid-template-columns: 1fr; }
+			.preset-list { justify-content: flex-start; }
+			.panel-heading, .decision-header, .handoff-head { grid-template-columns: 1fr; flex-direction: column; }
+			.option-grid { grid-template-columns: 1fr; }
+			.preview-stage { padding: 10px; }
+			.summary-grid { grid-template-columns: 1fr; }
+			.header-top { align-items: start; flex-direction: column; }
+			.header-actions { width: 100%; }
+			.sections-split-panel .ui-section { grid-template-columns: 1fr; }
+			.sections-split-panel .ui-section h5 { border-right: 0; border-bottom: 1px solid var(--line); }
+		}
+		@media (max-width: 380px) {
+			.decision-body { padding: 13px; }
+			.preview-toolbar { align-items: start; flex-direction: column; }
+			.recipe-card { grid-template-columns: 44px 1fr auto; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+		}
+	</style>
+</head>
+<body>
+	<header class="hero">
+		<div class="hero-inner">
+			<p class="kicker">Keukenbrein · house style · component configurator</p>
+			<h1>Pick the pieces, not a package.</h1>
+			<p class="hero-copy">
+				Ledger Compact stays fixed. Choose one visual recipe for each component family and
+				watch the same app specimen update immediately. Joined rails can live in one context
+				without taking over the rest of the interface.
+			</p>
+			<ul class="fixed-contract" aria-label="Fixed house-style contract">
+				<li>Compact 4 / 8 / 12 rhythm</li>
+				<li>44 px touch targets</li>
+				<li>8 px control geometry</li>
+				<li>Terra → olive → quiet hierarchy</li>
+				<li>Serif headings + sans metadata</li>
+				<li>No generic leading stripes</li>
+			</ul>
+		</div>
+	</header>
+
+	<main class="workspace">
+		<section class="start-bar" aria-labelledby="start-title">
+			<div>
+				<h2 id="start-title">Useful starting points</h2>
+				<p>Apply a coherent starting recipe, then change any family independently. “Balanced Compact” is the recommended untouched state.</p>
+			</div>
+			<div class="preset-list" id="preset-list"></div>
+		</section>
+
+		<div class="config-layout">
+			<section class="chooser" aria-labelledby="chooser-title">
+				<div class="panel-heading">
+					<div>
+						<h2 id="chooser-title">Component choices</h2>
+						<p>Each card is both the control and the real visual preview for that option.</p>
+					</div>
+					<span class="progress" id="progress">10 / 10 decided</span>
+				</div>
+				<div class="family-tabs" id="family-tabs" role="tablist" aria-label="Component families"></div>
+				<div class="decision-body">
+					<div class="decision-header">
+						<div>
+							<h2 id="family-title"></h2>
+							<p id="family-question"></p>
+							<span class="family-count" id="family-count"></span>
+						</div>
+						<label class="defer-toggle">
+							<input id="defer-family" type="checkbox" />
+							Defer this family
+						</label>
+					</div>
+					<div class="option-grid" id="option-grid"></div>
+					<label class="note-wrap">
+						<span>Notes for this family — saved verbatim</span>
+						<textarea id="family-note" placeholder="What works, what does not, or a hybrid you want…"></textarea>
+					</label>
+				</div>
+			</section>
+
+			<section class="preview-panel" aria-labelledby="preview-title">
+				<div class="preview-toolbar">
+					<strong id="preview-title">Live app specimen</strong>
+					<div class="toolbar-groups">
+						<div class="tool-group" aria-label="Preview width">
+							<button class="tool-button active" data-size="phone">Phone</button>
+							<button class="tool-button" data-size="desktop">Wide</button>
+						</div>
+						<div class="tool-group" aria-label="Preview state">
+							<button class="tool-button active" data-demo="normal">Normal</button>
+							<button class="tool-button" data-demo="long">Long copy</button>
+							<button class="tool-button" data-demo="stress">Stress</button>
+						</div>
+						<button class="tool-button" id="theme-toggle" aria-pressed="false">Dark</button>
+					</div>
+				</div>
+				<div class="preview-stage">
+					<div class="preview-shell" id="preview-shell">
+						<div class="app-preview" id="app-preview">
+							<header class="kitchen-header">
+								<div class="header-top">
+									<div>
+										<p class="eyebrow">Kitchen ledger</p>
+										<h3>Recipes</h3>
+									</div>
+									<div class="header-actions">
+										<button class="ui-secondary">
+											<span class="btn-icon">↗</span><span class="btn-label">Import</span>
+										</button>
+										<button class="ui-primary preview-primary">
+											<span class="btn-icon">+</span><span class="btn-label">New recipe</span>
+										</button>
+									</div>
+								</div>
+							</header>
+							<div class="app-body">
+								<div class="body-heading">
+									<h4>Your recipes</h4>
+									<span class="short-only">18 saved</span>
+									<span class="long-only">18 recipes saved for this household</span>
+								</div>
+
+								<div class="field-cluster">
+									<span class="field-label">Find a recipe</span>
+									<div class="field-row">
+										<div class="ui-field"><span>⌕</span><span class="short-only">Search recipes</span><span class="long-only">Search by ingredient, cuisine, or recipe name</span></div>
+										<button class="field-sort">Sort</button>
+									</div>
+								</div>
+
+								<div class="ui-pills" aria-label="Recipe filters">
+									<button class="pill-hit active"><span class="pill-visual"><span class="pill-check">✓</span>All<span class="pill-count">18</span></span></button>
+									<button class="pill-hit"><span class="pill-visual"><span class="pill-check">✓</span>Quick<span class="pill-count">6</span></span></button>
+									<button class="pill-hit"><span class="pill-visual"><span class="pill-check">✓</span>Freezer<span class="pill-count">4</span></span></button>
+								</div>
+
+								<section class="ui-section">
+									<h5>Cook soon</h5>
+									<div class="section-rows">
+										<div class="ui-row">
+											<div class="row-copy">
+												<strong class="short-only">Courgette</strong>
+												<strong class="long-only">Courgette from the vegetable drawer</strong>
+												<small>2 days left · 3 recipes</small>
+											</div>
+											<button class="ui-tertiary"><span class="btn-icon">→</span><span class="btn-label">View</span></button>
+										</div>
+										<div class="ui-row">
+											<div class="row-copy">
+												<strong>Spinach</strong>
+												<small>Use today · 2 recipes</small>
+											</div>
+											<button class="ui-tertiary"><span class="btn-icon">→</span><span class="btn-label">View</span></button>
+										</div>
+									</div>
+								</section>
+
+								<div class="ui-notice">
+									<span class="notice-icon">!</span>
+									<div class="notice-copy">
+										<strong class="short-only">One ingredient needs attention</strong>
+										<strong class="long-only">One ingredient in this week’s plan needs attention</strong>
+										<span class="short-only">Spinach is best used today.</span>
+										<span class="long-only">Spinach is best used today; two saved recipes can use it without changing the plan.</span>
+									</div>
+								</div>
+
+								<article class="recipe-card">
+									<div class="recipe-thumb" aria-hidden="true"></div>
+									<div class="recipe-copy">
+										<strong class="short-only">Green shakshuka</strong>
+										<strong class="long-only">Green shakshuka with spinach and herbs</strong>
+										<small>30 min · dinner · serves 2</small>
+									</div>
+									<span class="category-label">Dinner</span>
+									<button class="ui-tertiary"><span class="btn-icon">→</span><span class="btn-label">Open</span></button>
+								</article>
+
+								<div class="content-actions">
+									<button class="ui-secondary"><span class="btn-icon">↗</span><span class="btn-label">Import link</span></button>
+									<button class="ui-primary preview-primary"><span class="btn-icon">+</span><span class="btn-label">New recipe</span></button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="summary-panel" aria-labelledby="summary-title">
+				<div class="panel-heading" style="padding:0;border:0">
+					<div>
+						<h2 id="summary-title">Your current mix</h2>
+						<p>Use any item to jump back to that family. Deferred choices stay visible and are excluded from implementation.</p>
+					</div>
+				</div>
+				<div class="summary-grid" id="summary-grid"></div>
+			</section>
+
+			<section class="handoff" aria-labelledby="handoff-title">
+				<div class="handoff-head">
+					<div>
+						<h2 id="handoff-title">Forward handoff</h2>
+						<p>This text is generated from the authoritative brief plus every selected option, override, deferral, and verbatim note. Paste it into the next planning task after you are happy with the mix.</p>
+					</div>
+				</div>
+				<textarea id="handoff-text" readonly aria-label="Generated forward handoff"></textarea>
+				<div class="handoff-actions">
+					<button class="action-button" id="copy-handoff">Copy handoff</button>
+					<button class="action-button secondary" id="reset-all">Reset recommended mix</button>
+				</div>
+				<p class="save-status" id="save-status">Selections and notes save locally in this browser.</p>
+			</section>
+		</div>
+	</main>
+
+	<script>
+	(() => {
+		"use strict";
+
+		const STORAGE_KEY = "keukenbrein-house-style-component-configurator-v2";
+
+		const families = [
+			{
+				id: "primary",
+				label: "Primary",
+				title: "Primary action",
+				question: "How should the one committing action in a region carry terra emphasis?",
+				recommended: "flat-terra",
+				options: [
+					["flat-terra", "Flat terra key", "Direct, compact, and easiest to recognize repeatedly.", "Keeps the current semantic hierarchy with the least extra texture."],
+					["deep-terra", "Deep terra gradient", "A denser, weightier key with subtle tonal depth.", "Adds emphasis without changing size, but feels slightly more polished than ledger-like."],
+					["inset-terra", "Inset press key", "A tactile lower edge makes pressing feel physical.", "Best for frequent commit actions; adds a little visual weight."],
+					["tonal-terra", "Tonal terra key", "Pale terra surface with dark terra text.", "Calmer beside dense content, but less immediately dominant."],
+					["outline-terra", "Terra outline", "A strong colored boundary without a filled block.", "Preserves paper space; relies more heavily on label clarity."],
+					["split-key", "Contained icon key", "The leading icon gets its own inset cell.", "Useful when the icon is established; visually busier for text-only actions."],
+					["wide-key", "Wide label key", "A wider key with icon and label held apart.", "Feels deliberate in docks and footers; spends more horizontal room."],
+					["terra-rule", "Terra rule key", "Paper key with a strong terra bottom rule.", "Most ledger-like option; lower immediate contrast than a filled primary."]
+				]
+			},
+			{
+				id: "secondary",
+				label: "Secondary",
+				title: "Secondary action",
+				question: "How visible should a useful but non-committing action be beside the primary?",
+				recommended: "olive-outline",
+				options: [
+					["olive-outline", "Olive outline key", "Clear boundary, paper fill, and stable secondary weight.", "Works across green and paper regions with predictable contrast."],
+					["olive-tonal", "Olive tonal key", "Soft green fill with no assertive edge.", "Feels calm and related; may blend into tinted sections."],
+					["dark-olive", "Dark olive key", "Filled olive gives the secondary more presence.", "Strong for standalone utility actions; can compete with terra in pairs."],
+					["paper-shadow", "Raised paper key", "A compact paper key with a visible lower edge.", "Tactile and legible, though slightly more ornamental."],
+					["text-key", "Text-only key", "Borderless olive label inside a full hit target.", "Calmest choice; can become too quiet in crowded rows."],
+					["ghost-key", "Ghost key", "A faint translucent boundary keeps context visible.", "Useful on colored surfaces; intentionally low emphasis."],
+					["inset-key", "Inset outline key", "A double-edge treatment makes a compact utility control.", "Very explicit without a fill, but has more chrome."],
+					["split-key", "Secondary icon cell", "Olive icon cell inside a paper key.", "Makes import and share actions easy to scan; avoid for unfamiliar icons."]
+				]
+			},
+			{
+				id: "tertiary",
+				label: "Tertiary",
+				title: "Tertiary and row actions",
+				question: "What should low-priority actions look like in repeated rows and cards?",
+				recommended: "text-icon",
+				options: [
+					["text-icon", "Text + leading icon", "A quiet label with a familiar directional icon.", "Highest clarity while keeping the row visually light."],
+					["icon-box", "Square icon key", "A bordered 44 px icon-only target.", "Very scannable in repeated rows; depends on icon familiarity."],
+					["icon-circle", "Circular icon key", "A soft circular target separates the action from metadata.", "Friendly and touchable, but introduces another silhouette."],
+					["underlined-text", "Underlined text", "A simple word action with a ledger-like rule.", "Clear without a box; can resemble a navigation link."],
+					["ghost-square", "Ghost square", "A tonal square without a visible border.", "Compact and calm; weaker in low-contrast dark contexts."],
+					["menu-dots", "Overflow menu", "Three dots defer low-priority choices to a menu.", "Reduces clutter but hides the action and adds a step."]
+				]
+			},
+			{
+				id: "pills",
+				label: "Pills",
+				title: "Filters and compact pills",
+				question: "Which compact selection treatment should return as the shared filter language?",
+				recommended: "compact-outline",
+				options: [
+					["compact-outline", "Compact outline pills", "The restored 32 px visible capsule inside a 44 px target.", "Best continuity with the compact filters you missed."],
+					["compact-filled", "Compact filled pills", "All options have a soft fill; active becomes dark olive.", "Strong group identity with slightly more visual mass."],
+					["tonal-capsule", "Terra tonal active", "Neutral capsules with a pale terra selection.", "Separates filter selection from olive utility actions."],
+					["borderless", "Borderless capsules", "Text stays light until the active option gains a soft fill.", "Calmest choice; inactive options can look like metadata."],
+					["segmented-rail", "Segmented rail", "Filters share one joined outer boundary.", "Efficient for one exclusive set; unsuitable for wrapping tag filters."],
+					["underline-tabs", "Underline tabs", "Active state is an olive ledger rule.", "Good for view switching; less pill-like and less portable."],
+					["square-chips", "Compact square chips", "Six-pixel corners make filters feel more operational.", "Pairs well with fields, but loses the pill distinction."],
+					["counter-pills", "Count pills", "Each label carries a compact result count.", "Useful when counts inform choice; avoid when counts churn or distract."],
+					["check-pills", "Checkmark pills", "The active pill carries an explicit check.", "Highest selection clarity; slightly busier in long filter rails."],
+					["paper-tabs", "Layered paper tabs", "Small paper tabs sit on a colored bottom edge.", "Strong Kitchen Ledger character; more decorative than the default."]
+				]
+			},
+			{
+				id: "header",
+				label: "Header pair",
+				title: "Header action grouping",
+				question: "How should two actions share the limited green header band?",
+				recommended: "separate",
+				options: [
+					["separate", "Separate keys", "Each action keeps its own boundary and spacing.", "Most flexible across labels and responsive widths."],
+					["joined", "Joined header rail", "The pair shares one outer silhouette.", "Feels intentionally related; should be reserved for actions that belong together."],
+					["primary-icon", "Icon secondary + primary", "Secondary collapses to an icon while primary keeps its label.", "Saves width, but only safe for an established icon."],
+					["quiet-primary", "Quiet utility + primary", "The secondary becomes text on green beside the terra key.", "Keeps focus on the commit action with minimal header chrome."],
+					["split-rail", "Proportional split rail", "A joined rail allocates more width to the primary.", "Stable and compact for fixed pairs; brittle with translation and long labels."]
+				]
+			},
+			{
+				id: "content",
+				label: "Content pair",
+				title: "In-content action grouping",
+				question: "How should related actions sit at the end of cards, forms, or sections?",
+				recommended: "separate",
+				options: [
+					["separate", "Separate pair", "Independent keys retain compact spacing.", "The safest reusable treatment for unrelated secondary and primary actions."],
+					["joined-rail", "Joined action rail", "The pair shares one boundary inside the content region.", "Good for a tightly related pair without forcing joined controls elsewhere."],
+					["split-footer", "Split footer", "Actions sit at opposite ends above a ledger rule.", "Creates calm structure in cards and forms; needs enough width."],
+					["inline-primary", "Quiet link + primary", "Secondary becomes a quiet inline key before the primary.", "Strong hierarchy with low chrome; secondary is easier to miss."],
+					["full-primary", "Full-row primary", "Primary receives its own row; utility action remains above.", "Excellent on narrow forms, but increases vertical space."],
+					["stacked", "Stacked pair", "Both actions become full-width compact rows.", "Translation-safe and touch-friendly; visually heavier."],
+					["soft-dock", "Soft action dock", "The pair sits inside one pale footer surface.", "Keeps actions together without a joined button rail; adds a surface."]
+				]
+			},
+			{
+				id: "fields",
+				label: "Fields",
+				title: "Search, select, and fields",
+				question: "Which field boundary should unify search, selection, and compact inputs?",
+				recommended: "outline",
+				options: [
+					["outline", "Compact outline field", "Paper fill, one neutral border, and 44 px height.", "Most portable across header bands, cards, and flat sections."],
+					["tonal", "Olive tonal field", "A pale green surface replaces the explicit boundary.", "Feels integrated with the palette; weaker inside green-tinted groups."],
+					["inset", "Inset ledger field", "A shallow inner shadow suggests an editable recess.", "Clear affordance with more tactile texture."],
+					["underline", "Ruled field", "Only the bottom ledger rule defines the input.", "Very compact and editorial; weaker against dense content."],
+					["joined-sort", "Joined field + sort", "Search and sort share one combined silhouette.", "Efficient when they always travel together; avoid as a global rule."],
+					["search-pill", "Search capsule", "The search field gets a rounded capsule silhouette.", "Familiar for retrieval; should remain search-specific."],
+					["label-over", "Labeled outline field", "A small explicit label sits above the field.", "Best for forms and ambiguous values; costs vertical space."]
+				]
+			},
+			{
+				id: "sections",
+				label: "Sections",
+				title: "Sections and repeated rows",
+				question: "Which surface should carry dense operational rows without making every route identical?",
+				recommended: "flat-ruled",
+				options: [
+					["flat-ruled", "Flat ruled ledger", "Rows are separated by rules with almost no container.", "Densest and most Kitchen Ledger-like shared default."],
+					["framed-list", "Framed list", "One light outer boundary contains the whole group.", "Useful when a section needs stronger containment."],
+					["tinted-group", "Tonal group", "Rows sit on a pale olive section surface.", "Helpful for working context; should not become decorative banding."],
+					["paper-card", "Paper card", "A white raised card contains the section.", "Best for focused work or overlays; too much if used everywhere."],
+					["header-strip", "Section header strip", "A horizontal olive-tinted header labels the group.", "Makes sections easy to scan without a forbidden leading stripe."],
+					["split-panel", "Split label panel", "Section label occupies a narrow side column.", "Works on wider views; responsively stacks on phones."]
+				]
+			},
+			{
+				id: "notices",
+				label: "Notices",
+				title: "Notices and short states",
+				question: "How should warnings and contextual states stand out without borrowing recipe markers?",
+				recommended: "tinted-inset",
+				options: [
+					["tinted-inset", "Tinted inset notice", "Honey tint, full boundary, and compact icon.", "Clear, calm, and distinct from selectable pills."],
+					["top-rule", "Top-rule notice", "A horizontal honey rule carries the emphasis.", "Ledger-like and light; depends on surrounding whitespace."],
+					["icon-tile", "Icon tile notice", "A larger icon tile anchors a paper notice.", "Easy to scan in mixed content, with slightly more height."],
+					["inline-status", "Inline status", "A small dot and label sit directly in the flow.", "Ideal for low-severity status; insufficient for important warnings."],
+					["compact-banner", "Compact banner", "A denser rectangular strip carries label and detail inline.", "Efficient in lists; long translation may wrap awkwardly."],
+					["paper-alert", "Raised paper alert", "A paper surface with a tactile lower edge.", "Visible without color flooding; introduces more material depth."]
+				]
+			},
+			{
+				id: "recipe",
+				label: "Category",
+				title: "Recipe category marker",
+				question: "Where should recipe-only categorization live? This is the sole leading-stripe exception.",
+				recommended: "left-stripe",
+				options: [
+					["left-stripe", "Category left stripe", "The existing leading stripe remains recipe-specific.", "Strongest continuity and quick scanning by category."],
+					["top-stripe", "Category top stripe", "The same category color moves to a horizontal rule.", "Avoids leading-edge reuse while keeping a strong marker."],
+					["category-dot", "Category dot", "A small corner dot carries the category color.", "Quiet and compact, but less scannable across a long list."],
+					["corner-tab", "Category corner tab", "A folded-color corner marks the recipe.", "Distinctive without consuming layout; more decorative."],
+					["side-label", "Category side label", "A written vertical label replaces color-only meaning.", "Most explicit and accessible; adds width and visual texture."]
+				]
+			}
+		];
+
+		const presets = {
+			balanced: {
+				label: "Balanced Compact",
+				selections: {
+					primary: "flat-terra", secondary: "olive-outline", tertiary: "text-icon",
+					pills: "compact-outline", header: "separate", content: "separate",
+					fields: "outline", sections: "flat-ruled", notices: "tinted-inset",
+					recipe: "left-stripe"
+				}
+			},
+			tactile: {
+				label: "Tactile Compact",
+				selections: {
+					primary: "inset-terra", secondary: "paper-shadow", tertiary: "icon-box",
+					pills: "compact-filled", header: "primary-icon", content: "soft-dock",
+					fields: "inset", sections: "framed-list", notices: "icon-tile",
+					recipe: "left-stripe"
+				}
+			},
+			quiet: {
+				label: "Quiet Compact",
+				selections: {
+					primary: "tonal-terra", secondary: "text-key", tertiary: "underlined-text",
+					pills: "borderless", header: "quiet-primary", content: "inline-primary",
+					fields: "underline", sections: "flat-ruled", notices: "inline-status",
+					recipe: "category-dot"
+				}
+			},
+			joined: {
+				label: "Selective Joined",
+				selections: {
+					primary: "flat-terra", secondary: "olive-outline", tertiary: "text-icon",
+					pills: "compact-outline", header: "separate", content: "joined-rail",
+					fields: "joined-sort", sections: "header-strip", notices: "top-rule",
+					recipe: "top-stripe"
+				}
+			},
+			ledger: {
+				label: "Ledger Character",
+				selections: {
+					primary: "terra-rule", secondary: "paper-shadow", tertiary: "underlined-text",
+					pills: "paper-tabs", header: "joined", content: "split-footer",
+					fields: "underline", sections: "header-strip", notices: "top-rule",
+					recipe: "side-label"
+				}
+			}
+		};
+
+		const defaults = {
+			version: 2,
+			activeFamily: "pills",
+			selections: Object.fromEntries(families.map((family) => [family.id, family.recommended])),
+			deferred: Object.fromEntries(families.map((family) => [family.id, false])),
+			notes: Object.fromEntries(families.map((family) => [family.id, ""])),
+			size: "phone",
+			demo: "normal",
+			dark: false
+		};
+
+		let state = JSON.parse(JSON.stringify(defaults));
+		let storageAvailable = true;
+
+		const byId = (id) => families.find((family) => family.id === id);
+		const optionById = (family, id) => family.options.find((option) => option[0] === id);
+		const variantClass = (familyId, optionId) => `${familyId}-${optionId}`;
+
+		function sampleMarkup(family, option) {
+			const klass = variantClass(family.id, option[0]);
+			if (family.id === "primary") {
+				return `<div class="mini-canvas ${klass}"><button class="ui-primary"><span class="btn-icon">+</span><span class="btn-label">Add recipe</span></button></div>`;
+			}
+			if (family.id === "secondary") {
+				return `<div class="mini-canvas ${klass}"><button class="ui-secondary"><span class="btn-icon">↗</span><span class="btn-label">Import</span></button></div>`;
+			}
+			if (family.id === "tertiary") {
+				return `<div class="mini-canvas ${klass}"><button class="ui-tertiary"><span class="btn-icon">→</span><span class="btn-label">View</span></button></div>`;
+			}
+			if (family.id === "pills") {
+				return `<div class="mini-canvas ${klass}"><div class="ui-pills"><button class="pill-hit active"><span class="pill-visual"><span class="pill-check">✓</span>All<span class="pill-count">18</span></span></button><button class="pill-hit"><span class="pill-visual"><span class="pill-check">✓</span>Quick<span class="pill-count">6</span></span></button></div></div>`;
+			}
+			if (family.id === "header") {
+				return `<div class="mini-canvas green ${klass}"><div class="header-actions"><button class="ui-secondary"><span class="btn-icon">↗</span><span class="btn-label">Import</span></button><button class="ui-primary"><span class="btn-icon">+</span><span class="btn-label">New</span></button></div></div>`;
+			}
+			if (family.id === "content") {
+				return `<div class="mini-canvas ${klass}"><div class="content-actions"><button class="ui-secondary"><span class="btn-icon">↗</span><span class="btn-label">Import</span></button><button class="ui-primary"><span class="btn-icon">+</span><span class="btn-label">New</span></button></div></div>`;
+			}
+			if (family.id === "fields") {
+				return `<div class="mini-canvas ${klass}"><div class="field-cluster" style="width:100%"><span class="field-label">Find a recipe</span><div class="field-row"><div class="ui-field"><span>⌕</span><span>Search</span></div><button class="field-sort">Sort</button></div></div></div>`;
+			}
+			if (family.id === "sections") {
+				return `<div class="mini-canvas ${klass}"><section class="ui-section" style="width:100%;margin:0"><h5>Cook soon</h5><div class="section-rows"><div class="ui-row"><div class="row-copy"><strong>Courgette</strong><small>2 days left</small></div><button class="ui-tertiary"><span class="btn-icon">→</span><span class="btn-label">View</span></button></div></div></section></div>`;
+			}
+			if (family.id === "notices") {
+				return `<div class="mini-canvas ${klass}"><div class="ui-notice" style="width:100%;margin:0"><span class="notice-icon">!</span><div class="notice-copy"><strong>Use today</strong><span>Spinach needs attention.</span></div></div></div>`;
+			}
+			return `<div class="mini-canvas ${klass}"><article class="recipe-card" style="width:100%;margin:0"><div class="recipe-thumb"></div><div class="recipe-copy"><strong>Green shakshuka</strong><small>30 min · dinner</small></div><span class="category-label">Dinner</span></article></div>`;
+		}
+
+		function renderPresets() {
+			const exactPreset = Object.entries(presets).find(([, preset]) =>
+				families.every((family) => preset.selections[family.id] === state.selections[family.id])
+			)?.[0];
+			document.getElementById("preset-list").innerHTML = Object.entries(presets).map(([id, preset]) =>
+				`<button class="preset ${exactPreset === id ? "active" : ""}" data-preset="${id}">${preset.label}</button>`
+			).join("");
+		}
+
+		function renderTabs() {
+			document.getElementById("family-tabs").innerHTML = families.map((family) => {
+				const option = optionById(family, state.selections[family.id]);
+				return `<button class="family-tab ${state.activeFamily === family.id ? "active" : ""} ${state.deferred[family.id] ? "deferred" : ""}" role="tab" aria-selected="${state.activeFamily === family.id}" data-family="${family.id}">${family.label}<span>${state.deferred[family.id] ? "deferred" : option[1]}</span></button>`;
+			}).join("");
+		}
+
+		function renderActiveFamily() {
+			const family = byId(state.activeFamily);
+			document.getElementById("family-title").textContent = family.title;
+			document.getElementById("family-question").textContent = family.question;
+			document.getElementById("family-count").textContent = `${family.options.length} visual options`;
+			document.getElementById("defer-family").checked = state.deferred[family.id];
+			document.getElementById("family-note").value = state.notes[family.id] || "";
+			document.getElementById("option-grid").innerHTML = family.options.map((option) => {
+				const selected = state.selections[family.id] === option[0];
+				const recommended = family.recommended === option[0];
+				return `<label class="option-card ${selected ? "selected" : ""} ${state.deferred[family.id] ? "deferred-card" : ""}">
+					<input type="radio" name="option-${family.id}" value="${option[0]}" ${selected ? "checked" : ""} ${state.deferred[family.id] ? "disabled" : ""} />
+					${sampleMarkup(family, option)}
+					<span class="option-copy">
+						<span class="option-name">${option[1]}${recommended ? `<span class="recommended">Recommended</span>` : ""}</span>
+						<p>${option[2]}</p>
+					</span>
+				</label>`;
+			}).join("");
+		}
+
+		function applyPreview() {
+			const shell = document.getElementById("preview-shell");
+			const app = document.getElementById("app-preview");
+			const variants = families.map((family) => variantClass(family.id, state.selections[family.id]));
+			shell.className = `preview-shell size-${state.size} ${state.dark ? "dark" : ""}`;
+			app.className = `app-preview state-${state.demo} ${variants.join(" ")}`;
+			document.querySelectorAll("[data-size]").forEach((button) => button.classList.toggle("active", button.dataset.size === state.size));
+			document.querySelectorAll("[data-demo]").forEach((button) => button.classList.toggle("active", button.dataset.demo === state.demo));
+			const theme = document.getElementById("theme-toggle");
+			theme.classList.toggle("active", state.dark);
+			theme.setAttribute("aria-pressed", String(state.dark));
+			theme.textContent = state.dark ? "Light" : "Dark";
+			document.querySelectorAll("#app-preview .ui-secondary").forEach((button) => button.disabled = state.demo === "stress");
+		}
+
+		function renderSummary() {
+			const decided = families.filter((family) => !state.deferred[family.id]).length;
+			document.getElementById("progress").textContent = `${decided} / ${families.length} decided`;
+			document.getElementById("summary-grid").innerHTML = families.map((family) => {
+				const option = optionById(family, state.selections[family.id]);
+				return `<button class="summary-link ${state.deferred[family.id] ? "deferred" : ""}" data-open-family="${family.id}"><span>${family.title}</span><strong>${state.deferred[family.id] ? "Deferred" : option[1]}</strong></button>`;
+			}).join("");
+		}
+
+		function buildHandoff() {
+			const lines = [
+				"# Keukenbrein App House Style — component selections",
+				"",
+				"Continue the App House Style design workflow in the Keukenbrein repository.",
+				"",
+				"Read `docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md` as the authoritative source. The HTML artifact is a local decision aid, not the source of truth.",
+				"",
+				"## Fixed contract",
+				"",
+				"- Base direction: Ledger Compact.",
+				"- Compact visual rhythm: 4 / 8 / 12 px.",
+				"- Interactive targets remain at least 44 CSS px.",
+				"- Control geometry uses the selected compact 8 px silhouette.",
+				"- Action hierarchy remains terra primary, olive secondary, quiet tertiary.",
+				"- Section titles use serif; metadata and controls use sans.",
+				"- Compact pills may be 32 px visually inside a 44 px interactive target.",
+				"- Generic rows, cards, notices, and buttons have no leading stripe.",
+				"- A leading stripe is permitted only when it encodes recipe categorization.",
+				"- Route-specific information architecture and green-band payloads remain unchanged.",
+				"",
+				"## Component decisions",
+				""
+			];
+
+			families.forEach((family) => {
+				const option = optionById(family, state.selections[family.id]);
+				const status = state.deferred[family.id] ? "DEFERRED — exclude from implementation" : (option[0] === family.recommended ? "Accepted recommendation" : "Override");
+				lines.push(`### ${family.title}`);
+				lines.push("");
+				lines.push(`- Status: ${status}.`);
+				lines.push(`- Selected: ${option[1]}.`);
+				lines.push(`- Rationale: ${option[2]}`);
+				lines.push(`- Implementation consequence: ${option[3]}`);
+				lines.push(`- Uncertainty: ${state.deferred[family.id] ? "This family is intentionally unresolved." : "Resolve caller-specific exceptions during planning; do not turn this choice into a universal variant prop."}`);
+				lines.push(`- Reviewer note (verbatim): ${state.notes[family.id] ? state.notes[family.id] : "(none)"}`);
+				lines.push("");
+			});
+
+			lines.push("## Next step");
+			lines.push("");
+			lines.push("First restate these fixed contracts and decisions, including every override, deferral, and reviewer note. Do not infer decisions from the HTML. Then propose an implementation plan that consolidates same-role callers completely, preserves route-specific composition, and verifies 320/393/768/1280 px, light/dark, English/Dutch, keyboard, reduced motion, long copy, empty/populated, warning/error, loading, disabled, and selected states. Do not implement until Freek approves that plan.");
+			return lines.join("\n");
+		}
+
+		function renderHandoff() {
+			document.getElementById("handoff-text").value = buildHandoff();
+		}
+
+		function save() {
+			try {
+				localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+				document.getElementById("save-status").textContent = "Selections and notes saved locally in this browser.";
+				document.getElementById("save-status").classList.remove("error");
+			} catch (error) {
+				storageAvailable = false;
+				document.getElementById("save-status").textContent = "Local saving is unavailable. Copy the handoff before leaving.";
+				document.getElementById("save-status").classList.add("error");
+			}
+		}
+
+		function load() {
+			try {
+				const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+				if (!saved || saved.version !== 2) return;
+				state = {
+					...defaults,
+					...saved,
+					selections: { ...defaults.selections, ...(saved.selections || {}) },
+					deferred: { ...defaults.deferred, ...(saved.deferred || {}) },
+					notes: { ...defaults.notes, ...(saved.notes || {}) }
+				};
+				if (!byId(state.activeFamily)) state.activeFamily = defaults.activeFamily;
+			} catch (error) {
+				storageAvailable = false;
+			}
+		}
+
+		function renderAll({ persist = true } = {}) {
+			renderPresets();
+			renderTabs();
+			renderActiveFamily();
+			applyPreview();
+			renderSummary();
+			renderHandoff();
+			if (persist) save();
+		}
+
+		function openFamily(id) {
+			state.activeFamily = id;
+			renderAll();
+			document.querySelector(".chooser").scrollIntoView({ behavior: "smooth", block: "start" });
+		}
+
+		load();
+		renderAll({ persist: false });
+		if (!storageAvailable) {
+			document.getElementById("save-status").textContent = "Local saving is unavailable. Copy the handoff before leaving.";
+			document.getElementById("save-status").classList.add("error");
+		}
+
+		document.addEventListener("click", (event) => {
+			const familyButton = event.target.closest("[data-family]");
+			if (familyButton) {
+				state.activeFamily = familyButton.dataset.family;
+				renderAll();
+				return;
+			}
+			const summaryButton = event.target.closest("[data-open-family]");
+			if (summaryButton) {
+				openFamily(summaryButton.dataset.openFamily);
+				return;
+			}
+			const presetButton = event.target.closest("[data-preset]");
+			if (presetButton) {
+				const preset = presets[presetButton.dataset.preset];
+				state.selections = { ...preset.selections };
+				state.deferred = { ...defaults.deferred };
+				renderAll();
+				return;
+			}
+			const sizeButton = event.target.closest("[data-size]");
+			if (sizeButton) {
+				state.size = sizeButton.dataset.size;
+				renderAll();
+				return;
+			}
+			const demoButton = event.target.closest("[data-demo]");
+			if (demoButton) {
+				state.demo = demoButton.dataset.demo;
+				renderAll();
+			}
+		});
+
+		document.getElementById("option-grid").addEventListener("change", (event) => {
+			if (!event.target.matches('input[type="radio"]')) return;
+			state.selections[state.activeFamily] = event.target.value;
+			renderAll();
+		});
+
+		document.getElementById("defer-family").addEventListener("change", (event) => {
+			state.deferred[state.activeFamily] = event.target.checked;
+			renderAll();
+		});
+
+		document.getElementById("family-note").addEventListener("input", (event) => {
+			state.notes[state.activeFamily] = event.target.value;
+			renderTabs();
+			renderSummary();
+			renderHandoff();
+			save();
+		});
+
+		document.getElementById("theme-toggle").addEventListener("click", () => {
+			state.dark = !state.dark;
+			renderAll();
+		});
+
+		document.getElementById("reset-all").addEventListener("click", () => {
+			state = JSON.parse(JSON.stringify(defaults));
+			try { localStorage.removeItem(STORAGE_KEY); } catch (error) { storageAvailable = false; }
+			renderAll();
+		});
+
+		document.getElementById("copy-handoff").addEventListener("click", async () => {
+			const textarea = document.getElementById("handoff-text");
+			const button = document.getElementById("copy-handoff");
+			try {
+				await navigator.clipboard.writeText(textarea.value);
+				button.textContent = "Copied";
+			} catch (error) {
+				textarea.focus();
+				textarea.select();
+				button.textContent = "Selected — copy manually";
+			}
+			setTimeout(() => button.textContent = "Copy handoff", 1700);
+		});
+	})();
+	</script>
+</body>
+</html>

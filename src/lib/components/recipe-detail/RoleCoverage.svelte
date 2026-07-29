@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { IngredientRoleCoverage } from '$lib/server/domains/recipes';
 
@@ -15,14 +16,14 @@
 	let percent = $derived(coverage.total > 0 ? Math.round((coverage.classified / coverage.total) * 100) : 0);
 </script>
 
-<section class="mx-4 mt-3 rounded-2xl border border-warning/30 bg-warning/5 p-3.5" aria-labelledby="role-coverage-title">
+<KitchenNotice tone="warning" class="mx-4 mt-3" aria-labelledby="role-coverage-title">
 		<div class="flex items-start gap-3">
 			<div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-warning/15 text-warning">
 				<Icon name="warn" class="h-4 w-4" />
 			</div>
 			<div class="min-w-0 flex-1">
 				<div class="flex items-center justify-between gap-3">
-					<h2 id="role-coverage-title" class="text-sm font-semibold">{m.recipes_roles_heading()}</h2>
+					<h2 id="role-coverage-title" class="ui-section-title">{m.recipes_roles_heading()}</h2>
 					<span class="text-xs tabular-nums text-base-content/60">{coverage.classified}/{coverage.total}</span>
 				</div>
 				<progress class="progress progress-warning mt-2 h-1.5 w-full" value={percent} max="100"></progress>
@@ -35,6 +36,6 @@
 			</div>
 		</div>
 		<div class="mt-3 flex flex-wrap gap-2 pl-12">
-			<a href="{base}/recipes/{slug}/edit" class="btn btn-sm btn-outline min-h-9">{m.recipes_roles_edit_manually()}</a>
+			<a href="{base}/recipes/{slug}/edit" class="ui-action ui-action-secondary">{m.recipes_roles_edit_manually()}</a>
 		</div>
-	</section>
+	</KitchenNotice>

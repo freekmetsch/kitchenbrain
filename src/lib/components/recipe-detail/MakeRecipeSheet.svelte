@@ -70,7 +70,7 @@
 				{/if}
 			</div>
 			{#if scalingMode === 'fixed_batch' && !batchOverride}
-				<button type="button" class="btn btn-ghost btn-xs min-h-9" onclick={() => (batchOverride = true)}>{m.recipes_addplan_change_batch()}</button>
+				<button type="button" class="ui-action ui-action-tertiary" onclick={() => (batchOverride = true)}>{m.recipes_addplan_change_batch()}</button>
 			{:else}
 				<div class="flex items-center gap-2">
 					<button type="button" class="btn btn-circle btn-sm btn-ghost border border-base-300" disabled={servings <= 1} onclick={() => (servings = Math.max(1, servings - 1))}>−</button>
@@ -81,8 +81,8 @@
 		</div>
 	</div>
 	<div class="grid grid-cols-2 gap-2">
-		<button type="button" class="btn btn-primary btn-sm min-h-11" onclick={startCooking}>{m.recipes_make_start()}</button>
-		<button type="button" class="btn btn-outline btn-sm min-h-11" disabled={submitting} onclick={alreadyCooked}>
+		<button type="button" class="ui-action ui-action-primary" onclick={startCooking}>{m.recipes_make_start()}</button>
+		<button type="button" class="ui-action ui-action-secondary" disabled={submitting} onclick={alreadyCooked}>
 			{#if submitting}<Spinner size="xs" />{/if}
 			{m.recipes_make_already()}
 		</button>

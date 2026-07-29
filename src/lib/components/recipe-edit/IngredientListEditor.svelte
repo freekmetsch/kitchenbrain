@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import {
 		createRecipeEditId,
@@ -53,43 +54,43 @@
 	}
 </script>
 
-<section class="ui-form-card !p-3" aria-labelledby="ingredients-heading">
+<section aria-labelledby="ingredients-heading">
 	<div class="mb-2 flex items-baseline gap-2">
-		<h2 id="ingredients-heading" class="ui-section-label">{m.recipes_edit_ingredients_label()}</h2>
+		<h2 id="ingredients-heading" class="ui-section-title">{m.recipes_edit_ingredients_label()}</h2>
 		<button
 			bind:this={addButton}
 			type="button"
-			class="btn btn-xs btn-ghost ml-auto min-h-9 border border-base-300"
+			class="ui-action ui-action-secondary ml-auto"
 			onclick={addIngredient}>{m.recipes_edit_add_ingredient_button()}</button
 		>
 	</div>
-	<div class="divide-y divide-base-300/70">
+	<div class="ui-section-frame divide-y divide-base-300/70">
 		{#each ingredients as ingredient, index (ingredient.clientId)}
-			<div class="py-2.5 first:pt-1 last:pb-1" data-ingredient-id={ingredient.clientId}>
+			<div class="p-2.5" data-ingredient-id={ingredient.clientId}>
 				<div
 					class="relative grid grid-cols-[minmax(0,0.8fr)_4rem_minmax(7.5rem,1.3fr)] items-end gap-2 sm:grid-cols-[minmax(10rem,2fr)_5rem_5rem_minmax(10rem,1.4fr)] sm:pr-12"
 				>
 					<label class="col-span-3 flex min-w-0 flex-col gap-1 pr-12 sm:col-span-1 sm:col-start-1 sm:row-start-1 sm:pr-0">
 						<span class="ui-field-label">{m.recipes_edit_name_label()}</span>
-						<input type="text" bind:value={ingredient.name} class="input input-bordered input-sm w-full" />
+						<input type="text" bind:value={ingredient.name} class="ui-field w-full" />
 					</label>
 					<button
 						type="button"
-						class="btn btn-ghost absolute right-0 top-[1.15rem] h-10 min-h-10 w-10 p-0 text-error"
+						class="ui-action ui-action-danger ui-action-icon absolute right-0 top-[1.15rem]"
 						aria-label={m.recipes_edit_remove_ingredient_aria()}
 						onclick={() => removeIngredient(index)}><Icon name="x" class="h-4 w-4" /></button
 					>
 					<label class="flex min-w-0 flex-col gap-1 sm:col-start-2 sm:row-start-1">
 						<span class="ui-field-label">{m.recipes_edit_amount_label()}</span>
-						<input type="text" bind:value={ingredient.amount} class="input input-bordered input-sm w-full" />
+						<input type="text" bind:value={ingredient.amount} class="ui-field w-full" />
 					</label>
 					<label class="flex min-w-0 flex-col gap-1 sm:col-start-3 sm:row-start-1">
 						<span class="ui-field-label">{m.recipes_edit_unit_label()}</span>
-						<input type="text" bind:value={ingredient.unit} class="input input-bordered input-sm w-full" />
+						<input type="text" bind:value={ingredient.unit} class="ui-field w-full" />
 					</label>
 					<label class="flex min-w-0 flex-col gap-1 sm:col-start-4 sm:row-start-1">
 						<span class="ui-field-label">{m.recipes_edit_role_label()}</span>
-						<select bind:value={ingredient.role} class="select select-bordered select-sm w-full">
+						<select bind:value={ingredient.role} class="ui-field w-full">
 							<option value={undefined}>{m.recipes_edit_role_unclassified()}</option>
 							<option value="cook_in">{m.recipes_edit_role_cook_in()}</option>
 							<option value="serve_fresh">{m.recipes_edit_role_serve_fresh()}</option>
@@ -101,15 +102,15 @@
 					<div class="mt-3 grid gap-3 sm:grid-cols-2">
 						<label class="flex min-w-0 flex-col gap-1">
 							<span class="ui-field-label">{m.recipes_edit_preparation_label()}</span>
-							<input type="text" bind:value={ingredient.preparation} class="input input-bordered input-sm w-full" />
+							<input type="text" bind:value={ingredient.preparation} class="ui-field w-full" />
 						</label>
 						<label class="flex min-w-0 flex-col gap-1">
 							<span class="ui-field-label">{m.recipes_edit_component_label()}</span>
-							<input type="text" bind:value={ingredient.component} class="input input-bordered input-sm w-full" />
+							<input type="text" bind:value={ingredient.component} class="ui-field w-full" />
 						</label>
 						<label class="flex min-w-0 flex-col gap-1">
 							<span class="ui-field-label">{m.recipes_edit_purchase_form_label()}</span>
-							<select bind:value={ingredient.purchaseForm} class="select select-bordered select-sm w-full">
+							<select bind:value={ingredient.purchaseForm} class="ui-field w-full">
 								<option value={undefined}>{m.recipes_edit_purchase_form_any()}</option>
 								<option value="fresh">{m.recipes_edit_purchase_form_fresh()}</option>
 								<option value="preserved">{m.recipes_edit_purchase_form_preserved()}</option>
@@ -119,7 +120,7 @@
 						</label>
 						<label class="flex min-w-0 flex-col gap-1">
 							<span class="ui-field-label">{m.recipes_edit_scale_label()}</span>
-							<select bind:value={ingredient.scale} class="select select-bordered select-sm w-full">
+							<select bind:value={ingredient.scale} class="ui-field w-full">
 								<option value={undefined}>{m.recipes_edit_scale_linear()}</option>
 								<option value="linear">{m.recipes_edit_scale_linear()}</option>
 								<option value="whole">{m.recipes_edit_scale_whole()}</option>
@@ -130,7 +131,7 @@
 							<input type="checkbox" class="checkbox checkbox-sm" bind:checked={ingredient.optional} disabled={ingredient.origin === 'ai_suggested'} />
 							<span class="label-text">{m.recipes_edit_optional_label()}</span>
 							{#if ingredient.origin === 'ai_suggested'}
-								<span class="badge badge-ghost badge-sm">{m.recipes_suggested_badge()}</span>
+								<StatusBadge>{m.recipes_suggested_badge()}</StatusBadge>
 							{/if}
 						</label>
 					</div>
@@ -140,12 +141,12 @@
 					<button
 						type="button"
 						data-add-alternative={ingredient.clientId}
-						class="btn btn-ghost btn-xs mt-1 min-h-9 px-2 text-base-content/60"
+						class="ui-action ui-action-tertiary mt-1 px-2"
 						onclick={() => addSubstitute(index)}>{m.recipes_edit_substitutes_add()}</button
 					>
 				{:else}
 					<details
-						class="mt-2 border-l-2 border-base-300 pl-3"
+						class="mt-2 border-t border-base-300 pt-2"
 						open={openAlternatives[ingredient.clientId]}
 						ontoggle={(event) => {
 							openAlternatives[ingredient.clientId] = (event.currentTarget as HTMLDetailsElement).open;
@@ -165,12 +166,12 @@
 											bind:value={substitute.name}
 											placeholder={m.recipes_edit_substitute_name()}
 											aria-label={m.recipes_edit_substitute_name()}
-											class="input input-bordered input-sm min-w-0 w-full"
+											class="ui-field min-w-0 w-full"
 										/>
 										<select
 											bind:value={substitute.kind}
 											aria-label={m.recipes_edit_substitute_kind()}
-											class="select select-bordered select-sm min-w-0 w-full"
+											class="ui-field min-w-0 w-full"
 										>
 											<option value="protein">{m.recipes_substitutes_kind_protein()}</option>
 											<option value="spice">{m.recipes_substitutes_kind_spice()}</option>
@@ -179,7 +180,7 @@
 										</select>
 										<button
 											type="button"
-											class="btn btn-ghost h-10 min-h-10 w-10 p-0 text-error"
+											class="ui-action ui-action-danger ui-action-icon"
 											aria-label={m.recipes_edit_substitute_remove_aria({ name: substitute.name || m.recipes_edit_substitute_name() })}
 											onclick={() => removeSubstitute(index, substituteIndex)}><Icon name="x" class="h-4 w-4" /></button
 										>
@@ -188,7 +189,7 @@
 											bind:value={substitute.note}
 											placeholder={m.recipes_edit_substitute_note()}
 											aria-label={m.recipes_edit_substitute_note()}
-											class="input input-bordered input-sm col-span-3 min-w-0 w-full"
+											class="ui-field col-span-3 min-w-0 w-full"
 										/>
 									</div>
 								{/each}
@@ -196,7 +197,7 @@
 							<button
 								type="button"
 								data-add-alternative={ingredient.clientId}
-								class="btn btn-ghost btn-xs mt-2 min-h-9 border border-base-300"
+								class="ui-action ui-action-secondary mt-2"
 								onclick={() => addSubstitute(index)}>{m.recipes_edit_substitutes_add()}</button
 							>
 						</div>

@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Keukenbrein house style — implementation plan</title>
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23334638'/%3E%3Cpath d='M18 14v36M45 14 26 32l20 18' fill='none' stroke='%23f2ca74' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #f3eee2;
+			--sheet: #fffdf7;
+			--ink: #243128;
+			--muted: #677169;
+			--line: #d8d0c2;
+			--line-dark: #b9ae9a;
+			--olive: #334638;
+			--olive-deep: #26372d;
+			--olive-mid: #49614f;
+			--olive-pale: #e4e9e3;
+			--terra: #a84d2a;
+			--terra-deep: #79331e;
+			--terra-soft: #f1ddd3;
+			--honey: #d3a046;
+			--honey-pale: #f6e7c8;
+			--danger: #a43d32;
+			--sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			--serif: Georgia, "Times New Roman", serif;
+			--shadow: 0 18px 54px rgba(27, 35, 29, .12);
+		}
+
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			background: var(--paper);
+			color: var(--ink);
+			font-family: var(--sans);
+			line-height: 1.5;
+		}
+		button, a { font: inherit; }
+		a { color: inherit; }
+		button:focus-visible, a:focus-visible, summary:focus-visible {
+			outline: 3px solid var(--honey);
+			outline-offset: 3px;
+		}
+
+		.hero {
+			position: relative;
+			overflow: hidden;
+			background:
+				linear-gradient(rgba(255,255,255,.026) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(255,255,255,.026) 1px, transparent 1px),
+				linear-gradient(135deg, #1e2c24, #455e4c);
+			background-size: 26px 26px, 26px 26px, auto;
+			color: white;
+		}
+		.hero::after {
+			position: absolute;
+			right: -10rem;
+			bottom: -13rem;
+			width: 34rem;
+			height: 34rem;
+			border: 1px solid rgba(255,255,255,.09);
+			border-radius: 50%;
+			content: "";
+		}
+		.hero-inner {
+			position: relative;
+			z-index: 1;
+			width: min(1240px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 54px 0 44px;
+		}
+		.kicker {
+			margin: 0 0 10px;
+			color: #f2ca74;
+			font-size: .69rem;
+			font-weight: 900;
+			letter-spacing: .14em;
+			text-transform: uppercase;
+		}
+		h1 {
+			max-width: 850px;
+			margin: 0;
+			font-family: var(--serif);
+			font-size: clamp(2.3rem, 6vw, 5.3rem);
+			font-weight: 700;
+			letter-spacing: -.05em;
+			line-height: .92;
+		}
+		.hero-copy {
+			max-width: 760px;
+			margin: 22px 0 0;
+			color: rgba(255,255,255,.78);
+			font-size: clamp(.94rem, 1.4vw, 1.08rem);
+		}
+		.hero-meta {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			max-width: 760px;
+			margin-top: 28px;
+			border: 1px solid rgba(255,255,255,.17);
+			border-radius: 10px;
+			background: rgba(255,255,255,.06);
+		}
+		.hero-stat { padding: 12px 13px; border-right: 1px solid rgba(255,255,255,.13); }
+		.hero-stat:last-child { border-right: 0; }
+		.hero-stat strong, .hero-stat span { display: block; }
+		.hero-stat strong { color: white; font-family: var(--serif); font-size: 1.25rem; }
+		.hero-stat span { margin-top: 2px; color: rgba(255,255,255,.63); font-size: .66rem; font-weight: 780; text-transform: uppercase; letter-spacing: .05em; }
+
+		.sticky-nav {
+			position: sticky;
+			z-index: 20;
+			top: 0;
+			border-bottom: 1px solid var(--line);
+			background: rgba(255,253,247,.91);
+			backdrop-filter: blur(12px);
+		}
+		.nav-inner {
+			display: flex;
+			gap: 6px;
+			width: min(1240px, calc(100% - 24px));
+			margin: 0 auto;
+			overflow-x: auto;
+			padding: 8px 0;
+			scrollbar-width: thin;
+		}
+		.nav-inner a {
+			flex: 0 0 auto;
+			min-height: 40px;
+			padding: 10px 11px;
+			border: 1px solid transparent;
+			border-radius: 8px;
+			color: var(--muted);
+			font-size: .72rem;
+			font-weight: 830;
+			text-decoration: none;
+		}
+		.nav-inner a:hover { border-color: var(--line); background: white; color: var(--olive); }
+
+		main {
+			width: min(1240px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 28px 0 72px;
+		}
+		.section {
+			margin-top: 34px;
+			scroll-margin-top: 74px;
+		}
+		.section:first-child { margin-top: 0; }
+		.section-heading {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 18px;
+			align-items: end;
+			margin-bottom: 14px;
+		}
+		.section-heading h2 {
+			margin: 0;
+			font-family: var(--serif);
+			font-size: clamp(1.65rem, 3vw, 2.45rem);
+			letter-spacing: -.035em;
+			line-height: 1;
+		}
+		.section-heading p {
+			max-width: 680px;
+			margin: 7px 0 0;
+			color: var(--muted);
+			font-size: .84rem;
+		}
+		.status {
+			padding: 6px 9px;
+			border-radius: 6px;
+			background: var(--olive-pale);
+			color: var(--olive);
+			font-size: .67rem;
+			font-weight: 900;
+			letter-spacing: .06em;
+			text-transform: uppercase;
+		}
+		.card {
+			border: 1px solid var(--line);
+			border-radius: 11px;
+			background: var(--sheet);
+			box-shadow: 0 6px 24px rgba(36,49,40,.045);
+		}
+
+		.contract-layout {
+			display: grid;
+			grid-template-columns: minmax(0, 1.12fr) minmax(330px, .88fr);
+			gap: 14px;
+		}
+		.contract-list { overflow: hidden; }
+		.contract-row {
+			display: grid;
+			grid-template-columns: 150px minmax(0, 1fr) 108px;
+			gap: 13px;
+			align-items: center;
+			min-height: 62px;
+			padding: 10px 13px;
+			border-bottom: 1px solid var(--line);
+		}
+		.contract-row:last-child { border-bottom: 0; }
+		.contract-family {
+			color: var(--muted);
+			font-size: .65rem;
+			font-weight: 850;
+			letter-spacing: .05em;
+			text-transform: uppercase;
+		}
+		.contract-choice { font-size: .78rem; font-weight: 850; }
+		.contract-choice small { display: block; margin-top: 2px; color: var(--muted); font-size: .66rem; font-weight: 550; }
+		.accepted, .override {
+			justify-self: end;
+			padding: 4px 6px;
+			border-radius: 5px;
+			font-size: .58rem;
+			font-weight: 900;
+			letter-spacing: .04em;
+			text-transform: uppercase;
+		}
+		.accepted { background: var(--olive-pale); color: var(--olive); }
+		.override { background: var(--terra-soft); color: var(--terra-deep); }
+
+		.specimen {
+			position: sticky;
+			top: 68px;
+			overflow: hidden;
+		}
+		.specimen-head {
+			padding: 12px 14px;
+			border-bottom: 1px solid var(--line);
+		}
+		.specimen-head strong { font-family: var(--serif); }
+		.specimen-head span { display: block; color: var(--muted); font-size: .67rem; }
+		.mini-app { padding: 14px; background: #f8f4eb; }
+		.mini-header {
+			padding: 13px;
+			border-radius: 9px;
+			background: var(--olive);
+			color: white;
+		}
+		.mini-header-top { display: flex; gap: 10px; justify-content: space-between; align-items: end; }
+		.mini-header p { margin: 0; color: #f2ca74; font-size: .55rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+		.mini-header h3 { margin: 2px 0 0; font-family: var(--serif); font-size: 1.3rem; line-height: 1; }
+		.action-rail {
+			display: grid;
+			grid-template-columns: 42fr 58fr;
+			min-width: 190px;
+		}
+		.action-rail button, .content-actions button {
+			min-height: 44px;
+			border-radius: 8px;
+			font-size: .64rem;
+			font-weight: 850;
+		}
+		.action-rail button:first-child {
+			border: 1px solid #708075;
+			border-radius: 8px 0 0 8px;
+			background: var(--sheet);
+			color: var(--olive);
+		}
+		.action-rail button:last-child {
+			margin-left: -1px;
+			border: 1px solid var(--terra);
+			border-radius: 0 8px 8px 0;
+			background: var(--terra);
+			color: white;
+		}
+		.mini-body { padding: 12px 2px 2px; }
+		.mini-field {
+			display: flex;
+			min-height: 44px;
+			align-items: center;
+			padding: 0 10px;
+			border: 1px solid transparent;
+			border-radius: 8px;
+			background: var(--olive-pale);
+			color: var(--muted);
+			font-size: .68rem;
+		}
+		.chip-row { display: flex; gap: 2px; margin: 3px 0 8px; }
+		.hit {
+			display: grid;
+			min-width: 44px;
+			min-height: 44px;
+			place-items: center;
+			border: 0;
+			background: transparent;
+		}
+		.chip-visual {
+			display: grid;
+			min-height: 32px;
+			place-items: center;
+			padding: 0 9px;
+			border: 1px solid var(--line-dark);
+			border-radius: 6px;
+			background: var(--sheet);
+			color: var(--olive);
+			font-size: .62rem;
+			font-weight: 850;
+		}
+		.hit.active .chip-visual { border-color: var(--olive); background: var(--olive); color: white; }
+		.frame {
+			overflow: hidden;
+			border: 1px solid var(--line-dark);
+			border-radius: 8px;
+			background: var(--sheet);
+		}
+		.frame h4 { margin: 0; padding: 8px 10px 4px; font-family: var(--serif); font-size: .82rem; }
+		.frame-row { display: flex; justify-content: space-between; align-items: center; min-height: 44px; margin: 0 10px; border-top: 1px solid var(--line); font-size: .65rem; }
+		.ghost { width: 36px; height: 36px; border: 0; border-radius: 8px; background: rgba(51,70,56,.09); color: var(--olive); }
+		.notice {
+			display: grid;
+			grid-template-columns: 22px 1fr;
+			gap: 8px;
+			margin-top: 8px;
+			padding: 9px;
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			background: white;
+			box-shadow: 0 3px 0 #ded3c1;
+			font-size: .63rem;
+		}
+		.notice b { display: block; }
+		.notice i { display: grid; height: 22px; place-items: center; border-radius: 5px; background: var(--honey); font-style: normal; font-weight: 900; }
+		.recipe {
+			position: relative;
+			display: grid;
+			grid-template-columns: 42px 1fr;
+			gap: 8px;
+			align-items: center;
+			overflow: hidden;
+			margin-top: 8px;
+			padding: 8px 8px 8px 12px;
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			background: var(--sheet);
+		}
+		.recipe::before { position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--terra); content: ""; }
+		.recipe-thumb { height: 38px; border-radius: 5px; background: linear-gradient(145deg, #c78458, #704d31); }
+		.recipe strong { display: block; font-family: var(--serif); font-size: .68rem; }
+		.recipe small { display: block; color: var(--muted); font-size: .56rem; }
+
+		.guard-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 12px;
+		}
+		.guard-card { padding: 16px; }
+		.guard-card h3 { margin: 0; font-family: var(--serif); font-size: 1.1rem; }
+		.guard-card ul { margin: 10px 0 0; padding-left: 18px; color: var(--muted); font-size: .76rem; }
+		.guard-card li + li { margin-top: 5px; }
+		.guard-card.keep { border-top: 4px solid var(--olive); }
+		.guard-card.avoid { border-top: 4px solid var(--terra); }
+
+		.phase-flow {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 10px;
+		}
+		.phase {
+			position: relative;
+			min-height: 178px;
+			padding: 15px;
+		}
+		.phase-no {
+			display: grid;
+			width: 28px;
+			height: 28px;
+			place-items: center;
+			border-radius: 50%;
+			background: var(--olive);
+			color: white;
+			font-family: var(--serif);
+			font-weight: 800;
+		}
+		.phase h3 { margin: 11px 0 5px; font-family: var(--serif); font-size: 1.02rem; line-height: 1.1; }
+		.phase p { margin: 0; color: var(--muted); font-size: .72rem; }
+		.phase .tickets { position: absolute; right: 12px; bottom: 11px; color: var(--terra-deep); font-size: .62rem; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+
+		.ticket-stack { display: grid; gap: 8px; }
+		details.ticket { overflow: hidden; }
+		details.ticket summary {
+			display: grid;
+			grid-template-columns: 62px minmax(0, 1fr) auto;
+			gap: 10px;
+			align-items: center;
+			min-height: 56px;
+			padding: 9px 13px;
+			cursor: pointer;
+			list-style: none;
+		}
+		details.ticket summary::-webkit-details-marker { display: none; }
+		.ticket-id { color: var(--terra-deep); font-size: .67rem; font-weight: 900; }
+		.ticket-title { font-size: .79rem; font-weight: 850; }
+		.ticket-meta { color: var(--muted); font-size: .64rem; font-weight: 750; }
+		.ticket-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 13px 13px; border-top: 1px solid var(--line); }
+		.ticket-body div { padding-top: 10px; }
+		.ticket-body strong { display: block; color: var(--muted); font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; }
+		.ticket-body p { margin: 4px 0 0; font-size: .72rem; }
+
+		.matrix-wrap { overflow-x: auto; }
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			background: var(--sheet);
+			font-size: .72rem;
+		}
+		th, td { padding: 10px 11px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+		th { background: var(--olive-pale); color: var(--olive); font-size: .64rem; text-transform: uppercase; letter-spacing: .05em; }
+
+		.risk-layout {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) 260px;
+			gap: 13px;
+		}
+		.risk-summary { padding: 17px; }
+		.risk-summary h3 { margin: 0; font-family: var(--serif); font-size: 1.15rem; }
+		.risk-summary p { margin: 8px 0 0; color: var(--muted); font-size: .77rem; }
+		.go-card {
+			display: grid;
+			place-content: center;
+			padding: 20px;
+			border-color: var(--olive);
+			background: var(--olive);
+			color: white;
+			text-align: center;
+		}
+		.go-card strong { font-family: var(--serif); font-size: 2rem; }
+		.go-card span { color: rgba(255,255,255,.7); font-size: .65rem; text-transform: uppercase; letter-spacing: .08em; }
+
+		.runway {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 18px;
+			align-items: center;
+			margin-top: 36px;
+			padding: 22px;
+			border: 1px solid var(--olive);
+			border-radius: 12px;
+			background: linear-gradient(135deg, var(--olive-deep), var(--olive-mid));
+			color: white;
+		}
+		.runway h2 { margin: 0; font-family: var(--serif); font-size: 1.55rem; }
+		.runway p { max-width: 760px; margin: 6px 0 0; color: rgba(255,255,255,.72); font-size: .78rem; }
+		.run-command { padding: 9px 12px; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; background: rgba(255,255,255,.08); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; font-weight: 800; white-space: nowrap; }
+		.source-note { margin: 14px 0 0; color: var(--muted); font-size: .67rem; text-align: center; }
+
+		@media (max-width: 940px) {
+			.contract-layout, .risk-layout { grid-template-columns: 1fr; }
+			.specimen { position: static; }
+			.phase-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+			.go-card { min-height: 150px; }
+		}
+		@media (max-width: 700px) {
+			.hero-inner, main { width: min(100% - 20px, 1240px); }
+			.hero-inner { padding: 40px 0 34px; }
+			.hero-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+			.hero-stat:nth-child(2) { border-right: 0; }
+			.hero-stat:nth-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,.13); }
+			.section-heading, .runway { grid-template-columns: 1fr; }
+			.guard-grid, .phase-flow, .ticket-body { grid-template-columns: 1fr; }
+			.contract-row { grid-template-columns: 1fr auto; gap: 4px 10px; }
+			.contract-family { grid-column: 1 / -1; }
+			.contract-choice { grid-column: 1; }
+			.accepted, .override { grid-column: 2; grid-row: 2; }
+			.mini-header-top { align-items: stretch; flex-direction: column; }
+			.action-rail { width: 100%; min-width: 0; }
+			details.ticket summary { grid-template-columns: 52px minmax(0, 1fr); }
+			.ticket-meta { display: none; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+		}
+	</style>
+</head>
+<body>
+	<header class="hero">
+		<div class="hero-inner">
+			<p class="kicker">Keukenbrein · App house style · Plan ready</p>
+			<h1>One grammar.<br />Every stable surface.</h1>
+			<p class="hero-copy">
+				The visual choices are final. This plan consolidates same-role callers without
+				flattening Stock, Meal plan, Shopping, Recipes, or Settings into one layout.
+			</p>
+			<div class="hero-meta" aria-label="Plan summary">
+				<div class="hero-stat"><strong>10</strong><span>fixed decisions</span></div>
+				<div class="hero-stat"><strong>8</strong><span>execution tickets</span></div>
+				<div class="hero-stat"><strong>R2</strong><span>shared UI risk</span></div>
+				<div class="hero-stat"><strong>0</strong><span>open questions</span></div>
+			</div>
+		</div>
+	</header>
+
+	<nav class="sticky-nav" aria-label="Plan sections">
+		<div class="nav-inner">
+			<a href="#contract">Selected contract</a>
+			<a href="#boundaries">Boundaries</a>
+			<a href="#phases">Phases</a>
+			<a href="#tickets">Tickets</a>
+			<a href="#verification">Verification</a>
+			<a href="#risk">Risk</a>
+		</div>
+	</nav>
+
+	<main>
+		<section class="section" id="contract">
+			<div class="section-heading">
+				<div>
+					<h2>The selected component contract</h2>
+					<p>Four recommendations were accepted and six were deliberately overridden. None are deferred.</p>
+				</div>
+				<span class="status">Final</span>
+			</div>
+
+			<div class="contract-layout">
+				<div class="contract-list card">
+					<div class="contract-row">
+						<span class="contract-family">Primary</span>
+						<span class="contract-choice">Flat terra key<small>One commit action per region</small></span>
+						<span class="accepted">Accepted</span>
+					</div>
+					<div class="contract-row">
+						<span class="contract-family">Secondary</span>
+						<span class="contract-choice">Olive outline key<small>Useful, visible, non-committing</small></span>
+						<span class="accepted">Accepted</span>
+					</div>
+					<div class="contract-row">
+						<span class="contract-family">Tertiary</span>
+						<span class="contract-choice">Ghost square<small>Established icon actions only</small></span>
+						<span class="override">Override</span>
+					</div>
+					<div class="contract-row">
+						<span class="contract-family">Filters</span>
+						<span class="contract-choice">Compact square chips<small>32 px visual inside 44 px target</small></span>
+						<span class="override">Override</span>
+					</div>
+					<div class="contract-row">
+						<span class="contract-family">Header pair</span>
+						<span class="contract-choice">Proportional split rail<small>42/58 only for a genuine fixed pair</small></span>
+						<span class="override">Override</span>
+					</div>
+					<div class="contract-row">
+						<span class="contract-family">Content pair</span>
+						<span class="contract-choice">Separate pair<small>Independent 8 px boundaries</small></span>
+						<span class="accepted">Accepted</span>
+					</div>
+					<div class="contract-row">
+						<span class="contract-family">Fields</span>
+						<span class="contract-choice">Olive tonal field<small>Shared focus, invalid, disabled, and dark states</small></span>
+						<span class="override">Override</span>
+					</div>
+					<div class="contract-row">
+						<span class="contract-family">Sections</span>
+						<span class="contract-choice">Framed list<small>Repeated rows, not every surface</small></span>
+						<span class="override">Override</span>
+					</div>
+					<div class="contract-row">
+						<span class="contract-family">Notices</span>
+						<span class="contract-choice">Raised paper alert<small>Shared material, explicit severity</small></span>
+						<span class="override">Override</span>
+					</div>
+					<div class="contract-row">
+						<span class="contract-family">Recipe category</span>
+						<span class="contract-choice">Category left stripe<small>The only permitted leading stripe</small></span>
+						<span class="accepted">Accepted</span>
+					</div>
+				</div>
+
+				<aside class="specimen card" aria-label="Selected component specimen">
+					<div class="specimen-head">
+						<strong>The mix in one surface</strong>
+						<span>Illustrative only; route behavior remains local.</span>
+					</div>
+					<div class="mini-app">
+						<div class="mini-header">
+							<div class="mini-header-top">
+								<div><p>Household</p><h3>Stock</h3></div>
+								<div class="action-rail">
+									<button>Activity</button><button>+ Add item</button>
+								</div>
+							</div>
+						</div>
+						<div class="mini-body">
+							<div class="mini-field">Search stock…</div>
+							<div class="chip-row">
+								<button class="hit active"><span class="chip-visual">All</span></button>
+								<button class="hit"><span class="chip-visual">Freezer</span></button>
+								<button class="hit"><span class="chip-visual">Pantry</span></button>
+							</div>
+							<div class="frame">
+								<h4>Use next</h4>
+								<div class="frame-row"><span>Courgette · 2 days</span><button class="ghost" aria-label="Open courgette">→</button></div>
+								<div class="frame-row"><span>Spinach · today</span><button class="ghost" aria-label="Open spinach">→</button></div>
+							</div>
+							<div class="notice"><i>!</i><span><b>One item needs attention</b>Spinach is best used today.</span></div>
+							<div class="recipe">
+								<div class="recipe-thumb"></div>
+								<div><strong>Green shakshuka</strong><small>Dinner · 30 min</small></div>
+							</div>
+						</div>
+					</div>
+				</aside>
+			</div>
+		</section>
+
+		<section class="section" id="boundaries">
+			<div class="section-heading">
+				<div>
+					<h2>Unify meaning, preserve the jobs</h2>
+					<p>The plan is deliberately strict about same-role callers and equally strict about leaving specialized interaction systems alone.</p>
+				</div>
+			</div>
+			<div class="guard-grid">
+				<article class="guard-card keep card">
+					<h3>Consolidate completely</h3>
+					<ul>
+						<li>Stable Stock, Meal plan, Shopping, Recipe, Settings, and Login actions and fields</li>
+						<li>Filters versus passive status as separate semantics</li>
+						<li>Repeated-row frames and meaningful serif section titles</li>
+						<li>Actionable notices with preserved recovery and announcement behavior</li>
+						<li>Recipe card category accent with its textual label</li>
+						<li>Old same-role recipes deleted inside each ticket</li>
+					</ul>
+				</article>
+				<article class="guard-card avoid card">
+					<h3>Do not flatten</h3>
+					<ul>
+						<li>Route information architecture or useful green-band payloads</li>
+						<li>Assistant correction files while that plan is in flight</li>
+						<li>Cook Mode timeline, timers, counters, and timer chips</li>
+						<li>Bottom navigation, real segmented tabs, checkboxes, steppers, and drag controls</li>
+						<li>Mutations, URLs, schema, auth, AI, AH, or Dutch lookup fields</li>
+						<li>DaisyUI globally or one universal variant-heavy component</li>
+					</ul>
+				</article>
+			</div>
+		</section>
+
+		<section class="section" id="phases">
+			<div class="section-heading">
+				<div>
+					<h2>Four phases, seam first</h2>
+					<p>Each phase makes one semantic boundary real, migrates all of its stable callers, then deletes the old recipe.</p>
+				</div>
+			</div>
+			<div class="phase-flow">
+				<article class="phase card">
+					<span class="phase-no">1</span>
+					<h3>Establish action meaning</h3>
+					<p>Proportional header pairs, flat terra primary, olive secondary, ghost-square row actions, and separate content pairs.</p>
+					<span class="tickets">AHS-1 · AHS-2</span>
+				</article>
+				<article class="phase card">
+					<span class="phase-no">2</span>
+					<h3>Separate selection and input</h3>
+					<p>Interactive square filters, passive statuses, and one tonal field contract with complete states.</p>
+					<span class="tickets">AHS-3 · AHS-4</span>
+				</article>
+				<article class="phase card">
+					<span class="phase-no">3</span>
+					<h3>Consolidate surfaces</h3>
+					<p>Framed repeated lists, raised notices, and the recipe-only category stripe.</p>
+					<span class="tickets">AHS-5 · AHS-7</span>
+				</article>
+				<article class="phase card">
+					<span class="phase-no">4</span>
+					<h3>Delete and prove</h3>
+					<p>Source guard, durable documentation, complete browser matrix, repository gate, and supervised delivery.</p>
+					<span class="tickets">AHS-8</span>
+				</article>
+			</div>
+		</section>
+
+		<section class="section" id="tickets">
+			<div class="section-heading">
+				<div>
+					<h2>Eight vertical execution tickets</h2>
+					<p>Open a ticket to see its observable outcome, primary targets, proof, and rollback.</p>
+				</div>
+				<span class="status">R2 overall</span>
+			</div>
+			<div class="ticket-stack">
+				<details class="ticket card" open>
+					<summary><span class="ticket-id">AHS-1</span><span class="ticket-title">Proportional header action rails</span><span class="ticket-meta">M · high confidence</span></summary>
+					<div class="ticket-body">
+						<div><strong>Outcome</strong><p>Stock and Recipes get a responsive 42/58 rail. Meal plan keeps one ghost-square overflow action; Shopping AH state stays passive.</p></div>
+						<div><strong>Proof and rollback</strong><p>320–1280, Dutch, zoom, focus, dark, disabled, bounding boxes. Revert the four snippets and unused rail together.</p></div>
+					</div>
+				</details>
+				<details class="ticket card">
+					<summary><span class="ticket-id">AHS-2</span><span class="ticket-title">Stable action hierarchy and separate content pairs</span><span class="ticket-meta">L · medium-high</span></summary>
+					<div class="ticket-body">
+						<div><strong>Outcome</strong><p>Stable screens share terra commit, olive secondary, justified tertiary, and visible pending labels without changing handlers.</p></div>
+						<div><strong>Proof and rollback</strong><p>All states, anchors/buttons, duplicate-submit guards, and existing E2E journeys. Revert semantic classes and callers together.</p></div>
+					</div>
+				</details>
+				<details class="ticket card">
+					<summary><span class="ticket-id">AHS-3</span><span class="ticket-title">Square filters and passive statuses</span><span class="ticket-meta">L · medium-high</span></summary>
+					<div class="ticket-body">
+						<div><strong>Outcome</strong><p>Filters have a 44/32 target/visual contract and `aria-pressed`; statuses are absent from the tab order and have no false hover state.</p></div>
+						<div><strong>Proof and rollback</strong><p>Selected, disabled, counts, long Dutch, horizontal focus reveal, URL state. Restore old markup and remove both unused components.</p></div>
+					</div>
+				</details>
+				<details class="ticket card">
+					<summary><span class="ticket-id">AHS-4</span><span class="ticket-title">Tonal fields</span><span class="ticket-meta">L · medium</span></summary>
+					<div class="ticket-body">
+						<div><strong>Outcome</strong><p>Generic fields share one 8 px tonal surface with clear label, focus, invalid, disabled, busy, and dark behavior.</p></div>
+						<div><strong>Proof and rollback</strong><p>Metadata, labels, values, textareas, recovery, mobile keyboards, and submit paths. Revert classes only; no values or validation change.</p></div>
+					</div>
+				</details>
+				<details class="ticket card">
+					<summary><span class="ticket-id">AHS-5</span><span class="ticket-title">Framed repeated lists and serif sections</span><span class="ticket-meta">L · medium</span></summary>
+					<div class="ticket-body">
+						<div><strong>Outcome</strong><p>Repeated rows share one light frame and meaningful serif title without wrapping every panel or flattening route composition.</p></div>
+						<div><strong>Proof and rollback</strong><p>Empty/single/long rows, 200% reflow, keyboard, dark, Dutch, no overflow. Restore group classes per migrated region.</p></div>
+					</div>
+				</details>
+				<details class="ticket card">
+					<summary><span class="ticket-id">AHS-6</span><span class="ticket-title">Raised paper notices</span><span class="ticket-meta">M · medium-high</span></summary>
+					<div class="ticket-body">
+						<div><strong>Outcome</strong><p>Stable notices share one material while severity, recovery, live regions, and preserved input remain truthful.</p></div>
+						<div><strong>Proof and rollback</strong><p>Info/success/warning/error, request failure, loading, dark, long Dutch. Restore notice markup; no server outcome changes.</p></div>
+					</div>
+				</details>
+				<details class="ticket card">
+					<summary><span class="ticket-id">AHS-7</span><span class="ticket-title">Recipe-only category stripe</span><span class="ticket-meta">S · high confidence</span></summary>
+					<div class="ticket-body">
+						<div><strong>Outcome</strong><p>Recipe cards derive a category accent and keep category text. No generic component gains a leading stripe.</p></div>
+						<div><strong>Proof and rollback</strong><p>Known, alias, unknown, and null mapping; image/no image; dark; source guard. Remove projection and restore the card class.</p></div>
+					</div>
+				</details>
+				<details class="ticket card">
+					<summary><span class="ticket-id">AHS-8</span><span class="ticket-title">Delete drift, guard, document, and deliver</span><span class="ticket-meta">M · high after 1–7</span></summary>
+					<div class="ticket-body">
+						<div><strong>Outcome</strong><p>No retired stable dialect remains; the source guard, browser contract, durable docs, complete gate, and canary all pass.</p></div>
+						<div><strong>Proof and rollback</strong><p>Both E2E accounts, `npm test`, Railway revision truth, privacy-safe canary. Revert the code-only feature PR.</p></div>
+					</div>
+				</details>
+			</div>
+		</section>
+
+		<section class="section" id="verification">
+			<div class="section-heading">
+				<div>
+					<h2>Proof before polish is called done</h2>
+					<p>The implementation is complete only when the shared visual contract and every existing task behavior agree.</p>
+				</div>
+			</div>
+			<div class="matrix-wrap card">
+				<table>
+					<thead><tr><th>Dimension</th><th>Required evidence</th></tr></thead>
+					<tbody>
+						<tr><td>Responsive</td><td>320, 393, 768, 1280 px plus 200%-equivalent reflow; no clipping or document overflow.</td></tr>
+						<tr><td>Theme and language</td><td>Light/dark and English/Dutch with long headers, actions, filters, fields, statuses, sections, and notices.</td></tr>
+						<tr><td>Interaction</td><td>Keyboard, focus, hover, pressed, selected, disabled, loading, success, and error.</td></tr>
+						<tr><td>Content states</td><td>Empty, single, populated, long/multiline, warning, recovery, and preserved valid input.</td></tr>
+						<tr><td>Component geometry</td><td>44 px targets, 32 px compact visuals, 8 px controls, 42/58 header rail, separate content actions.</td></tr>
+						<tr><td>Route invariants</td><td>One H1; green payloads, URLs, Back/Forward, filter/search state, dock/nav clearance, and handlers unchanged.</td></tr>
+						<tr><td>Safety</td><td>No provider call, real AH preview/push, schema/auth change, household-data access, or Dutch lookup seam change.</td></tr>
+						<tr><td>Repository</td><td>Focused checks during tickets, both E2E accounts, build, then complete <code>npm test</code>.</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<section class="section" id="risk">
+			<div class="section-heading">
+				<div>
+					<h2>Critique result</h2>
+					<p>Twelve realistic failure paths are documented in the source plan. Every one has a direct mitigation and low residual risk.</p>
+				</div>
+			</div>
+			<div class="risk-layout">
+				<article class="risk-summary card">
+					<h3>The strongest objection</h3>
+					<p>
+						A global DaisyUI restyle would touch fewer files. It would also change unlike roles—Cook
+						Mode, Assistant, navigation, checkboxes, and dialogs—and move the drift into exceptions.
+						Semantic opt-in recipes are the durable choice because they centralize only proven
+						same-role callers, retain native behavior, and allow the old dialect to be deleted.
+					</p>
+					<p>
+						Highest-risk details are explicitly covered: Dutch/zoom header fit, filter versus status
+						semantics, compact hit targets, dark tonal-field focus, notice severity, and the
+						recipe-only stripe boundary.
+					</p>
+				</article>
+				<aside class="go-card card">
+					<strong>GO</strong>
+					<span>No P0/P1 blocker</span>
+				</aside>
+			</div>
+		</section>
+
+		<section class="runway">
+			<div>
+				<h2>Ready for approval and execution</h2>
+				<p>The authoritative Markdown contains the complete targets, scope, verification, rollback, failure modes, and resume pack. Execution begins only after approval.</p>
+			</div>
+			<div class="run-command">$run</div>
+		</section>
+		<p class="source-note">Authoritative source: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md · This HTML is a review aid only.</p>
+	</main>
+</body>
+</html>

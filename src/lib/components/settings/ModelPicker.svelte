@@ -11,6 +11,7 @@
 	import { SOURCE_LABEL, type ConfigSource } from '$lib/components/settings/provenance';
 	import { untrack } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
+	import FilterChip from '$lib/components/ui/FilterChip.svelte';
 	import PendingButton from '$lib/components/ui/PendingButton.svelte';
 
 	type Role = 'chat' | 'chat_fallback' | 'vision' | 'background';
@@ -97,13 +98,13 @@
 	<div class="flex gap-1.5">
 		<input
 			type="text"
-			class="input input-bordered input-sm flex-1 font-mono text-xs"
+			class="ui-field flex-1 font-mono text-xs"
 			aria-labelledby="{role}-model-label"
 			bind:value={modelInput}
 			disabled={saving}
 		/>
 		<PendingButton
-			class="btn btn-sm btn-primary shrink-0"
+			class="ui-action ui-action-primary shrink-0"
 			pending={saving}
 			disabled={!modelInput.trim() || modelInput.trim() === effective.value}
 			onclick={save}
@@ -114,20 +115,19 @@
 	{#if shortcuts.length}
 		<div class="flex flex-wrap gap-1.5">
 			{#each shortcuts as m (m)}
-				<button
-					type="button"
-					class={m === modelInput ? 'ui-chip-active' : 'ui-chip'}
+				<FilterChip
+					selected={m === modelInput}
 					onclick={() => (modelInput = m)}
 				>
 					{m}
-				</button>
+				</FilterChip>
 			{/each}
 		</div>
 	{/if}
 	{#if effective.source !== 'default'}
 		<button
 			type="button"
-			class="btn btn-xs btn-ghost self-start px-0 text-base-content/50"
+			class="ui-action ui-action-tertiary self-start px-0"
 			disabled={saving}
 			onclick={resetToDefault}
 		>

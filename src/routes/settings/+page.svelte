@@ -74,7 +74,7 @@
 		</div>
 	</header>
 
-	<div class="ui-list-card divide-y divide-base-200">
+	<div class="ui-section-frame divide-y divide-base-200">
 		{#each panels as panel (panel.href)}
 			<a
 				href="{base}/settings/{panel.href}"

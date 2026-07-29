@@ -67,9 +67,9 @@
 	<svg viewBox="0 0 16 16" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3.2h3V4.5M4.7 4.5l.4 8h5.8l.4-8M6.6 6.7v3.6M9.4 6.7v3.6" /></svg>
 </div>
 <div class="relative flex gap-2.5 bg-[var(--stock-row-bg,var(--color-base-100))] px-3 py-2.5 {item.qtyNum === 0 ? 'opacity-65' : ''}" use:swipe={{ onSwipeLeft: () => onDelete() }}>
-	<span class="my-0.5 w-1 shrink-0 rounded-full {agingBar(item)}" aria-hidden="true"></span>
 	<div class="min-w-0 flex-1">
 		<div class="flex items-center gap-2">
+			<span class="h-2 w-2 shrink-0 rounded-full {agingBar(item)}" aria-hidden="true"></span>
 			{#if item.needsReview}
 				<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" title={m.inventory_row_needs_review_title()}></span>
 			{/if}

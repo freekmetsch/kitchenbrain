@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { addDays, APP_TIME_ZONE } from '$lib/week';
@@ -52,10 +53,10 @@
 
 <KitchenPageHeader eyebrow={m.shopping_header_context()} title={m.shopping_heading()}>
 	{#snippet actions()}
-		<span class:offline={!ahConnected} class="market-ah-status">
+		<StatusBadge tone={ahConnected ? 'success' : 'warning'} onDark>
 			<i aria-hidden="true"></i>
 			{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
-		</span>
+		</StatusBadge>
 	{/snippet}
 
 	<div class="market-run-state">
@@ -85,33 +86,14 @@
 </KitchenPageHeader>
 
 <style>
-	.market-ah-status {
-		display: inline-flex;
-		min-height: 1.75rem;
-		align-items: center;
-		gap: 0.35rem;
-		border: 1px solid rgb(255 255 255 / 20%);
-		border-radius: 999px;
-		padding: 0 0.55rem;
-		background: rgb(255 255 255 / 8%);
-		color: #edf3ee;
-		font-size: 0.62rem;
-		font-weight: 750;
-		white-space: nowrap;
-	}
-
-	.market-ah-status i {
+	:global(.ui-status-badge) i {
 		width: 0.4rem;
 		height: 0.4rem;
 		border-radius: 999px;
 		background: #87cf98;
 	}
 
-	.market-ah-status.offline {
-		color: #ffdf9a;
-	}
-
-	.market-ah-status.offline i {
+	:global(.ui-status-badge[data-tone='warning']) i {
 		background: #f0b34b;
 	}
 

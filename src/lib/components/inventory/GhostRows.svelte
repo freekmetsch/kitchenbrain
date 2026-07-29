@@ -40,7 +40,6 @@
 
 {#each ghosts as ghost (ghost.slug)}
 	<li class="flex gap-2.5 bg-base-100 px-3 py-2" transition:slide={{ duration: MOTION_MICRO_MS }}>
-		<span class="my-0.5 w-1 shrink-0 rounded-full bg-warning/50" aria-hidden="true"></span>
 		<div class="min-w-0 flex-1">
 			<div class="flex items-center gap-2">
 				<a
@@ -50,7 +49,7 @@
 				>
 				<a
 					href="{base}/recipes/{ghost.slug}"
-					class="btn btn-ghost btn-sm h-8 min-h-0 shrink-0 px-2.5 text-xs font-medium text-warning"
+					class="ui-action ui-action-warning shrink-0 px-2.5 text-xs"
 					>{m.inventory_ghost_cook_again_button()}</a
 				>
 			</div>

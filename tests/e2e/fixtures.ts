@@ -218,12 +218,12 @@ export function seedKitchenFixtures(databasePath: string): void {
 	`);
 	const insertRecipe = sqlite.prepare(`
 		INSERT INTO recipes (
-			slug, title, servings, structure_version, content_revision, total_time_min,
+			slug, title, category, category_en, servings, structure_version, content_revision, total_time_min,
 			ingredients, directions, direction_ids_json, language, title_en,
 			ingredients_en, directions_en, translation_status, cook_mode_json, cooked_count,
 			is_freezer_staple, freezer_staple_opt_out, needs_review, created_at, updated_at
 		) VALUES (
-			@recipeSlug, @recipeTitle, 4, 2, 1, 30,
+			@recipeSlug, @recipeTitle, 'soup', 'soup', 4, 2, 1, 30,
 			@ingredients, @directions, @directionIds, 'nl', @recipeTitle,
 			@ingredientsEn, @directionsEn, 'ready', @cookModeJson, 0, 0, 0, 0, @now, @now
 		)

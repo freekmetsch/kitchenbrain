@@ -86,7 +86,7 @@
 				<input
 					bind:this={nameInput}
 					type="text"
-					class="input min-h-11 min-w-0"
+					class="ui-field min-w-0"
 					placeholder={m.shopping_additem_name_placeholder()}
 					autocomplete="off"
 					maxlength="256"
@@ -101,7 +101,7 @@
 				<input
 					type="text"
 					inputmode="decimal"
-					class="input min-h-11 min-w-0"
+					class="ui-field min-w-0"
 					placeholder={m.shopping_additem_qty_placeholder()}
 					autocomplete="off"
 					maxlength="64"
@@ -113,7 +113,7 @@
 				{m.shopping_recurring_unit()}
 				<input
 					type="text"
-					class="input min-h-11 min-w-0"
+					class="ui-field min-w-0"
 					placeholder={m.shopping_additem_unit_placeholder()}
 					autocomplete="off"
 					maxlength="64"
@@ -128,10 +128,10 @@
 		{/if}
 
 		<div class="mt-4 flex justify-end gap-2">
-			<button type="button" class="btn btn-ghost min-h-11" disabled={addSubmitting} onclick={() => (open = false)}>
+			<button type="button" class="ui-action ui-action-tertiary" disabled={addSubmitting} onclick={() => (open = false)}>
 				{m.shopping_cancel_button()}
 			</button>
-			<button type="submit" class="btn btn-primary min-h-11" disabled={addSubmitting || !addName.trim()}>
+			<button type="submit" class="ui-action ui-action-primary" disabled={addSubmitting || !addName.trim()}>
 				{#if addSubmitting}<Spinner size="xs" />{/if}
 				{addSubmitting ? m.shopping_saving_label() : m.shopping_additem_submit_aria()}
 			</button>

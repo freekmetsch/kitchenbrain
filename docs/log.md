@@ -881,3 +881,36 @@ No R3 draft merged or deployed. No household data, AH lookup/push, automatic mem
 Assistant work was used.
 
 Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md, docs/log.md
+
+## 2026-07-29 | run | App House Style
+
+Implemented the approved Ledger Compact house style across stable Stock, Meal plan, Shopping,
+Recipes, Settings, and Login surfaces. Shared semantic actions, proportional header pairs,
+selection/status roles, tonal fields, framed lists, section titles, raised notices, and
+Recipe-only category accents replaced the retired same-role dialects. A source guard and browser
+contract now protect those meanings without restyling Assistant, Cook Mode, navigation, quantity
+controls, persistence, auth, providers, or AH behavior.
+
+The complete provider-free gate passed 125 unit-test files / 690 tests, 28 primary and 28
+secondary authenticated browser stories, clean Svelte diagnostics, and the production build. The
+matrix covers 320/393/768/1280 px, 200% equivalent reflow, English/Dutch, light/dark,
+keyboard/focus, loading/disabled/error states, exact header/chip geometry, and the Recipe-only
+leading-marker boundary.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style.html,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-compact-actions.html,
+docs/artifacts/archive/2026-07-29-plan-app-house-style.html,
+docs/ui-house-style.md, src/app.css, src/lib/components/ui/,
+src/lib/ui_house_style_source.test.ts, tests/e2e/house-style.e2e.ts
+
+## 2026-07-29 | archive-scan | 1 feature list, 3 HTML artifacts archived
+
+Moved the completed App House Style feature list, both decision workspaces, and its implementation
+plan into their archive directories. The repository has no `scripts/archive-scan.ps1`, so the
+validated inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style.html,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-compact-actions.html,
+docs/artifacts/archive/2026-07-29-plan-app-house-style.html

@@ -5,7 +5,9 @@
 	import { slide } from 'svelte/transition';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import FilterChip from '$lib/components/ui/FilterChip.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 	import { m } from '$lib/paraglide/messages';
 	import {
@@ -300,32 +302,26 @@
 			role="toolbar"
 			aria-label={m.shopping_filter_label()}
 		>
-			<button
-				type="button"
-				class:active={controller.filterIs({ kind: 'all' })}
-				aria-pressed={controller.filterIs({ kind: 'all' })}
+			<FilterChip
+				selected={controller.filterIs({ kind: 'all' })}
 				onclick={() => controller.setFilter({ kind: 'all' })}
 			>
 				{m.shopping_filter_all()}
-			</button>
-			<button
-				type="button"
-				class:active={controller.filterIs({ kind: 'weekly' })}
-				aria-pressed={controller.filterIs({ kind: 'weekly' })}
+			</FilterChip>
+			<FilterChip
+				selected={controller.filterIs({ kind: 'weekly' })}
 				onclick={() => controller.setFilter({ kind: 'weekly' })}
 			>
 				{m.shopping_filter_weekly()}
-			</button>
+			</FilterChip>
 			{#each controller.filterOptions.meals as meal}
-				<button
-					type="button"
-					class:active={controller.filterIs({ kind: 'meal', mealName: meal })}
-					aria-pressed={controller.filterIs({ kind: 'meal', mealName: meal })}
+				<FilterChip
+					selected={controller.filterIs({ kind: 'meal', mealName: meal })}
 					title={meal}
 					onclick={() => controller.setFilter({ kind: 'meal', mealName: meal })}
 				>
 					{meal}
-				</button>
+				</FilterChip>
 			{/each}
 		</div>
 	</div>
@@ -334,7 +330,7 @@
 {#if history}{@render history()}{/if}
 
 {#if visibleExcludedSources.length}
-	<details class="not-this-run" bind:open={offListOpen}>
+	<details class="not-this-run ui-section-frame" bind:open={offListOpen}>
 		<summary>{m.shopping_not_this_run_count({ count: visibleExcludedSources.length })}</summary>
 		<ul>
 			{#each visibleExcludedSources as source (source.sourceKey)}
@@ -352,14 +348,13 @@
 
 {#if controller.coveredPending.length}
 	<div class="market-covered-toggle">
-		<button
-			type="button"
-			class:active={showCovered}
-			aria-pressed={showCovered}
+		<FilterChip
+			selected={showCovered}
+			tone="success"
 			onclick={() => (showCovered = !showCovered)}
 		>
 			{m.shopping_in_stock_chip({ count: controller.coveredPending.length })}
-		</button>
+		</FilterChip>
 	</div>
 {/if}
 
@@ -371,7 +366,7 @@
 	>
 		{#snippet action()}
 			<a
-				class="btn btn-primary min-h-11"
+				class="ui-action ui-action-primary"
 				href={controller.emptyState === 'no_meals' ? `${base}/meal-plan` : `${base}/inventory`}
 			>
 				{controller.emptyState === 'no_meals' ? m.shopping_plan_meals_button() : m.shopping_view_stock_button()}
@@ -380,18 +375,17 @@
 	</EmptyState>
 {:else if controller.viewMode === 'filter-empty'}
 	{#if controller.filter.kind === 'weekly'}
-		<section class="shopping-ledger-section weekly">
+		<section class="shopping-ledger-section weekly ui-section-frame">
 			<header class="shopping-section-header">
-				<h2>{m.shopping_filter_weekly()} <span>· 0</span></h2>
-				<button
-					type="button"
+				<h2 class="ui-section-title">{m.shopping_filter_weekly()} <span>· 0</span></h2>
+				<FilterChip
 					data-weekly-edit-button
-					aria-pressed={weeklyEditMode}
+					selected={weeklyEditMode}
 					onclick={() =>
 						weeklyEditMode ? void closeWeeklyEditor() : (weeklyEditMode = true)}
 				>
 					{weeklyEditMode ? m.shopping_done_editing_weekly() : m.shopping_edit_weekly()}
-				</button>
+				</FilterChip>
 			</header>
 			{#if weeklyEditMode}
 				{@render weeklyEditor()}
@@ -402,7 +396,7 @@
 	{:else}
 		<div class="shopping-filter-empty">
 			<h2>{m.shopping_filter_empty()}</h2>
-			<button type="button" onclick={() => controller.setFilter({ kind: 'all' })}>{m.shopping_clear_filter()}</button>
+			<button type="button" class="ui-action ui-action-primary" onclick={() => controller.setFilter({ kind: 'all' })}>{m.shopping_clear_filter()}</button>
 		</div>
 	{/if}
 {:else if controller.viewMode === 'active'}
@@ -411,22 +405,21 @@
 			<section
 				class:weekly={group.kind === 'weekly'}
 				class:shared={group.kind === 'shared'}
-				class="shopping-ledger-section"
+				class="shopping-ledger-section ui-section-frame"
 				out:slide={{ duration: groupMotionMs }}
 				animate:flip={{ duration: groupMotionMs }}
 			>
 				<header class="shopping-section-header">
-					<h2>{sectionLabel(group)} <span>· {group.items.length}</span></h2>
+					<h2 class="ui-section-title">{sectionLabel(group)} <span>· {group.items.length}</span></h2>
 					{#if group.kind === 'weekly'}
-						<button
-							type="button"
+						<FilterChip
 							data-weekly-edit-button
-							aria-pressed={weeklyEditMode}
+							selected={weeklyEditMode}
 							onclick={() =>
 								weeklyEditMode ? void closeWeeklyEditor() : (weeklyEditMode = true)}
 						>
 							{weeklyEditMode ? m.shopping_done_editing_weekly() : m.shopping_edit_weekly()}
-						</button>
+						</FilterChip>
 					{/if}
 				</header>
 				{#if group.kind === 'weekly' && weeklyEditMode}
@@ -488,11 +481,11 @@
 							{/if}
 						</div>
 						<div class="market-row-trailing">
-							{#if bonusByName[item.name]}<span class="market-item-badge bonus">{m.shopping_bonus_chip()}</span>{/if}
+							{#if bonusByName[item.name]}<StatusBadge tone="warning">{m.shopping_bonus_chip()}</StatusBadge>{/if}
 							{#if actionOwned.length}
 								<button
 									type="button"
-									class="market-row-more"
+									class="market-row-more ui-action ui-action-tertiary ui-action-icon"
 									aria-label={m.shopping_item_actions_aria({ name: item.name })}
 									onclick={() => controller.openActions(item)}
 								>
@@ -541,11 +534,11 @@
 					{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
 				</div>
 				<div class="market-row-trailing">
-					<span class="market-item-badge stock">{m.shopping_covered_badge()}</span>
+					<StatusBadge tone="success">{m.shopping_covered_badge()}</StatusBadge>
 					{#if item.sources?.length}
 						<button
 							type="button"
-							class="market-row-more"
+							class="market-row-more ui-action ui-action-tertiary ui-action-icon"
 							aria-label={m.shopping_item_actions_aria({ name: item.name })}
 							onclick={() => controller.openActions(item)}
 						><span aria-hidden="true">•••</span></button>
@@ -560,7 +553,7 @@
 	<button
 		id="shopping-basket-toggle"
 		type="button"
-		class="market-basket-summary"
+		class="market-basket-summary ui-action ui-action-secondary w-full justify-between text-left"
 		aria-expanded={controller.basketOpen}
 		onclick={() => (controller.basketOpen = !controller.basketOpen)}
 	>
@@ -607,7 +600,7 @@
 				{#if item.sources?.length}
 					<button
 						type="button"
-						class="market-row-more"
+						class="market-row-more ui-action ui-action-tertiary ui-action-icon"
 						aria-label={m.shopping_item_actions_aria({ name: item.name })}
 						onclick={() => controller.openActions(item)}
 					><span aria-hidden="true">•••</span></button>
@@ -628,11 +621,11 @@
 		{@const itemManualSources = controller.selectedItem.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
 		{#if itemManualSources.length}
 			<div class="source-action-group">
-				<h3>{m.shopping_source_manual()}</h3>
+				<h3 class="ui-section-title">{m.shopping_source_manual()}</h3>
 				{#each itemManualSources as source (source.id)}
 					<button
 						type="button"
-						class="danger"
+						class="ui-action ui-action-danger w-full justify-between text-left"
 						disabled={controller.actionPending}
 						onclick={() => void controller.removeManual(controller.selectedItem!, source)}
 					>
@@ -674,10 +667,6 @@
 
 	.not-this-run {
 		margin: 0 0 0.55rem;
-		overflow: hidden;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 18%, var(--color-base-300));
-		border-radius: 0.75rem;
-		background: var(--color-base-100);
 	}
 
 	.not-this-run summary {
@@ -705,45 +694,16 @@
 		border-bottom: 0;
 	}
 
-	.shopping-filter-rail button {
-		min-height: 2.75rem;
+	.shopping-filter-rail :global(.ui-filter-chip-hit) {
 		flex: 0 0 auto;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 20%, var(--color-base-300));
-		border-radius: 999px;
-		padding: 0 0.8rem;
-		background: var(--color-base-100);
-		color: color-mix(in oklab, var(--color-base-content) 76%, transparent);
-		font-size: 0.7rem;
 		font-weight: 750;
 		scroll-snap-align: start;
-	}
-
-	.shopping-filter-rail button.active {
-		border-color: var(--market-olive, #304b3a);
-		background: var(--market-olive, #304b3a);
-		color: white;
 	}
 
 	.market-covered-toggle {
 		display: flex;
 		justify-content: flex-end;
 		margin: 0.5rem 0 0.45rem;
-	}
-
-	.market-covered-toggle button {
-		min-height: 2.75rem;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 22%, var(--color-base-300));
-		border-radius: 999px;
-		padding: 0 0.75rem;
-		background: color-mix(in oklab, #dfe8dd 70%, var(--color-base-100));
-		color: var(--market-olive-ink, #304b3a);
-		font-size: 0.68rem;
-		font-weight: 750;
-	}
-
-	.market-covered-toggle button.active {
-		background: var(--market-olive, #304b3a);
-		color: white;
 	}
 
 	.shopping-filter-empty {
@@ -762,27 +722,9 @@
 		font-weight: 700;
 	}
 
-	.shopping-filter-empty button {
-		min-height: 2.75rem;
-		border-radius: 0.65rem;
-		padding: 0 0.8rem;
-		background: var(--market-olive, #304b3a);
-		color: white;
-		font-size: 0.72rem;
-		font-weight: 750;
-	}
-
 	.shopping-active-groups {
 		display: grid;
 		gap: 0.55rem;
-	}
-
-	.shopping-ledger-section {
-		overflow: hidden;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 16%, var(--color-base-300));
-		border-radius: 0.8rem;
-		background: var(--color-base-100);
-		box-shadow: 0 5px 16px rgb(48 75 58 / 4%);
 	}
 
 	.shopping-section-header {
@@ -807,11 +749,7 @@
 	.shopping-section-header h2 {
 		min-width: 0;
 		overflow: hidden;
-		font-size: 0.64rem;
-		font-weight: 850;
-		letter-spacing: 0.09em;
 		text-overflow: ellipsis;
-		text-transform: uppercase;
 		white-space: nowrap;
 	}
 
@@ -819,21 +757,6 @@
 		color: color-mix(in oklab, currentColor 62%, transparent);
 		font-weight: 700;
 		letter-spacing: 0;
-	}
-
-	.shopping-section-header button {
-		min-height: 2.75rem;
-		flex: 0 0 auto;
-		border-radius: 0.55rem;
-		padding: 0 0.55rem;
-		color: var(--market-olive-ink, #304b3a);
-		font-size: 0.65rem;
-		font-weight: 800;
-	}
-
-	.shopping-section-header button:hover,
-	.shopping-section-header button:focus-visible {
-		background: rgb(255 255 255 / 55%);
 	}
 
 	.shopping-section-empty {
@@ -989,8 +912,8 @@
 
 	.market-source-lines {
 		margin-top: 0.35rem;
-		border-left: 2px solid color-mix(in oklab, var(--color-warning) 55%, transparent);
-		padding-left: 0.5rem;
+		border-top: 1px solid color-mix(in oklab, var(--color-warning) 45%, transparent);
+		padding-top: 0.35rem;
 	}
 
 	.market-source-lines li {
@@ -1014,52 +937,15 @@
 		padding-right: 0.15rem;
 	}
 
-	.market-item-badge {
-		border-radius: 999px;
-		padding: 0.25rem 0.4rem;
-		font-size: 0.56rem;
-		font-weight: 800;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-	}
-
-	.market-item-badge.bonus {
-		background: color-mix(in oklab, var(--color-warning) 20%, var(--color-base-100));
-		color: color-mix(in oklab, var(--color-warning) 72%, var(--color-base-content));
-	}
-
-	.market-item-badge.stock {
-		background: color-mix(in oklab, var(--color-success) 16%, var(--color-base-100));
-		color: color-mix(in oklab, var(--color-success) 65%, var(--color-base-content));
-	}
-
 	.market-row-more {
-		display: grid;
-		width: 2.75rem;
-		height: 2.75rem;
-		place-items: center;
-		border-radius: 0.6rem;
-		color: color-mix(in oklab, var(--color-base-content) 58%, transparent);
 		font-size: 0.72rem;
-		font-weight: 800;
 		letter-spacing: 0.06em;
 	}
 
 	.market-basket-summary {
-		display: flex;
-		width: 100%;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
 		margin-top: 0.5rem;
-		border: 1px dashed color-mix(in oklab, var(--market-olive, #304b3a) 25%, var(--color-base-300));
-		border-radius: 0.75rem;
-		padding: 0 0.75rem;
-		background: color-mix(in oklab, var(--color-base-100) 72%, transparent);
-		color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
+		padding-inline: 0.75rem;
 		font-size: 0.68rem;
-		text-align: left;
 	}
 
 	.market-basket-summary > span:last-child {
@@ -1123,28 +1009,10 @@
 
 	.source-action-group h3 {
 		margin-bottom: 0.35rem;
-		color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
-		font-size: 0.65rem;
-		font-weight: 850;
-		letter-spacing: 0.07em;
-		text-transform: uppercase;
 	}
 
-	.source-action-group button {
-		display: flex;
-		width: 100%;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		border-radius: 0.65rem;
+	.source-action-group :global(.ui-action) {
 		padding: 0.45rem 0.6rem;
-		text-align: left;
-	}
-
-	.source-action-group button:hover,
-	.source-action-group button:focus-visible {
-		background: var(--color-base-200);
 	}
 
 	.source-action-group button span {
@@ -1173,10 +1041,6 @@
 		width: 1rem;
 		height: 1rem;
 		flex: 0 0 auto;
-	}
-
-	.source-action-group button.danger {
-		color: var(--color-error);
 	}
 
 	@media (prefers-reduced-motion: reduce) {

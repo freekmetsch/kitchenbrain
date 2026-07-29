@@ -56,14 +56,14 @@
 
 	<div class="flex flex-col gap-5">
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_account_password_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_account_password_heading()}</h2>
 			<p class="mb-3 text-xs text-base-content/50">{m.settings_account_signed_in_as({ username: data.username })}</p>
 			<form class="flex flex-col gap-2" onsubmit={(e) => { e.preventDefault(); void changePassword(); }}>
 				<label class="ui-field-label" for="current-password">{m.settings_account_current_password_label()}</label>
 				<input
 					id="current-password"
 					type="password"
-					class="input input-bordered input-sm"
+					class="ui-field"
 					bind:value={currentPwd}
 					autocomplete="current-password"
 					required
@@ -72,7 +72,7 @@
 				<input
 					id="new-password"
 					type="password"
-					class="input input-bordered input-sm"
+					class="ui-field"
 					bind:value={newPwd}
 					autocomplete="new-password"
 					required
@@ -82,7 +82,7 @@
 				<input
 					id="confirm-password"
 					type="password"
-					class="input input-bordered input-sm"
+					class="ui-field"
 					bind:value={confirmPwd}
 					autocomplete="new-password"
 					required
@@ -91,12 +91,12 @@
 				{#if pwdError}
 					<p class="text-sm text-error" role="alert">{pwdError}</p>
 				{/if}
-				<PendingButton class="btn btn-sm btn-primary mt-1" type="submit" pending={pwdLoading}>
+				<PendingButton class="ui-action ui-action-primary mt-1" type="submit" pending={pwdLoading}>
 					{pwdLoading ? m.settings_account_saving_label() : m.settings_account_update_password_button()}
 				</PendingButton>
 			</form>
 		</section>
 
-		<a href="{base}/logout" class="btn btn-sm btn-ghost w-full text-error">{m.settings_account_logout_button()}</a>
+		<a href="{base}/logout" class="ui-action ui-action-danger w-full">{m.settings_account_logout_button()}</a>
 	</div>
 </div>
