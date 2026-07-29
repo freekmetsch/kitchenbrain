@@ -294,10 +294,6 @@
 
 <svelte:window onpaste={handleImagePaste} />
 
-<div
-	class="ui-page-shell !max-w-6xl overflow-x-clip"
->
-
 <RecipeHeader
 	{recipe}
 	{displayTitle}
@@ -313,6 +309,10 @@
 	onRemovePhoto={() => void deleteImage()}
 	onRetryTranslation={(force) => void requestTranslation(force)}
 />
+
+<div
+	class="ui-page-shell !max-w-6xl overflow-x-clip"
+>
 
 <RecipeHero
 	imageUrl={recipe.imageUrl}

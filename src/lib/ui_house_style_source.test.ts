@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -39,25 +39,37 @@ describe('stable app house-style source contract', () => {
 		for (const retired of [
 			'ui-chip',
 			'ui-list-card',
+			'ui-section-frame',
+			'ui-kitchen-header-rail',
 			'ui-kitchen-header-action',
 			'ui-kitchen-search',
-			'ui-kitchen-select-on-dark'
+			'ui-kitchen-select-on-dark',
+			'--kitchen-display',
+			'Georgia',
+			"'Times New Roman'"
 		]) {
 			expect(source, retired).not.toContain(retired);
 		}
+		expect(existsSync('src/lib/components/ui/KitchenHeaderActionRail.svelte')).toBe(false);
 	});
 
-	it('keeps leading markers exclusive to Recipe category cards', () => {
+	it('keeps Green Ribbon ownership compact and content-free', () => {
+		const header = readFileSync('src/lib/components/ui/KitchenPageHeader.svelte', 'utf8');
+
+		expect(header).toContain('data-house-style="green-ribbon"');
+		expect(header).toContain('leading?: Snippet');
+		expect(header).toContain('action?: Snippet');
+		expect(header).not.toContain('children');
+		expect(header).not.toContain('linear-gradient');
+		expect(header).not.toContain('radial-gradient');
+		expect(header).not.toContain('::after');
+	});
+
+	it('does not restore full-height recipe category markers', () => {
 		const source = stableSource();
 		expect(source).not.toMatch(/\bborder-left\s*:|\bborder-l-(?:\d|\[)/);
-		expect(source.match(/ui-recipe-card::before/g)).toHaveLength(1);
-
-		const categoryMarkerOwners = stableSvelteFiles().filter((file) =>
-			readFileSync(file, 'utf8').includes('data-category-accent')
-		);
-		expect(categoryMarkerOwners.map((file) => path.relative('.', file).replaceAll(path.sep, '/'))).toEqual([
-			'src/routes/recipes/+page.svelte'
-		]);
+		expect(source).not.toContain('ui-recipe-card::before');
+		expect(source).not.toContain('data-category-accent');
 	});
 
 	it('keeps selection and passive status semantics separate', () => {

@@ -164,6 +164,7 @@
 		isDefaultWeek={data.isDefaultWeek}
 		deliveryDate={data.deliveryDate}
 		ahConnected={data.ah.connected}
+		onAddItem={() => addItemForm?.openAddModal()}
 	/>
 
 	<div

@@ -4,13 +4,11 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import {
 		CORE_FOOD_TYPE_OPTIONS,
-		foodCategoryAccent,
 		foodCategoryLabel
 	} from '$lib/food_categories';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import FilterChip from '$lib/components/ui/FilterChip.svelte';
-	import KitchenHeaderActionRail from '$lib/components/ui/KitchenHeaderActionRail.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import SmartImage from '$lib/components/ui/SmartImage.svelte';
@@ -347,33 +345,20 @@
 
 <div class="recipe-page">
 	<KitchenPageHeader eyebrow={m.recipes_header_context()} title={m.recipes_heading()}>
-		{#snippet actions()}
-			<KitchenHeaderActionRail>
-				{#snippet secondary()}
-					<button
-						class="ui-action ui-action-secondary ui-action-on-dark"
-						onclick={() => {
-							newMealOpen = true;
-							newMealTitle = '';
-							newMealQuery = '';
-							newMealSlugs = [];
-							newMealError = '';
-						}}>{m.recipes_new_meal_button()}</button
-					>
-				{/snippet}
-				{#snippet primary()}
-					<button
-						class="ui-action ui-action-primary"
-						onclick={() => {
-							scrapeOpen = true;
-						}}>{m.recipes_import_button()}</button
-					>
-				{/snippet}
-			</KitchenHeaderActionRail>
+		{#snippet action()}
+			<button
+				class="ui-action ui-action-primary"
+				onclick={() => {
+					scrapeOpen = true;
+				}}>{m.recipes_import_button()}</button
+			>
 		{/snippet}
+	</KitchenPageHeader>
 
+	<div class="ui-page-utility">
+		<div class="recipe-utility ui-page-utility-inner">
 		<div class="recipe-search-row">
-			<label class="ui-field-shell ui-field-shell-on-dark">
+			<label class="ui-field-shell">
 				<svg
 					viewBox="0 0 16 16"
 					class="h-4 w-4"
@@ -400,7 +385,7 @@
 			/>
 			</label>
 			<select
-				class="ui-field ui-field-on-dark"
+				class="ui-field"
 				bind:value={sortBy}
 				onchange={search}
 				aria-label={m.recipes_sort_aria()}
@@ -412,7 +397,18 @@
 				<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
 			</select>
 		</div>
-	</KitchenPageHeader>
+			<button
+				class="ui-action ui-action-secondary"
+				onclick={() => {
+					newMealOpen = true;
+					newMealTitle = '';
+					newMealQuery = '';
+					newMealSlugs = [];
+					newMealError = '';
+				}}>{m.recipes_new_meal_button()}</button
+			>
+		</div>
+	</div>
 
 	<!-- Chips toggle; the rail stays close to the results and scrolls on phones. -->
 	<section class="recipe-filter-shell">
@@ -481,23 +477,24 @@
 				{@const coverage = coverageLabel(recipe)}
 				<article
 					class="ui-recipe-card transition-colors hover:border-primary"
-					data-category-accent={foodCategoryAccent(recipe.category)}
 					animate:flip={{ duration: MOTION_CONTENT_MS }}
 					in:fade={{ duration: MOTION_MICRO_MS }}
 				>
-					<a href="{base}/recipes/{recipe.slug}" class="block">
+					<a
+						href="{base}/recipes/{recipe.slug}"
+						class="recipe-card-main"
+						class:has-image={!!recipe.imageUrl}
+					>
 					{#if recipe.imageUrl}
-						<figure class="h-20 overflow-hidden">
+						<figure class="recipe-card-thumb">
 							<SmartImage src={recipe.imageUrl} alt={title} class="h-full w-full" />
 						</figure>
-					{:else}
-						<div class="flex h-20 items-center justify-center bg-base-200 text-base-content/35"><Icon name="chefHat" class="h-9 w-9" /></div>
 					{/if}
-					<div class="p-1.5">
+					<div class="recipe-card-copy">
 						<div class="flex flex-wrap items-center gap-1">
 							<h2 class="ui-recipe-card-title mr-auto min-w-0 line-clamp-2">{title}</h2>
 							{#if category}
-								<StatusBadge class="max-w-24 truncate">{category}</StatusBadge>
+								<span class="recipe-category max-w-28 truncate">{category}</span>
 							{/if}
 							{#if recipe.rating}
 								<span class="text-xs text-warning shrink-0">{stars(recipe.rating)}</span>
@@ -544,6 +541,11 @@
 		gap: 0.5rem;
 	}
 
+	.recipe-utility {
+		display: grid;
+		gap: 0.5rem;
+	}
+
 	.recipe-filter-shell {
 		position: sticky;
 		z-index: 20;
@@ -567,25 +569,80 @@
 
 	.recipe-grid {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.55rem;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0;
+	}
+
+	.recipe-card-main {
+		display: block;
+		min-height: 4.25rem;
+	}
+
+	.recipe-card-main.has-image {
+		display: grid;
+		grid-template-columns: 5.25rem minmax(0, 1fr);
+	}
+
+	.recipe-card-thumb {
+		min-height: 5.75rem;
+		overflow: hidden;
+		background: var(--color-base-200);
+	}
+
+	.recipe-card-thumb :global(img) {
+		object-fit: cover;
+	}
+
+	.recipe-card-copy {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		padding: 0.8rem 0.875rem;
+	}
+
+	.recipe-category {
+		color: color-mix(in oklab, var(--kitchen-olive) 78%, var(--kitchen-muted));
+		font-size: 0.7rem;
+		font-weight: 720;
+		line-height: 1.2;
+	}
+
+	.recipe-grid :global(.ui-recipe-card) {
+		border-width: 0 0 1px;
+		border-radius: 0;
+		box-shadow: none;
+	}
+
+	.recipe-grid :global(.ui-recipe-card:first-child) {
+		border-top-width: 1px;
 	}
 
 	@media (min-width: 48rem) {
+		.recipe-utility {
+			grid-template-columns: minmax(0, 1fr) auto;
+			align-items: center;
+		}
+
 		.recipe-search-row {
 			grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.32fr);
 		}
 
 		.recipe-grid {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-			gap: 0.75rem;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.9rem;
+		}
+
+		.recipe-grid :global(.ui-recipe-card) {
+			border-width: 1px;
+			border-radius: 0.75rem;
+			box-shadow: 0 1px 2px rgb(48 75 58 / 4%);
 		}
 
 	}
 
 	@media (min-width: 68rem) {
 		.recipe-grid {
-			grid-template-columns: repeat(4, minmax(0, 1fr));
+			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
 
 	}

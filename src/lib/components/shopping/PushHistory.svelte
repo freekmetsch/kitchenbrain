@@ -237,10 +237,8 @@
 
 	.push-latest,
 	.push-previous {
-		border: 1px solid color-mix(in oklab, var(--color-base-content) 12%, var(--color-base-300));
-		border-radius: 0.8rem;
-		background: var(--color-base-100);
-		box-shadow: 0 5px 16px rgb(48 75 58 / 4%);
+		border-block: 1px solid color-mix(in oklab, var(--color-base-content) 12%, var(--color-base-300));
+		background: color-mix(in oklab, var(--color-base-100) 74%, transparent);
 	}
 
 	.push-latest {
@@ -401,6 +399,13 @@
 
 	.push-previous {
 		margin-top: 0.4rem;
+	}
+
+	.push-latest :global(.ui-kitchen-notice) {
+		border-width: 0;
+		border-radius: 0.375rem;
+		background: color-mix(in oklab, var(--color-warning) 9%, transparent);
+		box-shadow: inset 3px 0 0 color-mix(in oklab, var(--color-warning) 55%, var(--kitchen-line));
 	}
 
 	.push-previous > summary {

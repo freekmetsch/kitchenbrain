@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="color-scheme" content="light dark">
+	<title>Keukenbrein Soft Utility — green header refinement</title>
+	<link rel="icon" href="data:,">
+	<style>
+		:root {
+			--ink: #1f2c26;
+			--muted: #66736c;
+			--paper: #f4f1e9;
+			--white: #fffdf8;
+			--line: #d7ddd5;
+			--herb: #416c4d;
+			--herb-deep: #294d36;
+			--herb-soft: #dce8dc;
+			--clay: #b95f45;
+			--amber: #d29a45;
+			--shadow: 0 18px 60px rgba(31, 44, 38, .11);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			color: var(--ink);
+			background: var(--paper);
+		}
+
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body { margin: 0; min-width: 320px; background:
+			radial-gradient(circle at 8% 0%, rgba(77, 120, 84, .13), transparent 31rem),
+			var(--paper); }
+		button, input, textarea { font: inherit; }
+		button { cursor: pointer; }
+		:focus-visible { outline: 3px solid #e4a55f; outline-offset: 3px; }
+
+		.review-shell { width: min(1540px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 64px; }
+		.hero {
+			display: grid;
+			grid-template-columns: minmax(0, 1.4fr) minmax(300px, .6fr);
+			gap: 32px;
+			padding: clamp(28px, 5vw, 68px);
+			border-radius: 30px;
+			background: #183e2a;
+			color: #f8f7ee;
+			box-shadow: var(--shadow);
+			overflow: hidden;
+			position: relative;
+		}
+		.hero::after {
+			content: "";
+			position: absolute;
+			width: 420px;
+			height: 420px;
+			border: 1px solid rgba(255,255,255,.14);
+			border-radius: 50%;
+			right: -180px;
+			top: -210px;
+			box-shadow: 0 0 0 70px rgba(255,255,255,.025), 0 0 0 140px rgba(255,255,255,.025);
+		}
+		.kicker {
+			margin: 0 0 14px;
+			font-size: 12px;
+			line-height: 1;
+			font-weight: 800;
+			letter-spacing: .14em;
+			text-transform: uppercase;
+			color: #bcd3bf;
+		}
+		.hero h1 { max-width: 900px; margin: 0; font-size: clamp(2.35rem, 5vw, 5.6rem); line-height: .93; letter-spacing: -.065em; }
+		.hero .lede { max-width: 740px; margin: 24px 0 0; font-size: clamp(1rem, 1.7vw, 1.3rem); line-height: 1.55; color: #d9e5d9; }
+		.selection-proof {
+			align-self: end;
+			position: relative;
+			z-index: 1;
+			padding: 22px;
+			border: 1px solid rgba(255,255,255,.16);
+			border-radius: 20px;
+			background: rgba(255,255,255,.075);
+			backdrop-filter: blur(10px);
+		}
+		.selection-proof span { display: block; color: #bcd3bf; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+		.selection-proof strong { display: block; margin: 7px 0 10px; font-size: 1.35rem; }
+		.selection-proof p { margin: 0; line-height: 1.5; color: #e4ece3; font-size: .92rem; }
+
+		.user-note {
+			display: grid;
+			grid-template-columns: 190px minmax(0, 1fr);
+			gap: 24px;
+			margin: 18px 0 0;
+			padding: 22px 26px;
+			border: 1px solid #bfd0bf;
+			border-radius: 20px;
+			background: #edf4ea;
+		}
+		.user-note b { color: var(--herb-deep); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+		.user-note blockquote { margin: 0; font-size: clamp(1rem, 2vw, 1.25rem); line-height: 1.45; font-weight: 680; color: #274532; }
+
+		.section-head {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(280px, 520px);
+			gap: 28px;
+			align-items: end;
+			margin: 58px 0 22px;
+		}
+		.section-head h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.75rem); line-height: 1; letter-spacing: -.055em; }
+		.section-head p { margin: 0; color: var(--muted); line-height: 1.6; }
+
+		.option-map {
+			display: grid;
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+			gap: 10px;
+			margin-bottom: 18px;
+		}
+		.option-map article {
+			min-height: 180px;
+			padding: 18px;
+			border: 1px solid var(--line);
+			border-radius: 18px;
+			background: rgba(255,255,255,.62);
+		}
+		.option-map article:first-child { border: 2px solid var(--herb); background: #f0f6ee; }
+		.option-map .letter { display: inline-grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: var(--herb-deep); color: white; font-size: 12px; font-weight: 800; }
+		.option-map h3 { margin: 14px 0 7px; font-size: 1rem; }
+		.option-map p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.45; }
+		.recommended-tag { display: inline-block; margin-top: 13px; color: var(--herb-deep); font-size: 10px; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
+
+		.toolbar {
+			position: sticky;
+			top: 10px;
+			z-index: 20;
+			display: flex;
+			justify-content: space-between;
+			gap: 14px;
+			margin: 16px 0;
+			padding: 10px;
+			border: 1px solid rgba(207, 216, 207, .9);
+			border-radius: 18px;
+			background: rgba(255, 253, 248, .9);
+			box-shadow: 0 12px 30px rgba(38, 52, 44, .10);
+			backdrop-filter: blur(12px);
+		}
+		.segmented { display: flex; flex-wrap: wrap; gap: 5px; }
+		.segmented button {
+			min-height: 42px;
+			padding: 0 15px;
+			border: 0;
+			border-radius: 11px;
+			background: transparent;
+			color: #526058;
+			font-size: .82rem;
+			font-weight: 720;
+		}
+		.segmented button[aria-pressed="true"] { background: #254e35; color: white; }
+		.theme-buttons button[aria-pressed="true"] { background: #dde8dd; color: #24432f; }
+
+		.comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+		.variant-card {
+			min-width: 0;
+			border: 1px solid #ced6cf;
+			border-radius: 24px;
+			background: rgba(255,255,255,.72);
+			box-shadow: 0 12px 34px rgba(31,44,38,.06);
+			overflow: hidden;
+		}
+		.variant-card.recommended { border: 2px solid var(--herb); }
+		.variant-card:last-child { grid-column: 1 / -1; width: calc(50% - 9px); justify-self: center; }
+		.variant-meta {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 18px;
+			padding: 22px 24px 18px;
+			border-bottom: 1px solid #d7ddd7;
+		}
+		.variant-meta .eyebrow { margin: 0 0 6px; color: var(--herb); font-size: 10px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+		.variant-meta h3 { margin: 0; font-size: 1.4rem; letter-spacing: -.03em; }
+		.variant-meta p { max-width: 520px; margin: 7px 0 0; color: var(--muted); font-size: .88rem; line-height: 1.5; }
+		.variant-meta .tradeoff { max-width: 150px; text-align: right; color: #6e756f; font-size: .74rem; line-height: 1.45; }
+		.variant-meta .tradeoff b { display: block; color: #3c4c43; }
+		.prototype-wrap { padding: 18px; background: #e6e9e3; }
+		.board[data-theme="dark"] .prototype-wrap { background: #151b18; }
+
+		.view { display: none; }
+		.board[data-screen="shopping"] .view-shopping,
+		.board[data-screen="recipes"] .view-recipes,
+		.board[data-screen="stock"] .view-stock { display: block; }
+		.device {
+			position: relative;
+			margin: 0 auto;
+			overflow: hidden;
+			background: #f9f8f3;
+			color: #223027;
+			box-shadow: 0 12px 30px rgba(23,31,27,.15);
+		}
+		.device.phone { width: min(100%, 390px); height: 640px; border: 8px solid #27342e; border-radius: 31px; }
+		.device.desktop { width: 100%; aspect-ratio: 16 / 10; min-height: 430px; border: 8px solid #27342e; border-radius: 18px; }
+		.board[data-theme="dark"] .device { background: #1b211e; color: #edf0e9; border-color: #0d110f; }
+		.statusbar { display: flex; justify-content: space-between; height: 20px; padding: 5px 13px 0; font-size: 7px; font-weight: 760; }
+		.desktop .statusbar { display: none; }
+		.mini-page { position: absolute; inset: 20px 0 0; overflow: hidden; }
+		.desktop .mini-page { inset: 0; }
+
+		/* The shared palette stays fixed; the five structures change how the header earns space. */
+		.page-head { color: #f9fbf5; }
+		.page-head .micro { font-size: 7px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; opacity: .76; }
+		.page-head h4 { margin: 2px 0 0; font-size: 18px; line-height: 1.05; letter-spacing: -.04em; }
+		.page-head .head-action {
+			min-height: 29px;
+			padding: 0 10px;
+			border: 1px solid rgba(255,255,255,.3);
+			border-radius: 9px;
+			background: rgba(255,255,255,.13);
+			color: white;
+			font-size: 7px;
+			font-weight: 800;
+		}
+		.page-head .header-input {
+			height: 29px;
+			border: 1px solid rgba(255,255,255,.32);
+			border-radius: 9px;
+			background: rgba(255,255,255,.14);
+			color: white;
+			padding: 0 10px;
+			font-size: 8px;
+		}
+
+		/* A — a single slim ribbon. */
+		.variant-a .page-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			min-height: 58px;
+			padding: 10px 16px;
+			background: #3e714d;
+		}
+		.variant-a .page-content { padding-top: 0; }
+		.variant-a.desktop .page-head { min-height: 62px; padding: 12px 24px; }
+
+		/* B — identity and tools live in separate, legible bands. */
+		.variant-b .page-head {
+			display: block;
+			min-height: auto;
+			padding: 0;
+			background: transparent;
+			color: white;
+		}
+		.variant-b .identity {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			height: 42px;
+			padding: 8px 15px;
+			background: #315f41;
+		}
+		.variant-b .identity h4 { font-size: 16px; }
+		.variant-b .head-utility {
+			display: flex;
+			align-items: center;
+			gap: 7px;
+			min-height: 42px;
+			padding: 7px 13px;
+			border-bottom: 1px solid #d5dcd4;
+			background: #fffef9;
+			color: #35443b;
+		}
+		.variant-b .head-utility .header-input { flex: 1; border-color: #cad3ca; background: #f0f2ed; color: #435047; }
+		.variant-b .head-utility .head-action { border-color: #cad3ca; background: white; color: #315f41; }
+		.board[data-theme="dark"] .variant-b .head-utility { border-color: #39423d; background: #252c28; color: #e6e9e3; }
+		.board[data-theme="dark"] .variant-b .head-utility .header-input { border-color: #4b574f; background: #303834; color: #f4f6f1; }
+		.board[data-theme="dark"] .variant-b .head-utility .head-action { border-color: #526057; background: #29322d; color: #e6eee5; }
+
+		/* C — the header is an inset, warm object aligned with content. */
+		.variant-c .mini-page { padding-top: 9px; background: #f3f1e9; }
+		.variant-c .page-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			min-height: 66px;
+			margin: 0 11px;
+			padding: 12px 14px;
+			border-radius: 17px;
+			background: #4b7553;
+			box-shadow: 0 8px 22px rgba(43,75,51,.18);
+		}
+		.variant-c .page-content { margin-top: 7px; }
+		.board[data-theme="dark"] .variant-c .mini-page { background: #1b211e; }
+		.variant-c.desktop .mini-page { padding-top: 14px; }
+		.variant-c.desktop .page-head { margin: 0 22px; min-height: 72px; padding: 13px 20px; }
+
+		/* D — the header becomes a working rail. */
+		.variant-d .page-head {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			align-items: center;
+			gap: 10px;
+			min-height: 68px;
+			padding: 10px 13px;
+			background: #315f41;
+		}
+		.variant-d .page-head h4 { font-size: 16px; }
+		.variant-d .head-work { display: flex; align-items: center; gap: 6px; min-width: 0; }
+		.variant-d .head-work .header-input { width: 100%; }
+		.variant-d .work-count { min-width: 38px; text-align: center; }
+		.variant-d .work-count b { display: block; font-size: 15px; }
+		.variant-d .work-count span { display: block; font-size: 6px; opacity: .75; }
+		.variant-d .below-tools { display: none; }
+		.variant-d.desktop .page-head { grid-template-columns: 170px minmax(180px, 1fr) auto; padding: 12px 22px; }
+
+		/* E — one purposeful overlap between a green field and the content sheet. */
+		.variant-e .mini-page { background: #3d704b; }
+		.variant-e .page-head {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			min-height: 96px;
+			padding: 15px 16px 28px;
+			background:
+				radial-gradient(circle at 86% 0%, rgba(255,255,255,.13), transparent 110px),
+				#3d704b;
+		}
+		.variant-e .page-head h4 { font-size: 20px; }
+		.variant-e .page-content {
+			position: relative;
+			margin: -21px 8px 0;
+			padding-top: 1px;
+			border-radius: 18px 18px 0 0;
+			background: #fffef9;
+			box-shadow: 0 -5px 16px rgba(29,53,36,.14);
+			overflow: hidden;
+		}
+		.board[data-theme="dark"] .variant-e .mini-page { background: #244b32; }
+		.board[data-theme="dark"] .variant-e .page-content { background: #202723; box-shadow: 0 -5px 18px rgba(0,0,0,.24); }
+		.variant-e.desktop .page-head { min-height: 116px; padding: 20px 28px 38px; }
+		.variant-e.desktop .page-content { margin: -28px 20px 0 74px; }
+
+		.below-tools {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			padding: 9px 12px 7px;
+			background: inherit;
+		}
+		.searchbox {
+			flex: 1;
+			height: 31px;
+			padding: 0 10px;
+			border: 1px solid #d1d8d0;
+			border-radius: 9px;
+			background: white;
+			color: #7a827c;
+			font-size: 8px;
+		}
+		.tiny-button {
+			min-height: 31px;
+			padding: 0 9px;
+			border: 1px solid #d1d8d0;
+			border-radius: 9px;
+			background: white;
+			color: #405047;
+			font-size: 7px;
+			font-weight: 760;
+		}
+		.board[data-theme="dark"] .searchbox,
+		.board[data-theme="dark"] .tiny-button { border-color: #414b45; background: #29312d; color: #e6e9e4; }
+
+		.filters { display: flex; gap: 5px; padding: 2px 12px 8px; overflow: hidden; }
+		.chip {
+			flex: 0 0 auto;
+			min-height: 26px;
+			padding: 0 8px;
+			border: 1px solid #d4dbd3;
+			border-radius: 999px;
+			background: transparent;
+			color: #526058;
+			font-size: 7px;
+			font-weight: 720;
+		}
+		.chip.active { border-color: #597d60; background: #dfeadf; color: #31583c; }
+		.board[data-theme="dark"] .chip { border-color: #465049; color: #c9d0cb; }
+		.board[data-theme="dark"] .chip.active { border-color: #6d9675; background: #31463a; color: #e4eee5; }
+
+		.content-scroll { padding: 0 12px 72px; }
+		.warning {
+			display: grid;
+			grid-template-columns: 20px 1fr;
+			gap: 7px;
+			margin: 3px 0 11px;
+			padding: 9px;
+			border-left: 3px solid #c78933;
+			background: #fbf0d8;
+			color: #624a25;
+			font-size: 7px;
+			line-height: 1.4;
+		}
+		.warning b { display: block; margin-bottom: 2px; }
+		.warning .mark { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #e3b668; color: #4a3418; font-weight: 900; }
+		.board[data-theme="dark"] .warning { background: #413522; color: #f3ddb8; border-color: #dfa44f; }
+
+		.group { margin: 0 0 13px; }
+		.group-title { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 5px; }
+		.group-title b { font-size: 9px; }
+		.group-title span { color: #7a837d; font-size: 7px; }
+		.list-row {
+			display: grid;
+			grid-template-columns: 20px minmax(0, 1fr) auto;
+			gap: 7px;
+			align-items: center;
+			min-height: 39px;
+			border-bottom: 1px solid #e1e5df;
+			font-size: 8px;
+		}
+		.list-row .check { width: 16px; height: 16px; border: 1.5px solid #9aa79e; border-radius: 5px; }
+		.list-row b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+		.list-row small { display: block; margin-top: 2px; color: #7d867f; font-size: 6.5px; }
+		.list-row .qty { color: #667269; font-size: 7px; }
+		.board[data-theme="dark"] .list-row { border-color: #353e39; }
+		.board[data-theme="dark"] .list-row small,
+		.board[data-theme="dark"] .list-row .qty,
+		.board[data-theme="dark"] .group-title span { color: #9da9a1; }
+
+		.action-dock {
+			position: absolute;
+			z-index: 5;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 7px;
+			padding: 8px 12px 11px;
+			border-top: 1px solid #dde2dc;
+			background: rgba(255,254,249,.94);
+			backdrop-filter: blur(10px);
+		}
+		.action-dock button { min-height: 36px; border: 0; border-radius: 10px; font-size: 8px; font-weight: 800; }
+		.action-dock .primary { background: #af573f; color: white; }
+		.action-dock .secondary { border: 1px solid #b9c5bb; background: white; color: #35533f; }
+		.board[data-theme="dark"] .action-dock { border-color: #39413d; background: rgba(31,38,34,.95); }
+		.board[data-theme="dark"] .action-dock .secondary { border-color: #536158; background: #29312d; color: #e8ece7; }
+
+		.recipe-list { display: grid; gap: 8px; padding: 2px 12px 70px; }
+		.recipe-row {
+			display: grid;
+			grid-template-columns: 8px minmax(0, 1fr) auto;
+			gap: 9px;
+			align-items: center;
+			min-height: 73px;
+			padding: 10px 11px 10px 0;
+			border-bottom: 1px solid #dde2dc;
+		}
+		.recipe-row .accent { align-self: stretch; border-radius: 0 4px 4px 0; background: #6f916e; }
+		.recipe-row h5 { margin: 0; font-size: 10px; letter-spacing: -.015em; }
+		.recipe-row p { margin: 4px 0 0; color: #778078; font-size: 7px; line-height: 1.35; }
+		.recipe-row button { min-width: 52px; min-height: 29px; border: 1px solid #cfd7cf; border-radius: 9px; background: transparent; color: #3f5948; font-size: 7px; font-weight: 760; }
+		.board[data-theme="dark"] .recipe-row { border-color: #37403a; }
+		.board[data-theme="dark"] .recipe-row p { color: #a2aca5; }
+		.board[data-theme="dark"] .recipe-row button { border-color: #506057; color: #dfe7e0; }
+
+		/* The desktop evidence is composed as a real work area, not a stretched phone list. */
+		.stock-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(160px, .65fr); gap: 12px; padding: 12px 18px 24px; }
+		.stock-main, .stock-side { min-width: 0; }
+		.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 10px; }
+		.metric { padding: 9px 10px; border-bottom: 2px solid #719173; background: #f0f3ed; }
+		.metric b { display: block; font-size: 15px; }
+		.metric span { color: #707b73; font-size: 6px; text-transform: uppercase; letter-spacing: .08em; }
+		.stock-table { border-top: 1px solid #dbe1da; }
+		.stock-row { display: grid; grid-template-columns: minmax(0, 1fr) 80px 64px; gap: 10px; align-items: center; min-height: 31px; border-bottom: 1px solid #e0e4df; font-size: 7px; }
+		.stock-row b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+		.stock-row span { color: #748078; }
+		.stock-row .use { color: #8c4a38; font-weight: 760; }
+		.side-panel { margin-bottom: 9px; padding: 12px; border: 1px solid #d6ddd5; border-radius: 11px; background: #fffefa; }
+		.side-panel .side-label { color: #718078; font-size: 6px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+		.side-panel b { display: block; margin: 4px 0; font-size: 11px; }
+		.side-panel p { margin: 0; color: #6f7972; font-size: 7px; line-height: 1.45; }
+		.board[data-theme="dark"] .metric { background: #28312c; border-color: #719478; }
+		.board[data-theme="dark"] .metric span,
+		.board[data-theme="dark"] .stock-row span,
+		.board[data-theme="dark"] .side-panel p { color: #a1aba4; }
+		.board[data-theme="dark"] .stock-table,
+		.board[data-theme="dark"] .stock-row { border-color: #37403a; }
+		.board[data-theme="dark"] .side-panel { border-color: #414c45; background: #242c27; }
+		.board[data-theme="dark"] .stock-row .use { color: #eca38d; }
+		.variant-d.desktop .stock-layout { grid-template-columns: 1fr; }
+		.variant-d.desktop .stock-side { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; order: -1; }
+		.variant-d.desktop .metrics { display: none; }
+		.variant-e.desktop .stock-layout { grid-template-columns: minmax(0, 1.35fr) minmax(155px, .55fr); }
+
+		.screen-caption { display: flex; justify-content: space-between; gap: 14px; margin-top: 12px; color: #66726b; font-size: .74rem; }
+		.screen-caption b { color: #30423a; }
+		.board[data-theme="dark"] .screen-caption b { color: #dfe5e0; }
+
+		.decision {
+			margin-top: 54px;
+			padding: clamp(24px, 4vw, 54px);
+			border-radius: 28px;
+			background: #fffdf8;
+			box-shadow: var(--shadow);
+		}
+		.decision-head { display: grid; grid-template-columns: 1fr minmax(280px, 500px); gap: 28px; align-items: end; }
+		.decision h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.6rem); letter-spacing: -.055em; line-height: 1; }
+		.decision-head p { margin: 0; color: var(--muted); line-height: 1.55; }
+		.choices { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; margin-top: 26px; }
+		.choice { position: relative; display: block; }
+		.choice input { position: absolute; opacity: 0; pointer-events: none; }
+		.choice span {
+			display: block;
+			min-height: 116px;
+			padding: 16px;
+			border: 1px solid #d2dad3;
+			border-radius: 15px;
+			background: #f8f7f2;
+		}
+		.choice input:checked + span { border: 2px solid var(--herb); background: #edf5eb; box-shadow: 0 0 0 3px #dce9dc; }
+		.choice b { display: block; margin-bottom: 6px; font-size: .9rem; }
+		.choice small { display: block; color: var(--muted); line-height: 1.4; }
+		.choice em { display: block; margin-top: 9px; color: var(--herb); font-size: 9px; font-style: normal; font-weight: 820; letter-spacing: .08em; text-transform: uppercase; }
+		.fields { display: grid; grid-template-columns: .75fr 1.25fr; gap: 16px; margin-top: 20px; }
+		.field label { display: block; margin-bottom: 7px; color: #435249; font-size: .78rem; font-weight: 760; }
+		.field textarea {
+			width: 100%;
+			min-height: 115px;
+			resize: vertical;
+			padding: 13px;
+			border: 1px solid #ccd5cd;
+			border-radius: 12px;
+			background: white;
+			color: var(--ink);
+			line-height: 1.5;
+		}
+		.carry-options { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+		.carry-options label { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px; border: 1px solid #d8ded8; border-radius: 10px; font-size: .76rem; font-weight: 560; line-height: 1.35; }
+		.handoff {
+			max-height: 340px;
+			overflow: auto;
+			margin: 20px 0 0;
+			padding: 18px;
+			border-radius: 14px;
+			background: #1d2e24;
+			color: #e8eee8;
+			white-space: pre-wrap;
+			font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+		}
+		.decision-actions { display: flex; align-items: center; gap: 9px; margin-top: 13px; }
+		.decision-actions button { min-height: 44px; padding: 0 16px; border: 0; border-radius: 11px; background: var(--herb-deep); color: white; font-weight: 780; }
+		.decision-actions button.secondary { border: 1px solid #bdc9bf; background: white; color: #35513e; }
+		.save-state { margin-left: auto; color: #718078; font-size: .76rem; }
+		.scope-note { margin: 20px 0 0; color: #68736c; font-size: .78rem; line-height: 1.5; }
+
+		@media (max-width: 1100px) {
+			.option-map { grid-template-columns: repeat(3, 1fr); }
+			.choices { grid-template-columns: repeat(3, 1fr); }
+		.device.desktop { min-height: 380px; }
+		.stock-layout { grid-template-columns: 1fr; }
+			.stock-side { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+		}
+		@media (max-width: 760px) {
+			.review-shell { width: min(100% - 18px, 620px); padding-top: 9px; }
+			.hero { grid-template-columns: 1fr; border-radius: 21px; padding: 28px 22px; }
+			.hero h1 { font-size: 2.7rem; }
+			.user-note { grid-template-columns: 1fr; gap: 8px; padding: 18px; }
+			.section-head, .decision-head { grid-template-columns: 1fr; gap: 12px; }
+			.section-head { margin-top: 38px; }
+			.option-map { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 5px; }
+			.option-map article { min-width: 225px; scroll-snap-align: start; }
+			.toolbar { position: static; display: block; padding: 8px; }
+			.theme-buttons { margin-top: 5px; }
+			.segmented button { min-height: 40px; padding: 0 10px; }
+			.comparison-grid { grid-template-columns: 1fr; }
+			.variant-card:last-child { grid-column: auto; width: auto; }
+			.variant-meta { grid-template-columns: 1fr; padding: 19px; }
+			.variant-meta .tradeoff { max-width: none; text-align: left; }
+			.prototype-wrap { padding: 10px; }
+			.device.phone { height: 630px; }
+			.device.desktop { min-width: 610px; min-height: 380px; }
+			.view-stock { overflow-x: auto; }
+			.choices { grid-template-columns: 1fr; }
+			.fields { grid-template-columns: 1fr; }
+			.carry-options { grid-template-columns: 1fr; }
+			.decision { padding: 25px 18px; border-radius: 20px; }
+			.decision-actions { align-items: stretch; flex-direction: column; }
+			.save-state { margin: 4px 0 0; text-align: center; }
+		}
+	</style>
+</head>
+<body>
+	<main class="review-shell">
+		<section class="hero" aria-labelledby="page-title">
+			<div>
+				<p class="kicker">Keukenbrein · focused refinement round</p>
+				<h1 id="page-title">Soft utility, with its green header intact.</h1>
+				<p class="lede">Five complete ways to keep the original green page identity while making routine work quieter, faster, and better balanced. Compare the exact same difficult content in every option.</p>
+			</div>
+			<aside class="selection-proof">
+				<span>Primary direction approved</span>
+				<strong>Direction A — Soft Utility</strong>
+				<p>Clean sans-serif type, low framing, balanced desktop composition, and restrained herb/clay color remain fixed. This round decides how the green header and content meet.</p>
+			</aside>
+		</section>
+
+		<section class="user-note" aria-label="User note">
+			<b>Fixed carry-forward request</b>
+			<blockquote>I still love the green headers and the way that was originally set up that we had though. Lets keep those</blockquote>
+		</section>
+
+		<section class="section-head" aria-labelledby="compare-title">
+			<h2 id="compare-title">Five green-header structures</h2>
+			<p>These are not recolors. Header depth, tool placement, content transition, desktop composition, and dark-surface behavior all change. The product constraints and underlying content stay fixed.</p>
+		</section>
+
+		<section class="option-map" aria-label="Refinement overview">
+			<article><span class="letter">A</span><h3>Green Ribbon</h3><p>One slim continuous identity band. Content begins immediately beneath it.</p><span class="recommended-tag">Recommended</span></article>
+			<article><span class="letter">B</span><h3>Split Canopy</h3><p>A green identity strip and a separate neutral utility row.</p></article>
+			<article><span class="letter">C</span><h3>Framed Grove</h3><p>An inset green header aligned with a warm, centered content measure.</p></article>
+			<article><span class="letter">D</span><h3>Working Header</h3><p>The green rail earns its space by holding the page's key control or status.</p></article>
+			<article><span class="letter">E</span><h3>Layered Leaf</h3><p>A soft green upper field and one overlapping content sheet.</p></article>
+		</section>
+
+		<section class="board" id="board" data-screen="shopping" data-theme="light" aria-label="Live comparison board">
+			<div class="toolbar">
+				<div class="segmented" role="group" aria-label="Preview screen">
+					<button type="button" data-screen-button="shopping" aria-pressed="true">Shopping · phone</button>
+					<button type="button" data-screen-button="recipes" aria-pressed="false">Recipes · phone</button>
+					<button type="button" data-screen-button="stock" aria-pressed="false">Stock · desktop</button>
+				</div>
+				<div class="segmented theme-buttons" role="group" aria-label="Preview theme">
+					<button type="button" data-theme-button="light" aria-pressed="true">Light</button>
+					<button type="button" data-theme-button="dark" aria-pressed="false">Dark · same state</button>
+				</div>
+			</div>
+			<div class="comparison-grid" id="comparisonGrid"></div>
+		</section>
+
+		<section class="decision" aria-labelledby="decision-title">
+			<div class="decision-head">
+				<h2 id="decision-title">Choose the production planning reference</h2>
+				<p>The board defaults to Green Ribbon because it best preserves the original green-header language while correcting the earlier header weight. A specific named element can be carried forward; an undefined hybrid is not an approval.</p>
+			</div>
+			<form id="decisionForm">
+				<div class="choices">
+					<label class="choice"><input type="radio" name="refinement" value="ribbon" checked><span><b>A — Green Ribbon</b><small>Slim, continuous, familiar.</small><em>Recommended</em></span></label>
+					<label class="choice"><input type="radio" name="refinement" value="split"><span><b>B — Split Canopy</b><small>Identity above, tools below.</small></span></label>
+					<label class="choice"><input type="radio" name="refinement" value="grove"><span><b>C — Framed Grove</b><small>Warm, inset, contained.</small></span></label>
+					<label class="choice"><input type="radio" name="refinement" value="working"><span><b>D — Working Header</b><small>Dense and operational.</small></span></label>
+					<label class="choice"><input type="radio" name="refinement" value="layered"><span><b>E — Layered Leaf</b><small>Crafted, layered, expressive.</small></span></label>
+				</div>
+				<div class="fields">
+					<div class="field">
+						<label>Optional exact element to carry forward</label>
+						<div class="carry-options">
+							<label><input type="checkbox" name="carry" value="Split Canopy's separate utility row">Split Canopy's separate utility row</label>
+							<label><input type="checkbox" name="carry" value="Framed Grove's centered content measure">Framed Grove's centered content measure</label>
+							<label><input type="checkbox" name="carry" value="Working Header's integrated desktop metrics">Working Header's integrated desktop metrics</label>
+							<label><input type="checkbox" name="carry" value="Layered Leaf's overlapping content sheet">Layered Leaf's overlapping content sheet</label>
+						</div>
+					</div>
+					<div class="field">
+						<label for="notes">Approval note or precise adjustment</label>
+						<textarea id="notes" placeholder="For example: Approve Green Ribbon, but use the slightly warmer green from Framed Grove."></textarea>
+					</div>
+				</div>
+			</form>
+			<pre class="handoff" id="handoff" tabindex="0"></pre>
+			<div class="decision-actions">
+				<button type="button" id="copyHandoff">Copy approval handoff</button>
+				<button type="button" class="secondary" id="resetDecision">Reset board</button>
+				<span class="save-state" id="saveState" aria-live="polite">Decision saved locally in this browser.</span>
+			</div>
+			<p class="scope-note">Scope boundary: this is a live HTML/CSS decision prototype, not production Svelte. No routes, behavior, household data, provider calls, AH actions, or persisted app state are touched. Approval authorizes a separate implementation plan only; production implementation still requires an explicit Run.</p>
+		</section>
+	</main>
+
+	<script>
+		(() => {
+			const VERSION = "2.1-soft-utility-green-header-refinement";
+			const STORAGE_KEY = "keukenbrein-app-house-style-v2-refinement";
+			const SOURCE_PATH = "docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md";
+			const ARTIFACT_PATH = "docs/artifacts/2026-07-29-design-shotgun-app-house-style-v2-soft-utility-refinement.html";
+			const USER_NOTE = "I still love the green headers and the way that was originally set up that we had though. Lets keep those";
+
+			const variants = [
+				{ id: "a", key: "ribbon", name: "Green Ribbon", thesis: "One slim green band keeps the familiar identity; the work starts immediately.", tradeoff: "The most conventional transition.", recommended: true },
+				{ id: "b", key: "split", name: "Split Canopy", thesis: "Identity and frequently changed controls get separate, compact bands.", tradeoff: "Two bands feel more system-like." },
+				{ id: "c", key: "grove", name: "Framed Grove", thesis: "A contained green header and centered measure make Soft Utility warmer.", tradeoff: "The inset header adds one container." },
+				{ id: "d", key: "working", name: "Working Header", thesis: "The green rail earns its space by integrating the most-used control.", tradeoff: "Header content varies more by route." },
+				{ id: "e", key: "layered", name: "Layered Leaf", thesis: "A single overlap gives the green page field a more crafted transition.", tradeoff: "Needs the most responsive tuning." }
+			];
+
+			const shoppingGroups = [
+				["Tomato lentil soup", [["Red lentils", "300 g"], ["Tomatoes", "6"], ["Vegetable stock", "1 l"]]],
+				["Leek and potato soup", [["Leeks", "3"], ["Floury potatoes", "800 g"], ["Crème fraîche", "125 ml"]]],
+				["Other items", [["Oat milk", "2 cartons"], ["Dishwasher tablets", "1 pack"]]]
+			];
+			const recipes = [
+				["Tomato lentil soup", "35 min · pantry-friendly · 4 portions"],
+				["Leek and potato soup", "40 min · freezer-friendly · 4 portions"],
+				["Roasted pumpkin soup with sage", "55 min · oven · 6 portions"],
+				["Miso mushroom noodle soup", "30 min · quick dinner · 2 portions"]
+			];
+			const stock = [
+				["Tomato lentil soup", "4 portions", "Use by 2 Aug"],
+				["Leek and potato soup", "3 portions", "Use by 4 Aug"],
+				["Miso mushroom noodle soup", "2 portions", "Use by 5 Aug"],
+				["Roasted pumpkin soup with sage", "6 portions", "Use by 7 Aug"],
+				["Chickpea spinach curry", "4 portions", "Use by 8 Aug"],
+				["Vegetable lasagne", "5 portions", "Use by 10 Aug"],
+				["Mushroom barley stew", "3 portions", "Use by 11 Aug"],
+				["Broccoli cheddar bake", "4 portions", "Use by 12 Aug"],
+				["Black bean chilli", "5 portions", "Use by 14 Aug"],
+				["Pea and mint risotto", "2 portions", "Use by 15 Aug"],
+				["Sweet potato dhal", "6 portions", "Use by 16 Aug"],
+				["Courgette pasta sauce", "3 portions", "Use by 18 Aug"],
+				["Spinach feta pie", "4 portions", "Use by 19 Aug"],
+				["Carrot ginger soup", "4 portions", "Use by 21 Aug"]
+			];
+
+			const header = (variant, page, count) => {
+				const title = page === "shopping" ? "Shopping" : page === "recipes" ? "Recipes" : "Stock";
+				const context = page === "shopping" ? "This week" : page === "recipes" ? "Your kitchen" : "Freezer and pantry";
+				const action = page === "shopping" ? "Add item" : page === "recipes" ? "New recipe" : "Add stock";
+				const placeholder = page === "shopping" ? "Find an item" : page === "recipes" ? "Search recipes" : "Search stock";
+				if (variant.id === "b") return `<header class="page-head"><div class="identity"><div><span class="micro">${context}</span><h4>${title}</h4></div><button class="head-action">${action}</button></div><div class="head-utility"><input class="header-input" value="${placeholder}" readonly aria-label="${placeholder}"><button class="head-action">Filter</button></div></header>`;
+				if (variant.id === "d") return `<header class="page-head"><div><span class="micro">${context}</span><h4>${title}</h4></div><div class="head-work"><input class="header-input" value="${placeholder}" readonly aria-label="${placeholder}"></div><div class="work-count"><b>${count}</b><span>${page === "stock" ? "meals" : page === "recipes" ? "recipes" : "items"}</span></div></header>`;
+				return `<header class="page-head"><div><span class="micro">${context}</span><h4>${title}</h4></div><button class="head-action">${action}</button></header>`;
+			};
+
+			const tools = (page) => {
+				const placeholder = page === "shopping" ? "Search shopping list" : page === "recipes" ? "Search recipes" : "Search meals and ingredients";
+				return `<div class="below-tools"><input class="searchbox" value="${placeholder}" readonly aria-label="${placeholder}"><button class="tiny-button">${page === "recipes" ? "Sort" : "Scope"}</button></div>`;
+			};
+
+			const filters = (page) => {
+				const values = page === "shopping" ? ["All 8", "Produce 4", "Pantry 2", "Other 2"] : ["All 4", "Soup", "Under 40 min", "Freezer"];
+				return `<div class="filters">${values.map((value, i) => `<button class="chip ${i === 0 ? "active" : ""}">${value}</button>`).join("")}</div>`;
+			};
+
+			const shoppingBody = (variant) => `
+				<div class="page-content">
+					${variant.id === "b" || variant.id === "d" ? "" : tools("shopping")}
+					${filters("shopping")}
+					<div class="content-scroll">
+						<div class="warning"><span class="mark">!</span><div><b>Previous AH result needs checking</b>Some products could not be matched with confidence. Review them before adding anything to your basket.</div></div>
+						${shoppingGroups.map(([group, items]) => `<section class="group"><div class="group-title"><b>${group}</b><span>${items.length} items</span></div>${items.map(([name, qty]) => `<div class="list-row"><span class="check"></span><div><b>${name}</b><small>Not checked · AH match pending</small></div><span class="qty">${qty}</span></div>`).join("")}</section>`).join("")}
+					</div>
+					<div class="action-dock"><button class="primary">Add item</button><button class="secondary">Connect AH</button></div>
+				</div>`;
+
+			const recipesBody = (variant) => `
+				<div class="page-content">
+					${variant.id === "b" || variant.id === "d" ? "" : tools("recipes")}
+					${filters("recipes")}
+					<div class="recipe-list">
+						${recipes.map(([name, details]) => `<article class="recipe-row"><span class="accent"></span><div><h5>${name}</h5><p>${details}<br>No photo yet</p></div><button>Open</button></article>`).join("")}
+					</div>
+					<div class="action-dock"><button class="primary">New recipe</button><button class="secondary">Import</button></div>
+				</div>`;
+
+			const stockBody = (variant) => `
+				<div class="page-content">
+					${variant.id === "b" || variant.id === "d" ? "" : tools("stock")}
+					<div class="stock-layout">
+						<section class="stock-main">
+							<div class="metrics"><div class="metric"><b>14</b><span>ready meals</span></div><div class="metric"><b>0</b><span>targets missed</span></div><div class="metric"><b>46</b><span>portions covered</span></div></div>
+							<div class="stock-table">${stock.map(([name, qty, use]) => `<div class="stock-row"><b>${name}</b><span>${qty}</span><span class="use">${use}</span></div>`).join("")}</div>
+						</section>
+						<aside class="stock-side">
+							<div class="side-panel"><span class="side-label">Coverage</span><b>11 planned dinners</b><p>Your current stock covers the next seven days, with three flexible meals left.</p></div>
+							<div class="side-panel"><span class="side-label">Use next</span><b>Tomato lentil soup</b><p>Four portions should be used before 2 August. Move this meal into the plan or update its date.</p></div>
+						</aside>
+					</div>
+				</div>`;
+
+			const device = (variant, page) => {
+				const isStock = page === "stock";
+				const count = page === "shopping" ? "8" : page === "recipes" ? "4" : "14";
+				const body = page === "shopping" ? shoppingBody(variant) : page === "recipes" ? recipesBody(variant) : stockBody(variant);
+				return `<div class="view view-${page}"><div class="device ${isStock ? "desktop" : "phone"} variant-${variant.id}"><div class="statusbar"><span>09:41</span><span>Wi-Fi&nbsp;&nbsp;82%</span></div><div class="mini-page">${header(variant, page, count)}${body}</div></div><div class="screen-caption"><b>${page === "shopping" ? "Shopping · 390 × 844" : page === "recipes" ? "Recipes · 390 × 844" : "Stock · 1280 × 900"}</b><span>${page === "shopping" ? "Same uncertain AH warning" : page === "recipes" ? "Same four soups · no photos" : "Same fourteen ready meals"}</span></div></div>`;
+			};
+
+			const grid = document.getElementById("comparisonGrid");
+			grid.innerHTML = variants.map((variant) => `
+				<article class="variant-card ${variant.recommended ? "recommended" : ""}" data-variant="${variant.key}">
+					<div class="variant-meta">
+						<div><p class="eyebrow">Refinement ${variant.id.toUpperCase()}${variant.recommended ? " · recommended" : ""}</p><h3>${variant.name}</h3><p>${variant.thesis}</p></div>
+						<div class="tradeoff"><b>Trade-off</b>${variant.tradeoff}</div>
+					</div>
+					<div class="prototype-wrap">${device(variant, "shopping")}${device(variant, "recipes")}${device(variant, "stock")}</div>
+				</article>`).join("");
+
+			const board = document.getElementById("board");
+			const form = document.getElementById("decisionForm");
+			const notes = document.getElementById("notes");
+			const handoff = document.getElementById("handoff");
+			const saveState = document.getElementById("saveState");
+			const screenButtons = [...document.querySelectorAll("[data-screen-button]")];
+			const themeButtons = [...document.querySelectorAll("[data-theme-button]")];
+
+			const getState = () => ({
+				version: VERSION,
+				artifact: ARTIFACT_PATH,
+				screen: board.dataset.screen,
+				theme: board.dataset.theme,
+				refinement: new FormData(form).get("refinement") || "ribbon",
+				carry: new FormData(form).getAll("carry"),
+				notes: notes.value.trim()
+			});
+
+			const selectedName = (key) => {
+				const match = variants.find((variant) => variant.key === key);
+				return match ? `Refinement ${match.id.toUpperCase()} — ${match.name}` : "Refinement A — Green Ribbon";
+			};
+
+			const updateHandoff = () => {
+				const state = getState();
+				const choice = selectedName(state.refinement);
+				const carry = state.carry.length ? state.carry.map((item) => `- ${item}`).join("\n") : "- No cross-refinement elements selected.";
+				const note = state.notes || "No additional approval note.";
+				handoff.textContent = `Load ${SOURCE_PATH} and write a separate implementation plan for the approved App House Style refinement. Do not implement production code until that plan receives an explicit Run.
+
+Decision — Soft Utility green-header refinement
+Question: Which green-header structure should become Keukenbrein's production planning reference?
+Options reviewed: Refinement A — Green Ribbon; Refinement B — Split Canopy; Refinement C — Framed Grove; Refinement D — Working Header; Refinement E — Layered Leaf.
+Selected outcome: ${choice}.
+Recommendation status: ${state.refinement === "ribbon" ? "Recommended." : "Selected over the recommendation."}
+Rationale: Preserve the familiar green page identity while correcting header dominance, excessive framing, wasted desktop canvas, broad serif use, and muddy dark surfaces.
+Practical consequence: The plan must use ${choice} as its visual reference across Stock, Meal plan, Shopping, Recipes, Settings, and Login while preserving every fixed product constraint in the authoritative brief.
+Evidence: Equal-content live prototypes for Shopping phone at 390 × 844 with the uncertain AH-result warning, Recipes phone at 390 × 844 with four soups and no photos, Stock desktop at 1280 × 900 with fourteen ready meals, and the same difficult Shopping content in dark theme.
+Uncertainty: The refinement uses live HTML/CSS prototypes rather than the production component tree. Interaction fidelity, exact copy fit, responsive behavior on all routes, and state coverage remain implementation-plan and later browser-verification work.
+
+Explicit carry-forward requests
+${carry}
+
+User note — reproduce verbatim
+${USER_NOTE}
+
+Approval note
+${note}
+
+Required next work
+- Keep every product constraint and out-of-scope boundary in the authoritative brief.
+- Write a separate implementation plan with sequenced, rollback-safe tickets and full real-browser verification.
+- Cover the same evidence states plus all stable routes, light and dark themes, long Dutch and English copy, keyboard focus, and 320/393/768/1280 px layouts.
+- Keep production routes, behavior, data, auth, provider calls, and Albert Heijn behavior unchanged.
+- Stop after the plan. A separate explicit Run is required before production implementation.
+
+Artifact version: ${VERSION}
+Artifact path: ${ARTIFACT_PATH}`;
+			};
+
+			const save = () => {
+				const state = getState();
+				localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+				saveState.textContent = "Decision saved locally in this browser.";
+				updateHandoff();
+			};
+
+			const applyState = (state) => {
+				board.dataset.screen = ["shopping", "recipes", "stock"].includes(state.screen) ? state.screen : "shopping";
+				board.dataset.theme = ["light", "dark"].includes(state.theme) ? state.theme : "light";
+				const refinement = variants.some((variant) => variant.key === state.refinement) ? state.refinement : "ribbon";
+				const radio = form.querySelector(`input[name="refinement"][value="${refinement}"]`);
+				if (radio) radio.checked = true;
+				form.querySelectorAll('input[name="carry"]').forEach((checkbox) => {
+					checkbox.checked = Array.isArray(state.carry) && state.carry.includes(checkbox.value);
+				});
+				notes.value = typeof state.notes === "string" ? state.notes : "";
+				screenButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.screenButton === board.dataset.screen)));
+				themeButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.themeButton === board.dataset.theme)));
+				updateHandoff();
+			};
+
+			try {
+				const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+				applyState(stored && stored.version === VERSION ? stored : { screen: "shopping", theme: "light", refinement: "ribbon", carry: [], notes: "" });
+			} catch {
+				applyState({ screen: "shopping", theme: "light", refinement: "ribbon", carry: [], notes: "" });
+			}
+
+			screenButtons.forEach((button) => button.addEventListener("click", () => {
+				board.dataset.screen = button.dataset.screenButton;
+				screenButtons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+				save();
+			}));
+			themeButtons.forEach((button) => button.addEventListener("click", () => {
+				board.dataset.theme = button.dataset.themeButton;
+				themeButtons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+				save();
+			}));
+			form.addEventListener("input", save);
+
+			document.getElementById("copyHandoff").addEventListener("click", async () => {
+				try {
+					await navigator.clipboard.writeText(handoff.textContent);
+					saveState.textContent = "Approval handoff copied.";
+				} catch {
+					const selection = window.getSelection();
+					const range = document.createRange();
+					range.selectNodeContents(handoff);
+					selection.removeAllRanges();
+					selection.addRange(range);
+					handoff.focus();
+					saveState.textContent = "Copy was blocked. The handoff is selected; copy it manually.";
+				}
+			});
+
+			document.getElementById("resetDecision").addEventListener("click", () => {
+				localStorage.removeItem(STORAGE_KEY);
+				applyState({ screen: "shopping", theme: "light", refinement: "ribbon", carry: [], notes: "" });
+				saveState.textContent = "Board reset to the recommended refinement.";
+			});
+		})();
+	</script>
+</body>
+</html>

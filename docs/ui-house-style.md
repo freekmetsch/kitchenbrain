@@ -1,7 +1,9 @@
 # App house style
 
-Keukenbrein uses a compact ledger style for household work. Pages keep their own information
-architecture, while controls with the same job use the same semantic recipe.
+Keukenbrein uses Soft Utility for stable household work: quiet content hierarchy, a slim
+herb-green identity ribbon, clean sans-serif type, warm chalk/charcoal working surfaces, and clay
+primary actions. Pages keep their own information architecture while controls with the same job
+use the same semantic recipe.
 
 The shared visual recipes live in `src/app.css`. Small behavior components live in
 `src/lib/components/ui/`. Prefer native buttons, links, inputs, and selects with semantic classes.
@@ -15,14 +17,16 @@ Do not add a universal component whose variants reproduce page-local drift.
 | Secondary action | A useful action that does not commit the main task | `ui-action ui-action-secondary`; paper with olive outline |
 | Tertiary action | A quiet or reversible action | `ui-action ui-action-tertiary`; use `ui-action-icon` only for a familiar icon |
 | Danger or warning action | Destructive work or a deliberate warning step | `ui-action-danger` or `ui-action-warning`; severity must also be clear from the label |
-| Header pair | A genuine fixed pair in a green page header | `KitchenHeaderActionRail`; secondary 42%, primary 58%; do not use for a single action or status |
+| Page identity | The stable route title | `KitchenPageHeader`; solid Green Ribbon, one H1, optional Back/leading navigation, and at most one highest-value action |
+| Page utilities | Route context and working controls immediately below the ribbon | `ui-page-utility` with `ui-page-utility-inner`; metrics, week navigation, search, sort, filters, status, and secondary actions stay here |
 | Filter | A selectable compact option | `FilterChip`; real button, `aria-pressed`, 44 px target with a 32 px visual |
 | Status | Short passive metadata | `StatusBadge`; never focusable and never pressed |
 | Field | Generic text, search, number, date, select, or textarea input | `ui-field` or `ui-field-shell`; 44 px single-line height with visible focus, invalid, disabled, busy, and dark states |
-| Repeated rows | One related row group | `ui-section-frame` around the rows; use dividers inside the frame |
-| Section title | A meaningful body section | `ui-section-title`; sentence-case serif. Keep micro categories and field labels sans-serif |
-| Notice | Contextual info, success, warning, or error | `KitchenNotice`; raised paper shell. The caller retains its icon, copy, role/live region, recovery action, and input state |
-| Recipe category | Recipe-index categorization | `ui-recipe-card` with `data-category-accent`; keep the textual category badge |
+| Repeated rows | One related row group | `ui-list-group`; open inline edges, internal dividers, and no surrounding card border by default |
+| Focused form | A form section that needs a deliberate working boundary | `ui-form-card`; do not use it for explanatory copy or every page section |
+| Section title | A meaningful body section | `ui-section-title`; sentence-case sans-serif, with weight and spacing rather than a display face |
+| Notice | Contextual info, success, warning, or error | `KitchenNotice`; a tonal field with one restrained inset semantic edge. The caller retains its icon, copy, role/live region, recovery action, and input state |
+| Recipe category | Recipe-index categorization | Keep it as optional text. Imagery is optional and no placeholder block appears when a recipe has no image |
 
 ## Boundaries
 
@@ -30,15 +34,22 @@ Do not add a universal component whose variants reproduce page-local drift.
   least 44 CSS pixels even when its visible treatment is smaller.
 - Keep primary actions terra, secondary actions olive outline, and tertiary actions quiet. Do not
   choose accents by route.
+- The Green Ribbon is normally 64 CSS px below 768 px and 72 CSS px from 768 px upward. Long
+  English/Dutch copy and 200%-equivalent text may grow it instead of clipping.
+- The ribbon owns identity, not route payload. Put at most one primary action in it. Back is
+  leading navigation, not a second action.
 - Filters and statuses are different roles. If a user can change it, use a button with a selected
   state. If it only reports state, use passive markup.
-- A framed list contains repeated rows. It does not wrap every section, content card, fixed dock,
-  empty state, hero, sheet, or focused working panel.
+- Group ordinary rows with headings, whitespace, and dividers. A surrounding border is reserved
+  for a real state, focused form, fixed dock, sheet, or other meaningful boundary.
 - A notice shares material, not behavior. Do not move request state, validation, recovery, or
   announcements into `KitchenNotice`.
-- The leading Recipe-category stripe is the only generic-looking vertical marker in stable app
-  UI. Stock aging, Shopping sources, notices, buttons, and ordinary cards use dots, rules, text,
-  or semantic color instead.
+- Stable headings use the system sans family. Do not restore Georgia, Times,
+  `--kitchen-display`, a decorative header ring/gradient, a paired header rail, or a full-height
+  Recipe-category stripe.
+- At desktop width, let repeated work use the canvas. Context rails exist only when context is
+  present. Recipes use two columns at tablet width and three at wide desktop; phone uses one
+  content-led row.
 
 ## Explicit exceptions
 
@@ -57,5 +68,7 @@ to introduce a second recipe for actions, filters, statuses, fields, lists, or n
 5. Run `npm run check`, `npm run test:unit`, and the relevant Playwright test. The complete gate is
    `npm test`.
 
-`src/lib/ui_house_style_source.test.ts` rejects retired same-role recipes and generic leading
-markers. `tests/e2e/house-style.e2e.ts` checks the rendered role contract.
+`src/lib/ui_house_style_source.test.ts` rejects retired same-role recipes, serif/display tokens,
+header payloads, decorative ribbons, and recipe markers. `tests/e2e/house-style.e2e.ts` checks the
+rendered ribbon geometry, action ownership, list treatment, Recipe columns, notice edge, focus,
+and overflow contract.

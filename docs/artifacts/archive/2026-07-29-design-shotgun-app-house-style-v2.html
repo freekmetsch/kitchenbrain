@@ -1,0 +1,1636 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>App House Style V2 — direction review</title>
+	<link rel="icon" href="data:," />
+	<style>
+		:root {
+			color-scheme: light;
+			--ink: #17201c;
+			--muted: #627069;
+			--line: #d9dfda;
+			--paper: #f2f4f1;
+			--card: #ffffff;
+			--accent: #b84e31;
+			--focus: #245b46;
+			--shadow: 0 18px 50px rgb(21 35 28 / 10%);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		}
+
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body {
+			margin: 0;
+			background:
+				radial-gradient(circle at 12% -12%, #dbe8df 0, transparent 25rem),
+				linear-gradient(#f8faf8, var(--paper));
+			color: var(--ink);
+		}
+		button, input, textarea, select { font: inherit; }
+		button, label, input[type="radio"], input[type="checkbox"] { cursor: pointer; }
+		button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+			outline: 3px solid color-mix(in srgb, var(--focus) 38%, transparent);
+			outline-offset: 3px;
+		}
+		.sr-only {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			white-space: nowrap;
+			border: 0;
+		}
+
+		.hero {
+			max-width: 1480px;
+			margin: 0 auto;
+			padding: clamp(2rem, 6vw, 5.5rem) clamp(1rem, 4vw, 4rem) 2rem;
+		}
+		.kicker {
+			display: inline-flex;
+			align-items: center;
+			gap: .5rem;
+			margin: 0 0 1rem;
+			color: #315947;
+			font-size: .75rem;
+			font-weight: 800;
+			letter-spacing: .11em;
+			text-transform: uppercase;
+		}
+		.kicker::before {
+			width: 1.8rem;
+			height: 2px;
+			background: #315947;
+			content: "";
+		}
+		.hero h1 {
+			max-width: 900px;
+			margin: 0;
+			font-size: clamp(2.3rem, 5vw, 5.2rem);
+			font-weight: 720;
+			letter-spacing: -.065em;
+			line-height: .96;
+		}
+		.hero > p {
+			max-width: 760px;
+			margin: 1.4rem 0 0;
+			color: var(--muted);
+			font-size: clamp(1rem, 1.6vw, 1.25rem);
+			line-height: 1.55;
+		}
+		.audit-strip {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 1px;
+			max-width: 980px;
+			margin-top: 2rem;
+			overflow: hidden;
+			border: 1px solid var(--line);
+			border-radius: 1rem;
+			background: var(--line);
+		}
+		.audit-strip div {
+			min-height: 6rem;
+			padding: 1rem;
+			background: rgb(255 255 255 / 72%);
+		}
+		.audit-strip strong { display: block; font-size: .85rem; }
+		.audit-strip span {
+			display: block;
+			margin-top: .35rem;
+			color: var(--muted);
+			font-size: .78rem;
+			line-height: 1.45;
+		}
+
+		.review-shell {
+			max-width: 1480px;
+			margin: 0 auto;
+			padding: 1rem clamp(1rem, 4vw, 4rem) 5rem;
+		}
+		.toolbar {
+			position: sticky;
+			z-index: 50;
+			top: .75rem;
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: space-between;
+			gap: .75rem;
+			margin-bottom: 1.25rem;
+			padding: .65rem;
+			border: 1px solid rgb(188 201 193 / 75%);
+			border-radius: 1rem;
+			background: rgb(255 255 255 / 84%);
+			box-shadow: 0 10px 35px rgb(31 47 39 / 9%);
+			backdrop-filter: blur(18px);
+		}
+		.segmented {
+			display: inline-flex;
+			flex-wrap: wrap;
+			gap: .25rem;
+		}
+		.segmented button {
+			min-height: 2.75rem;
+			border: 0;
+			border-radius: .72rem;
+			padding: 0 .95rem;
+			background: transparent;
+			color: #526159;
+			font-size: .8rem;
+			font-weight: 750;
+		}
+		.segmented button[aria-pressed="true"] {
+			background: #1f3f31;
+			color: white;
+		}
+		.theme-toggle {
+			display: flex;
+			align-items: center;
+			gap: .55rem;
+			min-height: 2.75rem;
+			border: 1px solid var(--line);
+			border-radius: .72rem;
+			padding: 0 .85rem;
+			background: white;
+			color: #44524b;
+			font-size: .78rem;
+			font-weight: 750;
+		}
+		.theme-toggle i {
+			position: relative;
+			width: 2rem;
+			height: 1.1rem;
+			border-radius: 999px;
+			background: #d8ded9;
+		}
+		.theme-toggle i::after {
+			position: absolute;
+			top: .15rem;
+			left: .15rem;
+			width: .8rem;
+			height: .8rem;
+			border-radius: 50%;
+			background: white;
+			box-shadow: 0 1px 3px rgb(0 0 0 / 22%);
+			content: "";
+			transition: transform 160ms ease;
+		}
+		.board[data-theme="dark"] .theme-toggle i { background: #355e4c; }
+		.board[data-theme="dark"] .theme-toggle i::after { transform: translateX(.9rem); }
+
+		.direction-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 1rem;
+			align-items: start;
+		}
+		.direction {
+			min-width: 0;
+			overflow: hidden;
+			border: 1px solid var(--line);
+			border-radius: 1.3rem;
+			background: rgb(255 255 255 / 82%);
+			box-shadow: var(--shadow);
+		}
+		.direction-head { padding: 1.15rem 1.15rem 1rem; }
+		.direction-label {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: .75rem;
+			margin-bottom: .75rem;
+			font-size: .68rem;
+			font-weight: 850;
+			letter-spacing: .09em;
+			text-transform: uppercase;
+		}
+		.direction-label span:last-child {
+			border-radius: 999px;
+			padding: .3rem .55rem;
+			background: #e5eee8;
+			color: #315947;
+			letter-spacing: 0;
+			text-transform: none;
+		}
+		.direction h2 {
+			margin: 0;
+			font-size: 1.5rem;
+			letter-spacing: -.035em;
+		}
+		.direction-head p {
+			min-height: 3.8rem;
+			margin: .55rem 0 0;
+			color: var(--muted);
+			font-size: .82rem;
+			line-height: 1.5;
+		}
+		.tradeoff {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: .5rem;
+			margin-top: .85rem;
+		}
+		.tradeoff div {
+			padding: .65rem;
+			border-radius: .7rem;
+			background: #f1f4f1;
+		}
+		.tradeoff b {
+			display: block;
+			margin-bottom: .25rem;
+			font-size: .65rem;
+			letter-spacing: .06em;
+			text-transform: uppercase;
+		}
+		.tradeoff span {
+			color: #56645d;
+			font-size: .7rem;
+			line-height: 1.35;
+		}
+
+		.prototype-wrap {
+			padding: .75rem;
+			border-top: 1px solid var(--line);
+			background: #e9ece9;
+		}
+		.phone-stage {
+			position: relative;
+			width: min(100%, 390px);
+			height: 650px;
+			margin: 0 auto;
+			overflow: hidden;
+			border: 7px solid #1f2422;
+			border-radius: 2rem;
+			background: var(--p-bg);
+			box-shadow: 0 16px 35px rgb(27 39 33 / 18%);
+			color: var(--p-ink);
+		}
+		.phone-stage::before {
+			position: absolute;
+			z-index: 20;
+			top: .45rem;
+			left: 50%;
+			width: 4.2rem;
+			height: .28rem;
+			transform: translateX(-50%);
+			border-radius: 999px;
+			background: rgb(10 15 13 / 72%);
+			content: "";
+		}
+		.phone-screen {
+			position: absolute;
+			inset: 0;
+			overflow: hidden;
+			background: var(--p-bg);
+		}
+		.phone-scroll {
+			height: 100%;
+			overflow: hidden;
+			padding-bottom: 4.7rem;
+		}
+		.phone-nav {
+			position: absolute;
+			z-index: 12;
+			right: 0;
+			bottom: 0;
+			left: 0;
+			display: grid;
+			grid-template-columns: repeat(5, 1fr);
+			height: 3.7rem;
+			border-top: 1px solid var(--p-line);
+			background: var(--p-card);
+		}
+		.phone-nav span {
+			display: grid;
+			place-items: center;
+			color: var(--p-muted);
+			font-size: .56rem;
+		}
+		.phone-nav span::before {
+			display: block;
+			width: .85rem;
+			height: .85rem;
+			margin: .35rem auto .08rem;
+			border: 1.5px solid currentColor;
+			border-radius: .25rem;
+			content: "";
+		}
+		.phone-nav .active { color: var(--p-accent); font-weight: 800; }
+		.phone-nav .active::before { background: color-mix(in srgb, var(--p-accent) 18%, transparent); }
+
+		.desktop-stage {
+			position: relative;
+			width: 100%;
+			aspect-ratio: 16 / 10;
+			overflow: hidden;
+			border: 7px solid #222725;
+			border-radius: 1rem;
+			background: var(--p-bg);
+			box-shadow: 0 16px 35px rgb(27 39 33 / 18%);
+			color: var(--p-ink);
+		}
+		.desktop-stage::before {
+			position: absolute;
+			z-index: 20;
+			top: .28rem;
+			left: 50%;
+			width: 2.5rem;
+			height: .18rem;
+			transform: translateX(-50%);
+			border-radius: 999px;
+			background: #101412;
+			content: "";
+		}
+		.desktop-screen { position: absolute; inset: 0; overflow: hidden; }
+
+		.view { display: none; }
+		.board[data-screen="shopping"] .view-shopping,
+		.board[data-screen="recipes"] .view-recipes,
+		.board[data-screen="stock"] .view-stock { display: block; }
+
+		/* Shared prototype atoms */
+		.mock-pill {
+			display: inline-flex;
+			align-items: center;
+			min-height: 1.75rem;
+			border: 1px solid var(--p-line);
+			border-radius: 999px;
+			padding: 0 .55rem;
+			background: var(--p-card);
+			color: var(--p-muted);
+			font-size: .62rem;
+			font-weight: 750;
+			white-space: nowrap;
+		}
+		.mock-pill.active {
+			border-color: var(--p-action);
+			background: var(--p-action);
+			color: var(--p-action-ink);
+		}
+		.mock-action {
+			display: inline-flex;
+			min-height: 2.35rem;
+			align-items: center;
+			justify-content: center;
+			border-radius: var(--p-radius-sm);
+			padding: 0 .8rem;
+			background: var(--p-action);
+			color: var(--p-action-ink);
+			font-size: .68rem;
+			font-weight: 800;
+		}
+		.mock-action.secondary {
+			border: 1px solid var(--p-line);
+			background: var(--p-card);
+			color: var(--p-ink);
+		}
+		.mock-checkbox {
+			width: 1.15rem;
+			height: 1.15rem;
+			flex: 0 0 auto;
+			border: 1.5px solid var(--p-muted);
+			border-radius: 50%;
+			background: var(--p-card);
+		}
+		.mock-search {
+			display: flex;
+			height: 2.35rem;
+			align-items: center;
+			gap: .5rem;
+			border: 1px solid var(--p-line);
+			border-radius: var(--p-radius-sm);
+			padding: 0 .75rem;
+			background: var(--p-card);
+			color: var(--p-muted);
+			font-size: .68rem;
+		}
+		.mock-search::before {
+			width: .65rem;
+			height: .65rem;
+			border: 1.4px solid currentColor;
+			border-radius: 50%;
+			content: "";
+		}
+		.mock-title { font-family: var(--p-display); }
+
+		/* Direction A — Soft Utility */
+		.soft {
+			--p-bg: #f5f4ef;
+			--p-card: #fffefa;
+			--p-ink: #202723;
+			--p-muted: #68726c;
+			--p-line: #d9ddd8;
+			--p-accent: #b65238;
+			--p-action: #b65238;
+			--p-action-ink: white;
+			--p-herb: #3e6553;
+			--p-warn: #a5672e;
+			--p-warn-bg: #fbf2e6;
+			--p-display: Inter, ui-sans-serif, system-ui, sans-serif;
+			--p-radius-sm: .65rem;
+		}
+		.board[data-theme="dark"] .soft {
+			--p-bg: #171b19;
+			--p-card: #222724;
+			--p-ink: #f1f2ed;
+			--p-muted: #aeb7b1;
+			--p-line: #3b443f;
+			--p-accent: #ef7b5d;
+			--p-action: #df684a;
+			--p-action-ink: #171b19;
+			--p-herb: #83b29c;
+			--p-warn: #f0b06a;
+			--p-warn-bg: #30271f;
+		}
+		.soft .mobile-top {
+			padding: 1.7rem 1rem .7rem;
+			border-bottom: 1px solid var(--p-line);
+			background: var(--p-card);
+		}
+		.soft .mobile-top .row,
+		.soft .soft-context,
+		.soft .soft-section-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: .7rem;
+		}
+		.soft .mobile-top h3 {
+			margin: 0;
+			font-size: 1.35rem;
+			letter-spacing: -.045em;
+		}
+		.soft .mobile-top small { color: var(--p-muted); font-size: .65rem; }
+		.soft .soft-body { padding: .8rem 1rem 6rem; }
+		.soft .soft-context {
+			margin-bottom: .8rem;
+			color: var(--p-muted);
+			font-size: .66rem;
+		}
+		.soft .soft-filter-row {
+			display: flex;
+			gap: .35rem;
+			margin: .65rem 0 .75rem;
+			overflow: hidden;
+		}
+		.soft .soft-notice {
+			display: grid;
+			grid-template-columns: auto 1fr auto;
+			gap: .55rem;
+			align-items: start;
+			margin-bottom: 1rem;
+			padding: .75rem;
+			border-left: 3px solid var(--p-warn);
+			border-radius: 0 .55rem .55rem 0;
+			background: var(--p-warn-bg);
+		}
+		.soft .soft-notice i {
+			display: grid;
+			width: 1.35rem;
+			height: 1.35rem;
+			place-items: center;
+			border-radius: 50%;
+			background: color-mix(in srgb, var(--p-warn) 18%, transparent);
+			color: var(--p-warn);
+			font-size: .65rem;
+			font-style: normal;
+			font-weight: 900;
+		}
+		.soft .soft-notice b { display: block; font-size: .7rem; }
+		.soft .soft-notice span { display: block; margin-top: .15rem; color: var(--p-muted); font-size: .58rem; line-height: 1.35; }
+		.soft .soft-notice a { color: var(--p-warn); font-size: .58rem; font-weight: 800; }
+		.soft .soft-section { margin: 1rem 0; }
+		.soft .soft-section-head { margin-bottom: .45rem; }
+		.soft .soft-section-head h4 { margin: 0; font-size: .82rem; }
+		.soft .soft-section-head span { color: var(--p-muted); font-size: .58rem; }
+		.soft .soft-list { border-top: 1px solid var(--p-line); }
+		.soft .soft-row {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			gap: .65rem;
+			align-items: center;
+			min-height: 3.6rem;
+			border-bottom: 1px solid var(--p-line);
+		}
+		.soft .soft-row b { display: block; font-size: .68rem; }
+		.soft .soft-row small { display: block; margin-top: .15rem; color: var(--p-muted); font-size: .56rem; }
+		.soft .soft-select {
+			border: 1px solid var(--p-line);
+			border-radius: .45rem;
+			padding: .45rem .5rem;
+			background: var(--p-card);
+			color: var(--p-ink);
+			font-size: .57rem;
+			font-weight: 750;
+		}
+		.soft .soft-dock {
+			position: absolute;
+			z-index: 10;
+			right: .65rem;
+			bottom: 4.25rem;
+			left: .65rem;
+			display: grid;
+			grid-template-columns: .8fr 1.2fr;
+			gap: .45rem;
+			padding: .45rem;
+			border: 1px solid var(--p-line);
+			border-radius: .85rem;
+			background: color-mix(in srgb, var(--p-card) 90%, transparent);
+			box-shadow: 0 10px 28px rgb(26 36 31 / 14%);
+			backdrop-filter: blur(10px);
+		}
+		.soft .recipe-feature {
+			display: grid;
+			grid-template-columns: 1.1fr .9fr;
+			gap: .75rem;
+			margin-top: .9rem;
+		}
+		.soft .soft-recipe-card {
+			overflow: hidden;
+			border: 1px solid var(--p-line);
+			border-radius: .8rem;
+			background: var(--p-card);
+		}
+		.soft .soft-recipe-card .art {
+			height: 5.5rem;
+			background:
+				radial-gradient(circle at 65% 35%, #d8b36c 0 14%, transparent 15%),
+				linear-gradient(135deg, #dfe9e1, #f2dfc9);
+		}
+		.soft .soft-recipe-card.compact .art { height: 3.8rem; }
+		.soft .soft-recipe-card .copy { padding: .65rem; }
+		.soft .soft-recipe-card h4 { margin: 0; font-size: .72rem; line-height: 1.2; }
+		.soft .soft-recipe-card p { margin: .25rem 0 .55rem; color: var(--p-muted); font-size: .55rem; }
+		.soft .soft-recipe-card .actions { display: flex; gap: .35rem; }
+		.soft .soft-recipe-card .actions span { flex: 1; min-height: 1.8rem; font-size: .55rem; }
+		.soft .soft-recipe-stack { display: grid; gap: .6rem; }
+		.soft .soft-recipe-more {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: .6rem;
+			margin-top: .6rem;
+		}
+		.soft .soft-desktop-top {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			height: 15%;
+			padding: 1rem 1.4rem;
+			border-bottom: 1px solid var(--p-line);
+			background: var(--p-card);
+		}
+		.soft .soft-desktop-top h3 { margin: 0; font-size: 1.1rem; }
+		.soft .soft-desktop-top p { margin: .15rem 0 0; color: var(--p-muted); font-size: .48rem; }
+		.soft .soft-desktop-body { padding: 1rem 1.4rem; }
+		.soft .soft-metrics {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: .55rem;
+			margin-bottom: .7rem;
+		}
+		.soft .soft-metrics div { padding: .65rem; border-radius: .55rem; background: var(--p-card); }
+		.soft .soft-metrics b { display: block; font-size: .9rem; }
+		.soft .soft-metrics span { color: var(--p-muted); font-size: .43rem; }
+		.soft .soft-workspace {
+			display: grid;
+			grid-template-columns: minmax(0, 1.6fr) minmax(9rem, .8fr);
+			gap: .8rem;
+		}
+		.soft .soft-table, .soft .soft-side {
+			padding: .7rem;
+			border-radius: .65rem;
+			background: var(--p-card);
+		}
+		.soft .soft-table-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .45rem; }
+		.soft .soft-table-head b, .soft .soft-side b { font-size: .58rem; }
+		.soft .desktop-row {
+			display: grid;
+			grid-template-columns: 1.5fr .6fr .7fr;
+			gap: .5rem;
+			padding: .48rem 0;
+			border-top: 1px solid var(--p-line);
+			font-size: .45rem;
+		}
+		.soft .desktop-row span:last-child { color: var(--p-warn); font-weight: 750; }
+		.soft .soft-side p { margin: .3rem 0 .65rem; color: var(--p-muted); font-size: .44rem; line-height: 1.45; }
+		.soft .coverage-bar { height: .35rem; overflow: hidden; border-radius: 999px; background: var(--p-line); }
+		.soft .coverage-bar::after { display: block; width: 28%; height: 100%; background: var(--p-herb); content: ""; }
+
+		/* Direction B — Cookbook Studio */
+		.studio {
+			--p-bg: #fbf0df;
+			--p-card: #fffaf1;
+			--p-ink: #302127;
+			--p-muted: #79666b;
+			--p-line: #e0cfc0;
+			--p-accent: #933e4d;
+			--p-action: #913b49;
+			--p-action-ink: #fff8ef;
+			--p-herb: #5e6d42;
+			--p-warn: #a64d35;
+			--p-warn-bg: #f5d8c4;
+			--p-display: Georgia, "Times New Roman", serif;
+			--p-radius-sm: .25rem;
+		}
+		.board[data-theme="dark"] .studio {
+			--p-bg: #1d171a;
+			--p-card: #2a2024;
+			--p-ink: #fff3e5;
+			--p-muted: #c8adb3;
+			--p-line: #523b43;
+			--p-accent: #ef9a8b;
+			--p-action: #d96f7c;
+			--p-action-ink: #21161a;
+			--p-herb: #aeba7d;
+			--p-warn: #f1a77e;
+			--p-warn-bg: #432a27;
+		}
+		.studio .studio-mast {
+			position: relative;
+			padding: 2.1rem 1rem 1rem;
+			background: var(--p-card);
+		}
+		.studio .studio-mast::after {
+			position: absolute;
+			right: 1rem;
+			bottom: .75rem;
+			width: 2.3rem;
+			height: 2.3rem;
+			border: 1px solid var(--p-line);
+			border-radius: 50% 48% 55% 42%;
+			background: color-mix(in srgb, var(--p-herb) 14%, transparent);
+			content: "";
+		}
+		.studio .studio-mast small {
+			color: var(--p-accent);
+			font-size: .54rem;
+			font-weight: 850;
+			letter-spacing: .12em;
+			text-transform: uppercase;
+		}
+		.studio .studio-mast h3 {
+			margin: .22rem 0 0;
+			font-family: var(--p-display);
+			font-size: 1.65rem;
+			font-weight: 500;
+			letter-spacing: -.035em;
+		}
+		.studio .studio-date { margin-top: .4rem; color: var(--p-muted); font-family: var(--p-display); font-size: .68rem; font-style: italic; }
+		.studio .studio-body { padding: .9rem 1rem 6rem; }
+		.studio .studio-tabs {
+			display: flex;
+			gap: .85rem;
+			margin-bottom: .9rem;
+			border-bottom: 1px solid var(--p-line);
+			color: var(--p-muted);
+			font-size: .61rem;
+		}
+		.studio .studio-tabs span { padding: .5rem 0; white-space: nowrap; }
+		.studio .studio-tabs .active { margin-bottom: -1px; border-bottom: 2px solid var(--p-accent); color: var(--p-ink); font-weight: 800; }
+		.studio .studio-alert {
+			margin: .75rem 0 1.15rem;
+			padding: .9rem 0 .9rem .85rem;
+			border-left: 2px solid var(--p-accent);
+		}
+		.studio .studio-alert em {
+			display: block;
+			font-family: var(--p-display);
+			font-size: .82rem;
+			line-height: 1.35;
+		}
+		.studio .studio-alert span { display: block; margin-top: .3rem; color: var(--p-muted); font-size: .56rem; }
+		.studio .studio-alert a { display: inline-block; margin-top: .45rem; color: var(--p-accent); font-size: .58rem; font-weight: 800; }
+		.studio .studio-section { margin: 1.1rem 0; }
+		.studio .studio-section h4 {
+			display: flex;
+			align-items: baseline;
+			gap: .35rem;
+			margin: 0 0 .3rem;
+			font-family: var(--p-display);
+			font-size: .94rem;
+			font-weight: 500;
+		}
+		.studio .studio-section h4 span { color: var(--p-muted); font-family: Inter, sans-serif; font-size: .54rem; font-weight: 700; }
+		.studio .studio-row {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			gap: .65rem;
+			align-items: center;
+			min-height: 3.8rem;
+			border-bottom: 1px solid var(--p-line);
+		}
+		.studio .studio-row b { font-family: var(--p-display); font-size: .72rem; font-weight: 500; }
+		.studio .studio-row small { display: block; margin-top: .12rem; color: var(--p-muted); font-family: Inter, sans-serif; font-size: .53rem; }
+		.studio .studio-tag { color: var(--p-herb); font-size: .53rem; font-style: italic; }
+		.studio .studio-dock {
+			position: absolute;
+			z-index: 10;
+			right: 0;
+			bottom: 3.7rem;
+			left: 0;
+			display: grid;
+			grid-template-columns: .8fr 1.2fr;
+			border-top: 1px solid var(--p-line);
+			background: var(--p-card);
+		}
+		.studio .studio-dock span { min-height: 3rem; border-radius: 0; }
+		.studio .studio-dock .secondary { border: 0; border-right: 1px solid var(--p-line); }
+		.studio .studio-recipe-intro {
+			display: grid;
+			grid-template-columns: 1fr auto;
+			gap: .5rem;
+			align-items: end;
+			margin: .85rem 0;
+		}
+		.studio .studio-recipe-intro h4 { margin: 0; font-family: var(--p-display); font-size: 1.15rem; font-weight: 500; }
+		.studio .studio-recipe-intro p { margin: .25rem 0 0; color: var(--p-muted); font-size: .55rem; }
+		.studio .studio-recipe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+		.studio .studio-recipe-card {
+			overflow: hidden;
+			background: var(--p-card);
+			box-shadow: 0 8px 20px color-mix(in srgb, var(--p-accent) 8%, transparent);
+		}
+		.studio .studio-recipe-card .art {
+			height: 6.2rem;
+			background:
+				linear-gradient(150deg, transparent 45%, color-mix(in srgb, var(--p-accent) 28%, transparent) 46% 62%, transparent 63%),
+				linear-gradient(120deg, #e5b985, #87946d);
+		}
+		.studio .studio-recipe-card:nth-child(2n) .art { background: linear-gradient(140deg, #88926b, #e8c8a0 55%, #a85c50); }
+		.studio .studio-recipe-card .copy { padding: .65rem; }
+		.studio .studio-recipe-card h5 { margin: 0; font-family: var(--p-display); font-size: .72rem; font-weight: 500; line-height: 1.15; }
+		.studio .studio-recipe-card p { margin: .25rem 0 .5rem; color: var(--p-muted); font-size: .51rem; }
+		.studio .studio-recipe-card .actions { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
+		.studio .studio-recipe-card .actions span:first-child { color: var(--p-accent); font-size: .53rem; font-weight: 800; }
+		.studio .studio-desktop-mast {
+			display: flex;
+			align-items: end;
+			justify-content: space-between;
+			height: 20%;
+			padding: 1rem 1.4rem;
+			background: var(--p-card);
+		}
+		.studio .studio-desktop-mast small { color: var(--p-accent); font-size: .4rem; letter-spacing: .12em; text-transform: uppercase; }
+		.studio .studio-desktop-mast h3 { margin: .1rem 0 0; font-family: var(--p-display); font-size: 1.2rem; font-weight: 500; }
+		.studio .studio-desktop-mast em { color: var(--p-muted); font-family: var(--p-display); font-size: .55rem; }
+		.studio .studio-desktop-body {
+			display: grid;
+			grid-template-columns: 1.35fr .9fr;
+			gap: 1rem;
+			padding: 1rem 1.4rem;
+		}
+		.studio .studio-desktop-list h4, .studio .studio-aside h4 { margin: 0 0 .5rem; font-family: var(--p-display); font-size: .65rem; font-weight: 500; }
+		.studio .studio-desktop-row {
+			display: grid;
+			grid-template-columns: 1.3fr .5fr .6fr;
+			gap: .4rem;
+			padding: .55rem 0;
+			border-top: 1px solid var(--p-line);
+			font-family: var(--p-display);
+			font-size: .45rem;
+		}
+		.studio .studio-aside {
+			padding: .75rem;
+			background: var(--p-card);
+		}
+		.studio .studio-aside p { color: var(--p-muted); font-size: .43rem; line-height: 1.45; }
+		.studio .studio-aside .produce-art {
+			height: 5rem;
+			margin-top: .7rem;
+			background:
+				radial-gradient(circle at 28% 62%, #a75a52 0 16%, transparent 17%),
+				radial-gradient(circle at 55% 38%, #d7a057 0 18%, transparent 19%),
+				radial-gradient(circle at 72% 70%, #7f8e65 0 19%, transparent 20%),
+				#ead4b8;
+		}
+
+		/* Direction C — Modern Grocer */
+		.grocer {
+			--p-bg: #f2f5f7;
+			--p-card: #ffffff;
+			--p-ink: #111827;
+			--p-muted: #64748b;
+			--p-line: #d9e0e7;
+			--p-accent: #f05a3f;
+			--p-action: #ef5b40;
+			--p-action-ink: white;
+			--p-herb: #07885d;
+			--p-warn: #b45309;
+			--p-warn-bg: #fff7e8;
+			--p-display: Inter, ui-sans-serif, system-ui, sans-serif;
+			--p-radius-sm: .55rem;
+		}
+		.board[data-theme="dark"] .grocer {
+			--p-bg: #0b1220;
+			--p-card: #111b2c;
+			--p-ink: #f8fafc;
+			--p-muted: #9caac0;
+			--p-line: #28364b;
+			--p-accent: #ff8068;
+			--p-action: #ff7055;
+			--p-action-ink: #151a24;
+			--p-herb: #47d7a0;
+			--p-warn: #ffc36d;
+			--p-warn-bg: #282316;
+		}
+		.grocer .grocer-top {
+			padding: 1.8rem .9rem .75rem;
+			background: #14283b;
+			color: white;
+		}
+		.board[data-theme="dark"] .grocer .grocer-top { background: #0f1b2c; }
+		.grocer .grocer-top .row { display: flex; align-items: center; justify-content: space-between; gap: .65rem; }
+		.grocer .grocer-top h3 { margin: 0; font-size: 1.15rem; letter-spacing: -.035em; }
+		.grocer .grocer-top small { color: #b8c7d5; font-size: .55rem; }
+		.grocer .grocer-offline { border-radius: .4rem; padding: .3rem .45rem; background: #fff0d7; color: #9b520b; font-size: .52rem; font-weight: 850; }
+		.grocer .grocer-week {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-top: .75rem;
+			padding-top: .65rem;
+			border-top: 1px solid rgb(255 255 255 / 14%);
+		}
+		.grocer .grocer-week b { font-size: .65rem; }
+		.grocer .grocer-week span { color: #b8c7d5; font-size: .52rem; }
+		.grocer .grocer-body { padding: .75rem .9rem 6rem; }
+		.grocer .grocer-filters { display: flex; gap: .35rem; margin-bottom: .75rem; overflow: hidden; }
+		.grocer .grocer-filters .mock-pill { border-radius: .42rem; }
+		.grocer .grocer-alert {
+			display: grid;
+			grid-template-columns: auto 1fr auto;
+			gap: .55rem;
+			align-items: center;
+			margin-bottom: .8rem;
+			padding: .65rem;
+			border: 1px solid color-mix(in srgb, var(--p-warn) 34%, var(--p-line));
+			border-radius: .55rem;
+			background: var(--p-warn-bg);
+		}
+		.grocer .grocer-alert strong { display: block; font-size: .65rem; }
+		.grocer .grocer-alert span { display: block; margin-top: .12rem; color: var(--p-muted); font-size: .5rem; }
+		.grocer .grocer-alert a { color: var(--p-warn); font-size: .53rem; font-weight: 850; }
+		.grocer .grocer-group {
+			margin-bottom: .65rem;
+			overflow: hidden;
+			border: 1px solid var(--p-line);
+			border-radius: .6rem;
+			background: var(--p-card);
+		}
+		.grocer .grocer-group-head {
+			display: flex;
+			justify-content: space-between;
+			padding: .55rem .65rem;
+			background: color-mix(in srgb, var(--p-herb) 8%, var(--p-card));
+			font-size: .62rem;
+			font-weight: 850;
+		}
+		.grocer .grocer-group-head span { color: var(--p-muted); font-size: .5rem; }
+		.grocer .grocer-row {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			gap: .6rem;
+			align-items: center;
+			min-height: 3.45rem;
+			padding: 0 .65rem;
+			border-top: 1px solid var(--p-line);
+		}
+		.grocer .grocer-row b { display: block; font-size: .64rem; }
+		.grocer .grocer-row small { display: block; color: var(--p-muted); font-size: .5rem; }
+		.grocer .grocer-row .status { color: var(--p-herb); font-size: .52rem; font-weight: 850; }
+		.grocer .grocer-dock {
+			position: absolute;
+			z-index: 10;
+			right: .55rem;
+			bottom: 4.15rem;
+			left: .55rem;
+			display: grid;
+			grid-template-columns: .72fr 1.28fr;
+			gap: .4rem;
+			padding: .4rem;
+			border: 1px solid var(--p-line);
+			border-radius: .7rem;
+			background: var(--p-card);
+			box-shadow: 0 10px 30px rgb(11 18 32 / 18%);
+		}
+		.grocer .grocer-recipe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; margin-top: .75rem; }
+		.grocer .grocer-recipe {
+			overflow: hidden;
+			border: 1px solid var(--p-line);
+			border-radius: .62rem;
+			background: var(--p-card);
+		}
+		.grocer .grocer-recipe .art {
+			position: relative;
+			height: 4.5rem;
+			background: linear-gradient(145deg, #e5ebef, #d0dce1);
+		}
+		.board[data-theme="dark"] .grocer .grocer-recipe .art { background: linear-gradient(145deg, #1d2a3d, #27364b); }
+		.grocer .grocer-recipe .art::after {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			width: 2rem;
+			height: 1.35rem;
+			transform: translate(-50%, -50%);
+			border: 2px solid var(--p-herb);
+			border-radius: 50% 50% 40% 40%;
+			content: "";
+		}
+		.grocer .grocer-recipe .copy { padding: .55rem; }
+		.grocer .grocer-recipe h4 { margin: 0; font-size: .65rem; line-height: 1.2; }
+		.grocer .grocer-recipe .meta { display: flex; justify-content: space-between; margin: .3rem 0 .5rem; color: var(--p-muted); font-size: .49rem; }
+		.grocer .grocer-recipe .actions { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem; }
+		.grocer .grocer-recipe .actions span { min-height: 1.7rem; border-radius: .4rem; font-size: .5rem; }
+		.grocer .grocer-desktop { display: grid; grid-template-columns: 22% 1fr; height: 100%; }
+		.grocer .grocer-sidebar { padding: 1.1rem .75rem; background: #14283b; color: white; }
+		.board[data-theme="dark"] .grocer .grocer-sidebar { background: #0f1b2c; }
+		.grocer .grocer-brand { margin-bottom: 1rem; font-size: .64rem; font-weight: 850; }
+		.grocer .grocer-side-link {
+			display: flex;
+			align-items: center;
+			gap: .4rem;
+			margin: .2rem 0;
+			padding: .45rem .5rem;
+			border-radius: .35rem;
+			color: #bfccd7;
+			font-size: .42rem;
+		}
+		.grocer .grocer-side-link::before { width: .45rem; height: .45rem; border: 1px solid currentColor; border-radius: .12rem; content: ""; }
+		.grocer .grocer-side-link.active { background: rgb(255 255 255 / 11%); color: white; }
+		.grocer .grocer-main { padding: 1rem; }
+		.grocer .grocer-main-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: .65rem; }
+		.grocer .grocer-main-top h3 { margin: 0; font-size: .8rem; }
+		.grocer .grocer-main-top span { color: var(--p-muted); font-size: .4rem; }
+		.grocer .grocer-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: .45rem; margin-bottom: .55rem; }
+		.grocer .grocer-kpis div { padding: .55rem; border: 1px solid var(--p-line); border-radius: .45rem; background: var(--p-card); }
+		.grocer .grocer-kpis b { display: block; font-size: .78rem; }
+		.grocer .grocer-kpis span { color: var(--p-muted); font-size: .38rem; }
+		.grocer .grocer-table { overflow: hidden; border: 1px solid var(--p-line); border-radius: .5rem; background: var(--p-card); }
+		.grocer .grocer-table-head, .grocer .grocer-table-row {
+			display: grid;
+			grid-template-columns: 1.4fr .55fr .55fr .7fr;
+			gap: .4rem;
+			align-items: center;
+			padding: .45rem .55rem;
+			border-top: 1px solid var(--p-line);
+			font-size: .4rem;
+		}
+		.grocer .grocer-table-head { border-top: 0; background: color-mix(in srgb, var(--p-herb) 7%, var(--p-card)); color: var(--p-muted); font-weight: 850; text-transform: uppercase; }
+		.grocer .grocer-table-row b { font-size: .44rem; }
+		.grocer .grocer-table-row .warning { color: var(--p-warn); font-weight: 850; }
+
+		.screen-caption {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: .75rem;
+			padding: .7rem .2rem .1rem;
+			color: #5e6a64;
+			font-size: .68rem;
+		}
+		.screen-caption b { color: #27342d; }
+
+		.decision {
+			margin-top: 2rem;
+			padding: clamp(1rem, 3vw, 2rem);
+			border: 1px solid var(--line);
+			border-radius: 1.4rem;
+			background: white;
+			box-shadow: var(--shadow);
+		}
+		.decision-head {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 1rem;
+			align-items: start;
+		}
+		.decision h2 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.5rem); letter-spacing: -.045em; }
+		.decision-head p { max-width: 700px; margin: .55rem 0 0; color: var(--muted); line-height: 1.55; }
+		.default-badge {
+			border-radius: 999px;
+			padding: .45rem .65rem;
+			background: #e4eee7;
+			color: #315947;
+			font-size: .7rem;
+			font-weight: 850;
+			white-space: nowrap;
+		}
+		.choice-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: .75rem;
+			margin-top: 1.25rem;
+		}
+		.choice {
+			position: relative;
+			display: block;
+			min-height: 8rem;
+			border: 1px solid var(--line);
+			border-radius: 1rem;
+			padding: 1rem 1rem 1rem 3rem;
+			background: #fafbf9;
+		}
+		.choice:has(input:checked) {
+			border-color: #315947;
+			background: #eef5f0;
+			box-shadow: inset 0 0 0 1px #315947;
+		}
+		.choice input { position: absolute; top: 1.05rem; left: 1rem; width: 1.2rem; height: 1.2rem; accent-color: #315947; }
+		.choice strong { display: block; font-size: .95rem; }
+		.choice span { display: block; margin-top: .4rem; color: var(--muted); font-size: .76rem; line-height: 1.45; }
+		.choice small { display: block; margin-top: .65rem; color: #315947; font-size: .68rem; font-weight: 800; }
+		.carry-title { margin: 1.5rem 0 .65rem; font-size: .9rem; }
+		.carry-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+		.carry {
+			display: flex;
+			gap: .65rem;
+			align-items: start;
+			padding: .8rem;
+			border: 1px solid var(--line);
+			border-radius: .75rem;
+			color: #47554e;
+			font-size: .75rem;
+			line-height: 1.4;
+		}
+		.carry input { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; accent-color: #315947; }
+		.notes {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+			gap: 1rem;
+			margin-top: 1.25rem;
+		}
+		.field label { display: block; margin-bottom: .4rem; font-size: .73rem; font-weight: 800; }
+		.field textarea {
+			width: 100%;
+			min-height: 8.5rem;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: .8rem;
+			padding: .8rem;
+			background: #fafbf9;
+			color: var(--ink);
+			line-height: 1.5;
+		}
+		.handoff {
+			min-height: 8.5rem;
+			max-height: 18rem;
+			overflow: auto;
+			margin: 0;
+			border: 1px solid var(--line);
+			border-radius: .8rem;
+			padding: .8rem;
+			background: #15221c;
+			color: #e8f0ea;
+			font: .68rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+			white-space: pre-wrap;
+			user-select: text;
+		}
+		.decision-actions {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: .6rem;
+			margin-top: 1rem;
+		}
+		.decision-actions button {
+			min-height: 2.75rem;
+			border: 1px solid #315947;
+			border-radius: .7rem;
+			padding: 0 .9rem;
+			background: #315947;
+			color: white;
+			font-size: .78rem;
+			font-weight: 800;
+		}
+		.decision-actions button.secondary { background: white; color: #315947; }
+		.save-state { margin-left: auto; color: var(--muted); font-size: .72rem; }
+		.source-note {
+			margin: 1.25rem 0 0;
+			padding-top: 1rem;
+			border-top: 1px solid var(--line);
+			color: var(--muted);
+			font-size: .7rem;
+			line-height: 1.5;
+		}
+		code { color: #315947; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+		@media (max-width: 1120px) {
+			.direction-grid { grid-template-columns: 1fr; }
+			.direction { display: grid; grid-template-columns: minmax(18rem, .8fr) minmax(20rem, 1.2fr); }
+			.direction-head { align-self: start; }
+			.prototype-wrap { border-top: 0; border-left: 1px solid var(--line); }
+			.direction-head p { min-height: 0; }
+			.phone-stage { height: 680px; }
+		}
+		@media (max-width: 760px) {
+			.hero { padding-top: 2.5rem; }
+			.audit-strip, .choice-grid, .carry-grid, .notes { grid-template-columns: 1fr; }
+			.audit-strip div { min-height: auto; }
+			.toolbar { position: static; }
+			.direction { display: block; }
+			.prototype-wrap { border-top: 1px solid var(--line); border-left: 0; }
+			.phone-stage { height: 650px; }
+			.decision-head { grid-template-columns: 1fr; }
+			.default-badge { width: fit-content; }
+			.save-state { width: 100%; margin-left: 0; }
+		}
+		@media (max-width: 430px) {
+			.review-shell, .hero { padding-inline: .75rem; }
+			.segmented { display: grid; width: 100%; grid-template-columns: repeat(3, 1fr); }
+			.segmented button { padding: 0 .35rem; }
+			.theme-toggle { width: 100%; justify-content: center; }
+			.phone-stage { height: 640px; border-width: 5px; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			html { scroll-behavior: auto; }
+			* { transition: none !important; }
+		}
+	</style>
+</head>
+<body>
+	<header class="hero">
+		<p class="kicker">App House Style · second pass</p>
+		<h1>Which kitchen should Keukenbrein become?</h1>
+		<p>
+			The first pass standardized components but left the app visually fragmented. These three
+			directions rebuild the composition, typography, density, and dark theme together. Every
+			frame below uses the same difficult content.
+		</p>
+		<div class="audit-strip" aria-label="Audit findings">
+			<div><strong>Use the canvas</strong><span>Stock and Recipes currently leave most desktop space empty.</span></div>
+			<div><strong>Remove visual noise</strong><span>Too many frames and borders give every region equal weight.</span></div>
+			<div><strong>Design dark mode</strong><span>Secondary actions must remain visible without muddy olive-on-olive surfaces.</span></div>
+		</div>
+	</header>
+
+	<main class="review-shell">
+		<section class="board" id="board" data-screen="shopping" data-theme="light" aria-labelledby="compare-title">
+			<h2 id="compare-title" class="sr-only">Compare the three design directions</h2>
+			<div class="toolbar">
+				<div class="segmented" role="group" aria-label="Preview screen">
+					<button type="button" data-screen-button="shopping" aria-pressed="true">Shopping · phone</button>
+					<button type="button" data-screen-button="recipes" aria-pressed="false">Recipes · phone</button>
+					<button type="button" data-screen-button="stock" aria-pressed="false">Stock · desktop</button>
+				</div>
+				<button type="button" class="theme-toggle" id="themeToggle" aria-pressed="false">
+					<i aria-hidden="true"></i>
+					<span>Show dark state</span>
+				</button>
+			</div>
+
+			<div class="direction-grid">
+				<article class="direction">
+					<header class="direction-head">
+						<div class="direction-label"><span>Direction A</span><span>Recommended</span></div>
+						<h2>Soft Utility</h2>
+						<p>Calm, contemporary, and content-led. Repeated household work stays easy to scan without feeling clinical.</p>
+						<div class="tradeoff">
+							<div><b>Strength</b><span>Best daily rhythm and lowest visual maintenance.</span></div>
+							<div><b>Trade-off</b><span>Purposefully quieter than the other options.</span></div>
+						</div>
+					</header>
+					<div class="prototype-wrap soft">
+						<div class="view view-shopping">
+							<div class="phone-stage">
+								<div class="phone-screen">
+									<div class="phone-scroll">
+										<header class="mobile-top">
+											<div class="row"><div><small>This week</small><h3>Shopping</h3></div><span class="mock-pill">AH offline</span></div>
+										</header>
+										<div class="soft-body">
+											<div class="soft-context"><b>Week 31 · Wed 29 Jul – Tue 4 Aug</b><span>View meal plan</span></div>
+											<div class="soft-filter-row">
+												<span class="mock-pill active">All</span><span class="mock-pill">Weekly items</span><span class="mock-pill">Primary Stew</span><span class="mock-pill">Secondary Stew</span>
+											</div>
+											<div class="soft-notice">
+												<i>!</i><div><b>Check the previous AH result</b><span>AH may have received one item. Check before trying again.</span></div><a>Open AH</a>
+											</div>
+											<section class="soft-section">
+												<div class="soft-section-head"><h4>E2E Primary Stew</h4><span>1 item</span></div>
+												<div class="soft-list"><div class="soft-row"><i class="mock-checkbox"></i><div><b>E2E primaire tomaten</b><small>2 cans · E2E Primary Stew</small></div><span class="soft-select">Always</span></div></div>
+											</section>
+											<section class="soft-section">
+												<div class="soft-section-head"><h4>E2E Secondary Stew</h4><span>1 item</span></div>
+												<div class="soft-list"><div class="soft-row"><i class="mock-checkbox"></i><div><b>E2E secundaire tomaten</b><small>2 cans · E2E Secondary Stew</small></div><span class="soft-select">Always</span></div></div>
+											</section>
+											<section class="soft-section">
+												<div class="soft-section-head"><h4>Other items</h4><span>12 remaining</span></div>
+												<div class="soft-list">
+													<div class="soft-row"><i class="mock-checkbox"></i><div><b>E2E primaire amandelen</b><small>1 piece</small></div><span>···</span></div>
+													<div class="soft-row"><i class="mock-checkbox"></i><div><b>E2E primaire broccoli</b><small>1 piece</small></div><span>···</span></div>
+												</div>
+											</section>
+										</div>
+										<div class="soft-dock"><span class="mock-action secondary">Add item</span><span class="mock-action">Connect AH</span></div>
+										<nav class="phone-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span class="active">Groceries</span><span>Recipes</span></nav>
+									</div>
+								</div>
+							</div>
+							<div class="screen-caption"><b>Shopping · 390 × 844</b><span>Quiet list hierarchy</span></div>
+						</div>
+						<div class="view view-recipes">
+							<div class="phone-stage">
+								<div class="phone-screen">
+									<div class="phone-scroll">
+										<header class="mobile-top"><div class="row"><div><small>Cookbook</small><h3>Recipes</h3></div><span class="mock-action">Import</span></div></header>
+										<div class="soft-body">
+											<div class="mock-search">Search recipes</div>
+											<div class="soft-filter-row"><span class="mock-pill active">All</span><span class="mock-pill">Have all</span><span class="mock-pill">Freezer staple</span><span class="mock-pill">Soup</span></div>
+											<div class="recipe-feature">
+												<article class="soft-recipe-card"><div class="art"></div><div class="copy"><h4>E2E Primary Cook Mode</h4><p>Soup · four servings</p><div class="actions"><span class="mock-action secondary">Plan</span><span class="mock-action">Make</span></div></div></article>
+												<div class="soft-recipe-stack">
+													<article class="soft-recipe-card compact"><div class="art"></div><div class="copy"><h4>E2E Primary Stew</h4><p>Soup</p><div class="actions"><span class="mock-action">Make</span></div></div></article>
+													<article class="soft-recipe-card compact"><div class="art"></div><div class="copy"><h4>E2E Secondary Stew</h4><p>Soup</p><div class="actions"><span class="mock-action secondary">Plan</span></div></div></article>
+												</div>
+											</div>
+											<div class="soft-recipe-more"><article class="soft-recipe-card compact"><div class="copy"><h4>E2E Secondary Cook Mode</h4><p>Soup · never cooked</p></div></article><article class="soft-recipe-card compact"><div class="copy"><h4>Browse all soups</h4><p>4 recipes</p></div></article></div>
+										</div>
+										<nav class="phone-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span>Groceries</span><span class="active">Recipes</span></nav>
+									</div>
+								</div>
+							</div>
+							<div class="screen-caption"><b>Recipes · 390 × 844</b><span>One feature, quiet supporting cards</span></div>
+						</div>
+						<div class="view view-stock">
+							<div class="desktop-stage">
+								<div class="desktop-screen">
+									<header class="soft-desktop-top"><div><h3>Stock</h3><p>What is ready, what needs attention, and what can wait</p></div><span class="mock-action">Add stock</span></header>
+									<div class="soft-desktop-body">
+										<div class="soft-metrics"><div><b>14</b><span>ready meals</span></div><div><b>0</b><span>targets missed</span></div><div><b>14</b><span>recipe decisions</span></div></div>
+										<div class="soft-workspace">
+											<section class="soft-table"><div class="soft-table-head"><b>Use next</b><span class="mock-pill">Meals</span></div>
+												<div class="desktop-row"><b>E2E Primary freezer meal 1</b><span>2 portions</span><span>Recipe needed</span></div>
+												<div class="desktop-row"><b>E2E Primary freezer meal 2</b><span>2 portions</span><span>Recipe needed</span></div>
+												<div class="desktop-row"><b>E2E Primary freezer meal 3</b><span>2 portions</span><span>Recipe needed</span></div>
+												<div class="desktop-row"><b>E2E Primary freezer meal 4</b><span>2 portions</span><span>Recipe needed</span></div>
+											</section>
+											<aside class="soft-side"><b>Recipe coverage</b><p>Most ready meals still need a linked recipe. Work through them when convenient.</p><div class="coverage-bar"></div><p>0 linked · 14 to decide</p><span class="mock-action secondary">Review coverage</span></aside>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="screen-caption"><b>Stock · 1280 × 900</b><span>Balanced work area</span></div>
+						</div>
+					</div>
+				</article>
+
+				<article class="direction">
+					<header class="direction-head">
+						<div class="direction-label"><span>Direction B</span><span>Food-led</span></div>
+						<h2>Cookbook Studio</h2>
+						<p>Warm, editorial, and expressive. Food and meal context lead; task controls attach to the item they affect.</p>
+						<div class="tradeoff">
+							<div><b>Strength</b><span>Most inviting and distinctive recipe experience.</span></div>
+							<div><b>Trade-off</b><span>Lower information density and stronger image needs.</span></div>
+						</div>
+					</header>
+					<div class="prototype-wrap studio">
+						<div class="view view-shopping">
+							<div class="phone-stage">
+								<div class="phone-screen">
+									<div class="phone-scroll">
+										<header class="studio-mast"><small>This week</small><h3>Shopping list</h3><div class="studio-date">Wednesday 29 July · Week 31</div></header>
+										<div class="studio-body">
+											<div class="studio-tabs"><span class="active">Everything</span><span>Weekly</span><span>Primary Stew</span><span>Secondary</span></div>
+											<div class="studio-alert"><em>AH may have received one item from the previous send.</em><span>Check AH before trying again.</span><a>Review the result</a></div>
+											<section class="studio-section"><h4>E2E Primary Stew <span>one item</span></h4><div class="studio-row"><i class="mock-checkbox"></i><div><b>E2E primaire tomaten</b><small>2 cans · from the meal plan</small></div><span class="studio-tag">Always</span></div></section>
+											<section class="studio-section"><h4>E2E Secondary Stew <span>one item</span></h4><div class="studio-row"><i class="mock-checkbox"></i><div><b>E2E secundaire tomaten</b><small>2 cans · from the meal plan</small></div><span class="studio-tag">Always</span></div></section>
+											<section class="studio-section"><h4>From the pantry note <span>12 items</span></h4>
+												<div class="studio-row"><i class="mock-checkbox"></i><div><b>E2E primaire amandelen</b><small>1 piece</small></div><span>···</span></div>
+												<div class="studio-row"><i class="mock-checkbox"></i><div><b>E2E primaire broccoli</b><small>1 piece</small></div><span>···</span></div>
+											</section>
+										</div>
+										<div class="studio-dock"><span class="mock-action secondary">Add an item</span><span class="mock-action">Connect Albert Heijn</span></div>
+										<nav class="phone-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span class="active">Groceries</span><span>Recipes</span></nav>
+									</div>
+								</div>
+							</div>
+							<div class="screen-caption"><b>Shopping · 390 × 844</b><span>Editorial rhythm</span></div>
+						</div>
+						<div class="view view-recipes">
+							<div class="phone-stage">
+								<div class="phone-screen">
+									<div class="phone-scroll">
+										<header class="studio-mast"><small>Your cookbook</small><h3>What shall we make?</h3><div class="studio-date">Four recipes in the kitchen</div></header>
+										<div class="studio-body">
+											<div class="mock-search">Search the cookbook</div>
+											<div class="studio-tabs"><span class="active">All recipes</span><span>Have all</span><span>Freezer</span><span>Soup</span></div>
+											<div class="studio-recipe-intro"><div><h4>Soup for the week</h4><p>Ready to plan or cook</p></div><span class="mock-action">Import</span></div>
+											<div class="studio-recipe-grid">
+												<article class="studio-recipe-card"><div class="art"></div><div class="copy"><h5>E2E Primary Cook Mode</h5><p>Soup · four servings</p><div class="actions"><span>Plan it</span><span class="mock-action">Make</span></div></div></article>
+												<article class="studio-recipe-card"><div class="art"></div><div class="copy"><h5>E2E Primary Stew</h5><p>Soup · four servings</p><div class="actions"><span>Plan it</span><span class="mock-action">Make</span></div></div></article>
+												<article class="studio-recipe-card"><div class="art"></div><div class="copy"><h5>E2E Secondary Cook Mode</h5><p>Soup · never cooked</p><div class="actions"><span>Plan it</span><span class="mock-action">Make</span></div></div></article>
+												<article class="studio-recipe-card"><div class="art"></div><div class="copy"><h5>E2E Secondary Stew</h5><p>Soup · four servings</p><div class="actions"><span>Plan it</span><span class="mock-action">Make</span></div></div></article>
+											</div>
+										</div>
+										<nav class="phone-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span>Groceries</span><span class="active">Recipes</span></nav>
+									</div>
+								</div>
+							</div>
+							<div class="screen-caption"><b>Recipes · 390 × 844</b><span>Image-led cookbook</span></div>
+						</div>
+						<div class="view view-stock">
+							<div class="desktop-stage">
+								<div class="desktop-screen">
+									<header class="studio-desktop-mast"><div><small>The household pantry</small><h3>Stock worth using next</h3></div><em>Fourteen ready meals · Wednesday 29 July</em></header>
+									<div class="studio-desktop-body">
+										<section class="studio-desktop-list"><h4>The freezer shelf</h4>
+											<div class="studio-desktop-row"><b>E2E Primary freezer meal 1</b><span>2 portions</span><span>Recipe needed</span></div>
+											<div class="studio-desktop-row"><b>E2E Primary freezer meal 2</b><span>2 portions</span><span>Recipe needed</span></div>
+											<div class="studio-desktop-row"><b>E2E Primary freezer meal 3</b><span>2 portions</span><span>Recipe needed</span></div>
+											<div class="studio-desktop-row"><b>E2E Primary freezer meal 4</b><span>2 portions</span><span>Recipe needed</span></div>
+										</section>
+										<aside class="studio-aside"><h4>Cook from what is here</h4><p>Fourteen meals are ready. Link recipes when you want them to return to the weekly rotation.</p><span class="mock-action">Review the shelf</span><div class="produce-art"></div></aside>
+									</div>
+								</div>
+							</div>
+							<div class="screen-caption"><b>Stock · 1280 × 900</b><span>Editorial shelf and story</span></div>
+						</div>
+					</div>
+				</article>
+
+				<article class="direction">
+					<header class="direction-head">
+						<div class="direction-label"><span>Direction C</span><span>Data-led</span></div>
+						<h2>Modern Grocer</h2>
+						<p>Crisp, compact, and operational. Strong alignment supports fast filtering, checking off, and desktop work.</p>
+						<div class="tradeoff">
+							<div><b>Strength</b><span>Fastest scanning and strongest desktop structure.</span></div>
+							<div><b>Trade-off</b><span>Feels less warm and domestic.</span></div>
+						</div>
+					</header>
+					<div class="prototype-wrap grocer">
+						<div class="view view-shopping">
+							<div class="phone-stage">
+								<div class="phone-screen">
+									<div class="phone-scroll">
+										<header class="grocer-top"><div class="row"><div><small>Week 31</small><h3>Shopping</h3></div><span class="grocer-offline">AH offline</span></div><div class="grocer-week"><b>Wed 29 Jul – Tue 4 Aug</b><span>View plan</span></div></header>
+										<div class="grocer-body">
+											<div class="grocer-filters"><span class="mock-pill active">All</span><span class="mock-pill">Weekly</span><span class="mock-pill">Primary Stew</span><span class="mock-pill">Secondary</span></div>
+											<div class="grocer-alert"><strong>!</strong><div><strong>AH result unknown</strong><span>Check AH before sending again</span></div><a>Open AH</a></div>
+											<section class="grocer-group"><div class="grocer-group-head">E2E Primary Stew <span>1 item</span></div><div class="grocer-row"><i class="mock-checkbox"></i><div><b>E2E primaire tomaten</b><small>2 cans · meal plan</small></div><span class="status">Always</span></div></section>
+											<section class="grocer-group"><div class="grocer-group-head">E2E Secondary Stew <span>1 item</span></div><div class="grocer-row"><i class="mock-checkbox"></i><div><b>E2E secundaire tomaten</b><small>2 cans · meal plan</small></div><span class="status">Always</span></div></section>
+											<section class="grocer-group"><div class="grocer-group-head">Other items <span>12</span></div>
+												<div class="grocer-row"><i class="mock-checkbox"></i><div><b>E2E primaire amandelen</b><small>1 piece</small></div><span>···</span></div>
+												<div class="grocer-row"><i class="mock-checkbox"></i><div><b>E2E primaire broccoli</b><small>1 piece</small></div><span>···</span></div>
+											</section>
+										</div>
+										<div class="grocer-dock"><span class="mock-action secondary">Add item</span><span class="mock-action">Connect AH</span></div>
+										<nav class="phone-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span class="active">Groceries</span><span>Recipes</span></nav>
+									</div>
+								</div>
+							</div>
+							<div class="screen-caption"><b>Shopping · 390 × 844</b><span>Compact operational groups</span></div>
+						</div>
+						<div class="view view-recipes">
+							<div class="phone-stage">
+								<div class="phone-screen">
+									<div class="phone-scroll">
+										<header class="grocer-top"><div class="row"><div><small>4 available</small><h3>Recipes</h3></div><span class="mock-action">Import</span></div><div class="grocer-week"><b>Recipe library</b><span>Sort A–Z</span></div></header>
+										<div class="grocer-body">
+											<div class="mock-search">Search recipes</div>
+											<div class="grocer-filters"><span class="mock-pill active">All</span><span class="mock-pill">Have all</span><span class="mock-pill">Freezer</span><span class="mock-pill">Soup</span></div>
+											<div class="grocer-recipe-grid">
+												<article class="grocer-recipe"><div class="art"></div><div class="copy"><h4>E2E Primary Cook Mode</h4><div class="meta"><span>Soup</span><span>4 servings</span></div><div class="actions"><span class="mock-action secondary">Plan</span><span class="mock-action">Make</span></div></div></article>
+												<article class="grocer-recipe"><div class="art"></div><div class="copy"><h4>E2E Primary Stew</h4><div class="meta"><span>Soup</span><span>4 servings</span></div><div class="actions"><span class="mock-action secondary">Plan</span><span class="mock-action">Make</span></div></div></article>
+												<article class="grocer-recipe"><div class="art"></div><div class="copy"><h4>E2E Secondary Cook Mode</h4><div class="meta"><span>Soup</span><span>Never cooked</span></div><div class="actions"><span class="mock-action secondary">Plan</span><span class="mock-action">Make</span></div></div></article>
+												<article class="grocer-recipe"><div class="art"></div><div class="copy"><h4>E2E Secondary Stew</h4><div class="meta"><span>Soup</span><span>4 servings</span></div><div class="actions"><span class="mock-action secondary">Plan</span><span class="mock-action">Make</span></div></div></article>
+											</div>
+										</div>
+										<nav class="phone-nav"><span>Assistant</span><span>Stock</span><span>Plan</span><span>Groceries</span><span class="active">Recipes</span></nav>
+									</div>
+								</div>
+							</div>
+							<div class="screen-caption"><b>Recipes · 390 × 844</b><span>Compact, structured cards</span></div>
+						</div>
+						<div class="view view-stock">
+							<div class="desktop-stage">
+								<div class="desktop-screen grocer-desktop">
+									<aside class="grocer-sidebar"><div class="grocer-brand">Keukenbrein</div><div class="grocer-side-link">Assistant</div><div class="grocer-side-link active">Stock</div><div class="grocer-side-link">Meal plan</div><div class="grocer-side-link">Shopping</div><div class="grocer-side-link">Recipes</div><div class="grocer-side-link">Settings</div></aside>
+									<main class="grocer-main">
+										<div class="grocer-main-top"><div><h3>Stock</h3><span>Ready meals and pantry coverage</span></div><span class="mock-action">Add stock</span></div>
+										<div class="grocer-kpis"><div><b>14</b><span>ready meals</span></div><div><b>0</b><span>targets missed</span></div><div><b>14</b><span>recipes to link</span></div></div>
+										<div class="grocer-table">
+											<div class="grocer-table-head"><span>Item</span><span>On hand</span><span>Location</span><span>Status</span></div>
+											<div class="grocer-table-row"><b>E2E Primary freezer meal 1</b><span>2 portions</span><span>Freezer</span><span class="warning">Recipe needed</span></div>
+											<div class="grocer-table-row"><b>E2E Primary freezer meal 2</b><span>2 portions</span><span>Freezer</span><span class="warning">Recipe needed</span></div>
+											<div class="grocer-table-row"><b>E2E Primary freezer meal 3</b><span>2 portions</span><span>Freezer</span><span class="warning">Recipe needed</span></div>
+											<div class="grocer-table-row"><b>E2E Primary freezer meal 4</b><span>2 portions</span><span>Freezer</span><span class="warning">Recipe needed</span></div>
+											<div class="grocer-table-row"><b>E2E Primary freezer meal 5</b><span>2 portions</span><span>Freezer</span><span class="warning">Recipe needed</span></div>
+										</div>
+									</main>
+								</div>
+							</div>
+							<div class="screen-caption"><b>Stock · 1280 × 900</b><span>Desktop operations console</span></div>
+						</div>
+					</div>
+				</article>
+			</div>
+		</section>
+
+		<section class="decision" aria-labelledby="decision-title">
+			<div class="decision-head">
+				<div><h2 id="decision-title">Choose the direction to refine</h2><p>Select one primary direction. You can borrow a specific element from another option, but an undefined hybrid would recreate the drift this pass is meant to remove.</p></div>
+				<span class="default-badge">Default: Soft Utility</span>
+			</div>
+			<div class="choice-grid">
+				<label class="choice"><input type="radio" name="direction" value="soft" checked /><strong>A · Soft Utility</strong><span>Calm lists, a slim header, balanced desktop composition, and quiet surfaces.</span><small>Recommended for repeated phone use</small></label>
+				<label class="choice"><input type="radio" name="direction" value="studio" /><strong>B · Cookbook Studio</strong><span>Editorial rhythm, stronger food imagery, and serif reserved for expressive headings.</span><small>Choose for warmth and personality</small></label>
+				<label class="choice"><input type="radio" name="direction" value="grocer" /><strong>C · Modern Grocer</strong><span>Dense aligned rows, crisp contrast, and a dedicated desktop workspace.</span><small>Choose for operational speed</small></label>
+			</div>
+
+			<h3 class="carry-title">Optional elements to carry into the refinement</h3>
+			<div class="carry-grid">
+				<label class="carry"><input type="checkbox" name="carry" value="quiet-list-hierarchy" /><span>Use Soft Utility's quiet dividers and list hierarchy, even if another direction wins.</span></label>
+				<label class="carry"><input type="checkbox" name="carry" value="editorial-recipe-imagery" /><span>Use Cookbook Studio's larger recipe imagery and title treatment.</span></label>
+				<label class="carry"><input type="checkbox" name="carry" value="desktop-side-navigation" /><span>Use Modern Grocer's desktop side navigation and aligned Stock table.</span></label>
+			</div>
+
+			<div class="notes">
+				<div class="field">
+					<label for="notes">What should change in the selected direction?</label>
+					<textarea id="notes" placeholder="Name the exact element: header, type, color, density, hierarchy, or interaction."></textarea>
+				</div>
+				<div class="field">
+					<label for="handoff">Generated refinement handoff</label>
+					<pre class="handoff" id="handoff" tabindex="0"></pre>
+				</div>
+			</div>
+			<div class="decision-actions">
+				<button type="button" id="copyHandoff">Copy handoff</button>
+				<button type="button" class="secondary" id="resetReview">Reset review</button>
+				<span class="save-state" id="saveState" role="status">Selections save in this browser.</span>
+			</div>
+			<p class="source-note">
+				Authoritative source:
+				<code>docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md</code>.
+				This workspace chooses a direction only. It does not authorize implementation.
+			</p>
+		</section>
+	</main>
+
+	<script>
+		(() => {
+			const artifactPath = "docs/artifacts/2026-07-29-design-shotgun-app-house-style-v2.html";
+			const storageKey = `${artifactPath}::v1`;
+			const board = document.getElementById("board");
+			const themeToggle = document.getElementById("themeToggle");
+			const themeLabel = themeToggle.querySelector("span");
+			const notes = document.getElementById("notes");
+			const handoff = document.getElementById("handoff");
+			const saveState = document.getElementById("saveState");
+			const screenButtons = [...document.querySelectorAll("[data-screen-button]")];
+			const directionInputs = [...document.querySelectorAll('input[name="direction"]')];
+			const carryInputs = [...document.querySelectorAll('input[name="carry"]')];
+
+			const directions = {
+				soft: {
+					name: "Direction A — Soft Utility",
+					recommendation: "Recommended",
+					rationale: "It directly answers the audit evidence: repeated phone use, excessive framing, wasted desktop canvas, broad serif use, and muddy dark surfaces.",
+					consequence: "The refinement will prioritize quiet content hierarchy, a slim header, balanced desktop composition, clean sans-serif typography, and restrained herb/clay color."
+				},
+				studio: {
+					name: "Direction B — Cookbook Studio",
+					recommendation: "Alternative",
+					rationale: "It gives Recipes and meal choice the strongest emotional pull through editorial type, food imagery, and relaxed grouping.",
+					consequence: "The refinement will accept lower information density and will need a durable image or illustration treatment."
+				},
+				grocer: {
+					name: "Direction C — Modern Grocer",
+					recommendation: "Alternative",
+					rationale: "It provides the strongest scanning speed and desktop structure for large Stock and Shopping lists.",
+					consequence: "The refinement will prioritize aligned rows, high contrast, compact controls, and a desktop side-navigation workspace, with less domestic warmth."
+				}
+			};
+			const carryLabels = {
+				"quiet-list-hierarchy": "Carry forward Soft Utility's quiet dividers and list hierarchy.",
+				"editorial-recipe-imagery": "Carry forward Cookbook Studio's larger recipe imagery and title treatment.",
+				"desktop-side-navigation": "Carry forward Modern Grocer's desktop side navigation and aligned Stock table."
+			};
+
+			function readState() {
+				return {
+					screen: board.dataset.screen,
+					theme: board.dataset.theme,
+					direction: directionInputs.find((input) => input.checked)?.value || "soft",
+					carry: carryInputs.filter((input) => input.checked).map((input) => input.value),
+					notes: notes.value
+				};
+			}
+
+			function applyState(state) {
+				if (["shopping", "recipes", "stock"].includes(state.screen)) board.dataset.screen = state.screen;
+				if (["light", "dark"].includes(state.theme)) board.dataset.theme = state.theme;
+				const direction = directionInputs.find((input) => input.value === state.direction);
+				if (direction) direction.checked = true;
+				carryInputs.forEach((input) => { input.checked = Array.isArray(state.carry) && state.carry.includes(input.value); });
+				notes.value = typeof state.notes === "string" ? state.notes : "";
+				syncToolbar();
+			}
+
+			function syncToolbar() {
+				screenButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.screenButton === board.dataset.screen)));
+				const dark = board.dataset.theme === "dark";
+				themeToggle.setAttribute("aria-pressed", String(dark));
+				themeLabel.textContent = dark ? "Show light state" : "Show dark state";
+			}
+
+			function buildHandoff() {
+				const state = readState();
+				const selected = directions[state.direction];
+				const carries = state.carry.length
+					? state.carry.map((value) => `- ${carryLabels[value]}`).join("\n")
+					: "- No cross-direction elements selected.";
+				const userNotes = state.notes.trim() || "(No additional note.)";
+				handoff.textContent = `Load docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md and continue the design-shotgun workflow with one focused refinement round. Do not implement production code.
+
+Decision — primary visual direction
+Question: Which coherent visual direction should Keukenbrein refine before implementation?
+Options reviewed: Direction A — Soft Utility; Direction B — Cookbook Studio; Direction C — Modern Grocer.
+Selected outcome: ${selected.name}.
+Recommendation status: ${selected.recommendation}.
+Rationale: ${selected.rationale}
+Practical consequence: ${selected.consequence}
+Evidence: real-browser audit at 375 × 812 and 1280 × 900 across Stock, Meal plan, Shopping, Recipes, and Settings; light and dark themes; long synthetic content; uncertain AH-result warning.
+Uncertainty: the comparison uses live HTML/CSS prototypes rather than the production component tree. Interaction fidelity, exact copy fit, and all route states still need the focused refinement and later implementation verification.
+
+Explicit carry-forward requests
+${carries}
+
+User note — reproduce verbatim
+${userNotes}
+
+Required next work
+- Refine the selected direction using the same Shopping phone, Recipes phone, Stock desktop, and dark Shopping evidence states.
+- Keep every product constraint and out-of-scope boundary in the authoritative brief.
+- Present the refined direction for approval.
+- Stop before implementation; a separate plan and explicit run are required.`;
+			}
+
+			function persist() {
+				buildHandoff();
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(readState()));
+					saveState.textContent = "Selections saved in this browser.";
+				} catch {
+					saveState.textContent = "Browser storage is unavailable; selections remain for this session.";
+				}
+			}
+
+			screenButtons.forEach((button) => button.addEventListener("click", () => {
+				board.dataset.screen = button.dataset.screenButton;
+				syncToolbar();
+				persist();
+			}));
+			themeToggle.addEventListener("click", () => {
+				board.dataset.theme = board.dataset.theme === "dark" ? "light" : "dark";
+				syncToolbar();
+				persist();
+			});
+			directionInputs.forEach((input) => input.addEventListener("change", persist));
+			carryInputs.forEach((input) => input.addEventListener("change", persist));
+			notes.addEventListener("input", persist);
+
+			document.getElementById("copyHandoff").addEventListener("click", async () => {
+				buildHandoff();
+				try {
+					await navigator.clipboard.writeText(handoff.textContent);
+					saveState.textContent = "Handoff copied.";
+				} catch {
+					handoff.focus();
+					const selection = window.getSelection();
+					const range = document.createRange();
+					range.selectNodeContents(handoff);
+					selection.removeAllRanges();
+					selection.addRange(range);
+					saveState.textContent = "Copy was blocked. The handoff is selected; copy it manually.";
+				}
+			});
+
+			document.getElementById("resetReview").addEventListener("click", () => {
+				applyState({ screen: "shopping", theme: "light", direction: "soft", carry: [], notes: "" });
+				try { localStorage.removeItem(storageKey); } catch {}
+				persist();
+				saveState.textContent = "Review reset to the recommended default.";
+			});
+
+			try {
+				const stored = JSON.parse(localStorage.getItem(storageKey) || "null");
+				if (stored) applyState(stored);
+			} catch {
+				saveState.textContent = "Saved review could not be restored; using the recommended default.";
+			}
+			syncToolbar();
+			buildHandoff();
+		})();
+	</script>
+</body>
+</html>

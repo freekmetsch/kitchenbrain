@@ -24,16 +24,18 @@ async function expectRouteFrame(page: Page, route: string, width: number): Promi
 	}
 }
 
-async function expectHeaderRail(page: Page, width: number): Promise<void> {
-	const rail = page.locator('.ui-kitchen-header-rail');
-	await expect(rail).toBeVisible();
-	const boxes = await rail.locator('.ui-kitchen-header-rail-cell').evaluateAll((cells) =>
-		cells.map((cell) => cell.getBoundingClientRect().width)
+async function expectGreenRibbon(page: Page, width: number): Promise<void> {
+	const ribbon = page.locator('[data-house-style="green-ribbon"]');
+	await expect(ribbon).toBeVisible();
+	expect((await ribbon.boundingBox())?.height ?? 0).toBeCloseTo(width < 768 ? 64 : 72, 0);
+	expect(await ribbon.evaluate((element) => getComputedStyle(element).backgroundImage)).toBe('none');
+	expect(
+		await ribbon.locator('h1').evaluate((element) => getComputedStyle(element).fontFamily)
+	).not.toMatch(/Georgia|Times/i);
+	expect(await ribbon.locator('.kitchen-page-header-action .ui-action').count()).toBeLessThanOrEqual(
+		1
 	);
-	expect(boxes).toHaveLength(2);
-	expect(boxes[0] / boxes[1]).toBeCloseTo(42 / 58, 1);
-	const railBox = await rail.boundingBox();
-	expect(railBox?.width ?? 0).toBeCloseTo(width <= 480 ? width - 32 : 272, 0);
+	await expect(ribbon.locator('.kitchen-page-header-payload')).toHaveCount(0);
 }
 
 test('house-style roles hold across stable routes and target viewports', async ({ page }) => {
@@ -43,17 +45,21 @@ test('house-style roles hold across stable routes and target viewports', async (
 		await page.setViewportSize(viewport);
 
 		await expectRouteFrame(page, '/inventory', viewport.width);
-		await expectHeaderRail(page, viewport.width);
-		const inventoryFrame = page.locator('.ui-section-frame').first();
-		await expect(inventoryFrame).toBeVisible();
-		expect(await inventoryFrame.evaluate((element) => getComputedStyle(element).borderRadius)).toBe(
-			'8px'
+		await expectGreenRibbon(page, viewport.width);
+		const inventoryGroup = page.locator('.ui-list-group').first();
+		await expect(inventoryGroup).toBeVisible();
+		expect(await inventoryGroup.evaluate((element) => getComputedStyle(element).borderLeftWidth)).toBe(
+			'0px'
 		);
+		if (viewport.width === 1280) {
+			expect((await inventoryGroup.boundingBox())?.width ?? 0).toBeGreaterThan(650);
+		}
 
 		await expectRouteFrame(page, '/meal-plan', viewport.width);
-		await expect(page.locator('.ui-kitchen-header-rail')).toHaveCount(0);
+		await expectGreenRibbon(page, viewport.width);
 
 		await expectRouteFrame(page, '/shopping', viewport.width);
+		await expectGreenRibbon(page, viewport.width);
 		const chips = page.locator('[data-house-style="filter-chip"]:visible');
 		expect(await chips.count()).toBeGreaterThan(0);
 		for (const chip of await chips.all()) {
@@ -65,22 +71,23 @@ test('house-style roles hold across stable routes and target viewports', async (
 		}
 
 		await expectRouteFrame(page, '/recipes', viewport.width);
-		await expectHeaderRail(page, viewport.width);
+		await expectGreenRibbon(page, viewport.width);
 		const recipeCard = page.locator('.ui-recipe-card').first();
 		await expect(recipeCard).toBeVisible();
-		await expect(recipeCard).toHaveAttribute('data-category-accent', 'honey');
+		const expectedColumns = viewport.width < 768 ? 1 : viewport.width < 1088 ? 2 : 3;
 		expect(
-			await recipeCard.evaluate((element) => getComputedStyle(element, '::before').width)
-		).toBe('4px');
-		await expect(recipeCard.locator('[data-house-style="status-badge"]')).toContainText(/Soup/i);
+			(await page.locator('.recipe-grid').evaluate((element) =>
+				getComputedStyle(element).gridTemplateColumns.split(' ').length
+			))
+		).toBe(expectedColumns);
+		await expect(recipeCard.locator('.recipe-card-main:not(.has-image) figure')).toHaveCount(0);
 
 		await expectRouteFrame(page, '/settings/data', viewport.width);
+		await expectGreenRibbon(page, viewport.width);
 		const notice = page.locator('[data-house-style="notice"]').first();
 		await expect(notice).toBeVisible();
 		await expect(notice).toHaveAttribute('data-tone', 'warning');
-		expect(await notice.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
-			'none'
-		);
+		expect(await notice.evaluate((element) => getComputedStyle(element).boxShadow)).toContain('inset');
 		expect(await notice.evaluate((element) => getComputedStyle(element).borderLeftWidth)).toBe(
 			'1px'
 		);
@@ -135,6 +142,7 @@ test.describe('unauthenticated field contract', () => {
 	test('login field keeps 44px focus and invalid states', async ({ page }) => {
 		await page.setViewportSize({ width: 320, height: 900 });
 		await page.goto('/login');
+		await expectGreenRibbon(page, 320);
 		const username = page.locator('input[name="username"]');
 		await expect(username).toBeVisible();
 		expect((await username.boundingBox())?.height).toBe(44);

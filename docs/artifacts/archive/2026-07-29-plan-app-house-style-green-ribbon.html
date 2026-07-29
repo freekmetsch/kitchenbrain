@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="color-scheme" content="light">
+	<title>Keukenbrein — Green Ribbon implementation plan</title>
+	<link rel="icon" href="data:,">
+	<style>
+		:root {
+			--ink: #1e2c24;
+			--muted: #66736b;
+			--paper: #f3f0e7;
+			--white: #fffdf8;
+			--line: #d5ddd5;
+			--green: #376746;
+			--deep: #214931;
+			--soft: #dfeade;
+			--clay: #b55b42;
+			--amber: #d19a43;
+			--charcoal: #1d2521;
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			color: var(--ink);
+			background: var(--paper);
+		}
+		* { box-sizing: border-box; }
+		body { margin: 0; min-width: 320px; background:
+			radial-gradient(circle at 90% 0, rgba(55,103,70,.12), transparent 30rem),
+			var(--paper); }
+		a { color: inherit; }
+		.shell { width: min(1320px, calc(100% - 28px)); margin: 0 auto; padding: 26px 0 64px; }
+		.hero {
+			display: grid;
+			grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr);
+			gap: 34px;
+			padding: clamp(30px, 5vw, 66px);
+			border-radius: 28px;
+			background: var(--deep);
+			color: #f7faf5;
+			box-shadow: 0 24px 70px rgba(31,49,38,.16);
+		}
+		.kicker { margin: 0 0 14px; color: #bcd3bf; font-size: 11px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+		h1 { max-width: 900px; margin: 0; font-size: clamp(2.5rem, 6vw, 5.8rem); line-height: .94; letter-spacing: -.065em; }
+		.lede { max-width: 760px; margin: 22px 0 0; color: #d8e5da; font-size: clamp(1rem, 1.6vw, 1.25rem); line-height: 1.55; }
+		.status {
+			align-self: end;
+			padding: 22px;
+			border: 1px solid rgba(255,255,255,.17);
+			border-radius: 18px;
+			background: rgba(255,255,255,.075);
+		}
+		.status span { display: block; color: #bcd3bf; font-size: 10px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
+		.status strong { display: block; margin: 7px 0; font-size: 1.35rem; }
+		.status p { margin: 0; color: #dde8de; font-size: .86rem; line-height: 1.5; }
+		.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0 42px; }
+		.metric { padding: 18px; border: 1px solid var(--line); background: rgba(255,255,255,.7); }
+		.metric:first-child { border-radius: 18px 0 0 18px; }
+		.metric:last-child { border-radius: 0 18px 18px 0; }
+		.metric b { display: block; font-size: 1.75rem; letter-spacing: -.04em; }
+		.metric span { color: var(--muted); font-size: .75rem; font-weight: 760; text-transform: uppercase; letter-spacing: .07em; }
+		.section-head { display: grid; grid-template-columns: minmax(0, .8fr) minmax(300px, 1.2fr); gap: 28px; align-items: end; margin: 48px 0 18px; }
+		.section-head h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.8rem); line-height: 1; letter-spacing: -.055em; }
+		.section-head p { margin: 0; color: var(--muted); line-height: 1.6; }
+		.locked {
+			display: grid;
+			grid-template-columns: 180px minmax(0, 1fr) 220px;
+			gap: 24px;
+			align-items: center;
+			padding: 22px 25px;
+			border: 2px solid var(--green);
+			border-radius: 20px;
+			background: #edf5eb;
+		}
+		.locked .label { color: var(--green); font-size: 10px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
+		.locked strong { font-size: 1.25rem; }
+		.locked p { margin: 4px 0 0; color: #4f6255; font-size: .87rem; line-height: 1.45; }
+		.locked .note { color: #385342; font-size: .78rem; line-height: 1.45; }
+		.phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+		.phase { min-height: 218px; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.7); }
+		.phase .number { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: var(--deep); color: white; font-size: 12px; font-weight: 850; }
+		.phase h3 { margin: 18px 0 8px; font-size: 1rem; }
+		.phase p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.5; }
+		.phase .tickets { display: block; margin-top: 14px; color: var(--green); font-size: .7rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+		.ticket-list { border-top: 1px solid var(--line); }
+		.ticket {
+			display: grid;
+			grid-template-columns: 78px minmax(0, 1.3fr) minmax(200px, .7fr) 85px;
+			gap: 18px;
+			align-items: start;
+			padding: 20px 4px;
+			border-bottom: 1px solid var(--line);
+		}
+		.ticket .id { display: inline-grid; width: 54px; height: 32px; place-items: center; border-radius: 999px; background: var(--deep); color: white; font-size: .72rem; font-weight: 850; }
+		.ticket h3 { margin: 0 0 5px; font-size: 1rem; }
+		.ticket p { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.45; }
+		.ticket .proof { color: #405248; }
+		.ticket .risk { text-align: right; color: var(--clay); font-size: .72rem; font-weight: 850; }
+		.route-table, .verify-table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 16px; background: var(--white); box-shadow: 0 0 0 1px var(--line); }
+		th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-size: .81rem; line-height: 1.45; }
+		th { color: #f2f6f1; background: var(--green); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; }
+		tr:last-child td { border-bottom: 0; }
+		td:first-child { font-weight: 780; }
+		.risk-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+		.risk-card { padding: 24px; border-radius: 20px; background: var(--charcoal); color: #eef2ed; }
+		.risk-card.light { border: 1px solid #cbd8cc; background: #e9f1e7; color: var(--ink); }
+		.risk-card h3 { margin: 0 0 10px; font-size: 1.3rem; }
+		.risk-card p { margin: 0; color: #cbd5ce; font-size: .86rem; line-height: 1.55; }
+		.risk-card.light p { color: #506157; }
+		.risk-card ul { margin: 14px 0 0; padding-left: 18px; }
+		.risk-card li { margin: 7px 0; color: inherit; font-size: .8rem; line-height: 1.4; }
+		.go {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr);
+			gap: 18px;
+			align-items: center;
+			margin-top: 16px;
+			padding: 22px;
+			border: 1px solid #bcd0be;
+			border-radius: 18px;
+			background: #edf5eb;
+		}
+		.go b { display: grid; width: 56px; height: 56px; place-items: center; border-radius: 50%; background: var(--green); color: white; }
+		.go strong { display: block; }
+		.go p { margin: 4px 0 0; color: #536258; font-size: .83rem; line-height: 1.5; }
+		.handoff { margin-top: 48px; padding: clamp(24px, 4vw, 44px); border-radius: 24px; background: var(--white); box-shadow: 0 18px 48px rgba(31,49,38,.08); }
+		.handoff h2 { margin: 0; font-size: clamp(1.8rem, 3vw, 3rem); letter-spacing: -.045em; }
+		.handoff pre { margin: 18px 0 0; padding: 18px; overflow: auto; border-radius: 14px; background: #1b2b21; color: #e8efe9; white-space: pre-wrap; font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
+		.source { margin-top: 12px; color: var(--muted); font-size: .76rem; }
+		@media (max-width: 900px) {
+			.hero, .section-head, .locked { grid-template-columns: 1fr; }
+			.metrics, .phases { grid-template-columns: repeat(2, 1fr); }
+			.metric:first-child, .metric:last-child { border-radius: 14px; }
+			.ticket { grid-template-columns: 62px minmax(0, 1fr); }
+			.ticket .proof, .ticket .risk { grid-column: 2; text-align: left; }
+			.risk-panel { grid-template-columns: 1fr; }
+		}
+		@media (max-width: 560px) {
+			.shell { width: min(100% - 18px, 520px); padding-top: 9px; }
+			.hero { padding: 28px 22px; border-radius: 20px; }
+			h1 { font-size: 2.65rem; }
+			.metrics, .phases { grid-template-columns: 1fr; }
+			.section-head { margin-top: 38px; }
+			.ticket { grid-template-columns: 1fr; gap: 8px; }
+			.ticket .proof, .ticket .risk { grid-column: 1; }
+			.route-table, .verify-table { display: block; overflow-x: auto; }
+			th, td { min-width: 170px; }
+		}
+	</style>
+</head>
+<body>
+	<main class="shell">
+		<section class="hero">
+			<div>
+				<p class="kicker">Keukenbrein · implementation plan</p>
+				<h1>Green Ribbon, ready to run.</h1>
+				<p class="lede">A dependency-ordered route from the approved Soft Utility refinement to production, with the green identity preserved and every behavior boundary held.</p>
+			</div>
+			<aside class="status">
+				<span>Status</span>
+				<strong>Plan ready</strong>
+				<p>R2 shared presentation work. Nine tickets. No schema, auth, provider, AH, or persisted-data change. Execution still requires an explicit <code>$run</code>.</p>
+			</aside>
+		</section>
+
+		<div class="metrics" aria-label="Plan summary">
+			<div class="metric"><b>9</b><span>vertical tickets</span></div>
+			<div class="metric"><b>4</b><span>delivery phases</span></div>
+			<div class="metric"><b>4</b><span>priority widths</span></div>
+			<div class="metric"><b>0</b><span>open decisions</span></div>
+		</div>
+
+		<section class="locked" aria-label="Approved design">
+			<div class="label">Approved reference</div>
+			<div><strong>Soft Utility · Green Ribbon</strong><p>A slim solid herb header, clean sans typography, restrained clay actions, low framing, and balanced desktop work areas.</p></div>
+			<div class="note">“I still love the green headers and the way that was originally set up that we had though. Lets keep those”</div>
+		</section>
+
+		<section>
+			<div class="section-head">
+				<h2>Execution sequence</h2>
+				<p>The shared seam lands first. Each route family then migrates with its behavioral tests. Retired recipes disappear only after the final caller moves.</p>
+			</div>
+			<div class="phases">
+				<article class="phase"><span class="number">1</span><h3>Lock the seam</h3><p>Implement the 64/72 px ribbon, neutral utility row, and new one-action header API. Delete the paired rail.</p><span class="tickets">GR-1</span></article>
+				<article class="phase"><span class="number">2</span><h3>Migrate daily work</h3><p>Recompose Stock, Meal plan, Shopping, and the full Recipes family without touching their controllers.</p><span class="tickets">GR-2 to GR-5</span></article>
+				<article class="phase"><span class="number">3</span><h3>Close the family</h3><p>Adopt the ribbon in Settings and Login, then remove serif, frame, gradient, and marker drift.</p><span class="tickets">GR-6 to GR-8</span></article>
+				<article class="phase"><span class="number">4</span><h3>Prove and deliver</h3><p>Run both account matrices, the complete gate, Railway revision truth, and the privacy-safe canary.</p><span class="tickets">GR-9</span></article>
+			</div>
+		</section>
+
+		<section>
+			<div class="section-head">
+				<h2>Nine rollback seams</h2>
+				<p>Each ticket names one observable behavior family, its proof, and a code-only rollback. Dependencies make reverse-order reverts explicit.</p>
+			</div>
+			<div class="ticket-list">
+				<article class="ticket"><span class="id">GR-1</span><div><h3>Green Ribbon foundation</h3><p>Shared solid header, sans type, one-action API, neutral utility row, and paired-rail deletion.</p></div><p class="proof">Proof: header geometry, H1/action ownership, long-copy reflow, source guard.</p><span class="risk">R2 · L</span></article>
+				<article class="ticket"><span class="id">GR-2</span><div><h3>Stock workspace</h3><p>Neutral metrics, low-frame groups, fourteen long rows, and balanced desktop main/context columns.</p></div><p class="proof">Proof: fixtures, grid geometry, search/filter/empty, rollback and deep-link journeys.</p><span class="risk">R2 · L</span></article>
+				<article class="ticket"><span class="id">GR-3</span><div><h3>Meal-plan hierarchy</h3><p>Add meal in the ribbon; week navigation and secondary actions below; calm row grouping.</p></div><p class="proof">Proof: week URLs, Back/Forward, suggestion states, sheet focus, long copy.</p><span class="risk">R2 · M</span></article>
+				<article class="ticket"><span class="id">GR-4</span><div><h3>Shopping clarity</h3><p>Low-frame list, week/AH utility, difficult warning state, context rail, and clear dark dock.</p></div><p class="proof">Proof: all AH-result fixtures, connected/offline, focus restoration, zero real AH calls.</p><span class="risk">R2 · L</span></article>
+				<article class="ticket"><span class="id">GR-5</span><div><h3>Recipes family</h3><p>Phone rows, optional imagery, two/three desktop columns, and ribbon detail/edit headers.</p></div><p class="proof">Proof: four no-photo soups, mixed images, all actions, edit states, Cook Mode exclusion.</p><span class="risk">R2 · L</span></article>
+				<article class="ticket"><span class="id">GR-6</span><div><h3>Settings family</h3><p>One ribbon owner across the index and every panel with a readable form measure.</p></div><p class="proof">Proof: Back links, forms, warnings, theme/locale, no provider or secret access.</p><span class="risk">R2 · L</span></article>
+				<article class="ticket"><span class="id">GR-7</span><div><h3>Login adoption</h3><p>Green identity above a calm form while preserving language, invalid, pending, and redirect behavior.</p></div><p class="proof">Proof: unauthenticated matrix, session absence on failure, isolated valid redirect.</p><span class="risk">R2 · M</span></article>
+				<article class="ticket"><span class="id">GR-8</span><div><h3>Drift deletion and contract</h3><p>Delete the old rail, serif, frames, gradient/ring, and competing marker after the last caller.</p></div><p class="proof">Proof: semantic source guard plus complete browser geometry and state matrix.</p><span class="risk">R2 · M</span></article>
+				<article class="ticket"><span class="id">GR-9</span><div><h3>Gate and beta delivery</h3><p>Durable guide, both account projects, full gate, code-only PR, Railway truth, and canary.</p></div><p class="proof">Rollback: revert the feature PR; no data, auth, config, provider, or AH restoration.</p><span class="risk">R2 · M</span></article>
+			</div>
+		</section>
+
+		<section>
+			<div class="section-head">
+				<h2>Route contract</h2>
+				<p>The ribbon is shared. Each route keeps the composition that best serves its task, with mobile-first DOM order and contextual rails only when useful.</p>
+			</div>
+			<table class="route-table">
+				<thead><tr><th>Family</th><th>Phone result</th><th>Desktop result</th></tr></thead>
+				<tbody>
+					<tr><td>Stock</td><td>Metrics and tools below ribbon; Use next first.</td><td>Main work receives about two-thirds; context rail stays compact.</td></tr>
+					<tr><td>Meal plan</td><td>Add meal leads; week and secondary actions remain close.</td><td>Bounded plan measure; context rail appears only when relevant.</td></tr>
+					<tr><td>Shopping</td><td>Week/AH utility, difficult warning, grouped rows, thumb dock.</td><td>Balanced list plus AH-history rail.</td></tr>
+					<tr><td>Recipes</td><td>One content-led row; optional thumbnail, no empty placeholder.</td><td>Two tablet columns, three balanced desktop columns.</td></tr>
+					<tr><td>Settings</td><td>Ribbon index and panels; Back remains clear.</td><td>Centered readable forms with fewer containers.</td></tr>
+					<tr><td>Login</td><td>Green identity above the existing form.</td><td>Calm centered form without a heavy floating card.</td></tr>
+				</tbody>
+			</table>
+		</section>
+
+		<section>
+			<div class="section-head">
+				<h2>Verification floor</h2>
+				<p>The design is not accepted from one clean screenshot. The run must cover long content, failures, focus, dark mode, both languages, and the isolated account matrix.</p>
+			</div>
+			<table class="verify-table">
+				<thead><tr><th>Axis</th><th>Required evidence</th></tr></thead>
+				<tbody>
+					<tr><td>Geometry</td><td>320, 393, 768, 1280; 375 × 812 and 390 × 844 evidence; 200%-equivalent reflow; no document overflow or covered focus.</td></tr>
+					<tr><td>Identity</td><td>One H1; solid herb ribbon; 64/72 px at normal text; long-copy growth; one action maximum; no payload, gradient, ring, or serif.</td></tr>
+					<tr><td>States</td><td>Light/dark, English/Dutch, empty/long/loading/error/success/disabled/busy/selected and every named route-specific fixture.</td></tr>
+					<tr><td>Safety</td><td>No household DB read, provider turn, real AH preview/push, schema/auth/config change, or Dutch canonical lookup change.</td></tr>
+					<tr><td>Gates</td><td>Focused tests per ticket, diagnostics, unit tests, primary and secondary E2E, build, final <code>npm test</code>, Railway truth, canary.</td></tr>
+				</tbody>
+			</table>
+		</section>
+
+		<section>
+			<div class="section-head">
+				<h2>Risk and recovery</h2>
+				<p>This is a wide presentation sweep, but its rollback is intentionally boring: code commits and one feature-PR revert.</p>
+			</div>
+			<div class="risk-panel">
+				<article class="risk-card">
+					<h3>R2, no stage gate</h3>
+					<p>Shared primitives and every stable route change. Schema, auth, secrets, runtime config, providers, AH behavior, and persisted data do not.</p>
+					<ul><li>Opt-in kitchen tokens prevent bleed into excluded surfaces.</li><li>Route tests preserve behavior while geometry changes.</li><li>No new dependency or service enters the stack.</li></ul>
+				</article>
+				<article class="risk-card light">
+					<h3>Rollback path</h3>
+					<p>Before merge, revert tickets in reverse dependency order. After merge, revert the whole feature PR and supervise the resulting Railway deployment.</p>
+					<ul><li>No database down migration.</li><li>No auth, secret, token, volume, or config recovery.</li><li>No retained authenticated screenshot or response body.</li></ul>
+				</article>
+			</div>
+			<div class="go"><b>GO</b><div><strong>Plan critique passed.</strong><p>Nine vertical tickets, explicit failure mitigations, full browser coverage, code-only rollback, no open decision, and no high-residual-risk finding.</p></div></div>
+		</section>
+
+		<section class="handoff">
+			<h2>Execution handoff</h2>
+			<pre>Execute plan App House Style — Soft Utility Green Ribbon. Load docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md, then $run.
+
+State: Plan ready; nine dependency-ordered R2 tickets cover the shared Green Ribbon seam, Stock, Meal plan, Shopping, Recipes, Settings, Login, drift deletion, full browser verification, rollback, and beta delivery.
+
+Decisions still open: None.
+
+Do not implement from this HTML. The Markdown feature list is authoritative.</pre>
+			<p class="source">Authoritative source: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md</p>
+		</section>
+	</main>
+</body>
+</html>

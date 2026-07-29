@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import { sortLabel, type SortBy } from '$lib/recipe_sort';
 	import { weekdayName } from '$lib/weekday';
 	import { m } from '$lib/paraglide/messages';
@@ -61,20 +62,24 @@
 	<title>{m.settingsshell_title()}</title>
 </svelte:head>
 
-<div class="ui-page-shell px-4 pt-4">
-	<header class="mb-5 flex items-center justify-between gap-3">
-		<div>
-			<p class="ui-section-label">{m.settingsshell_brand_label()}</p>
-			<h1 class="text-2xl font-bold tracking-tight">{m.settingsshell_heading()}</h1>
-		</div>
+<div class="settings-page">
+	<KitchenPageHeader eyebrow={m.settingsshell_brand_label()} title={m.settingsshell_heading()} />
+	<div class="ui-page-utility">
+		<div class="ui-page-utility-inner flex items-center justify-between gap-3">
+			<div class="min-w-0">
+				<p class="ui-section-label">{m.settingsshell_panel_account()}</p>
+				<p class="truncate text-sm font-semibold">{data.username}</p>
+			</div>
 		<div class="avatar placeholder" aria-hidden="true">
 			<div class="grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-content">
 				<span class="text-sm font-semibold">{usernameInitial}</span>
 			</div>
 		</div>
-	</header>
+		</div>
+	</div>
 
-	<div class="ui-section-frame divide-y divide-base-200">
+	<main class="ui-page-shell px-4 pt-5">
+	<div class="ui-list-group divide-y divide-base-200">
 		{#each panels as panel (panel.href)}
 			<a
 				href="{base}/settings/{panel.href}"
@@ -88,4 +93,5 @@
 			</a>
 		{/each}
 	</div>
+	</main>
 </div>

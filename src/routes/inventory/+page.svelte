@@ -21,7 +21,6 @@
 	import type { InventoryScope, Item } from '$lib/components/inventory/shared';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import FilterChip from '$lib/components/ui/FilterChip.svelte';
-	import KitchenHeaderActionRail from '$lib/components/ui/KitchenHeaderActionRail.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
 	import type { PageData } from './$types';
@@ -70,32 +69,21 @@
 <!-- ── Responsive Radar Band ───────────────────────────────────────────────── -->
 <div class="stock-radar pb-[calc(var(--ui-fixed-bar-height)+1.5rem)]">
 	<KitchenPageHeader eyebrow={m.inventory_header_context()} title={m.inventory_heading()}>
-		{#snippet actions()}
-			<KitchenHeaderActionRail>
-				{#snippet secondary()}
-					<button
-						type="button"
-						class="ui-action ui-action-secondary ui-action-on-dark"
-						aria-label={m.inventory_activity_aria()}
-						onclick={() => controller.openActivity()}
-					>
-						<Icon name="clock" class="h-4 w-4" />
-					</button>
-				{/snippet}
-				{#snippet primary()}
-					<button
-						type="button"
-						class="ui-action ui-action-primary"
-						aria-expanded={controller.showAddForm}
-						onclick={() => (controller.showAddForm = true)}
-					>
-						<Icon name="plus" class="h-3.5 w-3.5" />
-						{m.inventory_add_button()}
-					</button>
-				{/snippet}
-			</KitchenHeaderActionRail>
+		{#snippet action()}
+			<button
+				type="button"
+				class="ui-action ui-action-primary"
+				aria-expanded={controller.showAddForm}
+				onclick={() => (controller.showAddForm = true)}
+			>
+				<Icon name="plus" class="h-3.5 w-3.5" />
+				{m.inventory_add_button()}
+			</button>
 		{/snippet}
+	</KitchenPageHeader>
 
+	<div class="ui-page-utility">
+		<div class="stock-overview ui-page-utility-inner">
 		<div class="stock-stats" aria-label={m.inventory_heading()}>
 				{#if controller.readyMealCount > 0}
 					<button
@@ -139,7 +127,16 @@
 					</div>
 				{/if}
 		</div>
-	</KitchenPageHeader>
+			<button
+				type="button"
+				class="stock-activity ui-action ui-action-tertiary ui-action-icon"
+				aria-label={m.inventory_activity_aria()}
+				onclick={() => controller.openActivity()}
+			>
+				<Icon name="clock" class="h-4 w-4" />
+			</button>
+		</div>
+	</div>
 
 	<main class="stock-ledger ui-kitchen-content">
 		<div class="stock-tools">
@@ -245,7 +242,7 @@
 						<span>{m.inventory_group_use_next_hint()}</span>
 					</div>
 					{#if controller.mealGroups.useNext.length > 0}
-						<ul class="stock-list stock-priority ui-section-frame divide-y">
+						<ul class="stock-list stock-priority ui-list-group divide-y">
 							{#each controller.mealGroups.useNext as entry (entry.item.id)}
 								{@render stockRow(entry.item, controller.attentionText(entry.attention))}
 							{/each}
@@ -262,7 +259,7 @@
 								<h2 class="ui-section-title">{m.inventory_group_still_plenty()}</h2>
 								<span>{m.inventory_group_visible_count({ count: controller.mealGroups.stillPlenty.length })}</span>
 							</div>
-							<ul class="stock-list ui-section-frame divide-y">
+							<ul class="stock-list ui-list-group divide-y">
 								{#each controller.mealGroups.stillPlenty as item (item.id)}
 									{@render stockRow(item, null)}
 								{/each}
@@ -278,7 +275,7 @@
 									count: controller.mealGroups.cookAgain.length + controller.ghostsVisible.length
 								})}</span>
 							</div>
-							<ul class="stock-list stock-cook-again ui-section-frame divide-y">
+							<ul class="stock-list stock-cook-again ui-list-group divide-y">
 								{#each controller.mealGroups.cookAgain as item (item.id)}
 									{@render stockRow(item, m.inventory_group_cook_again())}
 								{/each}
@@ -297,7 +294,7 @@
 					<h2 class="ui-section-title">{controller.scopeLabel(controller.scope)}</h2>
 					<span>{m.inventory_group_visible_count({ count: controller.stockRows.length })}</span>
 				</div>
-				<ul class="stock-list ui-section-frame divide-y">
+				<ul class="stock-list ui-list-group divide-y">
 					{#each controller.stockRows as item (item.id)}
 						{@render stockRow(item, null)}
 					{/each}
@@ -400,7 +397,6 @@
 <style>
 	.stock-radar {
 		--stock-olive: var(--kitchen-olive);
-		--stock-olive-deep: var(--kitchen-olive-deep);
 		--stock-olive-soft: var(--kitchen-olive-soft);
 		--stock-honey: var(--kitchen-honey);
 		--stock-honey-ink: var(--kitchen-honey-ink);
@@ -418,16 +414,24 @@
 		gap: 0.5rem;
 	}
 
+	.stock-overview {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 2.75rem;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
 	.stock-stat {
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
 		align-items: center;
-		gap: 0.55rem;
-		min-height: 3.5rem;
-		padding: 0.65rem 0.75rem;
-		border: 1px solid rgb(255 255 255 / 21%);
-		border-radius: 0.85rem;
-		background: rgb(255 255 255 / 7%);
+		gap: 0.45rem;
+		min-height: 2.75rem;
+		padding: 0.4rem 0.65rem;
+		border: 1px solid color-mix(in oklab, var(--stock-olive) 12%, var(--kitchen-line));
+		border-radius: 0.625rem;
+		background: color-mix(in oklab, var(--stock-olive) 5%, var(--stock-card));
+		color: var(--kitchen-ink);
 	}
 
 	.stock-stat-action {
@@ -442,54 +446,56 @@
 	}
 
 	.stock-stat-action:hover {
-		transform: translateY(-1px);
-		border-color: rgb(255 255 255 / 42%);
-		background: rgb(255 255 255 / 13%);
+		border-color: color-mix(in oklab, var(--stock-olive) 35%, var(--kitchen-line));
+		background: color-mix(in oklab, var(--stock-olive) 9%, var(--stock-card));
 	}
 
 	.stock-stat-action:focus-visible {
-		outline: 2px solid white;
+		outline: 2px solid var(--stock-olive);
 		outline-offset: 2px;
 	}
 
 	.stock-stat-action.active {
-		border-color: white;
-		background: white;
+		border-color: var(--stock-olive);
+		background: color-mix(in oklab, var(--stock-olive) 12%, var(--stock-card));
 		color: var(--stock-olive);
-		box-shadow: 0 8px 24px rgb(18 37 28 / 25%);
 	}
 
 	.stock-stat.attention {
-		border-color: transparent;
-		background: var(--stock-honey);
-		color: #332613;
+		border-color: color-mix(in oklab, var(--stock-honey) 42%, var(--kitchen-line));
+		background: color-mix(in oklab, var(--stock-honey) 16%, var(--stock-card));
+		color: var(--stock-honey-ink);
 	}
 
 	.stock-stat.attention:hover {
-		border-color: rgb(255 255 255 / 55%);
-		background: color-mix(in oklab, var(--stock-honey) 88%, white);
+		border-color: color-mix(in oklab, var(--stock-honey) 70%, var(--kitchen-line));
+		background: color-mix(in oklab, var(--stock-honey) 22%, var(--stock-card));
 	}
 
 	.stock-stat.attention.active {
-		border-color: white;
-		background: white;
-		color: var(--stock-olive);
+		border-color: var(--stock-honey);
+		background: color-mix(in oklab, var(--stock-honey) 26%, var(--stock-card));
+		color: var(--stock-honey-ink);
 	}
 
 	.stock-stat-zero {
-		color: rgb(255 255 255 / 72%);
+		color: var(--kitchen-muted);
 	}
 
 	.stock-stat strong {
-		font-size: 1.55rem;
+		font-size: 1.15rem;
 		line-height: 1;
 		font-variant-numeric: tabular-nums;
 	}
 
 	.stock-stat span {
-		font-size: 0.7rem;
+		font-size: 0.675rem;
 		font-weight: 650;
 		line-height: 1.2;
+	}
+
+	.stock-activity {
+		color: var(--stock-olive);
 	}
 
 	.stock-ledger {
@@ -607,21 +613,23 @@
 		--stock-row-bg: var(--stock-card);
 	}
 
+	.stock-list > li + li {
+		border-color: color-mix(in oklab, var(--stock-olive) 11%, var(--kitchen-line));
+	}
+
 	.stock-quiet {
-		overflow: hidden;
-		border: 1px solid color-mix(in oklab, var(--stock-olive) 18%, var(--color-base-300));
-		border-radius: 0.85rem;
-		background: var(--stock-card);
+		border-block: 1px solid color-mix(in oklab, var(--stock-olive) 13%, var(--color-base-300));
+		background: color-mix(in oklab, var(--stock-card) 72%, transparent);
 	}
 
 	.stock-priority {
 		--stock-row-bg: color-mix(in oklab, var(--stock-honey) 13%, var(--stock-card));
-		border-color: color-mix(in oklab, var(--stock-honey) 62%, var(--color-base-300));
+		border-color: color-mix(in oklab, var(--stock-honey) 35%, var(--color-base-300));
 		background: color-mix(in oklab, var(--stock-honey) 13%, var(--stock-card));
 	}
 
 	.stock-cook-again {
-		border-color: color-mix(in oklab, var(--stock-terra) 28%, var(--color-base-300));
+		border-color: color-mix(in oklab, var(--stock-terra) 18%, var(--color-base-300));
 	}
 
 	.stock-quiet {
@@ -643,8 +651,7 @@
 
 	@media (min-width: 48rem) {
 		.stock-stats {
-			max-width: 32rem;
-			margin-left: auto;
+			max-width: 34rem;
 		}
 
 		.stock-tools {
@@ -659,8 +666,13 @@
 		}
 
 		.stock-columns {
-			grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1.65fr);
-			gap: 1.15rem;
+			grid-template-columns: minmax(0, 2fr) minmax(19rem, 0.9fr);
+			gap: 1.5rem;
+		}
+
+		.stock-columns:not(:has(.stock-secondary-groups > *)) {
+			width: min(100%, 50rem);
+			grid-template-columns: minmax(0, 1fr);
 		}
 
 		.stock-attention .stock-list :global(.btn) {

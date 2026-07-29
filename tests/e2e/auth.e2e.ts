@@ -21,7 +21,7 @@ test.describe('logged-out login boundary', () => {
 		await expect(page).toHaveURL(new URL('/login', E2E_ORIGIN).toString(), {
 			timeout: 30_000
 		});
-		await expect(page.locator('.alert-error')).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByRole('alert')).toBeVisible({ timeout: 30_000 });
 		expect((await context.cookies(E2E_ORIGIN)).some((cookie) => cookie.name === 'session_id')).toBe(
 			false
 		);

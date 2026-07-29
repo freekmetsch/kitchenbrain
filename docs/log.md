@@ -914,3 +914,86 @@ Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.
 docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style.html,
 docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-compact-actions.html,
 docs/artifacts/archive/2026-07-29-plan-app-house-style.html
+
+## 2026-07-29 | ui + design-shotgun + html-artifact | App House Style V2
+
+Audited the shipped house style in the isolated seeded app at 375 × 812 and 1280 × 900 across
+Stock, Meal plan, Shopping, Recipes, and Settings in light and dark themes. The review found
+desktop canvas waste, over-framing, broad display-serif use, a dominant routine-page header, and
+muddy dark secondary actions.
+
+Rendered Soft Utility, Cookbook Studio, and Modern Grocer as equal-content live HTML/CSS options.
+The decision workspace compares Shopping phone, Recipes phone, Stock desktop, and a dark state,
+defaults to Soft Utility, saves explicit selections locally, and generates a forward-only
+refinement handoff. No production UI or behavior changed.
+
+Touched: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md,
+docs/artifacts/2026-07-29-design-shotgun-app-house-style-v2.html, docs/log.md
+
+## 2026-07-29 | design-shotgun + html-artifact | Soft Utility green-header refinement
+
+Recorded Soft Utility as the selected App House Style V2 direction and preserved the user's green
+header request verbatim. Refined it into five structurally distinct options: Green Ribbon, Split
+Canopy, Framed Grove, Working Header, and Layered Leaf. The board defaults to Green Ribbon and
+supports exact named carry-forwards without encouraging an undefined hybrid.
+
+Verified all five options in a real browser against equal Shopping phone, Recipes phone, Stock
+desktop, and dark Shopping evidence. The 390 px review board has no page overflow; every Stock
+prototype contains all fourteen rows; the difficult AH warning remains present in dark mode; and
+screen/theme controls, local decision persistence, reset, copy, and the forward-only planning
+handoff work without console errors. No production Svelte, CSS, behavior, data, provider, or AH
+surface changed.
+
+Touched: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md,
+docs/artifacts/2026-07-29-design-shotgun-app-house-style-v2-soft-utility-refinement.html,
+docs/log.md
+
+## 2026-07-29 | plan + ui + ux + review-work + html-artifact | Soft Utility Green Ribbon
+
+Recorded Green Ribbon as the approved App House Style V2 refinement and wrote a separate
+implementation-ready plan. Nine dependency-ordered R2 tickets cover the shared 64/72 px ribbon
+seam, Stock, Meal plan, Shopping, the Recipes family, Settings, Login, drift deletion, full
+browser verification, documentation, rollback, and ordinary beta delivery.
+
+The plan critique is GO after splitting Settings and Login into independent rollback/verification
+tickets. There are no open decisions, R3 changes, new dependencies, or deferred caller migrations.
+Production Svelte, CSS, behavior, data, auth, providers, and AH integration remain unchanged;
+implementation still requires an explicit `$run`.
+
+Touched: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md,
+docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md,
+docs/artifacts/2026-07-29-plan-app-house-style-green-ribbon.html, docs/log.md
+
+## 2026-07-30 | run + iterative ui | Soft Utility Green Ribbon
+
+Implemented the approved Green Ribbon across Stock, Meal plan, Shopping, Recipes
+index/detail/edit, Settings index/panels, and Login. The stable app now uses a solid 64/72 px
+herb identity ribbon, neutral route-utility rows, sans-serif hierarchy, low-frame repeated
+groups, content-led Recipe rows, balanced desktop work areas, and explicit dark secondary-action
+contrast. The paired action rail, decorative gradient/ring, display-serif token, generic framed
+list, raised notice edge, and Recipe category marker were retired.
+
+Three real-browser UI audit rounds covered the approved Shopping phone, Recipes phone, Stock
+desktop, dark Shopping, Settings, Meal plan, and Login evidence states. The audit closed with no
+remaining P1-P3 finding. The complete provider-free gate passed 125 unit-test files / 691 tests,
+28 primary and 28 secondary authenticated browser stories, clean Svelte diagnostics, and the
+production build. No schema, auth, provider, real AH, runtime configuration, persisted household
+data, or canonical Dutch ingredient behavior changed.
+
+Touched: docs/ui-house-style.md, src/app.css, src/lib/components/{recipe-detail,recipe-edit,settings,shopping,ui}/,
+src/lib/ui_house_style_source.test.ts, src/routes/{inventory,login,meal-plan,recipes,settings,shopping}/,
+tests/e2e/{auth,house-style}.e2e.ts,
+docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_{DESIGN_SHOTGUN_V2,GREEN_RIBBON}.md,
+docs/artifacts/2026-07-29-{design-shotgun-app-house-style-v2,design-shotgun-app-house-style-v2-soft-utility-refinement,plan-app-house-style-green-ribbon}.html
+
+## 2026-07-30 00:54 | archive-scan | 2 feature lists, 3 HTMLs archived
+
+Moved the completed App House Style V2 decision brief, implementation plan, comparison board,
+refinement board, and implementation-plan workspace into their archive directories. The
+repository has no `scripts/archive-scan.ps1`, so the validated inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md,
+docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-v2.html,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-v2-soft-utility-refinement.html,
+docs/artifacts/archive/2026-07-29-plan-app-house-style-green-ribbon.html
