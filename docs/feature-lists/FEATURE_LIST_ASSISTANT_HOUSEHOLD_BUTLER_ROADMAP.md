@@ -1,7 +1,8 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
 _Status: In flight - request-driven R3 draft stack recut and locally verified through Phase 9;
-bounded live-model verification awaits OpenRouter test credit (2026-07-29)._
+the four-model matrix is complete and two R2 provider-compatibility corrections remain
+(2026-07-29)._
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -567,13 +568,20 @@ _Completed as unmerged draft PR #45 on 2026-07-29; stacked verification is green
 
 ### Phase 10 — simplify, verify, and deliver
 
-_In progress. Provider-free and browser gates are complete; the bounded four-model live matrix is
-blocked by the existing OpenRouter key's exhausted daily limit._
+_In progress. Provider-free and browser gates plus the bounded four-model live matrix are
+complete. Forced-call recovery and provider-safe schema serialization remain._
 
 - Require the Assistant behavior suite after every exposure change and the full repository gate
   after every vertical wave.
 - Exercise both household test accounts at phone and desktop sizes without retaining household
   evidence.
+- Normalize model-visible tool schemas at the provider seam while keeping the full server-owned
+  validators authoritative, then rerun the five Gemini schema failures.
+- Treat a forced stage that returns no matching tool call as incomplete: perform one bounded
+  fallback-model retry, then fail truthfully instead of accepting prose as completion. Rerun the
+  three repeatable GPT-5 Mini misses.
+- Checkpoint slow live evaluations by bounded subset and report semantic failures separately from
+  harness spend/time limits.
 - Deliver code-only waves ordinarily; deliver each schema wide sweep through
   `wide-sweep/schema-<topic>` and stop before an irreversible production migration if beta stage
   evidence or approval is missing.
@@ -948,7 +956,7 @@ The five N-series tickets are the execution authority for the current run.
 
 ### BTL-N1 — Protect Assistant capability selection
 
-**Status: Completed 2026-07-29.**
+**Status: In progress — deterministic routing complete; two live provider corrections remain.**
 
 - **Observable behavior:** old and new representative requests retain accepted capability
   selection, required-read, review, external-effect, and final-truth behavior as the portfolio
@@ -980,10 +988,34 @@ finishing a meal. OpenRouter vendor/model IDs now stay behind the OpenRouter sea
 
 The final free gate is green: clean Svelte diagnostics, 134 Vitest files / 752 tests, production
 build, 30 primary and 30 secondary authenticated browser stories plus one expected disconnected-AH
-skip per account, and a 10/10 repeated Cook Mode hydration stress sample. Four one-case live
-provider probes each reached OpenRouter and returned `PROVIDER_CREDIT_BLOCKED` before generation:
-0 tokens and USD 0 reported. The full four-model matrix was not attempted because the existing
-key's daily USD 1 limit was already exhausted.
+skip per account, and a 10/10 repeated Cook Mode hydration stress sample.
+
+The authorized four-model matrix used only synthetic fixtures and a dedicated key with a hard
+USD 1 daily cap. Provider-measured spend was USD 0.74548598, including probes, a slow-run timeout,
+and targeted repeats. Both temporary OpenRouter keys were deleted after the run and their two
+temporary 1Password items were archived.
+
+| Model | 25-intent result | Targeted repeat | What it established |
+| --- | ---: | ---: | --- |
+| `z-ai/glm-5` | 25/25 | Not needed | The routed catalog works end to end with the shared deterministic tuning. |
+| `anthropic/claude-haiku-4.5` | 24/25 semantic pass; the remaining case crossed only the group spend bound | 1/1 | 25/25 semantic behavior; the harness must distinguish quality from a cumulative cost guard. |
+| `openai/gpt-5-mini` | 18/25 with model defaults | 4/7 recovered | Three repeatable forced stages returned no tool call: week proposal, missed-meal rollover, and grocery voice intake. No wrong-domain tool was selected. |
+| `google/gemini-2.5-flash` | 20/25 | Not repeated before correction | Five HTTP 400 failures cluster on complex action schemas rather than routing: recipe patch plus Stock action proposals. |
+
+The matrix does **not** implicate catalog overload: every case received a deterministic route of at
+most 4 tools / 5,095 serialized bytes. It exposes two shared-seam defects:
+
+1. the OpenAI-compatible serializer forwards validation keywords and nullable/union shapes that
+   are not portable across supported function-calling providers; normalize the wire schema to a
+   conservative subset, while retaining the complete server-side validator and confirmation
+   contract;
+2. the chat loop currently accepts a zero-tool response as complete even when the server forced a
+   named proposal stage; retry that exact stage once on the configured fallback model, discard
+   ungrounded iteration text, and return a truthful blocked result if the retry also misses.
+
+Close BTL-N1 only after provider-free regression coverage plus the five-case Gemini and
+three-case GPT-5 Mini targeted reruns pass. Do not broaden the routed catalog or add model-specific
+business logic to make those checks green.
 
 ### BTL-N2 — Restore request-driven trust
 
@@ -1178,12 +1210,6 @@ No product decision remains open for the corrective R2 implementation. The selec
 an optional, non-prescriptive Outcome Docket inside the triggering turn plus one generic
 client-owned working state with a collapsed, grounded “See process” disclosure.
 
-> **Q: May the live Assistant matrix use a fresh dedicated OpenRouter test key capped at USD 1?**
-> - Default: create the scoped test key, run the four approved 25-intent matrices, record only
-> synthetic aggregate evidence, then retire the key. Reason: the current household key's daily
-> limit is already exhausted, and changing or creating an external credential requires explicit
-> action-time authority. Alternative: wait for the existing key's daily limit to reset.
-
 > **Q: How should the R3 inventory branch be promoted after its replacement is verified?** -
 > Default: keep it as a draft `wide-sweep/schema-inventory-zones-targets` PR and stop before merge
 > or production migration. Reason: beta permits development and rehearsal, while real-data schema
@@ -1198,16 +1224,19 @@ client-owned working state with a collapsed, grounded “See process” disclosu
   recommendation slots are optional and grounded. Obsolete draft PRs #35/#36/#39/#40 are closed.
   Their useful work was recut without Butler service state as draft PRs #43/#44/#45. The complete
   cumulative free gate is green and every benchmark intent now receives at most four model-visible
-  tools. No R3 branch has been merged or deployed.
+  tools. The four-model live matrix is complete and its temporary provider/1Password credentials
+  are retired. It found two R2 shared-seam corrections; no R3 branch has been merged or deployed.
 - **First command:** `$run`.
 - **First files:** this feature list; `src/lib/server/ai/tools.ts`;
   `src/lib/server/ai/assistant_capability_eval.ts`;
+  `src/lib/server/ai/client.ts`; `src/routes/api/chat/+server.ts`;
   `scripts/eval/assistant-tool-selection-live.ts`.
-- **First implementation move:** after explicit credential authority, create a dedicated
-  OpenRouter test key capped at USD 1 and run the approved four-model synthetic matrix.
-- **Pending verification:** bounded live-model selection matrix; populated inventory migration
-  rehearsal and explicit beta R3 promotion decision.
-- **Open questions:** dedicated USD 1 test-key authority remains open. No R2 product choice remains.
-  Keep PR #43 as a draft and stop before merge/production migration.
+- **First implementation move:** add provider-safe model-visible schema normalization without
+  weakening server validation, then add one bounded fallback retry for a missed forced stage.
+- **Pending verification:** provider-free regressions; targeted five-case Gemini and three-case
+  GPT-5 Mini reruns under a new explicitly authorized test key if paid validation is still wanted;
+  populated inventory migration rehearsal and explicit beta R3 promotion decision.
+- **Open questions:** no R2 product choice remains. Keep PR #43 as a draft and stop before
+  merge/production migration until the explicit R3 decision.
 - **Beta wide-sweep note:** the schema/auth split applies only while recutting the fridge/par
   inventory branch. No Butler service-state migration is selected.

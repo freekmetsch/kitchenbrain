@@ -884,3 +884,31 @@ scripts/eval/assistant-tool-selection-live.ts, src/lib/server/ai/assistant_capab
 src/lib/server/ai/client.ts, src/lib/server/ai/pricing.ts, src/lib/server/ai/tools.ts,
 tests/e2e/config.ts, tests/e2e/kitchen-flows.e2e.ts,
 tests/e2e/responsive-parity.e2e.ts
+
+## 2026-07-29 | run | Request-driven Assistant four-model matrix
+
+Completed the authorized 25-intent synthetic matrix against GLM-5, Claude Haiku 4.5, GPT-5 Mini,
+and Gemini 2.5 Flash. GLM passed 25/25. Claude reached 25/25 semantic behavior after repeating one
+case that had crossed only a group spend bound. GPT passed 18/25 on its first complete default
+run and recovered four of seven failures on repeat; the three persistent misses returned no tool
+call at a forced proposal stage. Gemini passed 20/25; its five HTTP 400 failures clustered on
+complex action schemas.
+
+Every intent still received at most four model-visible tools / 5,095 serialized bytes, so the
+evidence points to forced-call recovery and provider-schema portability rather than catalog
+overload. The next R2 corrections are recorded in the authoritative roadmap. Provider-measured
+spend, including probes, one slow-run timeout, and repeats, was USD 0.74548598 under the hard
+USD 1 daily cap.
+
+Deleted both temporary OpenRouter keys, archived both temporary 1Password items, restored the
+repository secret-reference template, and retained only aggregate synthetic evidence. No
+household data, AH lookup, AH push, mutation, merge, migration, or deployment was used.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+docs/log.md
+
+## [2026-07-29 23:43] archive-scan | no archive this pass
+
+The only root-lane feature list remains in flight for the two R2 provider corrections and the
+separate R3 promotion gate. This repository still lacks the shared `scripts/archive-scan.ps1`
+helper.
