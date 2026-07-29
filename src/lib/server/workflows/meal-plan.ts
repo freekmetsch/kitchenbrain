@@ -96,6 +96,28 @@ function unrecordCookInTransaction(db: DbOrTx, mealPlanMealId: number) {
 	return { removed };
 }
 
+export function cookMealInTransaction(
+	db: DbOrTx,
+	id: number,
+	cookedDate = todayIso()
+) {
+	const result = setMealPlanStatus(db, id, 'cooked', cookedDate);
+	if (!result.ok) return result;
+	const cook = recordCookInTransaction(db, {
+		recipeSlug: result.meal.recipeSlug,
+		cookedDate,
+		source: 'plan',
+		mealPlanMealId: result.meal.id
+	});
+	return { ...result, cook };
+}
+
+export function uncookMealInTransaction(db: DbOrTx, id: number) {
+	const result = setMealPlanStatus(db, id, 'planned', null);
+	if (!result.ok) return result;
+	return { ...result, cook: unrecordCookInTransaction(db, id) };
+}
+
 type MealPlanDependencies = {
 	reconcileShopping: typeof reconcileShoppingAfterWrite;
 };
@@ -151,25 +173,11 @@ export function createMealPlanService(
 		},
 
 		cook(id: number, cookedDate = todayIso()) {
-			return db.transaction((tx) => {
-				const result = setMealPlanStatus(tx, id, 'cooked', cookedDate);
-				if (!result.ok) return result;
-				const cook = recordCookInTransaction(tx, {
-					recipeSlug: result.meal.recipeSlug,
-					cookedDate,
-					source: 'plan',
-					mealPlanMealId: result.meal.id
-				});
-				return { ...result, cook };
-			});
+			return db.transaction((tx) => cookMealInTransaction(tx, id, cookedDate));
 		},
 
 		uncook(id: number) {
-			return db.transaction((tx) => {
-				const result = setMealPlanStatus(tx, id, 'planned', null);
-				if (!result.ok) return result;
-				return { ...result, cook: unrecordCookInTransaction(tx, id) };
-			});
+			return db.transaction((tx) => uncookMealInTransaction(tx, id));
 		},
 
 		remove(id: number, options: DeleteOptions) {

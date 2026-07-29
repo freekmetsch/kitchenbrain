@@ -1,9 +1,13 @@
 import { z } from 'zod';
 import { isoDateSchema } from '$lib/date_schema';
-import { todayIso } from '$lib/week';
+import { todayIso, weekStartFor } from '$lib/week';
 import { createMealPlanService } from '$lib/server/workflows/meal-plan';
 import { getMealSuggestionContext } from '$lib/server/workflows/meal-plan-suggestions';
 import { stageMealPlanProposal } from '$lib/server/ai/meal_plan_proposal';
+import { listMissedPlannedMeals } from '$lib/server/domains/meal-plan/queries';
+import { getMealPlanMeal } from '$lib/server/domains/meal-plan/queries';
+import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import { stageAfterCookProposal } from '$lib/server/ai/after_cook_proposal';
 import type { ExecutorFn } from './shared';
 
 const MealPlanProposalOperationSchema = z.discriminatedUnion('kind', [
@@ -51,13 +55,15 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 		const input = z
 			.object({
 				weeks: z.number().int().min(1).max(12).optional(),
-				week_start_date: isoDateSchema.optional()
+				week_start_date: isoDateSchema.optional(),
+				include_missed: z.boolean().optional()
 			})
 			.parse(raw);
 		const weeks = createMealPlanService(db).weeks({
 			weeks: input.weeks,
 			weekStartDate: input.week_start_date
 		});
+		const today = todayIso();
 		return {
 			weeks: weeks.map((week) =>
 				'weekNumber' in week
@@ -67,7 +73,15 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 							meals: week.meals
 						}
 					: { week_start: week.weekStart, meals: week.meals }
-			)
+			),
+			...(input.include_missed
+				? {
+						missed_meals: listMissedPlannedMeals(db, {
+							today,
+							currentWeekStart: weekStartFor(today, getWeekStartDay(db))
+						})
+					}
+				: {})
 		};
 	},
 
@@ -109,21 +123,31 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 			: { ok: false, error: result.error };
 	},
 
-	async mark_meal_cooked(raw, db) {
+	async mark_meal_cooked(raw, db, userId) {
 		const input = z
-			.object({ id: z.number().int().positive(), cooked_date: isoDateSchema.optional() })
+			.object({
+				id: z.number().int().positive(),
+				cooked_date: isoDateSchema.optional(),
+				eaten_portions: z.number().int().positive().max(99).optional()
+			})
 			.parse(raw);
 		const cookedDate = input.cooked_date ?? todayIso();
-		const result = createMealPlanService(db).cook(input.id, cookedDate);
-		if (!result.ok) return { ok: false, error: result.error };
-		if (result.meal.source === 'freezer' && result.meal.recipeSlug) {
+		const meal = getMealPlanMeal(db, input.id);
+		if (!meal) return { ok: false, error: 'Meal not found' };
+		if (meal.source === 'freezer' && meal.recipeSlug) {
 			return {
 				ok: true,
-				meal: result.meal.dinner,
-				cooked_date: cookedDate,
-				note: `This meal was served from the freezer. Ask how many portions were eaten and deduct them from the leftover linked to recipe '${result.meal.recipeSlug}' (update_inventory_item, or remove_from_inventory when none are left).`
+				kind: 'after_cook_proposal',
+				...stageAfterCookProposal(db, {
+					userId,
+					mealId: input.id,
+					cookedDate,
+					eatenPortions: input.eaten_portions
+				})
 			};
 		}
+		const result = createMealPlanService(db).cook(input.id, cookedDate);
+		if (!result.ok) return { ok: false, error: result.error };
 		return { ok: true, meal: result.meal.dinner, cooked_date: cookedDate };
 	},
 

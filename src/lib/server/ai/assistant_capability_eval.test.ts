@@ -13,7 +13,7 @@ describe('Assistant capability quality gate', () => {
 		const measurement = measureAssistantTools(tools);
 
 		expect(measurement.count).toBe(28);
-		expect(measurement.serializedBytes).toBe(25_020);
+		expect(measurement.serializedBytes).toBe(25_300);
 		expect(() => assertAssistantToolBudget(tools)).not.toThrow();
 		expect(ASSISTANT_TOOL_BUDGET.maxCount).toBe(28);
 	});

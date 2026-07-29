@@ -144,6 +144,39 @@ describe('plan_meal', () => {
 	});
 });
 
+describe('get_meal_plan', () => {
+	it('includes deterministic missed meals only when requested', async () => {
+		const db = createTestDb();
+		db.insert(schema.mealPlanMeals)
+			.values({
+				weekNumber: 1,
+				weekStartDate: '2020-01-01',
+				dinner: 'Missed soup',
+				status: 'planned',
+				createdAt: new Date('2020-01-01T10:00:00Z')
+			})
+			.run();
+
+		const ordinary = (await executeToolCall(
+			'get_meal_plan',
+			{},
+			db,
+			1,
+			turnCtx()
+		)) as Record<string, unknown>;
+		expect(ordinary).not.toHaveProperty('missed_meals');
+
+		const included = (await executeToolCall(
+			'get_meal_plan',
+			{ include_missed: true },
+			db,
+			1,
+			turnCtx()
+		)) as { missed_meals: Array<{ dinner: string }> };
+		expect(included.missed_meals.map((meal) => meal.dinner)).toEqual(['Missed soup']);
+	});
+});
+
 describe('propose_meal_plan', () => {
 	it('returns one server-staged review and writes no meal before approval', async () => {
 		const db = createTestDb();
@@ -234,6 +267,50 @@ describe('remove_meal', () => {
 });
 
 describe('mark_meal_cooked', () => {
+	it('stages a write-nothing portion review for a linked freezer meal', async () => {
+		const db = createTestDb();
+		const recipe = seedRecipe(db, 'hachee');
+		const meal = createMealPlanService(db).create({
+			weekStartDate: WEEK,
+			dinner: 'Hachee',
+			recipeSlug: recipe.slug,
+			servings: 2,
+			source: 'freezer',
+			sourcePolicy: 'reject'
+		});
+		if (!meal.ok) throw new Error(meal.error);
+		db.insert(schema.inventoryItems)
+			.values({
+				name: 'Hachee',
+				section: 'freezer',
+				kind: 'leftover',
+				qtyNum: 3,
+				unit: 'portion',
+				madeFromRecipeId: recipe.id,
+				recipeStatus: 'linked',
+				createdAt: new Date(),
+				updatedAt: new Date()
+			})
+			.run();
+
+		const result = (await executeToolCall(
+			'mark_meal_cooked',
+			{ id: meal.meal.id, eaten_portions: 2 },
+			db,
+			1,
+			turnCtx()
+		)) as Record<string, unknown>;
+
+		expect(result).toMatchObject({
+			ok: true,
+			kind: 'after_cook_proposal',
+			availablePortions: 3,
+			defaultEatenPortions: 2
+		});
+		expect(mealById(db, meal.meal.id)).toMatchObject({ status: 'planned' });
+		expect(db.select().from(schema.inventoryOpsLog).all()).toHaveLength(0);
+	});
+
 	it('marks the meal cooked and logs the cook against the recipe', async () => {
 		const db = createTestDb();
 		const recipe = seedRecipe(db, 'stamppot');

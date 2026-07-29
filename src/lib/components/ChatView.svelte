@@ -21,6 +21,8 @@
 	import RecipeEnhancementReview from '$lib/components/chat/RecipeEnhancementReview.svelte';
 	import MealPlanReview from '$lib/components/chat/MealPlanReview.svelte';
 	import StockActionReview from '$lib/components/chat/StockActionReview.svelte';
+	import MealChoiceCards from '$lib/components/chat/MealChoiceCards.svelte';
+	import AfterCookReview from '$lib/components/chat/AfterCookReview.svelte';
 	import { toolEntityHref } from '$lib/tool_display';
 
 	let { controller }: { controller: ChatAgentController } = $props();
@@ -68,6 +70,16 @@
 		for (const message of messages) {
 			for (const tool of message.toolCalls ?? []) {
 				if (tool.display?.stockActionProposal) latest = tool.display.stockActionProposal.token;
+			}
+		}
+		return latest;
+	});
+	let latestAfterCookProposalTokens = $derived.by(() => {
+		const latest = new Map<number, string>();
+		for (const message of messages) {
+			for (const tool of message.toolCalls ?? []) {
+				const proposal = tool.display?.afterCookProposal;
+				if (proposal) latest.set(proposal.mealId, proposal.token);
 			}
 		}
 		return latest;
@@ -201,7 +213,7 @@
 		| { kind: 'activity'; tools: ToolCall[] };
 
 	function isRoutineActivity(tool: ToolCall): boolean {
-		if (tool.display?.kind === 'read') return true;
+		if (tool.display?.kind === 'read') return !tool.display.mealChoices;
 		if (tool.display?.kind !== 'error' || !tool.result || typeof tool.result !== 'object') {
 			return false;
 		}
@@ -526,6 +538,17 @@
 											<StockActionReview
 												proposal={d.stockActionProposal}
 												isLatest={latestStockActionProposalToken === d.stockActionProposal.token}
+											/>
+										{/if}
+										{#if d.kind === 'read' && d.mealChoices}
+											<MealChoiceCards choices={d.mealChoices} />
+										{/if}
+										{#if d.kind === 'proposal' && d.afterCookProposal}
+											<AfterCookReview
+												proposal={d.afterCookProposal}
+												isLatest={latestAfterCookProposalTokens.get(
+													d.afterCookProposal.mealId
+												) === d.afterCookProposal.token}
 											/>
 										{/if}
 									</div>

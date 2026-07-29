@@ -130,7 +130,10 @@
 	onclose={restoreSwapFocus}
 >
 	{#if swapIngredient?.substitutes?.length && swapCanonical?.substitutes?.length}
-		<p class="mb-3 text-sm text-base-content/60">{m.cookmode_swap_session_hint()}</p>
+		<p class="mb-1 text-sm text-base-content/60">{m.cookmode_swap_session_hint()}</p>
+		<p class="mb-3 text-xs font-medium text-base-content/55">
+			{m.cookmode_swap_scope_explainer()}
+		</p>
 		<div class="space-y-2">
 			{#each swapIngredient.substitutes as substitute, substituteIndex}
 				<div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl border border-base-300 p-1.5">
@@ -151,7 +154,7 @@
 							if (swapIngredientId) onSaveDefault(swapIngredientId, substituteIndex);
 						}}
 					>
-						{m.cookmode_swap_default_short()}
+						{m.cookmode_swap_recipe_default()}
 					</button>
 				</div>
 			{/each}

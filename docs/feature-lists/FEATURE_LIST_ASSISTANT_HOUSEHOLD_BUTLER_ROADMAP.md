@@ -1,7 +1,7 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 8 of 10 (stock and Shopping loops isolated in stacked draft PR #36;
-meal decisions and scoped choices starting)_
+_Status: In flight - Phase 9 of 10 (stock and Shopping loops isolated in stacked draft PR #36;
+meal decisions and scoped choices locally complete; cooking assistance starting)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -456,6 +456,8 @@ _Completed 2026-07-29._
   rehearsal before production approval.
 
 ### Phase 8 — meal decisions and scoped choices
+
+_Completed locally 2026-07-29._
 
 - Deliver BTL-025/026/027/028/029/030/031: leftover follow-through, comparable meal cards,
   one-time/saved substitutions and AH choices, conflict resolution, missed-meal rollover, and
@@ -941,6 +943,8 @@ claim that the monolithic gate is green. Repeat the exact gate on a quiet machin
 
 ### BTL-N4 — Deliver meal decisions and scoped choices
 
+**Status: Implemented and locally verified 2026-07-29; draft delivery is pending.**
+
 - **Ideas:** BTL-025, BTL-026, BTL-027, BTL-028, BTL-029, BTL-030, BTL-031.
 - **Risk:** R3 only if a new durable substitution scope is required; otherwise R1/R2.
 - **Verification:** comparable facts; one-time choices leave no durable state; explicit saved
@@ -949,6 +953,45 @@ claim that the monolithic gate is green. Repeat the exact gate on a quiet machin
 - **Rollback:** disable new proposal kinds and keep shipped Plan → Shop plus native recipe/cook
   routes.
 - **Dependencies:** BTL-N1, BTL-N3, and the shipped plan/AH preference seams.
+
+The existing `suggest_meals` read now renders one recommended meal and two genuinely comparable
+alternatives with exact on-hand, missing, age-pressure, effort, repeat-distance, and freezer-effect
+facts. Each card carries the shared recommendation disclosure and a validated Cook-this link that
+preserves servings plus fresh/freezer source into the native recipe route. No new model-visible
+tool was added.
+
+Missed-meal rollover is a deterministic extension of `get_meal_plan`: past uncooked meals are
+returned only when explicitly requested, then the existing reviewed `propose_meal_plan` path
+stages move/drop/keep choices and Shopping reconciliation. It never silently rolls a meal or its
+sources forward. Tool-stage fingerprints cover the missed rows and source weeks.
+
+AH preview now exposes deterministic incompatible-unit, duplicate manual/recipe, and suspicious
+multi-source totals before the external confirmation. Ambiguous candidates require an explicit
+product, text, or skip choice, and the preview token binds the conflict signature. One-time AH
+choices remain preview-local; household ingredient favorites have explicit save/replace/forget
+controls. Recipe cook substitutions now distinguish one cook from a reversible saved recipe
+default. No automatic preference inference or new durable preference schema was introduced.
+
+For linked freezer meals, `mark_meal_cooked` now prepares one write-nothing checkout card instead
+of writing immediately. The card stages the meal and oldest linked freezer lots, accepts reviewed
+eaten portions, rechecks both fingerprints, and commits cook log plus oldest-first consumption in
+one SQLite transaction. Its exact receipt reports eaten and remaining portions; Undo restores both
+domains in one transaction. Fresh meals retain the existing direct cook path. The browser card
+stays disabled until its server status check completes so a pre-hydration approval cannot be
+silently lost.
+
+The exposed catalog remains exactly 28 tools and 25,300 serialized bytes under the checked
+28/26,000 ceiling. The focused provider-free selection, stage, registry, proposal, display, and
+executor matrix passed 46/46. Svelte diagnostics report zero errors and warnings. The complete
+Assistant browser file passed all eight setup/product stories for both isolated accounts,
+including phone and desktop meal comparison, after-cook apply/Undo, Plan → Shop/AH conflicts and
+scoped favorites, Stock → Shopping, dense decision surfaces, and horizontal-overflow checks. The
+complete primary repository browser matrix passed 26/26. The full unit matrix initially found two
+AH push fixtures that manually minted tokens without the new conflict signature; after making
+those fixtures reflect production preview binding, all 132 files / 713 tests passed. The
+production adapter-node build transformed 512 server and 357 client modules successfully. A
+bounded live-provider rerun remains deferred until the previously observed provider failures
+recover; no production household content was used.
 
 ### BTL-N5 — Deliver cooking assistance
 
@@ -1108,14 +1151,19 @@ None. Feedback resolved the original gates on 2026-07-28 and promoted the litera
   `wide-sweep/schema-inventory-zones-targets`: migration 0027, fridge/par levels, the reviewed
   Stock/Shopping proposal, and deterministic staged Assistant routing. The production build and
   all 704 unit tests pass; the canonical browser run is 21/24 under documented machine contention.
-- **First command:** start Phase 8 from the PR #36 tip without merging either production migration
-  until the beta stage decision is explicit.
-- **First files:** this feature list; `src/lib/server/ai/stock_action_proposal.ts`;
+  Phase 8 is locally complete on `feature/assistant-meal-decisions`: comparable meal cards,
+  source/serving cook handoff, reviewed atomic freezer checkout with Undo, missed-meal staging,
+  AH conflict disclosure, and explicit one-time/save/forget choice scope. The catalog is still 28
+  tools / 25,300 bytes; its focused provider-free matrix is 46/46 and the full primary Assistant
+  browser file is eight/eight.
+- **First command:** deliver the Phase 8 code-only branch as a stacked draft, then start Phase 9
+  from that tip without merging migrations 0026 or 0027 until the beta stage decision is explicit.
+- **First files:** this feature list; `src/lib/components/cook-mode/`;
   `src/lib/server/ai/tools.ts`; `src/lib/server/ai/client.ts`;
-  `src/lib/components/chat/StockActionReview.svelte`; `src/lib/par_level.ts`.
-- **First implementation move:** after Phase 7 is committed and its R3 draft is open, start Phase 8
-  from BTL-025/026 using the shipped recommendation and proposal envelopes; do not expand the flat
-  tool catalog.
+  `src/lib/server/ai/turn_safety.ts`; the existing timer coordinator and recipe-step projections.
+- **First implementation move:** deliver BTL-012/032/033 through one validated client-action/cook
+  context rather than adding separate timer tools, then add grounded rescue and read-only defrost
+  preparation without notifications or durable reminder schema.
 - **Pending verification:** one quiet-machine monolithic full gate (the current run is 21/24
   browser stories after diagnostics and 704/704 unit tests); a provider-recovery rerun of the
   hardened remaining live cases; R3 PR review and beta stage decisions for migrations 0026 and

@@ -19,6 +19,7 @@
 
 	let { previewToken, items, onExternalAttempt }: Props = $props();
 	let decisions = $state<Record<string, Decision>>({});
+	let favorites = $state<Record<string, string>>({});
 	let expanded = $state<Record<string, boolean>>({});
 	let initializedFor = $state('');
 	let pushing = $state(false);
@@ -31,7 +32,10 @@
 		if (key === initializedFor) return;
 		initializedFor = key;
 		const next: Record<string, Decision> = {};
+		const nextFavorites: Record<string, string> = {};
 		for (const item of items) {
+			const favorite = item.candidates.find((candidate) => candidate.isFavorite);
+			if (favorite) nextFavorites[item.term] = favorite.id;
 			if (item.requiresExplicitDecision) continue;
 			next[item.ref] = {
 				mode: item.status === 'product' ? 'product' : 'freetext',
@@ -41,6 +45,7 @@
 			};
 		}
 		decisions = next;
+		favorites = nextFavorites;
 		expanded = {};
 		stale = false;
 		errorMessage = '';
@@ -151,6 +156,43 @@
 		};
 	}
 
+	async function toggleFavorite(
+		item: PreviewItem,
+		candidate: PreviewItem['candidates'][number],
+		index: number
+	) {
+		const wasFavorite = favorites[item.term] === candidate.id;
+		const before = { ...favorites };
+		if (wasFavorite) {
+			const { [item.term]: _removed, ...remaining } = favorites;
+			favorites = remaining;
+		} else {
+			favorites = { ...favorites, [item.term]: candidate.id };
+			pickProduct(item.ref, index);
+		}
+		errorMessage = '';
+		try {
+			const response = wasFavorite
+				? await fetch(
+						`${base}/api/shopping/ah-favorite?name=${encodeURIComponent(item.term)}`,
+						{ method: 'DELETE' }
+					)
+				: await fetch(`${base}/api/shopping/ah-favorite`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							name: item.term,
+							productId: candidate.id,
+							productName: candidate.name
+						})
+					});
+			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		} catch {
+			favorites = before;
+			errorMessage = m.shopping_toast_favorite_failed();
+		}
+	}
+
 	async function confirmPush() {
 		if (summary.unresolved > 0) {
 			errorMessage = m.shopping_ah_preference_resolution_required();
@@ -259,14 +301,15 @@
 				<AhPreviewItem
 					{item}
 					dec={decisions[item.ref]}
-					favoriteId={undefined}
+					favoriteId={favorites[item.term]}
 					expanded={expanded[item.ref]}
-					showFavorite={false}
+					showFavorite={true}
 					onToggleExclude={() => toggleExclude(item.ref, item)}
 					onPickProduct={(index) => pickProduct(item.ref, index)}
 					onQuantityChange={(quantity) => setQuantity(item.ref, quantity)}
 					onQuantityConfirm={() => confirmQuantity(item.ref)}
-					onToggleFavorite={() => undefined}
+					onToggleFavorite={(candidate, index) =>
+						void toggleFavorite(item, candidate, index)}
 					onDemoteToText={() => demoteToText(item.ref)}
 					onToggleExpanded={() =>
 						(expanded = { ...expanded, [item.ref]: !expanded[item.ref] })}

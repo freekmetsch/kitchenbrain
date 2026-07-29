@@ -37,6 +37,36 @@ function str(v: unknown): string | null {
 	return typeof v === 'string' ? v : null;
 }
 
+function strings(v: unknown): string[] {
+	return Array.isArray(v) ? v.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function mealChoiceOption(raw: unknown): NonNullable<ToolDisplay['mealChoices']>['options'][number] | null {
+	const option = asObj(raw);
+	const slug = str(option.slug);
+	const title = str(option.title);
+	const source = option.source === 'freezer' ? 'freezer' : option.source === 'fresh' ? 'fresh' : null;
+	if (!slug || !title || !source) return null;
+	const servings = num(option.servings);
+	return {
+		slug,
+		title,
+		source,
+		servings:
+			servings !== null && Number.isInteger(servings) && servings >= 1 && servings <= 99
+				? servings
+				: 4,
+		totalTimeMin: num(option.total_time_min),
+		onHand: strings(option.on_hand),
+		missingItems: strings(option.missing_items),
+		staleOnHand: strings(option.stale_on_hand),
+		frozenPortionsOnHand: num(option.frozen_portions_on_hand) ?? 0,
+		daysSinceCooked: num(option.days_since_cooked),
+		freezerEffect: str(option.freezer_effect) ?? '',
+		why: strings(option.why)
+	};
+}
+
 const READ_TOOLS = new Set([
 	'get_inventory',
 	'get_meal_plan',
@@ -252,6 +282,78 @@ export function buildToolDisplay(
 					: []
 			}
 		};
+	}
+	if (
+		name === 'mark_meal_cooked' &&
+		result.kind === 'after_cook_proposal' &&
+		typeof result.token === 'string' &&
+		typeof result.mealId === 'number' &&
+		typeof result.meal === 'string' &&
+		typeof result.cookedDate === 'string' &&
+		typeof result.availablePortions === 'number' &&
+		typeof result.defaultEatenPortions === 'number' &&
+		result.atomicity &&
+		typeof result.atomicity === 'object' &&
+		result.recommendation &&
+		typeof result.recommendation === 'object'
+	) {
+		return {
+			kind: 'proposal',
+			summary: locale === 'nl' ? 'Diepvriesmaaltijd afronden' : 'Finish freezer meal',
+			afterCookProposal: {
+				token: result.token,
+				status:
+					result.status === 'active' ||
+					result.status === 'applying' ||
+					result.status === 'applied' ||
+					result.status === 'undone' ||
+					result.status === 'rejected' ||
+					result.status === 'superseded' ||
+					result.status === 'expired'
+						? result.status
+						: 'active',
+				mealId: result.mealId,
+				meal: result.meal,
+				cookedDate: result.cookedDate,
+				availablePortions: result.availablePortions,
+				defaultEatenPortions: result.defaultEatenPortions,
+				atomicity: result.atomicity as NonNullable<
+					ToolDisplay['afterCookProposal']
+				>['atomicity'],
+				recommendation: result.recommendation as NonNullable<
+					ToolDisplay['afterCookProposal']
+				>['recommendation']
+			}
+		};
+	}
+	if (name === 'suggest_meals') {
+		const recommendation = asObj(result.recommendation);
+		const defaultOption = mealChoiceOption(recommendation.default);
+		const alternatives = Array.isArray(recommendation.alternatives)
+			? recommendation.alternatives
+					.map(mealChoiceOption)
+					.filter((option): option is NonNullable<typeof option> => option !== null)
+			: [];
+		const confidence =
+			recommendation.confidence === 'high' ||
+			recommendation.confidence === 'medium' ||
+			recommendation.confidence === 'low'
+				? recommendation.confidence
+				: null;
+		if (defaultOption && confidence) {
+			return {
+				kind: 'read',
+				summary: locale === 'nl' ? 'Drie maaltijden vergeleken' : 'Compared three meal options',
+				mealChoices: {
+					whyNow: str(recommendation.why_now) ?? '',
+					evidence: strings(recommendation.evidence),
+					confidence,
+					uncertainty: str(recommendation.uncertainty),
+					consequence: str(recommendation.consequence) ?? '',
+					options: [defaultOption, ...alternatives].slice(0, 3)
+				}
+			};
+		}
 	}
 
 	// Plan-first (P5.2): render an ordered checklist the UI checks off best-effort

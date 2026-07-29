@@ -76,6 +76,7 @@ export function listRecipeSuggestionCandidates(db: DbOrTx, limit = 60) {
 			title: schema.recipes.title,
 			category: schema.recipes.category,
 			rating: schema.recipes.rating,
+			servings: schema.recipes.servings,
 			totalTimeMin: schema.recipes.totalTimeMin,
 			ingredients: schema.recipes.ingredients,
 			lastCookedAt: schema.recipes.lastCookedAt,

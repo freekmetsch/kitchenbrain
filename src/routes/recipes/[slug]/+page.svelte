@@ -33,6 +33,7 @@
 			subRecipes: Array<{ id: number; slug: string; title: string; titleEn: string | null; sortOrder: number }>;
 			partOfMeals: Array<{ id: number; slug: string; title: string; titleEn: string | null }>;
 			occasionServings: number | null;
+			occasionSource: 'fresh' | 'freezer' | null;
 			planMealId: number | null;
 			cookingIngredients: Recipe['ingredients'];
 			cookingIngredientsEn: Recipe['ingredients'] | null;
@@ -323,6 +324,30 @@
 />
 
 <RecipeMetaChips {recipe} {displayNotes} />
+
+{#if data.occasionSource}
+	<section
+		class="mt-3 flex min-w-0 flex-wrap items-start justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5 text-sm"
+		aria-label={m.recipes_cook_handoff_title()}
+		data-testid="recipe-cook-handoff"
+	>
+		<div class="min-w-0">
+			<p class="font-semibold">
+				{data.occasionSource === 'freezer'
+					? m.recipes_cook_handoff_freezer()
+					: m.recipes_cook_handoff_fresh()}
+			</p>
+			<p class="mt-0.5 text-xs leading-relaxed text-base-content/65">
+				{data.occasionSource === 'freezer'
+					? m.recipes_cook_handoff_freezer_prep({ count: cookingServings })
+					: m.recipes_cook_handoff_fresh_prep({ count: cookingServings })}
+			</p>
+		</div>
+		<span class="badge badge-outline badge-sm shrink-0">
+			{m.recipes_meta_servings({ count: cookingServings })}
+		</span>
+	</section>
+{/if}
 
 {#if recipe.needsReview}
 	<ImportReviewBanner
