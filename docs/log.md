@@ -846,3 +846,18 @@ tests/e2e/assistant-safety.e2e.ts
 
 The only root-lane feature list remains in flight, so no feature list or linked HTML moved. This
 repository still lacks the shared `scripts/archive-scan.ps1` helper.
+
+## 2026-07-29 | deploy-canary | Request-driven Assistant correction
+
+PR #41 merged as exact remote `main` `8b4ded6`. Railway deployment
+`3825498d-7aac-4a1e-889b-e961e6bec35d` reached `SUCCESS` for that revision. Both household
+authentication guards, the public health route, 320/1280 px logged-out boundary, console,
+application-error, and HTTP-5xx probes passed.
+
+The canary performed no provider turn, household mutation, AH lookup, or AH push and retained no
+authenticated response body, cookie, screenshot, or household content. The proactive-noticing
+issue is resolved; the R3 replacement draft recut remains active in the authoritative roadmap.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+docs/known_issues/solved/ISSUE_ASSISTANT_PROACTIVE_NOTICING_20260729-1637.md,
+docs/deploys/2026-07.md, docs/log.md
