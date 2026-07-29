@@ -3,6 +3,7 @@ import { tools } from './tools';
 import {
 	ASSISTANT_CAPABILITY_EVAL_CASES,
 	ASSISTANT_TOOL_BUDGET,
+	assertAssistantCapabilityEvalCatalog,
 	assertAssistantToolBudget,
 	evaluateAssistantToolOrder,
 	measureAssistantTools
@@ -26,6 +27,18 @@ describe('Assistant capability quality gate', () => {
 		};
 
 		expect(() => assertAssistantToolBudget([...tools, extra])).toThrow(/tool budget/i);
+	});
+
+	it('validates actionable catalog references while allowing retired forbidden-tool sentinels', () => {
+		expect(() => assertAssistantCapabilityEvalCatalog(tools)).not.toThrow();
+		expect(() =>
+			assertAssistantCapabilityEvalCatalog(tools, [
+				{
+					...ASSISTANT_CAPABILITY_EVAL_CASES[0],
+					requiredTools: ['retired_or_misspelled_tool']
+				}
+			])
+		).toThrow(/retired_or_misspelled_tool/);
 	});
 
 	it('keeps a bilingual, cross-domain regression portfolio with explicit safety expectations', () => {

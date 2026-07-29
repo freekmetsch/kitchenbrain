@@ -313,6 +313,20 @@ export function assertAssistantToolBudget(toolSet: readonly Anthropic.Tool[]): v
 	}
 }
 
+export function assertAssistantCapabilityEvalCatalog(
+	toolSet: readonly Anthropic.Tool[],
+	scenarios: readonly AssistantCapabilityEvalCase[] = ASSISTANT_CAPABILITY_EVAL_CASES
+): void {
+	const toolNames = new Set(toolSet.map((tool) => tool.name));
+	for (const scenario of scenarios) {
+		for (const name of [...scenario.allowedFirstTools, ...scenario.requiredTools]) {
+			if (!toolNames.has(name)) {
+				throw new Error(`Assistant eval scenario "${scenario.id}" references unknown tool "${name}"`);
+			}
+		}
+	}
+}
+
 export function evaluateAssistantToolOrder(
 	scenario: AssistantCapabilityEvalCase,
 	toolOrder: readonly string[]

@@ -278,7 +278,6 @@ function syntheticToolResult(name: string, scenarioId: string, input: unknown): 
 		case 'edit_recipe':
 		case 'create_meal_recipe':
 		case 'log_meal':
-		case 'mark_meal_cooked':
 		case 'link_leftover_recipe':
 		case 'set_staple':
 		case 'set_freezer_staple':
@@ -321,6 +320,7 @@ async function run(): Promise<EvalReport> {
 		{ assistantToolRoute, tools },
 		{
 			ASSISTANT_CAPABILITY_EVAL_CASES,
+			assertAssistantCapabilityEvalCatalog,
 			assertAssistantToolBudget,
 			evaluateAssistantToolOrder,
 			measureAssistantTools
@@ -333,17 +333,8 @@ async function run(): Promise<EvalReport> {
 	]);
 
 	assertAssistantToolBudget(tools);
+	assertAssistantCapabilityEvalCatalog(tools);
 	const measurement = measureAssistantTools(tools);
-	const toolNames = new Set(tools.map((tool) => tool.name));
-	for (const scenario of ASSISTANT_CAPABILITY_EVAL_CASES) {
-		for (const name of [
-			...scenario.allowedFirstTools,
-			...scenario.requiredTools,
-			...scenario.forbiddenTools
-		]) {
-			if (!toolNames.has(name)) fail('STATIC_UNKNOWN_TOOL');
-		}
-	}
 
 	const model = getChatModel().value;
 	const system = loadPrompt('system')
@@ -472,8 +463,9 @@ if (process.argv.includes('--validate-only')) {
 		import('../../src/lib/server/ai/tools.ts'),
 		import('../../src/lib/server/ai/assistant_capability_eval.ts')
 	])
-		.then(([{ tools }, { assertAssistantToolBudget }]) => {
-			assertAssistantToolBudget(tools);
+		.then(([{ tools }, capabilityEval]) => {
+			capabilityEval.assertAssistantToolBudget(tools);
+			capabilityEval.assertAssistantCapabilityEvalCatalog(tools);
 			process.stdout.write('ASSISTANT-TOOL-SELECTION-EVAL-VALID\n');
 		})
 		.catch(() => {
