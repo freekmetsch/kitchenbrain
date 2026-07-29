@@ -17,10 +17,14 @@
 		type RecurringShoppingItem
 	} from './list-controller.svelte';
 	import type { ShoppingListItem, ShoppingListSource } from './types';
-	import SourceDecisionSheet from './SourceDecisionSheet.svelte';
-	import ShoppingRuleEditor from './ShoppingRuleEditor.svelte';
-	import RecurringShoppingList from './RecurringShoppingList.svelte';
+	import ShoppingSourceQuickControls, {
+		type ShoppingNeed
+	} from './ShoppingSourceQuickControls.svelte';
+	import InlineWeeklyItemsEditor from './InlineWeeklyItemsEditor.svelte';
 	import LegacyShoppingReview from './LegacyShoppingReview.svelte';
+
+	type SourceMutationStatus = 'saved' | 'stale' | 'failed';
+	type RecurringInput = { name: string; amount: string | null; unit: string | null };
 
 	type Props = {
 		pending: ShoppingListItem[];
@@ -31,25 +35,29 @@
 		notices?: Snippet;
 		history?: Snippet;
 		emptyState: 'no_meals' | 'nothing_needed';
+		editable: boolean;
 		showCovered: boolean;
 		bonusByName: Record<string, boolean>;
 		onToggleBought: (item: ShoppingListItem) => Promise<boolean>;
 		onDeleteManual: (source: ShoppingListSource) => Promise<boolean>;
 		onRestoreManual: (source: ShoppingListSource) => Promise<boolean>;
-		onSaveSource: (
+		onChangeSourceTerm: (
 			source: ShoppingListSource,
-			input: { need: 'required' | 'optional' | 'stocked'; term: string; useInRecipe: boolean }
-		) => Promise<boolean>;
-		onAddRecurring: (input: {
-			name: string;
-			amount: string | null;
-			unit: string | null;
-		}) => Promise<boolean>;
+			term: string
+		) => Promise<SourceMutationStatus>;
+		onChangeSourceNeed: (
+			source: ShoppingListSource,
+			need: ShoppingNeed
+		) => Promise<SourceMutationStatus>;
+		onAddRecurring: (input: RecurringInput) => Promise<{ id: number } | null>;
 		onEditRecurring: (
 			item: RecurringShoppingItem,
-			input: { name: string; amount: string | null; unit: string | null }
+			input: RecurringInput
+		) => Promise<{ id: number } | null>;
+		onSetRecurringIncluded: (
+			item: RecurringShoppingItem,
+			included: boolean
 		) => Promise<boolean>;
-		onSkipRecurring: (item: RecurringShoppingItem) => Promise<boolean>;
 		onDisableRecurring: (item: RecurringShoppingItem) => Promise<boolean>;
 		onResolveLegacy: (
 			item: LegacyShoppingItem,
@@ -67,21 +75,25 @@
 		notices,
 		history,
 		emptyState,
+		editable,
 		showCovered = $bindable(),
 		bonusByName,
 		onToggleBought,
 		onDeleteManual,
 		onRestoreManual,
-		onSaveSource,
+		onChangeSourceTerm,
+		onChangeSourceNeed,
 		onAddRecurring,
 		onEditRecurring,
-		onSkipRecurring,
+		onSetRecurringIncluded,
 		onDisableRecurring,
 		onResolveLegacy
 	}: Props = $props();
 
-	let weeklyManager = $state<{ openManager: () => Promise<void> }>();
-	let expandedRuleSourceId = $state<number | null>(null);
+	let weeklyEditMode = $state(false);
+	let offListOpen = $state(false);
+	let pendingSourceKeys = $state<string[]>([]);
+	let pendingRecipeIds = $state<number[]>([]);
 
 	function sectionLabel(section: ShoppingBoardSection): string {
 		switch (section.kind) {
@@ -92,16 +104,10 @@
 		}
 	}
 
-	function needLabel(source: ShoppingListSource): string {
-		if (source.staple) return m.shopping_need_usually_stocked();
-		if (source.optional) return m.shopping_need_nice_to_have();
-		return m.shopping_need_every_time();
-	}
-
-	function ruleSummary(sources: ShoppingListSource[]): string {
-		if (sources.length > 1) return m.shopping_rule_count({ count: sources.length });
-		const source = sources[0];
-		return source ? `${needLabel(source)} · ${source.term}` : '';
+	function needFor(source: ShoppingListSource): ShoppingNeed {
+		if (source.staple) return 'stocked';
+		if (source.optional) return 'optional';
+		return 'required';
 	}
 
 	async function focusShoppingKey(key: string | null) {
@@ -117,6 +123,78 @@
 		document.querySelector<HTMLElement>('#shopping-basket-toggle')?.focus();
 	}
 
+	async function focusSourceKey(sourceKey: string) {
+		await tick();
+		const target = [...document.querySelectorAll<HTMLElement>('[data-source-key]')].find(
+			(element) => element.dataset.sourceKey === sourceKey
+		);
+		target?.focus();
+	}
+
+	function setSourcePending(sourceKey: string, value: boolean) {
+		pendingSourceKeys = value
+			? [...new Set([...pendingSourceKeys, sourceKey])]
+			: pendingSourceKeys.filter((key) => key !== sourceKey);
+	}
+
+	function setRecipePending(recipeId: number | null, value: boolean) {
+		if (recipeId == null) return;
+		pendingRecipeIds = value
+			? [...new Set([...pendingRecipeIds, recipeId])]
+			: pendingRecipeIds.filter((id) => id !== recipeId);
+	}
+
+	async function changeTerm(source: ShoppingListSource, term: string): Promise<boolean> {
+		if (term === source.term || pendingSourceKeys.includes(source.sourceKey)) return true;
+		setSourcePending(source.sourceKey, true);
+		const result = await onChangeSourceTerm(source, term);
+		setSourcePending(source.sourceKey, false);
+		if (result === 'stale') toast.error(m.shopping_choice_stale());
+		else if (result === 'failed') toast.error(m.shopping_mutation_failed());
+		else toast.success(m.shopping_choice_saved());
+		await focusSourceKey(source.sourceKey);
+		return result === 'saved';
+	}
+
+	async function changeNeed(
+		source: ShoppingListSource,
+		need: ShoppingNeed,
+		offerUndo = true
+	): Promise<boolean> {
+		const previous = needFor(source);
+		if (need === previous || pendingSourceKeys.includes(source.sourceKey)) return true;
+		setSourcePending(source.sourceKey, true);
+		setRecipePending(source.recipeId, true);
+		const result = await onChangeSourceNeed(source, need);
+		setSourcePending(source.sourceKey, false);
+		setRecipePending(source.recipeId, false);
+		if (result === 'stale') {
+			toast.error(m.shopping_choice_stale());
+			await focusSourceKey(source.sourceKey);
+			return false;
+		}
+		if (result === 'failed') {
+			toast.error(m.shopping_mutation_failed());
+			await focusSourceKey(source.sourceKey);
+			return false;
+		}
+
+		if (need !== 'required') offListOpen = true;
+		const destination =
+			need === 'required' ? m.shopping_filter_all() : m.shopping_not_this_run();
+		controller.shoppingStatus = m.shopping_choice_moved({ name: source.name, destination });
+		await focusSourceKey(source.sourceKey);
+		if (offerUndo) {
+			toast.undo(controller.shoppingStatus, () => {
+				const current = sources.find((candidate) => candidate.sourceKey === source.sourceKey);
+				if (current) void changeNeed(current, previous, false);
+			});
+		} else {
+			toast.success(m.shopping_choice_saved());
+		}
+		return true;
+	}
+
 	const controller = createShoppingListController({
 		pending: () => pending,
 		done: () => done,
@@ -128,10 +206,6 @@
 		onDeleteManual: (source) => onDeleteManual(source),
 		onRestoreManual: (source) => onRestoreManual(source),
 		focus: focusShoppingKey,
-		settle: tick,
-		openWeeklyManager: async () => {
-			await weeklyManager?.openManager();
-		},
 		notifyUndo: (message, action) => toast.undo(message, () => void action()),
 		notifyError: (message) => toast.error(message),
 		messages: {
@@ -146,11 +220,42 @@
 		controller.reconcileFilter();
 	});
 
-	export function openRules(scope: 'excluded' | 'all' = 'all') {
-		expandedRuleSourceId = null;
-		controller.openRules(scope);
+	let visibleExcludedSources = $derived(
+		controller.excludedRecipeSources.filter((source) => {
+			if (controller.filter.kind === 'weekly') return false;
+			if (controller.filter.kind === 'all') return true;
+			return source.mealNames.includes(controller.filter.mealName);
+		})
+	);
+
+	async function closeWeeklyEditor() {
+		weeklyEditMode = false;
+		await tick();
+		document.querySelector<HTMLElement>('[data-weekly-edit-button]')?.focus();
 	}
 </script>
+
+{#snippet sourceQuickControls(source: ShoppingListSource)}
+	<ShoppingSourceQuickControls
+		{source}
+		disabled={!editable}
+		pending={pendingSourceKeys.includes(source.sourceKey)}
+		needBlocked={source.recipeId != null && pendingRecipeIds.includes(source.recipeId)}
+		onNeed={changeNeed}
+		onTerm={changeTerm}
+	/>
+{/snippet}
+
+{#snippet weeklyEditor()}
+	<InlineWeeklyItemsEditor
+		items={controller.recurring}
+		{editable}
+		onAdd={onAddRecurring}
+		onEdit={onEditRecurring}
+		onIncluded={onSetRecurringIncluded}
+		onDisable={onDisableRecurring}
+	/>
+{/snippet}
 
 <div class="shopping-controls" role="region" aria-label={m.shopping_list_controls()}>
 	<div class="shopping-filter-row">
@@ -192,14 +297,18 @@
 
 {#if history}{@render history()}{/if}
 
-<RecurringShoppingList
-	bind:this={weeklyManager}
-	items={controller.recurring}
-	onAdd={onAddRecurring}
-	onEdit={onEditRecurring}
-	onSkip={onSkipRecurring}
-	onDisable={onDisableRecurring}
-/>
+{#if visibleExcludedSources.length}
+	<details class="not-this-run" bind:open={offListOpen}>
+		<summary>{m.shopping_not_this_run_count({ count: visibleExcludedSources.length })}</summary>
+		<ul>
+			{#each visibleExcludedSources as source (source.sourceKey)}
+				<li>
+					{@render sourceQuickControls(source)}
+				</li>
+			{/each}
+		</ul>
+	</details>
+{/if}
 
 {#if notices}{@render notices()}{/if}
 <LegacyShoppingReview items={controller.legacy} onResolve={onResolveLegacy} />
@@ -238,11 +347,21 @@
 		<section class="shopping-ledger-section weekly">
 			<header class="shopping-section-header">
 				<h2>{m.shopping_filter_weekly()} <span>· 0</span></h2>
-				<button type="button" onclick={() => weeklyManager?.openManager()}>
-					{m.shopping_recurring_manage()}
+				<button
+					type="button"
+					data-weekly-edit-button
+					aria-pressed={weeklyEditMode}
+					onclick={() =>
+						weeklyEditMode ? void closeWeeklyEditor() : (weeklyEditMode = true)}
+				>
+					{weeklyEditMode ? m.shopping_done_editing_weekly() : m.shopping_edit_weekly()}
 				</button>
 			</header>
-			<p class="shopping-section-empty">{m.shopping_weekly_empty()}</p>
+			{#if weeklyEditMode}
+				{@render weeklyEditor()}
+			{:else}
+				<p class="shopping-section-empty">{m.shopping_weekly_empty()}</p>
+			{/if}
 		</section>
 	{:else}
 		<div class="shopping-filter-empty">
@@ -261,17 +380,25 @@
 				<header class="shopping-section-header">
 					<h2>{sectionLabel(group)} <span>· {group.items.length}</span></h2>
 					{#if group.kind === 'weekly'}
-						<button type="button" onclick={() => weeklyManager?.openManager()}>
-							{m.shopping_recurring_manage()}
+						<button
+							type="button"
+							data-weekly-edit-button
+							aria-pressed={weeklyEditMode}
+							onclick={() =>
+								weeklyEditMode ? void closeWeeklyEditor() : (weeklyEditMode = true)}
+						>
+							{weeklyEditMode ? m.shopping_done_editing_weekly() : m.shopping_edit_weekly()}
 						</button>
 					{/if}
 				</header>
-				{#if group.items.length}
+				{#if group.kind === 'weekly' && weeklyEditMode}
+					{@render weeklyEditor()}
+				{:else if group.items.length}
 				<ul class="market-run-list">
 				{#each group.items as item, index (shoppingItemKey(item))}
 					{@const key = shoppingItemKey(item)}
 					{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
-					{@const actionOwned = item.sources?.filter((source) => source.sourceKind !== 'recipe') ?? []}
+					{@const actionOwned = item.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
 					<li class:warning={item.incompatibleQuantities} class="market-run-row">
 						<label class="market-check-hit" aria-label={m.shopping_mark_bought_aria({ name: item.name })}>
 							<input
@@ -283,18 +410,21 @@
 							/>
 							<span><Icon name="check" /></span>
 						</label>
-						<label for={`buy-${key}`} class="market-row-copy">
-							<strong title={item.name}>{item.name}</strong>
-							{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
-							{#if !item.incompatibleQuantities && recipeOwned.length > 1}
-								<span class="market-shared-context">
-									{m.shopping_shared_recipes({ count: recipeOwned.length })} ·
-									{recipeOwned.map((source) => source.recipeTitle).filter(Boolean).join(', ')}
-								</span>
+						<div class="market-row-copy">
+							{#if recipeOwned.length}
+								<div class="source-quick-stack">
+									{#each recipeOwned as source (source.sourceKey)}
+										{@render sourceQuickControls(source)}
+									{/each}
+								</div>
+								{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
+							{:else}
+								<strong title={item.name}>{item.name}</strong>
+								{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
 							{/if}
-							{#if item.incompatibleQuantities && item.sources?.length}
+							{#if item.incompatibleQuantities && actionOwned.length}
 								<ul class="market-source-lines" aria-label={m.shopping_quantity_sources_label()}>
-									{#each item.sources as source (source.id)}
+									{#each actionOwned as source (source.sourceKey)}
 										{@const contexts = sourceContextLabels(source)}
 										<li>
 											<strong>{itemLabel(source) || source.name}</strong>
@@ -309,20 +439,9 @@
 									{/each}
 								</ul>
 							{/if}
-						</label>
+						</div>
 						<div class="market-row-trailing">
 							{#if bonusByName[item.name]}<span class="market-item-badge bonus">{m.shopping_bonus_chip()}</span>{/if}
-							{#if recipeOwned.length}
-								<button
-									type="button"
-									class="market-rule-summary"
-									title={ruleSummary(recipeOwned)}
-									aria-label={m.shopping_edit_rule_aria({ name: item.name })}
-									onclick={() => controller.openRuleSources(recipeOwned)}
-								>
-									{ruleSummary(recipeOwned)}
-								</button>
-							{/if}
 							{#if actionOwned.length}
 								<button
 									type="button"
@@ -359,10 +478,19 @@
 {#if showCovered && controller.coveredPending.length}
 	<ul class="market-run-list market-covered-list" aria-label={m.shopping_in_stock_chip({ count: controller.coveredPending.length })}>
 		{#each controller.coveredPending as item (shoppingItemKey(item))}
+			{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
 			<li class="market-run-row covered">
 				<div class="market-covered-marker" aria-hidden="true"><Icon name="check" /></div>
 				<div class="market-row-copy">
-					<strong title={item.name}>{item.name}</strong>
+					{#if recipeOwned.length}
+						<div class="source-quick-stack">
+							{#each recipeOwned as source (source.sourceKey)}
+								{@render sourceQuickControls(source)}
+							{/each}
+						</div>
+					{:else}
+						<strong title={item.name}>{item.name}</strong>
+					{/if}
 					{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
 				</div>
 				<div class="market-row-trailing">
@@ -398,6 +526,7 @@
 	<ul class="market-run-list market-done-list">
 		{#each controller.completed as item (shoppingItemKey(item))}
 			{@const key = shoppingItemKey(item)}
+			{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
 			<li class="market-run-row">
 				<label class="market-check-hit" aria-label={m.shopping_mark_not_bought_aria({ name: item.name })}>
 					<input
@@ -409,7 +538,17 @@
 					/>
 					<span><Icon name="check" /></span>
 				</label>
-				<label for={`done-${key}`} class="market-row-copy"><strong>{item.name}</strong></label>
+				<div class="market-row-copy">
+					{#if recipeOwned.length}
+						<div class="source-quick-stack">
+							{#each recipeOwned as source (source.sourceKey)}
+								{@render sourceQuickControls(source)}
+							{/each}
+						</div>
+					{:else}
+						<strong>{item.name}</strong>
+					{/if}
+				</div>
 				{#if item.sources?.length}
 					<button
 						type="button"
@@ -423,12 +562,6 @@
 	</ul>
 {/if}
 
-<SourceDecisionSheet
-	bind:open={controller.sourceSheetOpen}
-	sources={controller.selectedSources}
-	onSave={onSaveSource}
-/>
-
 <BottomSheet
 	bind:open={controller.itemActionOpen}
 	title={controller.selectedItem?.name ?? m.shopping_item_actions_title_generic()}
@@ -438,7 +571,6 @@
 >
 	{#if controller.selectedItem}
 		{@const itemManualSources = controller.selectedItem.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
-		{@const hasWeeklySource = controller.selectedItem.sources?.some((source) => source.sourceKind === 'weekly')}
 		{#if itemManualSources.length}
 			<div class="source-action-group">
 				<h3>{m.shopping_source_manual()}</h3>
@@ -458,79 +590,6 @@
 				{/each}
 			</div>
 		{/if}
-		{#if hasWeeklySource}
-			<div class="source-action-group">
-				<h3>{m.shopping_filter_weekly()}</h3>
-				<button
-					type="button"
-					disabled={controller.actionPending}
-					onclick={() => controller.openWeeklyAfterActions()}
-				>
-					<span><strong>{m.shopping_manage_weekly_items()}</strong></span>
-					<Icon name="chevronRight" />
-				</button>
-			</div>
-		{/if}
-	{/if}
-</BottomSheet>
-
-<BottomSheet
-	bind:open={controller.rulesOpen}
-	title={m.shopping_manage_rules()}
-	desktopSide
-	onclose={() => {
-		if (!controller.rulesOpen) expandedRuleSourceId = null;
-	}}
->
-	<p class="rules-help">{m.shopping_manage_rules_help()}</p>
-	{#if controller.excludedRecipeSources.length}
-		<div class="rules-scope" role="group" aria-label={m.shopping_manage_rules()}>
-			<button
-				type="button"
-				class:active={controller.rulesScope === 'excluded'}
-				aria-pressed={controller.rulesScope === 'excluded'}
-				onclick={() => (controller.rulesScope = 'excluded')}
-			>{m.shopping_rules_not_on_list({ count: controller.excludedRecipeSources.length })}</button>
-			<button
-				type="button"
-				class:active={controller.rulesScope === 'all'}
-				aria-pressed={controller.rulesScope === 'all'}
-				onclick={() => (controller.rulesScope = 'all')}
-			>{m.shopping_rules_all({ count: controller.recipeSources.length })}</button>
-		</div>
-	{/if}
-	{#if controller.visibleRuleSources.length}
-		<ul class="rules-list">
-			{#each controller.visibleRuleSources as source (source.id)}
-				<li class:expanded={expandedRuleSourceId === source.id}>
-					<button
-						type="button"
-						class="rules-row-summary"
-						aria-expanded={expandedRuleSourceId === source.id}
-						onclick={() => (expandedRuleSourceId = expandedRuleSourceId === source.id ? null : source.id)}
-					>
-						<span>
-							<strong>{source.name}</strong>
-							<small>{[source.recipeTitle, source.component].filter(Boolean).join(' · ')}</small>
-							<small>{needLabel(source)} · {source.term}</small>
-						</span>
-						<Icon name="chevronRight" />
-					</button>
-					{#if expandedRuleSourceId === source.id}
-						<div class="rules-inline-editor">
-							<ShoppingRuleEditor
-								{source}
-								onSave={onSaveSource}
-								onCancel={() => (expandedRuleSourceId = null)}
-								onSaved={() => (expandedRuleSourceId = null)}
-							/>
-						</div>
-					{/if}
-				</li>
-			{/each}
-		</ul>
-	{:else}
-		<EmptyState mini title={m.shopping_rules_none_excluded()} />
 	{/if}
 </BottomSheet>
 
@@ -556,6 +615,39 @@
 
 	.shopping-filter-rail::-webkit-scrollbar {
 		display: none;
+	}
+
+	.not-this-run {
+		margin: 0 0 0.55rem;
+		overflow: hidden;
+		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 18%, var(--color-base-300));
+		border-radius: 0.75rem;
+		background: var(--color-base-100);
+	}
+
+	.not-this-run summary {
+		min-height: 2.75rem;
+		padding: 0.75rem;
+		color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+		cursor: pointer;
+		font-size: 0.66rem;
+		font-weight: 800;
+	}
+
+	.not-this-run ul {
+		margin: 0;
+		padding: 0;
+		border-top: 1px solid var(--color-base-200);
+		list-style: none;
+	}
+
+	.not-this-run li {
+		padding: 0.4rem 0.55rem;
+		border-bottom: 1px solid var(--color-base-200);
+	}
+
+	.not-this-run li:last-child {
+		border-bottom: 0;
 	}
 
 	.shopping-filter-rail button {
@@ -732,7 +824,9 @@
 		background: color-mix(in oklab, var(--color-warning) 8%, var(--color-base-100));
 	}
 
-	.market-run-row.covered {
+	.market-run-row.covered .market-covered-marker,
+	.market-run-row.covered > .market-row-copy > strong,
+	.market-run-row.covered > .market-row-copy > span {
 		opacity: 0.62;
 	}
 
@@ -823,8 +917,11 @@
 		white-space: nowrap;
 	}
 
-	.market-shared-context {
-		color: color-mix(in oklab, var(--market-olive-ink, #304b3a) 78%, transparent) !important;
+	.source-quick-stack {
+		display: grid;
+		gap: 0.3rem;
+		min-width: 0;
+		cursor: default;
 	}
 
 	.market-source-lines {
@@ -885,25 +982,6 @@
 		letter-spacing: 0.06em;
 	}
 
-	.market-rule-summary {
-		max-width: min(9rem, 34vw);
-		min-height: 2.75rem;
-		overflow: hidden;
-		border-radius: 999px;
-		padding: 0 0.55rem;
-		background: color-mix(in oklab, var(--market-olive, #304b3a) 10%, var(--color-base-100));
-		color: var(--market-olive-ink, #304b3a);
-		font-size: 0.6rem;
-		font-weight: 800;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.market-rule-summary:hover,
-	.market-rule-summary:focus-visible {
-		background: color-mix(in oklab, var(--market-olive, #304b3a) 17%, var(--color-base-100));
-	}
-
 	.market-basket-summary {
 		display: flex;
 		width: 100%;
@@ -931,11 +1009,8 @@
 		margin-top: 0.45rem;
 	}
 
-	.market-done-list {
-		opacity: 0.62;
-	}
-
 	.market-done-list .market-row-copy strong {
+		opacity: 0.62;
 		text-decoration: line-through;
 	}
 
@@ -981,12 +1056,6 @@
 		color: white;
 		font-size: 0.72rem;
 		font-weight: 750;
-	}
-
-	.source-action-group + .source-action-group {
-		margin-top: 0.8rem;
-		border-top: 1px solid var(--color-base-200);
-		padding-top: 0.8rem;
 	}
 
 	.source-action-group h3 {
@@ -1045,105 +1114,6 @@
 
 	.source-action-group button.danger {
 		color: var(--color-error);
-	}
-
-	.rules-help {
-		color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
-		font-size: 0.75rem;
-		line-height: 1.45;
-	}
-
-	.rules-scope {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.25rem;
-		margin-top: 0.75rem;
-		border-radius: 0.75rem;
-		padding: 0.2rem;
-		background: var(--color-base-200);
-	}
-
-	.rules-scope button {
-		min-height: 2.75rem;
-		border-radius: 0.6rem;
-		padding: 0 0.5rem;
-		font-size: 0.68rem;
-		font-weight: 750;
-	}
-
-	.rules-scope button.active {
-		background: var(--color-base-100);
-		color: var(--market-olive-ink, #304b3a);
-		box-shadow: 0 2px 8px rgb(0 0 0 / 7%);
-	}
-
-	.rules-list {
-		overflow: hidden;
-		margin-top: 0.65rem;
-		border: 1px solid var(--color-base-300);
-		border-radius: 0.85rem;
-	}
-
-	.rules-list li {
-		border-bottom: 1px solid var(--color-base-200);
-	}
-
-	.rules-list li:last-child {
-		border-bottom: 0;
-	}
-
-	.rules-row-summary {
-		display: flex;
-		width: 100%;
-		min-height: 3.8rem;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.6rem;
-		padding: 0.5rem 0.6rem 0.5rem 0.75rem;
-		text-align: left;
-	}
-
-	.rules-row-summary > span {
-		min-width: 0;
-	}
-
-	.rules-row-summary strong,
-	.rules-row-summary small {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.rules-row-summary strong {
-		font-size: 0.76rem;
-	}
-
-	.rules-row-summary small {
-		margin-top: 0.1rem;
-		color: color-mix(in oklab, var(--color-base-content) 64%, transparent);
-		font-size: 0.64rem;
-	}
-
-	.rules-row-summary :global(svg) {
-		width: 1rem;
-		height: 1rem;
-		flex: 0 0 auto;
-		transition: transform var(--motion-micro) var(--ease-standard);
-	}
-
-	.rules-list li.expanded .rules-row-summary :global(svg) {
-		transform: rotate(90deg);
-	}
-
-	.rules-inline-editor {
-		padding: 0 0.75rem 0.75rem;
-	}
-
-	@media (max-width: 20rem) {
-		.rules-scope {
-			grid-template-columns: minmax(0, 1fr);
-		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {

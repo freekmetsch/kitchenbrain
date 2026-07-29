@@ -19,7 +19,7 @@ import {
 	reconcileShoppingAfterWrite as reconcileEntries,
 	resolveLegacyShoppingEntry,
 	setBoughtForEntries,
-	skipShoppingEntry,
+	setRecurringShoppingEntryIncluded,
 	updateShoppingEntry,
 	upsertAhFavorite,
 	getShoppingWeekEntry,
@@ -117,10 +117,10 @@ export function createShoppingService(db: Db) {
 				reconcileShoppingAfterWrite(tx, [input.effectiveWeek]);
 			});
 		},
-		skip(input: Parameters<typeof skipShoppingEntry>[1]) {
+		setRecurringIncluded(input: Parameters<typeof setRecurringShoppingEntryIncluded>[1]) {
 			return inTransaction((tx) => {
 				initializeShoppingSourceData(tx);
-				return skipShoppingEntry(tx, input);
+				return setRecurringShoppingEntryIncluded(tx, input);
 			});
 		},
 		addManual(input: Parameters<typeof addManualShoppingEntry>[1]) {
@@ -183,6 +183,14 @@ export function resolveShoppingWeek(input: {
 	return deliveryDate < input.today ? addDays(currentPlanningWeek, 7) : currentPlanningWeek;
 }
 
+export function isShoppingWeekEditable(input: {
+	weekStart: string;
+	today: string;
+	weekStartDay: number;
+}): boolean {
+	return input.weekStart >= weekStartFor(input.today, input.weekStartDay);
+}
+
 export function loadShoppingPageData(db: Db, weekParam: string | null) {
 	const prefs = getMealPlanPrefs(db);
 	const today = todayIso();
@@ -210,6 +218,11 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 			prevWeek: addDays(weekStart, -7),
 			nextWeek: addDays(weekStart, 7),
 			isDefaultWeek: weekStart === defaultWeek,
+			isEditable: isShoppingWeekEditable({
+				weekStart,
+				today,
+				weekStartDay: prefs.weekStartDay
+			}),
 			deliveryDate:
 				prefs.groceryDay == null
 					? null

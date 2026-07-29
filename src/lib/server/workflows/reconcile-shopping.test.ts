@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
-import { reconcileShoppingAfterWrite, resolveShoppingWeek } from './reconcile-shopping';
+import {
+	isShoppingWeekEditable,
+	reconcileShoppingAfterWrite,
+	resolveShoppingWeek
+} from './reconcile-shopping';
 
 describe('shopping week selection', () => {
 	it('keeps an explicit week query authoritative', () => {
@@ -52,6 +56,13 @@ describe('shopping week selection', () => {
 				groceryDay: 1
 			})
 		).toBe('2027-01-06');
+	});
+
+	it('keeps current and future weeks editable and captured past weeks read-only', () => {
+		const input = { today: '2026-07-29', weekStartDay: 2 };
+		expect(isShoppingWeekEditable({ ...input, weekStart: '2026-07-22' })).toBe(false);
+		expect(isShoppingWeekEditable({ ...input, weekStart: '2026-07-29' })).toBe(true);
+		expect(isShoppingWeekEditable({ ...input, weekStart: '2026-08-05' })).toBe(true);
 	});
 });
 

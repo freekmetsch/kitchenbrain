@@ -3,7 +3,8 @@ import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
 import { materializeShoppingWeek } from './reconcile-shopping';
 import {
-	applyShoppingRecipeChoice,
+	applyShoppingRecipeNeedChoice,
+	applyShoppingRecipeTermChoice,
 	saveRecipeIngredientDefault
 } from './choose-shopping-source';
 
@@ -70,30 +71,111 @@ describe('shopping recipe choice', () => {
 		expect(updated.ingredientsEn).toBeNull();
 	});
 
-	it('swaps a saved Dutch alternative through one revision-checked boundary', () => {
+	it('changes only the selected Dutch term for this shopping run', () => {
 		const { db, recipe, entry } = setup();
-		applyShoppingRecipeChoice(db, { entryId: entry.id, expectedEntryRevision: entry.revision, expectedRecipeRevision: recipe.contentRevision, need: 'required', term: 'penne', useInRecipe: true, actor: 'test', userId: 1 });
-		const updated = db.select().from(schema.recipes).get()!;
-		expect(updated.contentRevision).toBe(recipe.contentRevision + 1);
-		expect(updated.ingredients[0]).toMatchObject({ name: 'penne', optional: false, substitutes: [{ name: 'pasta' }] });
-		expect(updated.ingredientsEn).toBeNull();
-		expect(updated.cookModeJson).toBeNull();
-		expect(db.select().from(schema.shoppingWeekEntries).get()).toMatchObject({ name: 'penne', selectedName: null, included: true });
+		db.insert(schema.inventoryItems).values({
+			name: 'pasta',
+			section: 'pantry',
+			kind: 'ingredient',
+			isStaple: true,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		}).run();
+
+		const result = applyShoppingRecipeTermChoice(db, {
+			entryId: entry.id,
+			expectedEntryRevision: entry.revision,
+			term: 'penne',
+			actor: 'test',
+			userId: 1
+		});
+
+		expect(result).toMatchObject({
+			sourceKey: entry.sourceKey,
+			entryId: entry.id,
+			entryRevision: entry.revision + 1,
+			recipeId: recipe.id,
+			term: 'penne'
+		});
+		expect(db.select().from(schema.shoppingWeekEntries).get()).toMatchObject({
+			name: 'pasta',
+			selectedName: 'penne',
+			included: false
+		});
+		expect(db.select().from(schema.recipes).get()).toMatchObject({
+			contentRevision: recipe.contentRevision,
+			ingredients: recipe.ingredients,
+			ingredientsEn: recipe.ingredientsEn,
+			cookModeJson: recipe.cookModeJson
+		});
+		expect(db.select().from(schema.inventoryItems).get()).toMatchObject({
+			name: 'pasta',
+			isStaple: true
+		});
 	});
 
-	it('rejects a stale recipe revision without changing either owner', () => {
+	it('rejects invalid and stale term-only writes without touching the recipe', () => {
 		const { db, recipe, entry } = setup();
-		expect(() => applyShoppingRecipeChoice(db, { entryId: entry.id, expectedEntryRevision: entry.revision, expectedRecipeRevision: recipe.contentRevision + 1, need: 'required', term: 'pasta', useInRecipe: false, actor: 'test', userId: 1 })).toThrow('Recipe changed');
-		expect(db.select().from(schema.recipes).get()?.ingredients[0].optional).toBe(true);
+		expect(() =>
+			applyShoppingRecipeTermChoice(db, {
+				entryId: entry.id,
+				expectedEntryRevision: entry.revision,
+				term: 'whole-wheat pasta',
+				actor: 'test',
+				userId: 1
+			})
+		).toThrow('Dutch recipe name');
+		expect(() =>
+			applyShoppingRecipeTermChoice(db, {
+				entryId: entry.id,
+				expectedEntryRevision: entry.revision + 1,
+				term: 'penne',
+				actor: 'test',
+				userId: 1
+			})
+		).toThrow('Shopping source changed');
+		expect(db.select().from(schema.recipes).get()?.contentRevision).toBe(recipe.contentRevision);
+	});
+
+	it('does not copy this-run term state or inclusion into another week', () => {
+		const { db, entry } = setup();
+		const laterWeek = '2026-07-29';
+		db.insert(schema.shoppingWeekEntries).values({
+			...entry,
+			id: undefined,
+			weekStartDate: laterWeek,
+			included: true,
+			selectedName: null,
+			revision: 1
+		}).run();
+
+		applyShoppingRecipeTermChoice(db, {
+			entryId: entry.id,
+			expectedEntryRevision: entry.revision,
+			term: 'penne',
+			actor: 'test',
+			userId: 1
+		});
+
+		const rows = db
+			.select()
+			.from(schema.shoppingWeekEntries)
+			.orderBy(schema.shoppingWeekEntries.weekStartDate)
+			.all();
+		expect(rows[0]).toMatchObject({ selectedName: 'penne', included: false });
+		expect(rows[1]).toMatchObject({ selectedName: null, included: true, revision: 1 });
 	});
 
 	it('rejects a captured past week before changing the recipe', () => {
 		const { db, recipe, entry } = setup();
 		db.update(schema.shoppingWeekEntries).set({ weekStartDate: '2026-07-15' }).run();
-		expect(() => applyShoppingRecipeChoice(db, {
-			entryId: entry.id, expectedEntryRevision: entry.revision,
-			expectedRecipeRevision: recipe.contentRevision, need: 'required', term: 'pasta',
-			useInRecipe: false, actor: 'test', userId: 1
+		expect(() => applyShoppingRecipeNeedChoice(db, {
+			entryId: entry.id,
+			expectedEntryRevision: entry.revision,
+			expectedRecipeRevision: recipe.contentRevision,
+			need: 'required',
+			actor: 'test',
+			userId: 1
 		})).toThrow('past shopping weeks');
 		expect(db.select().from(schema.recipes).get()?.ingredients[0].optional).toBe(true);
 	});
@@ -107,38 +189,119 @@ describe('shopping recipe choice', () => {
 		}).run();
 		materializeShoppingWeek(db, laterWeek, { weekStartDay: 2, today: WEEK });
 
-		applyShoppingRecipeChoice(db, {
+		applyShoppingRecipeNeedChoice(db, {
 			entryId: entry.id, expectedEntryRevision: entry.revision,
-			expectedRecipeRevision: recipe.contentRevision, need: 'required', term: 'pasta',
-			useInRecipe: false, actor: 'test', userId: 1
+			expectedRecipeRevision: recipe.contentRevision, need: 'required',
+			actor: 'test', userId: 1
 		});
 
 		expect(db.select().from(schema.shoppingWeekEntries).all()).toHaveLength(2);
 		expect(db.select().from(schema.shoppingWeekEntries).all().every((row) => row.included)).toBe(true);
 	});
 
-	it('stores a usually-stocked choice in inventory and can reverse a canonical swap', () => {
+	it('cycles nice-to-have, usually stocked, and always without changing the selected term', () => {
 		const { db, recipe, entry } = setup();
-		const stocked = applyShoppingRecipeChoice(db, {
-			entryId: entry.id, expectedEntryRevision: entry.revision,
-			expectedRecipeRevision: recipe.contentRevision, need: 'stocked', term: 'pasta',
-			useInRecipe: false, actor: 'test', userId: 1
+		const term = applyShoppingRecipeTermChoice(db, {
+			entryId: entry.id,
+			expectedEntryRevision: entry.revision,
+			term: 'penne',
+			actor: 'test',
+			userId: 1
+		});
+		const stocked = applyShoppingRecipeNeedChoice(db, {
+			entryId: term.entryId,
+			expectedEntryRevision: term.entryRevision,
+			expectedRecipeRevision: recipe.contentRevision,
+			need: 'stocked',
+			actor: 'test',
+			userId: 1
 		});
 		expect(db.select().from(schema.inventoryItems).get()).toMatchObject({ name: 'pasta', isStaple: true });
-		expect(db.select().from(schema.shoppingWeekEntries).get()).toMatchObject({ included: false });
+		expect(db.select().from(schema.shoppingWeekEntries).get()).toMatchObject({
+			included: false,
+			selectedName: 'penne'
+		});
+		expect(db.select().from(schema.recipes).get()?.ingredients[0]).toMatchObject({
+			name: 'pasta',
+			optional: false
+		});
 
-		const currentEntry = db.select().from(schema.shoppingWeekEntries).get()!;
-		const swapped = applyShoppingRecipeChoice(db, {
-			entryId: currentEntry.id, expectedEntryRevision: currentEntry.revision,
-			expectedRecipeRevision: stocked.recipeRevision, need: 'required', term: 'penne',
-			useInRecipe: true, actor: 'test', userId: 1
+		const required = applyShoppingRecipeNeedChoice(db, {
+			entryId: stocked.entryId,
+			expectedEntryRevision: stocked.entryRevision,
+			expectedRecipeRevision: stocked.recipeRevision,
+			need: 'required',
+			actor: 'test',
+			userId: 1
 		});
-		const reversedEntry = db.select().from(schema.shoppingWeekEntries).get()!;
-		applyShoppingRecipeChoice(db, {
-			entryId: reversedEntry.id, expectedEntryRevision: reversedEntry.revision,
-			expectedRecipeRevision: swapped.recipeRevision, need: 'required', term: 'pasta',
-			useInRecipe: true, actor: 'test', userId: 1
+		expect(db.select().from(schema.inventoryItems).get()?.deletedAt).not.toBeNull();
+		expect(db.select().from(schema.shoppingWeekEntries).get()).toMatchObject({
+			included: true,
+			selectedName: 'penne'
 		});
-		expect(db.select().from(schema.recipes).get()!.ingredients[0]).toMatchObject({ name: 'pasta', substitutes: [{ name: 'penne' }] });
+
+		const optional = applyShoppingRecipeNeedChoice(db, {
+			entryId: required.entryId,
+			expectedEntryRevision: required.entryRevision,
+			expectedRecipeRevision: required.recipeRevision,
+			need: 'optional',
+			actor: 'test',
+			userId: 1
+		});
+		expect(optional.need).toBe('optional');
+		expect(db.select().from(schema.shoppingWeekEntries).get()).toMatchObject({
+			included: false,
+			selectedName: 'penne'
+		});
+		expect(db.select().from(schema.recipes).get()?.ingredients[0]).toMatchObject({
+			name: 'pasta',
+			optional: true,
+			substitutes: [{ name: 'penne' }]
+		});
+	});
+
+	it('rejects a stale recipe revision without changing either owner', () => {
+		const { db, recipe, entry } = setup();
+		expect(() =>
+			applyShoppingRecipeNeedChoice(db, {
+				entryId: entry.id,
+				expectedEntryRevision: entry.revision,
+				expectedRecipeRevision: recipe.contentRevision + 1,
+				need: 'required',
+				actor: 'test',
+				userId: 1
+			})
+		).toThrow('Recipe changed');
+		expect(db.select().from(schema.recipes).get()?.ingredients[0].optional).toBe(true);
+	});
+
+	it('keeps real inventory quantity while clearing its usually-stocked flag', () => {
+		const { db, recipe, entry } = setup();
+		db.insert(schema.inventoryItems).values({
+			name: 'pasta',
+			qtyText: '1 bag',
+			qtyNum: 1,
+			unit: 'stuk',
+			section: 'pantry',
+			kind: 'ingredient',
+			isStaple: true,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		}).run();
+
+		applyShoppingRecipeNeedChoice(db, {
+			entryId: entry.id,
+			expectedEntryRevision: entry.revision,
+			expectedRecipeRevision: recipe.contentRevision,
+			need: 'required',
+			actor: 'test',
+			userId: 1
+		});
+
+		expect(db.select().from(schema.inventoryItems).get()).toMatchObject({
+			qtyNum: 1,
+			isStaple: false,
+			deletedAt: null
+		});
 	});
 });

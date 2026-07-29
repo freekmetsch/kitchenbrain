@@ -20,7 +20,7 @@ import {
 	editRecurringShoppingItem,
 	recordShoppingPushOutcome,
 	resolveLegacyShoppingEntry,
-	skipShoppingEntry,
+	setRecurringShoppingEntryIncluded,
 	updateShoppingEntry
 } from './commands';
 
@@ -314,10 +314,23 @@ describe('source-owned shopping week entries', () => {
 		});
 		materializeShoppingWeek(db, CURRENT_WEEK, { weekStartDay: WEEK_START_DAY, today: CURRENT_WEEK });
 		const occurrence = db.select().from(schema.shoppingWeekEntries).get()!;
-		skipShoppingEntry(db, {
+		const skipped = setRecurringShoppingEntryIncluded(db, {
 			entryId: occurrence.id,
 			expectedRevision: occurrence.revision,
-			weekStartDay: WEEK_START_DAY
+			weekStartDay: WEEK_START_DAY,
+			included: false
+		});
+		const restored = setRecurringShoppingEntryIncluded(db, {
+			entryId: skipped.id,
+			expectedRevision: skipped.revision,
+			weekStartDay: WEEK_START_DAY,
+			included: true
+		});
+		setRecurringShoppingEntryIncluded(db, {
+			entryId: restored.id,
+			expectedRevision: restored.revision,
+			weekStartDay: WEEK_START_DAY,
+			included: false
 		});
 
 		const successor = editRecurringShoppingItem(db, {
@@ -330,8 +343,58 @@ describe('source-owned shopping week entries', () => {
 			unit: 'pak'
 		});
 		expect(successor.startWeek).toBe('2026-07-29');
+		expect(successor.id).not.toBe(milk.id);
 		expect(db.select().from(schema.recurringShoppingItems).where(eq(schema.recurringShoppingItems.id, milk.id)).get()?.endWeek).toBe(CURRENT_WEEK);
 		expect(db.select().from(schema.shoppingWeekEntries).get()?.included).toBe(false);
+
+		disableRecurringShoppingItem(db, {
+			id: successor.id,
+			expectedRevision: successor.revision,
+			effectiveWeek: '2026-08-05',
+			weekStartDay: WEEK_START_DAY
+		});
+		expect(
+			db
+				.select()
+				.from(schema.recurringShoppingItems)
+				.where(eq(schema.recurringShoppingItems.id, successor.id))
+				.get()?.endWeek
+		).toBe('2026-07-29');
+	});
+
+	it('fails closed for stale and past weekly occurrence changes', () => {
+		const db = createTestDb();
+		addRecurringShoppingItem(db, {
+			name: 'melk',
+			startWeek: CURRENT_WEEK,
+			weekStartDay: WEEK_START_DAY
+		});
+		materializeShoppingWeek(db, CURRENT_WEEK, {
+			weekStartDay: WEEK_START_DAY,
+			today: CURRENT_WEEK
+		});
+		const occurrence = db.select().from(schema.shoppingWeekEntries).get()!;
+		expect(() =>
+			setRecurringShoppingEntryIncluded(db, {
+				entryId: occurrence.id,
+				expectedRevision: occurrence.revision + 1,
+				weekStartDay: WEEK_START_DAY,
+				included: false
+			})
+		).toThrow('Weekly occurrence changed');
+
+		db.update(schema.shoppingWeekEntries)
+			.set({ weekStartDate: '2026-07-15' })
+			.where(eq(schema.shoppingWeekEntries.id, occurrence.id))
+			.run();
+		expect(() =>
+			setRecurringShoppingEntryIncluded(db, {
+				entryId: occurrence.id,
+				expectedRevision: occurrence.revision,
+				weekStartDay: WEEK_START_DAY,
+				included: false
+			})
+		).toThrow('past shopping weeks');
 	});
 
 	it('rejects overlapping active recurring ranges', () => {

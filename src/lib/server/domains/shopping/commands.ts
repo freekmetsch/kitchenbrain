@@ -56,6 +56,34 @@ export function applyRecipeShoppingChoice(
 		.run();
 }
 
+export function applyRecipeShoppingTermChoice(
+	db: DB,
+	input: {
+		entryId: number;
+		expectedRevision: number;
+		selectedName: string | null;
+	}
+) {
+	const updated = db
+		.update(schema.shoppingWeekEntries)
+		.set({
+			selectedName: input.selectedName,
+			revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
+			updatedAt: new Date()
+		})
+		.where(
+			and(
+				eq(schema.shoppingWeekEntries.id, input.entryId),
+				eq(schema.shoppingWeekEntries.revision, input.expectedRevision),
+				isNull(schema.shoppingWeekEntries.retiredAt)
+			)
+		)
+		.returning()
+		.get();
+	if (!updated) throw new ShoppingMutationError('stale', 'Shopping source changed');
+	return updated;
+}
+
 export type ShoppingPushItemInsert =
 	typeof schema.shoppingPushItems.$inferInsert;
 
@@ -257,9 +285,14 @@ export function disableRecurringShoppingItem(
 	if (result.changes !== 1) throw new ShoppingMutationError('stale', 'Weekly shopping item changed');
 }
 
-export function skipShoppingEntry(
+export function setRecurringShoppingEntryIncluded(
 	db: DB,
-	input: { entryId: number; expectedRevision: number; weekStartDay: number }
+	input: {
+		entryId: number;
+		expectedRevision: number;
+		weekStartDay: number;
+		included: boolean;
+	}
 ) {
 	const entry = db
 		.select()
@@ -272,7 +305,11 @@ export function skipShoppingEntry(
 	assertNonpastWeek(entry.weekStartDate, input.weekStartDay);
 	const updated = db
 		.update(schema.shoppingWeekEntries)
-		.set({ included: false, revision: sql`${schema.shoppingWeekEntries.revision} + 1`, updatedAt: new Date() })
+		.set({
+			included: input.included,
+			revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
+			updatedAt: new Date()
+		})
 		.where(
 			and(
 				eq(schema.shoppingWeekEntries.id, input.entryId),

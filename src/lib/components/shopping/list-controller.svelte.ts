@@ -14,6 +14,8 @@ export type RecurringShoppingItem = {
 	name: string;
 	amount: string | null;
 	unit: string | null;
+	startWeek: string;
+	endWeek: string | null;
 	entryId: number | null;
 	entryRevision: number | null;
 	included: boolean;
@@ -55,8 +57,6 @@ export type ShoppingListControllerDependencies = {
 	onDeleteManual: (source: ShoppingListSource) => Promise<boolean>;
 	onRestoreManual: (source: ShoppingListSource) => Promise<boolean>;
 	focus: (key: string | null) => Promise<void>;
-	settle: () => Promise<void>;
-	openWeeklyManager: () => Promise<void>;
 	notifyUndo: (message: string, action: () => void | Promise<void>) => void;
 	notifyError: (message: string) => void;
 	messages: ShoppingListMessages;
@@ -64,13 +64,8 @@ export type ShoppingListControllerDependencies = {
 
 class ShoppingListController {
 	filter = $state<ShoppingListFilter>({ kind: 'all' });
-	sourceSheetOpen = $state(false);
-	selectedSources = $state<ShoppingListSource[]>([]);
 	itemActionOpen = $state(false);
 	selectedItem = $state<ShoppingListItem | null>(null);
-	rulesOpen = $state(false);
-	rulesScope = $state<'excluded' | 'all'>('all');
-	openWeeklyAfterAction = $state(false);
 	actionPending = $state(false);
 	basketOpen = $state(false);
 	shoppingStatus = $state('');
@@ -102,8 +97,10 @@ class ShoppingListController {
 	}
 
 	get filterOptions() {
+		const projected = getShoppingFilterOptions([...this.pending, ...this.done]);
+		const sourceMeals = this.recipeSources.flatMap((source) => source.mealNames);
 		return {
-			...getShoppingFilterOptions([...this.pending, ...this.done]),
+			meals: [...new Set([...projected.meals, ...sourceMeals])],
 			hasWeekly: true
 		};
 	}
@@ -138,10 +135,6 @@ class ShoppingListController {
 
 	get excludedRecipeSources() {
 		return this.recipeSources.filter((source) => !source.included);
-	}
-
-	get visibleRuleSources() {
-		return this.rulesScope === 'excluded' ? this.excludedRecipeSources : this.recipeSources;
 	}
 
 	get filterHasResults() {
@@ -185,30 +178,8 @@ class ShoppingListController {
 		this.itemActionOpen = true;
 	}
 
-	openRuleSources(sources: ShoppingListSource[]) {
-		this.selectedSources = sources;
-		this.sourceSheetOpen = sources.length > 0;
-	}
-
-	async handleActionClose() {
-		if (this.itemActionOpen) return;
-		if (this.openWeeklyAfterAction) {
-			this.openWeeklyAfterAction = false;
-			await this.#dependencies.settle();
-			await this.#dependencies.openWeeklyManager();
-		}
+	handleActionClose() {
 		if (!this.itemActionOpen) this.selectedItem = null;
-	}
-
-	openRules(scope: 'excluded' | 'all' = 'all') {
-		this.rulesScope =
-			scope === 'excluded' && this.excludedRecipeSources.length ? 'excluded' : 'all';
-		this.rulesOpen = true;
-	}
-
-	openWeeklyAfterActions() {
-		this.openWeeklyAfterAction = true;
-		this.itemActionOpen = false;
 	}
 
 	async undoBought(item: ShoppingListItem, key: string) {

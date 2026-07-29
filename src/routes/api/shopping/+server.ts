@@ -37,9 +37,10 @@ const PostSchema = z.discriminatedUnion('action', [
 		effectiveWeek: isoDateSchema
 	}),
 	z.object({
-		action: z.literal('skip_recurring'),
+		action: z.literal('set_recurring_included'),
 		entryId: z.number().int().positive(),
-		expectedRevision: z.number().int().positive()
+		expectedRevision: z.number().int().positive(),
+		included: z.boolean()
 	}),
 	z.object({
 		action: z.literal('add_source_manual'),
@@ -110,8 +111,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			shoppingService.disableRecurring({ id: body.itemId, ...body, weekStartDay });
 			return json({ ok: true });
 		}
-		if (body.action === 'skip_recurring') {
-			return json(shoppingService.skip({ ...body, weekStartDay }));
+		if (body.action === 'set_recurring_included') {
+			return json(shoppingService.setRecurringIncluded({ ...body, weekStartDay }));
 		}
 		if (body.action === 'add_source_manual') {
 			return json(shoppingService.addManual({ ...body, weekStartDay }));

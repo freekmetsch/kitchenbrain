@@ -135,48 +135,255 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingName} bought` })
 	).toBeVisible();
 
+	const buyTerm = page.getByRole('combobox', {
+		name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
+	});
+	await expect(buyTerm).toBeVisible();
+	const termSaved = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' &&
+			response.url().endsWith('/api/shopping/recipe-choice')
+	);
+	await buyTerm.selectOption(fixture.shoppingAlternative);
+	const termResponse = await termSaved;
+	expect(termResponse.ok()).toBe(true);
+	expect(termResponse.request().postDataJSON()).toMatchObject({
+		action: 'term',
+		term: fixture.shoppingAlternative
+	});
+	await expect(
+		page.getByRole('combobox', {
+			name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
+		})
+	).toHaveValue(fixture.shoppingAlternative);
+	const termRestored = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' &&
+			response.url().endsWith('/api/shopping/recipe-choice')
+	);
 	await page
-		.getByRole('button', { name: `Edit shopping rule for ${fixture.shoppingName}` })
-		.click();
+		.getByRole('combobox', {
+			name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
+		})
+		.selectOption(fixture.shoppingName);
+	expect((await termRestored).ok()).toBe(true);
 
-	const ruleDialog = page.getByRole('dialog').filter({
-		has: page.getByRole('heading', { name: 'Edit shopping rule' })
+	const needButton = page.getByRole('button', {
+		name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Always`
 	});
-	await expect(ruleDialog).toBeVisible();
-	await ruleDialog.getByRole('radio', { name: /Nice to have/ }).check();
-	await ruleDialog.getByLabel('Buy this week').selectOption(fixture.shoppingAlternative);
-
-	const sourceSaved = page.waitForResponse(
+	await page.getByText('Not this run (2)', { exact: true }).click();
+	const siblingNeed = page.getByRole('button', {
+		name: `Change need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}. Current: Nice to have`
+	});
+	await expect(siblingNeed).toBeVisible();
+	await page.route(
+		'**/api/shopping/recipe-choice',
+		async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			await route.continue();
+		},
+		{ times: 1 }
+	);
+	const sourceExcluded = page.waitForResponse(
 		(response) =>
 			response.request().method() === 'POST' &&
 			response.url().endsWith('/api/shopping/recipe-choice')
 	);
-	await ruleDialog.getByRole('button', { name: 'Save choice' }).click();
-	expect((await sourceSaved).ok()).toBe(true);
-	await expect(page.getByText('Shopping choice saved.', { exact: true })).toBeVisible({
-		timeout: 15_000
+	await needButton.click();
+	await expect(siblingNeed).toBeDisabled();
+	const excludedResponse = await sourceExcluded;
+	expect(excludedResponse.ok()).toBe(true);
+	expect(excludedResponse.request().postDataJSON()).toMatchObject({
+		action: 'need',
+		need: 'optional'
 	});
+	await expect(page.getByText('Not this run (3)', { exact: true })).toBeVisible();
+	await expect(
+		page.getByRole('button', {
+			name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Nice to have`
+		})
+	).toBeVisible();
+	await expect(
+		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingName} bought` })
+	).toHaveCount(0);
 
-	await page.getByRole('button', { name: /^Shopping rules/ }).click();
-	const rulesDialog = page.getByRole('dialog').filter({
-		has: page.getByRole('heading', { name: 'Manage shopping rules' })
-	});
-	await rulesDialog
-		.getByRole('button', { name: new RegExp(fixture.shoppingName) })
-		.click();
-	await rulesDialog.getByRole('radio', { name: /Every time/ }).check();
-	await rulesDialog.getByLabel('Buy this week').selectOption(fixture.shoppingName);
-	const sourceRestored = page.waitForResponse(
+	const sourceUndone = page.waitForResponse(
 		(response) =>
 			response.request().method() === 'POST' &&
 			response.url().endsWith('/api/shopping/recipe-choice')
 	);
-	await rulesDialog.getByRole('button', { name: 'Save choice' }).click();
-	expect((await sourceRestored).ok()).toBe(true);
-	await page.keyboard.press('Escape');
+	await page.getByRole('button', { name: 'Undo' }).click();
+	expect((await sourceUndone).ok()).toBe(true);
 	await expect(
 		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingName} bought` })
 	).toBeVisible();
+
+	for (const state of [
+		{ current: 'Always', next: 'optional' },
+		{ current: 'Nice to have', next: 'stocked' },
+		{ current: 'Usually stocked', next: 'required' }
+	] as const) {
+		const changed = page.waitForResponse(
+			(response) =>
+				response.request().method() === 'POST' &&
+				response.url().endsWith('/api/shopping/recipe-choice')
+		);
+		await page
+			.getByRole('button', {
+				name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: ${state.current}`
+			})
+			.click();
+		const response = await changed;
+		expect(response.ok()).toBe(true);
+		expect(response.request().postDataJSON()).toMatchObject({
+			action: 'need',
+			need: state.next
+		});
+	}
+	await expect(
+		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingName} bought` })
+	).toBeVisible();
+
+	const otherRecipeTitle =
+		fixture.account === 'primary' ? 'E2E Secondary Stew' : 'E2E Primary Stew';
+	for (const recipeTitle of [fixture.recipeTitle, otherRecipeTitle]) {
+		for (const transition of [
+			{ current: 'Nice to have', next: 'stocked' },
+			{ current: 'Usually stocked', next: 'required' }
+		] as const) {
+			const changed = page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					response.url().endsWith('/api/shopping/recipe-choice')
+			);
+			await page
+				.getByRole('button', {
+					name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: ${transition.current}`
+				})
+				.click();
+			const response = await changed;
+			expect(response.ok()).toBe(true);
+			expect(response.request().postDataJSON()).toMatchObject({
+				action: 'need',
+				need: transition.next
+			});
+		}
+	}
+	await expect(
+		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingSibling} bought` })
+	).toBeVisible();
+	for (const recipeTitle of [fixture.recipeTitle, otherRecipeTitle]) {
+		await expect(
+			page.getByRole('button', {
+				name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: Always`
+			})
+		).toBeVisible();
+		const excluded = page.waitForResponse(
+			(response) =>
+				response.request().method() === 'POST' &&
+				response.url().endsWith('/api/shopping/recipe-choice')
+		);
+		await page
+			.getByRole('button', {
+				name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: Always`
+			})
+			.click();
+		expect((await excluded).ok()).toBe(true);
+	}
+	await expect(
+		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingSibling} bought` })
+	).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /^Shopping rules/ })).toHaveCount(0);
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Weekly items', exact: true }).click();
+	await page.getByRole('button', { name: 'Edit weekly', exact: true }).click();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Add weekly item', exact: true }).click();
+	const weeklyEditor = page.locator('.weekly-editor');
+	const weeklyName = `E2E ${fixture.account} weekly milk`;
+	const weeklyNameInput = weeklyEditor.getByLabel('Item');
+	await weeklyNameInput.fill(weeklyName);
+	await weeklyEditor.getByLabel('Amount').fill('2');
+	await weeklyEditor.getByLabel('Unit').fill('packs');
+
+	await page.route(
+		'**/api/shopping',
+		(route) =>
+			route.fulfill({
+				status: 500,
+				contentType: 'application/json',
+				body: '{"message":"intentional inline weekly draft test"}'
+			}),
+		{ times: 1 }
+	);
+	const weeklyDraftRejected = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/api/shopping')
+	);
+	await page.getByRole('button', { name: 'Add weekly item', exact: true }).last().click();
+	expect((await weeklyDraftRejected).status()).toBe(500);
+	await expect(weeklyNameInput).toHaveValue(weeklyName);
+
+	const weeklyAdded = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/api/shopping')
+	);
+	await page.getByRole('button', { name: 'Add weekly item', exact: true }).last().click();
+	expect((await weeklyAdded).ok()).toBe(true);
+	const weeklyRow = page.getByRole('button', { name: new RegExp(weeklyName) }).first();
+	await expect(weeklyRow).toBeVisible();
+	await expect(weeklyRow).toBeFocused();
+	await expect(
+		page.getByRole('checkbox', { name: `Mark ${weeklyName} bought` })
+	).toHaveCount(0);
+	await page.getByRole('button', { name: 'Done editing', exact: true }).click();
+	await expect(
+		page.getByRole('checkbox', { name: `Mark ${weeklyName} bought` })
+	).toBeVisible();
+	await page.getByRole('button', { name: 'Edit weekly', exact: true }).click();
+	await expect(
+		page.getByRole('checkbox', { name: `Mark ${weeklyName} bought` })
+	).toHaveCount(0);
+
+	const weeklySkipped = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/api/shopping')
+	);
+	await page.getByRole('button', { name: /Change .* Current: This week/ }).click();
+	expect((await weeklySkipped).ok()).toBe(true);
+	const weeklyRestored = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/api/shopping')
+	);
+	await page.getByRole('button', { name: /Change .* Current: Skipped/ }).click();
+	expect((await weeklyRestored).ok()).toBe(true);
+
+	await page.getByRole('button', { name: new RegExp(weeklyName) }).first().click();
+	const renamedWeekly = `${weeklyName} updated`;
+	await weeklyEditor.getByLabel('Item').fill(renamedWeekly);
+	const weeklyEdited = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/api/shopping')
+	);
+	await page.getByRole('button', { name: 'Save choice', exact: true }).click();
+	expect((await weeklyEdited).ok()).toBe(true);
+	await expect(page.getByRole('button', { name: new RegExp(renamedWeekly) }).first()).toBeFocused();
+
+	await page.getByRole('button', { name: 'Stop from this week', exact: true }).click();
+	await expect(page.getByText(`Stop ${renamedWeekly} from this week onward?`, { exact: true })).toBeVisible();
+	const weeklyStopped = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/api/shopping')
+	);
+	await page
+		.locator('.weekly-stop-confirm')
+		.getByRole('button', { name: 'Stop from this week', exact: true })
+		.click();
+	expect((await weeklyStopped).ok()).toBe(true);
+	await expect(page.getByText(renamedWeekly, { exact: true })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Done editing', exact: true }).click();
+	await expect(page.getByText('No weekly items are included in this run.', { exact: true })).toBeVisible();
 });
 
 test('Recipes can be planned, marked made, and frozen without providers', async ({
