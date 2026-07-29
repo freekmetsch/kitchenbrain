@@ -2,12 +2,19 @@
 	import { base } from '$app/paths';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { CORE_FOOD_TYPE_OPTIONS, foodCategoryLabel } from '$lib/food_categories';
+	import {
+		CORE_FOOD_TYPE_OPTIONS,
+		foodCategoryAccent,
+		foodCategoryLabel
+	} from '$lib/food_categories';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import FilterChip from '$lib/components/ui/FilterChip.svelte';
+	import KitchenHeaderActionRail from '$lib/components/ui/KitchenHeaderActionRail.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import SmartImage from '$lib/components/ui/SmartImage.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
@@ -341,24 +348,32 @@
 <div class="recipe-page">
 	<KitchenPageHeader eyebrow={m.recipes_header_context()} title={m.recipes_heading()}>
 		{#snippet actions()}
-			<button
-				class="ui-kitchen-header-action"
-				onclick={() => {
-					newMealOpen = true;
-					newMealTitle = '';
-					newMealQuery = '';
-					newMealSlugs = [];
-					newMealError = '';
-				}}>{m.recipes_new_meal_button()}</button>
-			<button
-				class="ui-kitchen-header-action ui-kitchen-header-action-primary"
-				onclick={() => {
-					scrapeOpen = true;
-				}}>{m.recipes_import_button()}</button>
+			<KitchenHeaderActionRail>
+				{#snippet secondary()}
+					<button
+						class="ui-action ui-action-secondary ui-action-on-dark"
+						onclick={() => {
+							newMealOpen = true;
+							newMealTitle = '';
+							newMealQuery = '';
+							newMealSlugs = [];
+							newMealError = '';
+						}}>{m.recipes_new_meal_button()}</button
+					>
+				{/snippet}
+				{#snippet primary()}
+					<button
+						class="ui-action ui-action-primary"
+						onclick={() => {
+							scrapeOpen = true;
+						}}>{m.recipes_import_button()}</button
+					>
+				{/snippet}
+			</KitchenHeaderActionRail>
 		{/snippet}
 
 		<div class="recipe-search-row">
-			<label class="ui-kitchen-search ui-kitchen-search-on-dark">
+			<label class="ui-field-shell ui-field-shell-on-dark">
 				<svg
 					viewBox="0 0 16 16"
 					class="h-4 w-4"
@@ -385,7 +400,7 @@
 			/>
 			</label>
 			<select
-				class="ui-kitchen-select-on-dark"
+				class="ui-field ui-field-on-dark"
 				bind:value={sortBy}
 				onchange={search}
 				aria-label={m.recipes_sort_aria()}
@@ -403,43 +418,32 @@
 	<section class="recipe-filter-shell">
 		<div class="recipe-filter-inner ui-kitchen-content">
 		<div class="ui-scroll-rail flex items-center gap-1.5 pb-0.5" use:scrollRail>
-			<button
-				type="button"
-				class={data.toggles.haveAll ? 'ui-chip-active shrink-0 border-success/40 bg-success/10 text-success' : 'ui-chip shrink-0'}
-				aria-pressed={data.toggles.haveAll}
-				onclick={() => toggle('haveAll')}
-			>{m.recipes_filter_have_all()}</button>
-			<button
-				type="button"
-				class={data.toggles.freezerOnly ? 'ui-chip-active shrink-0 border-info/40 bg-info/10 text-info' : 'ui-chip shrink-0'}
-				aria-pressed={data.toggles.freezerOnly}
-				onclick={() => toggle('freezerOnly')}
-			>{m.recipes_filter_freezer_staple()}</button>
-			<button
-				type="button"
-				class={data.toggles.belowTargetOnly ? 'ui-chip-active shrink-0 border-warning/40 bg-warning/10 text-warning' : 'ui-chip shrink-0'}
-				aria-pressed={data.toggles.belowTargetOnly}
-				onclick={() => toggle('belowTargetOnly')}
-			>{m.recipes_filter_below_target()}</button>
+			<FilterChip class="shrink-0" selected={data.toggles.haveAll} tone="success" onclick={() => toggle('haveAll')}>
+				{m.recipes_filter_have_all()}
+			</FilterChip>
+			<FilterChip class="shrink-0" selected={data.toggles.freezerOnly} tone="info" onclick={() => toggle('freezerOnly')}>
+				{m.recipes_filter_freezer_staple()}
+			</FilterChip>
+			<FilterChip class="shrink-0" selected={data.toggles.belowTargetOnly} tone="warning" onclick={() => toggle('belowTargetOnly')}>
+				{m.recipes_filter_below_target()}
+			</FilterChip>
 			<span class="h-4 w-px shrink-0 bg-base-300" aria-hidden="true"></span>
 			{#each CORE_FOOD_TYPE_OPTIONS as option}
-				<button
-					type="button"
-					class={classFilter === option.value ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
-					aria-pressed={classFilter === option.value}
+				<FilterChip
+					class="shrink-0"
+					selected={classFilter === option.value}
 					onclick={() => setClass(option.value)}
-				>{foodCategoryLabel(option.value)}</button>
+				>{foodCategoryLabel(option.value)}</FilterChip>
 			{/each}
 			{#if data.dishTypes.length}
 				<span class="h-4 w-px shrink-0 bg-base-300" aria-hidden="true"></span>
 			{/if}
 			{#each data.dishTypes as dishType}
-				<button
-					type="button"
-					class={dishFilter === dishType ? 'ui-chip-active shrink-0' : 'ui-chip shrink-0'}
-					aria-pressed={dishFilter === dishType}
+				<FilterChip
+					class="shrink-0"
+					selected={dishFilter === dishType}
 					onclick={() => setDish(dishType)}
-				>{foodCategoryLabel(dishType) ?? dishType}</button>
+				>{foodCategoryLabel(dishType) ?? dishType}</FilterChip>
 			{/each}
 		</div>
 		</div>
@@ -449,7 +453,7 @@
 	{#if ingredientFilter}
 		<div class="mb-3 flex items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-3 py-2 text-sm">
 			<span class="min-w-0 flex-1 truncate">{m.recipes_using_ingredient_prefix()} <strong>{ingredientFilter}</strong></span>
-			<button class="btn btn-xs btn-ghost" onclick={clearIngredientFilter}>{m.recipes_clear_button()}</button>
+			<button class="ui-action ui-action-tertiary" onclick={clearIngredientFilter}>{m.recipes_clear_button()}</button>
 		</div>
 	{/if}
 
@@ -462,9 +466,9 @@
 		>
 			{#snippet action()}
 				{#if hasActiveFilters}
-					<button class="btn btn-sm btn-ghost border border-base-300" onclick={clearFilters}>{m.recipes_clear_filters_button()}</button>
+					<button class="ui-action ui-action-secondary" onclick={clearFilters}>{m.recipes_clear_filters_button()}</button>
 				{:else}
-					<button class="btn btn-sm btn-primary" onclick={() => (scrapeOpen = true)}>{m.recipes_import_recipe_button()}</button>
+					<button class="ui-action ui-action-primary" onclick={() => (scrapeOpen = true)}>{m.recipes_import_recipe_button()}</button>
 				{/if}
 			{/snippet}
 		</EmptyState>
@@ -476,7 +480,8 @@
 				{@const cookedLabel = lastCookedLabel(recipe)}
 				{@const coverage = coverageLabel(recipe)}
 				<article
-					class="ui-list-card overflow-hidden transition-colors hover:border-primary"
+					class="ui-recipe-card transition-colors hover:border-primary"
+					data-category-accent={foodCategoryAccent(recipe.category)}
 					animate:flip={{ duration: MOTION_CONTENT_MS }}
 					in:fade={{ duration: MOTION_MICRO_MS }}
 				>
@@ -490,34 +495,34 @@
 					{/if}
 					<div class="p-1.5">
 						<div class="flex flex-wrap items-center gap-1">
-							<h2 class="mr-auto min-w-0 text-sm font-semibold leading-snug line-clamp-2">{title}</h2>
+							<h2 class="ui-recipe-card-title mr-auto min-w-0 line-clamp-2">{title}</h2>
 							{#if category}
-								<span class="ui-chip-muted max-w-24 truncate px-2 py-0.5">{category}</span>
+								<StatusBadge class="max-w-24 truncate">{category}</StatusBadge>
 							{/if}
 							{#if recipe.rating}
 								<span class="text-xs text-warning shrink-0">{stars(recipe.rating)}</span>
 							{/if}
 								{#if recipe.subCount > 0}
-									<span class="ui-chip-muted px-2 py-0.5">{m.recipes_meal_badge({ count: recipe.subCount })}</span>
+									<StatusBadge>{m.recipes_meal_badge({ count: recipe.subCount })}</StatusBadge>
 								{/if}
 								{#if recipe.needsReview}
-									<span class="ui-chip-active border-warning/40 bg-warning/10 px-2 py-0.5 text-warning">{m.recipes_review_badge()}</span>
+									<StatusBadge tone="warning">{m.recipes_review_badge()}</StatusBadge>
 								{/if}
 								{#if coverage}
-									<span class={recipe.hasAllIngredients ? 'ui-chip-active border-success/40 bg-success/10 px-2 py-0.5 text-success' : 'ui-chip-muted px-2 py-0.5'}>{coverage}</span>
+									<StatusBadge tone={recipe.hasAllIngredients ? 'success' : 'neutral'}>{coverage}</StatusBadge>
 								{/if}
 								{#if recipe.belowTarget}
-									<span class="ui-chip-active border-warning/40 bg-warning/10 px-2 py-0.5 text-warning">{m.recipes_below_target_badge()}</span>
+									<StatusBadge tone="warning">{m.recipes_below_target_badge()}</StatusBadge>
 								{:else if recipe.isFreezerStaple}
-									<span class="ui-chip-muted px-2 py-0.5">{m.recipes_freezer_badge()}</span>
+									<StatusBadge>{m.recipes_freezer_badge()}</StatusBadge>
 								{/if}
 							{#if cookedLabel}<span class="truncate text-xs text-base-content/40">{cookedLabel}</span>{/if}
 						</div>
 					</div>
 					</a>
-					<div class="grid grid-cols-2 border-t border-base-300/70">
-						<button type="button" class="btn btn-ghost btn-sm min-h-11 rounded-none border-r border-base-300/70" onclick={() => openPlan(recipe)}>{m.recipes_header_plan_button()}</button>
-						<button type="button" class="btn btn-ghost btn-sm min-h-11 rounded-none" onclick={() => openMake(recipe)}>{m.recipes_make_button()}</button>
+					<div class="recipe-card-actions grid grid-cols-2 gap-2 border-t border-base-300/70 p-2">
+						<button type="button" class="ui-action ui-action-secondary" onclick={() => openPlan(recipe)}>{m.recipes_header_plan_button()}</button>
+						<button type="button" class="ui-action ui-action-secondary" onclick={() => openMake(recipe)}>{m.recipes_make_button()}</button>
 					</div>
 				</article>
 			{/each}
@@ -620,14 +625,14 @@
 	<div class="flex max-h-[62dvh] flex-col">
 			<input
 				type="text"
-				class="input input-bordered input-sm w-full mb-2"
+				class="ui-field mb-2 w-full"
 				placeholder={m.recipes_meal_name_placeholder()}
 				aria-label={m.recipes_meal_name_aria()}
 				bind:value={newMealTitle}
 			/>
 			<input
 				type="search"
-				class="input input-bordered input-sm w-full mb-2"
+				class="ui-field mb-2 w-full"
 				placeholder={m.recipes_search_combine_placeholder()}
 				aria-label={m.recipes_search_combine_aria()}
 				bind:value={newMealQuery}
@@ -660,7 +665,7 @@
 			{/if}
 			<div>
 				<button
-					class="btn btn-primary btn-sm w-full"
+					class="ui-action ui-action-primary w-full"
 					disabled={newMealLoading || newMealSlugs.length < 2 || !newMealTitle.trim()}
 					onclick={createMeal}
 				>
@@ -675,7 +680,7 @@
 			<input
 				type="url"
 				inputmode="url"
-				class="input input-bordered w-full mb-2"
+				class="ui-field mb-2 w-full"
 				placeholder="https://www.ah.nl/allerhande/…"
 				aria-label={m.recipes_url_aria()}
 				bind:value={scrapeUrl}
@@ -686,7 +691,7 @@
 			{/if}
 			<div class="mt-3">
 				<button
-					class="btn btn-primary w-full"
+					class="ui-action ui-action-primary w-full"
 					onclick={scrape}
 					disabled={!scrapeUrl.trim() || scrapeLoading}
 				>

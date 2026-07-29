@@ -92,7 +92,7 @@
 						<a class="text-[13px] py-1" href="{base}/recipes/{sub.slug}">{subDisplayTitle(sub)}</a>
 						<button
 							type="button"
-							class="w-8 h-8 rounded-full text-base-content/50 hover:bg-base-300 text-[11px]"
+							class="ui-action ui-action-danger ui-action-icon text-[11px]"
 							aria-label={m.recipes_meal_remove_aria({ title: subDisplayTitle(sub) })}
 							onclick={async () => {
 								await patchMeal({ remove_slug: sub.slug });
@@ -105,7 +105,7 @@
 				<li>
 					<button
 						type="button"
-						class="btn btn-xs btn-ghost border border-base-300 rounded-full"
+						class="ui-action ui-action-secondary"
 						onclick={openAddSub}>{m.recipes_meal_add_button()}</button
 					>
 				</li>
@@ -130,7 +130,7 @@
 	<div class="flex max-h-[62dvh] flex-col">
 		<input
 			type="search"
-			class="input input-bordered input-sm w-full mb-2"
+			class="ui-field mb-2 w-full"
 			placeholder={m.recipes_meal_search_placeholder()}
 			bind:value={addSubQuery}
 		/>

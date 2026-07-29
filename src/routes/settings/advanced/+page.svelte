@@ -73,7 +73,7 @@
 
 	<div class="flex flex-col gap-5">
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_model_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_model_heading()}</h2>
 			<div class="flex flex-col gap-4">
 				<ModelPicker
 					role="vision"
@@ -95,7 +95,7 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_advanced_temperature_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_advanced_temperature_heading()}</h2>
 			<div class="flex items-center justify-between gap-2">
 				<span class="ui-field-label" id="temperature-label">{m.settings_advanced_temperature_label()}</span>
 				<span class="text-[11px] text-base-content/40">{SOURCE_LABEL[temperatureEffective.source]}</span>
@@ -110,13 +110,13 @@
 					max="2"
 					step="0.1"
 					placeholder={m.settings_advanced_temperature_placeholder()}
-					class="input input-bordered input-sm w-24"
+					class="ui-field w-24"
 					aria-labelledby="temperature-label"
 					bind:value={temperatureInput}
 					disabled={temperatureSaving}
 				/>
 				<PendingButton
-					class="btn btn-xs btn-primary"
+					class="ui-action ui-action-primary"
 					pending={temperatureSaving}
 					disabled={!temperatureInput.trim()}
 					onclick={saveTemperature}
@@ -126,7 +126,7 @@
 				{#if temperatureEffective.source !== 'default'}
 					<button
 						type="button"
-						class="btn btn-xs btn-ghost text-base-content/50"
+						class="ui-action ui-action-tertiary"
 						disabled={temperatureSaving}
 						onclick={resetTemperature}
 					>
@@ -137,7 +137,7 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_advanced_env_knobs_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_advanced_env_knobs_heading()}</h2>
 			<p class="mb-3 text-xs text-base-content/50">
 				{m.settings_advanced_env_knobs_desc()} <code class="text-[11px]">.env.example</code>.
 			</p>

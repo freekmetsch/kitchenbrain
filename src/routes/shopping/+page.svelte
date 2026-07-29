@@ -265,14 +265,14 @@
 		class="shopping-market-dock"
 		aria-label={m.shopping_heading()}
 	>
-		<button type="button" class="market-add-action" onclick={() => addItemForm?.openAddModal()}>
+		<button type="button" class="market-add-action ui-action ui-action-secondary" onclick={() => addItemForm?.openAddModal()}>
 			<Icon name="plus" />
 			{m.shopping_additem_submit_aria()}
 		</button>
 		{#if data.ah.connected}
 			<button
 				type="button"
-				class="market-ah-action"
+				class="market-ah-action ui-action ui-action-primary"
 				disabled={visibleToBuyCount === 0}
 				onclick={() => ahSheet?.openAhModal()}
 				aria-label={m.shopping_review_ah_order()}
@@ -283,7 +283,7 @@
 			</button>
 		{:else}
 			<a
-				class="market-ah-action"
+				class="market-ah-action ui-action ui-action-primary"
 				href="{base}/settings/connections"
 				aria-label={m.shopping_connect_settings_link()}
 			>
@@ -358,28 +358,9 @@
 		backdrop-filter: blur(12px);
 	}
 
-	.shopping-market-dock button,
-	.shopping-market-dock a {
-		display: inline-flex;
+	.shopping-market-dock :global(.ui-action) {
 		min-width: 0;
-		min-height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-		border-radius: 0.65rem;
-		padding: 0 0.7rem;
-		font-size: 0.75rem;
-		font-weight: 800;
-	}
-
-	.market-add-action {
-		background: color-mix(in oklab, var(--market-paper) 80%, var(--color-base-200));
-		color: var(--color-base-content);
-	}
-
-	.market-ah-action {
-		background: var(--market-terra);
-		color: white;
+		padding-inline: 0.7rem;
 	}
 
 	.market-ah-action span {
@@ -390,11 +371,6 @@
 		border-radius: 999px;
 		background: rgb(255 255 255 / 17%);
 		font-size: 0.63rem;
-	}
-
-	.market-ah-action:disabled {
-		background: var(--color-base-200);
-		color: color-mix(in oklab, var(--color-base-content) 48%, transparent);
 	}
 
 	:global(html[data-theme='dark']) .shopping-market {

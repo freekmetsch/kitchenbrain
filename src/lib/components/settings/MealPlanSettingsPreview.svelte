@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { formatDate } from '$lib/i18n';
 	import { buildMealPlanPreview } from '$lib/meal_plan_preview';
 	import { m } from '$lib/paraglide/messages';
@@ -40,10 +41,10 @@
 
 <section class="ui-form-card border-primary/25 bg-primary/5" aria-busy={saving}>
 	<div class="flex flex-wrap items-center justify-between gap-2">
-		<h2 class="ui-section-label">{m.settings_mealplan_preview_heading()}</h2>
-		<span class="ui-chip-active">
+		<h2 class="ui-section-title">{m.settings_mealplan_preview_heading()}</h2>
+		<StatusBadge tone="info">
 			{m.settings_mealplan_preview_weeks({ count: planAheadWeeks })}
-		</span>
+		</StatusBadge>
 	</div>
 
 	<div class="mt-3 grid grid-cols-7 gap-1" aria-label={m.settings_mealplan_preview_week_label()}>
@@ -58,14 +59,14 @@
 	</div>
 
 	<div class="mt-2 flex flex-wrap gap-1.5 text-xs">
-		<span class="ui-chip-muted">
+		<StatusBadge>
 			{shortDate(preview.weekStart)}–{shortDate(preview.weekEnd)}
-		</span>
+		</StatusBadge>
 		{#if preview.deliveryDate}
-			<span class="ui-chip-active inline-flex items-center gap-1">
+			<StatusBadge tone="success">
 				<Icon name="cart" class="h-3.5 w-3.5" />
 				{m.settings_mealplan_preview_delivery({ date: shortDate(preview.deliveryDate) })}
-			</span>
+			</StatusBadge>
 		{/if}
 	</div>
 

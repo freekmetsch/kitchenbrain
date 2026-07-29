@@ -5,6 +5,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import SettingsPanelHeader from '$lib/components/settings/SettingsPanelHeader.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type { PageData } from './$types';
@@ -152,10 +154,10 @@
 
 	<div class="flex flex-col gap-5">
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_data_export_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_data_export_heading()}</h2>
 			<button
 				type="button"
-				class="btn btn-sm btn-outline w-full"
+				class="ui-action ui-action-secondary w-full"
 				onclick={downloadExport}
 				disabled={exportLoading}
 			>
@@ -167,32 +169,39 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_data_import_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_data_import_heading()}</h2>
 			<p class="mb-3 text-xs text-base-content/50">{m.settings_data_import_desc()}</p>
 			{#if data.importEligible}
-				<div class="mb-3 flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm font-medium text-success">
-					<Icon name="check" class="h-4 w-4" />
-					{m.settings_data_import_ready()}
-				</div>
+				<KitchenNotice tone="success" class="mb-3 text-sm font-medium">
+					<span class="flex items-center gap-2">
+						<Icon name="check" class="h-4 w-4 shrink-0 text-success" />
+						{m.settings_data_import_ready()}
+					</span>
+				</KitchenNotice>
 			{:else}
-				<div class="mb-3 rounded-xl border border-warning/30 bg-warning/10 p-3">
-					<p class="text-sm font-semibold">
-						{m.settings_data_import_blocked({ count: data.importBlockerCount })}
-					</p>
-					<ul class="mt-2 flex flex-col gap-1">
-						{#each data.resetGroups.filter((group) => group.blocksImport) as group (group.key)}
-							<li>
-								<a
-									href={`#reset-group-${group.key}`}
-									class="flex min-h-10 items-center justify-between gap-3 rounded-lg bg-base-100 px-3 py-2 text-sm font-medium text-primary"
-								>
-									<span>{resetGroupLabel(group.key)}</span>
-									<span class="badge badge-ghost badge-sm">{group.count}</span>
-								</a>
-							</li>
-						{/each}
-					</ul>
-				</div>
+				<KitchenNotice tone="warning" class="mb-3">
+					<div class="flex items-start gap-2">
+						<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+						<div class="min-w-0 flex-1">
+							<p class="text-sm font-semibold">
+								{m.settings_data_import_blocked({ count: data.importBlockerCount })}
+							</p>
+							<ul class="mt-2 flex flex-col gap-1">
+								{#each data.resetGroups.filter((group) => group.blocksImport) as group (group.key)}
+									<li>
+										<a
+											href={`#reset-group-${group.key}`}
+											class="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-base-100 px-3 py-2 text-sm font-medium text-primary"
+										>
+											<span>{resetGroupLabel(group.key)}</span>
+											<StatusBadge>{group.count}</StatusBadge>
+										</a>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					</div>
+				</KitchenNotice>
 			{/if}
 			<input
 				bind:this={importFileInput}
@@ -204,7 +213,7 @@
 			/>
 			<button
 				type="button"
-				class="btn btn-sm btn-outline w-full"
+				class="ui-action ui-action-secondary w-full"
 				disabled={!data.importEligible || importLoading}
 				onclick={() => importFileInput?.click()}
 			>
@@ -215,7 +224,7 @@
 			{/if}
 			<button
 				type="button"
-				class="btn btn-sm btn-primary mt-2 w-full"
+				class="ui-action ui-action-primary mt-2 w-full"
 				disabled={!data.importEligible || !importFile || importLoading}
 				onclick={runImport}
 			>
@@ -227,7 +236,7 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_data_reset_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_data_reset_heading()}</h2>
 			<p class="mb-3 text-xs text-base-content/50">
 				{m.settings_data_reset_desc()}
 			</p>
@@ -246,7 +255,7 @@
 							<span class="text-xs tabular-nums text-base-content/40">{group.count}</span>
 							<button
 								type="button"
-								class="btn btn-outline btn-error btn-sm"
+								class="ui-action ui-action-danger"
 								disabled={group.count === 0}
 								onclick={() => openReset(group)}
 							>
@@ -275,7 +284,7 @@
 		</p>
 		<input
 			type="text"
-			class="input input-bordered input-sm w-full"
+			class="ui-field w-full"
 			autocapitalize="off"
 			autocorrect="off"
 			spellcheck="false"
@@ -286,12 +295,12 @@
 			<p class="mt-2 text-sm text-error" role="alert">{resetError}</p>
 		{/if}
 		<div class="mt-4 flex gap-2">
-			<button type="button" class="btn btn-ghost btn-sm flex-1" onclick={() => (resetOpen = false)}>
+			<button type="button" class="ui-action ui-action-tertiary flex-1" onclick={() => (resetOpen = false)}>
 				{m.settings_data_cancel_button()}
 			</button>
 			<button
 				type="button"
-				class="btn btn-error btn-sm flex-1"
+				class="ui-action ui-action-danger flex-1"
 				disabled={resetConfirmText !== resetTarget.label || resetLoading}
 				onclick={confirmReset}
 			>

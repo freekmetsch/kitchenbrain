@@ -6,6 +6,9 @@
 -->
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import type { PreviewItem } from '$lib/shopping_ah';
 	import { slide } from 'svelte/transition';
 	import { formatPrice, itemLabel } from './format';
@@ -60,24 +63,29 @@
 		</div>
 		<button
 			type="button"
-			class="btn btn-ghost min-h-11 shrink-0"
+			class="ui-action ui-action-tertiary shrink-0"
 			onclick={() => onToggleExclude()}
 		>
 			{mode === 'exclude' ? m.shopping_ah_undo_button() : m.shopping_ah_skip_button()}
 		</button>
 	</div>
 	{#if item.incompatibleQuantities}
-		<div class="mt-2 rounded-xl border border-warning/30 bg-warning/10 px-2.5 py-2">
-			<p class="text-xs text-base-content/75">{m.shopping_ah_quantity_review()}</p>
-			<ul class="mt-1 space-y-0.5 text-xs" aria-label={m.shopping_quantity_sources_label()}>
-				{#each item.quantitySources as source}
-					<li>
-						<strong>{itemLabel(source) || source.name}</strong>
-						{#if source.recipeTitle}<span class="text-base-content/60"> · {source.recipeTitle}</span>{/if}
-					</li>
-				{/each}
-			</ul>
-		</div>
+		<KitchenNotice tone="warning" class="mt-2 text-xs">
+			<div class="flex items-start gap-2">
+				<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+				<div class="min-w-0 flex-1">
+					<p class="text-base-content/75">{m.shopping_ah_quantity_review()}</p>
+					<ul class="mt-1 space-y-0.5" aria-label={m.shopping_quantity_sources_label()}>
+						{#each item.quantitySources as source}
+							<li>
+								<strong>{itemLabel(source) || source.name}</strong>
+								{#if source.recipeTitle}<span class="text-base-content/60"> · {source.recipeTitle}</span>{/if}
+							</li>
+						{/each}
+					</ul>
+				</div>
+			</div>
+		</KitchenNotice>
 	{/if}
 
 	{#if mode === 'exclude'}
@@ -108,7 +116,7 @@
 			</div>
 		</div>
 		{#if sel.isBonus && sel.bonusMechanism}
-			<div class="ui-chip-active mt-1.5 w-fit border-error/40 bg-error/10 text-error">{sel.bonusMechanism}</div>
+			<StatusBadge class="mt-1.5 w-fit" tone="error">{sel.bonusMechanism}</StatusBadge>
 		{/if}
 		<div class="mt-2 flex items-center justify-between gap-3 rounded-xl bg-base-200/60 px-2 py-1.5">
 			<span class="text-xs text-base-content/60">{m.shopping_ah_pack_quantity()}</span>
@@ -119,7 +127,7 @@
 			</div>
 		</div>
 		{#if item.incompatibleQuantities && !dec?.quantityConfirmed}
-			<button type="button" class="btn btn-warning btn-outline mt-2 min-h-11 w-full" onclick={onQuantityConfirm}>
+			<button type="button" class="ui-action ui-action-warning mt-2 w-full" onclick={onQuantityConfirm}>
 				{m.shopping_ah_confirm_pack_quantity({ count: dec?.qty ?? 1 })}
 			</button>
 		{/if}
@@ -182,7 +190,7 @@
 						{#if showFavorite}
 							<button
 								type="button"
-								class="btn btn-ghost btn-xs h-11 w-11 shrink-0 px-0 text-base {favoriteId === cand.id ? 'text-warning' : 'text-base-content/30'}"
+								class="ui-action ui-action-tertiary ui-action-icon shrink-0 text-base {favoriteId === cand.id ? 'text-warning' : 'text-base-content/30'}"
 								aria-label={favoriteId === cand.id ? m.shopping_ah_unpin_favorite_aria({ name: cand.name }) : m.shopping_ah_pin_favorite_aria({ name: cand.name })}
 								aria-pressed={favoriteId === cand.id}
 								onclick={() => onToggleFavorite(cand, idx)}
@@ -195,13 +203,16 @@
 			</ul>
 		{/if}
 	{:else if item.requiresExplicitDecision}
-		<div class="mt-2 rounded-xl border border-warning/30 bg-warning/10 px-2.5 py-2" role="status">
-			<p class="text-xs text-base-content/75">
-				{item.preferenceState === 'unavailable'
-					? m.shopping_ah_recipe_preference_unavailable()
-					: m.shopping_ah_recipe_preference_conflict()}
-			</p>
-		</div>
+		<KitchenNotice tone="warning" class="mt-2 text-xs" role="status">
+			<span class="flex items-start gap-2">
+				<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+				<span class="text-base-content/75">
+					{item.preferenceState === 'unavailable'
+						? m.shopping_ah_recipe_preference_unavailable()
+						: m.shopping_ah_recipe_preference_conflict()}
+				</span>
+			</span>
+		</KitchenNotice>
 		{#if item.candidates.length}
 			<div class="mt-2 grid gap-1.5">
 				{#each item.candidates.slice(0, 3) as candidate, index (candidate.id)}

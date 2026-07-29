@@ -13,6 +13,7 @@
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import { optimistic } from '$lib/optimistic';
 	import { m } from '$lib/paraglide/messages';
 	import type { PreviewItem } from '$lib/shopping_ah';
@@ -401,23 +402,25 @@
 			<h3>{m.shopping_ah_sending_title()}</h3>
 			<p>{m.shopping_ah_sending_body()}</p>
 		</div>
-		<div class="ah-info">
-			<Icon name="clock" class="h-5 w-5 shrink-0" />
-			<p>{m.shopping_ah_sending_lock()}</p>
-		</div>
+		<KitchenNotice tone="info">
+			<div class="flex gap-2.5">
+				<Icon name="clock" class="h-5 w-5 shrink-0 text-info" />
+				<p class="text-sm leading-relaxed text-base-content/70">{m.shopping_ah_sending_lock()}</p>
+			</div>
+		</KitchenNotice>
 	{:else if ahNotConnected}
-		<div class="rounded-2xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm" role="status">
+		<KitchenNotice tone="warning" role="status">
 			<div class="flex gap-2">
 				<Icon name="warn" class="mt-0.5 h-5 w-5 shrink-0 text-warning" />
 				<span>{m.shopping_ah_not_connected_body()}</span>
 			</div>
-		</div>
+		</KitchenNotice>
 		<p class="mt-3 text-sm text-base-content/60">
 			{m.shopping_ah_connect_first()}
 		</p>
 		<div class="mt-4 flex justify-end gap-2">
-			<button type="button" class="btn btn-ghost min-h-11" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
-			<a href="{base}/settings/connections" class="btn btn-primary min-h-11">{m.shopping_open_settings_button()}</a>
+			<button type="button" class="ui-action ui-action-tertiary" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
+			<a href="{base}/settings/connections" class="ui-action ui-action-primary">{m.shopping_open_settings_button()}</a>
 		</div>
 	{:else if ahResult}
 		<AhPushResult
@@ -428,18 +431,25 @@
 			}}
 		/>
 	{:else if ahStale}
-		<div class="ah-alert" role="alert">
-			<Icon name="warn" class="h-5 w-5 shrink-0" />
-			<p>{m.shopping_ah_error_review_changed()}</p>
-		</div>
+		<KitchenNotice tone="warning" role="alert">
+			<div class="flex gap-2.5">
+				<Icon name="warn" class="h-5 w-5 shrink-0 text-warning" />
+				<p class="text-sm leading-relaxed text-base-content/70">{m.shopping_ah_error_review_changed()}</p>
+			</div>
+		</KitchenNotice>
 		<div class="mt-4 flex justify-end gap-2">
-			<button type="button" class="btn min-h-11" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
-			<button type="button" class="btn btn-primary min-h-11" onclick={() => void openAhModal()}>{m.shopping_ah_review_again()}</button>
+			<button type="button" class="ui-action ui-action-secondary" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
+			<button type="button" class="ui-action ui-action-primary" onclick={() => void openAhModal()}>{m.shopping_ah_review_again()}</button>
 		</div>
 	{:else if ahError}
-		<div class="rounded-2xl border border-error/30 bg-error/10 px-3 py-2 text-sm" role="alert">{ahError}</div>
+		<KitchenNotice tone="error" role="alert">
+			<div class="flex gap-2.5">
+				<Icon name="warn" class="h-5 w-5 shrink-0 text-error" />
+				<p class="text-sm leading-relaxed">{ahError}</p>
+			</div>
+		</KitchenNotice>
 		<div class="mt-4 flex justify-end">
-			<button type="button" class="btn min-h-11" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
+			<button type="button" class="ui-action ui-action-secondary" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
 		</div>
 	{:else if ahItems}
 		<ul class="mb-4 max-h-[55vh] space-y-2 overflow-y-auto" in:fade={{ duration: MOTION_MICRO_MS }}>
@@ -466,10 +476,10 @@
 				: m.shopping_ah_summary_products_plural({ count: pushSummary.products })}, {m.shopping_ah_summary_as_text({ count: pushSummary.text })}{#if pushSummary.excluded}, {m.shopping_ah_summary_skipped({ count: pushSummary.excluded })}{/if}
 		</div>
 		<div class="flex justify-end gap-2">
-			<button type="button" class="btn btn-ghost min-h-11" onclick={() => (ahOpen = false)}>{m.shopping_cancel_button()}</button>
+			<button type="button" class="ui-action ui-action-tertiary" onclick={() => (ahOpen = false)}>{m.shopping_cancel_button()}</button>
 			<button
 				type="button"
-				class="btn btn-primary min-h-11"
+				class="ui-action ui-action-primary"
 				onclick={confirmPush}
 				disabled={ahPushing || pushSummary.unconfirmed > 0 || pushSummary.unresolved > 0 || (pushSummary.products === 0 && pushSummary.text === 0)}
 			>
@@ -498,26 +508,9 @@
 		font-size: 1.25rem;
 	}
 
-	.ah-sending p,
-	.ah-info p,
-	.ah-alert p {
+	.ah-sending p {
 		color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
 		font-size: 0.82rem;
 		line-height: 1.5;
-	}
-
-	.ah-info,
-	.ah-alert {
-		display: flex;
-		gap: 0.65rem;
-		border: 1px solid color-mix(in oklab, var(--color-warning) 35%, transparent);
-		border-radius: 0.8rem;
-		padding: 0.8rem;
-		background: color-mix(in oklab, var(--color-warning) 10%, transparent);
-	}
-
-	.ah-info {
-		border-color: color-mix(in oklab, var(--color-info) 30%, transparent);
-		background: color-mix(in oklab, var(--color-info) 8%, transparent);
 	}
 </style>

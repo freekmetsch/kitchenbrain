@@ -108,7 +108,7 @@
 
 	<div class="flex flex-col gap-5">
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_ai_usage_caps_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_ai_usage_caps_heading()}</h2>
 			<div class="rounded-xl bg-base-200/70 p-3">
 				<div class="flex h-14 items-end gap-1.5">
 					{#each spendDays as day}
@@ -131,11 +131,11 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_ai_household_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_ai_household_heading()}</h2>
 			<label class="ui-field-label mb-1.5 block" for="household-profile">{m.settings_ai_household_profile_label()}</label>
 			<textarea
 				id="household-profile"
-				class="textarea textarea-bordered textarea-sm w-full"
+				class="ui-field w-full"
 				rows="3"
 				maxlength="2000"
 				placeholder={m.settings_ai_household_profile_placeholder()}
@@ -145,7 +145,7 @@
 				{m.settings_ai_household_profile_hint()}
 			</p>
 			<PendingButton
-				class="btn btn-sm btn-primary mt-2"
+				class="ui-action ui-action-primary mt-2"
 				pending={householdProfileSaving}
 				disabled={householdProfile === data.householdProfile}
 				onclick={saveHouseholdProfile}
@@ -155,7 +155,7 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_ai_chat_speed_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_ai_chat_speed_heading()}</h2>
 			<div class="flex flex-col gap-4">
 				<div>
 					<span class="ui-field-label mb-1.5 block" id="thinking-label">{m.settings_ai_thinking_label()}</span>
@@ -189,7 +189,7 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_model_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_model_heading()}</h2>
 			<div class="flex flex-col gap-4">
 				<ModelPicker
 					role="chat"

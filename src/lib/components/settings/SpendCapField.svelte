@@ -88,14 +88,14 @@
 			min="0.01"
 			max="20"
 			step="0.01"
-			class="input input-bordered input-sm w-24"
+			class="ui-field w-24"
 			aria-labelledby="{category}-cap-label"
 			bind:value={capInput}
 			disabled={saving}
 		/>
 		<span class="text-xs text-base-content/50">{m.settingsshell_per_day_suffix()}</span>
 		<PendingButton
-			class="btn btn-xs btn-primary"
+			class="ui-action ui-action-primary"
 			pending={saving}
 			disabled={!capInput || capInput === String(effective.value)}
 			onclick={save}
@@ -105,7 +105,7 @@
 		{#if effective.source !== 'default'}
 			<button
 				type="button"
-				class="btn btn-xs btn-ghost text-base-content/50"
+				class="ui-action ui-action-tertiary"
 				disabled={saving}
 				onclick={resetToDefault}
 			>

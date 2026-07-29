@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { m } from '$lib/paraglide/messages';
 
 	type MealRef = { dinner: string; recipeSlug: string };
@@ -23,51 +25,49 @@
 </script>
 
 {#if noticeCount > 0}
-	<details class="market-notices">
-		<summary>
-			<Icon name="warn" class="h-4 w-4 shrink-0 {hasWarning ? 'text-warning' : 'text-info'}" />
-			<span class="flex-1 font-medium">{m.shopping_notes_heading()}</span>
-			<span class="market-notice-count">{noticeCount}</span>
-			<span aria-hidden="true" class="text-base-content/50">⌄</span>
-		</summary>
-		<ul class="divide-y divide-base-200 border-t border-base-200 text-sm">
-			{#if mealsWithoutRecipe.length}
-				<li class="px-3 py-2.5 text-base-content/70">
-					<p class="font-medium text-base-content/80">{m.shopping_without_recipe_heading()}</p>
-					<div class="mt-1 flex flex-wrap gap-1">
-						{#each mealsWithoutRecipe as meal}<span class="ui-chip-muted min-h-7 py-1">{meal}</span>{/each}
-					</div>
-				</li>
-			{/if}
-			{#if freezerMeals.length}
-				<li class="px-3 py-2.5 text-base-content/70">
-					<p>{m.shopping_freezer_meals_summary()}</p>
-					<div class="mt-1 flex flex-wrap gap-1">
-						{#each freezerMeals as meal}<span class="ui-chip-muted min-h-7 py-1">❄️ {meal.dinner}</span>{/each}
-					</div>
-				</li>
-			{/if}
-			{#if freezerMealsMissingFreshInfo.length}
-				<li class="px-3 py-2.5 text-base-content/70">
-					<p>{m.shopping_freezer_missing_roles_banner()}</p>
-					<div class="mt-1.5 flex flex-wrap gap-1">
-						{#each freezerMealsMissingFreshInfo as meal}
-							<a href="{base}/recipes/{meal.recipeSlug}" class="ui-chip min-h-7 py-1 text-primary">{meal.dinner}</a>
-						{/each}
-					</div>
-				</li>
-			{/if}
-		</ul>
-	</details>
+	<KitchenNotice tone={hasWarning ? 'warning' : 'info'} flush class="mb-2">
+		<details class="market-notices">
+			<summary>
+				<Icon name="warn" class="h-4 w-4 shrink-0 {hasWarning ? 'text-warning' : 'text-info'}" />
+				<span class="flex-1 font-medium">{m.shopping_notes_heading()}</span>
+				<span class="market-notice-count">{noticeCount}</span>
+				<span aria-hidden="true" class="text-base-content/50">⌄</span>
+			</summary>
+			<ul class="divide-y divide-base-200 border-t border-base-200 text-sm">
+				{#if mealsWithoutRecipe.length}
+					<li class="px-3 py-2.5 text-base-content/70">
+						<p class="font-medium text-base-content/80">{m.shopping_without_recipe_heading()}</p>
+						<div class="mt-1 flex flex-wrap gap-1">
+							{#each mealsWithoutRecipe as meal}<StatusBadge>{meal}</StatusBadge>{/each}
+						</div>
+					</li>
+				{/if}
+				{#if freezerMeals.length}
+					<li class="px-3 py-2.5 text-base-content/70">
+						<p>{m.shopping_freezer_meals_summary()}</p>
+						<div class="mt-1 flex flex-wrap gap-1">
+							{#each freezerMeals as meal}<StatusBadge tone="info">❄️ {meal.dinner}</StatusBadge>{/each}
+						</div>
+					</li>
+				{/if}
+				{#if freezerMealsMissingFreshInfo.length}
+					<li class="px-3 py-2.5 text-base-content/70">
+						<p>{m.shopping_freezer_missing_roles_banner()}</p>
+						<div class="mt-1.5 flex flex-wrap gap-1">
+							{#each freezerMealsMissingFreshInfo as meal}
+								<a href="{base}/recipes/{meal.recipeSlug}" class="inline-flex min-h-11 items-center text-primary underline decoration-dotted underline-offset-2">{meal.dinner}</a>
+							{/each}
+						</div>
+					</li>
+				{/if}
+			</ul>
+		</details>
+	</KitchenNotice>
 {/if}
 
 <style>
 	.market-notices {
 		overflow: hidden;
-		margin-bottom: 0.55rem;
-		border: 1px solid color-mix(in oklab, var(--color-warning) 42%, var(--color-base-300));
-		border-radius: 0.75rem;
-		background: color-mix(in oklab, var(--color-warning) 8%, var(--color-base-100));
 		color: color-mix(in oklab, var(--color-warning) 55%, var(--color-base-content));
 	}
 

@@ -2,6 +2,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
+	import FilterChip from '$lib/components/ui/FilterChip.svelte';
 	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { foodClassText, type Section } from './shared';
@@ -48,43 +49,34 @@
 			<h3 class="ui-field-label mb-2">{m.inventory_filters_class_label()}</h3>
 			<div class="flex flex-wrap gap-2">
 				{#each FOOD_CLASS_ROOTS as foodClass (foodClass)}
-					<button
-						type="button"
-						aria-pressed={classFilter === foodClass}
-						class={classFilter === foodClass
-							? 'ui-chip-active min-h-11'
-							: 'ui-chip min-h-11'}
+					<FilterChip
+						selected={classFilter === foodClass}
 						onclick={() => (classFilter = classFilter === foodClass ? null : foodClass)}
 					>
 						{foodClassText(foodClass)}
-					</button>
+					</FilterChip>
 				{/each}
 			</div>
 		</section>
 
 		{#if needsReviewCount > 0}
 			<section>
-				<button
-					type="button"
-					aria-pressed={reviewOnly}
-					class="flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left text-sm transition-colors {reviewOnly
-						? 'border-warning/50 bg-warning/10 text-warning'
-						: 'border-base-300 bg-base-100 text-base-content'}"
+				<FilterChip
+					selected={reviewOnly}
+					tone="warning"
 					onclick={() => (reviewOnly = !reviewOnly)}
 				>
-					<span class="inline-flex items-center gap-2 font-medium">
-						<Icon name="warn" class="h-4 w-4" />
-						{m.inventory_filters_review_label()}
-					</span>
+					<Icon name="warn" class="h-4 w-4" />
+					{m.inventory_filters_review_label()}
 					<span class="tabular-nums">{needsReviewCount}</span>
-				</button>
+				</FilterChip>
 			</section>
 		{/if}
 
 		<div class="flex items-center justify-between gap-3 border-t border-base-200 pt-3">
 			<button
 				type="button"
-				class="btn btn-ghost min-h-11"
+				class="ui-action ui-action-tertiary"
 				disabled={!hasFilters}
 				onclick={clear}
 			>
@@ -92,7 +84,7 @@
 			</button>
 			<button
 				type="button"
-				class="btn btn-primary min-h-11"
+				class="ui-action ui-action-primary"
 				onclick={() => (open = false)}
 			>
 				{m.inventory_filters_done()}

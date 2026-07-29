@@ -38,19 +38,19 @@
 	}
 </script>
 
-<section class="ui-form-card !p-3" aria-labelledby="directions-heading">
+<section aria-labelledby="directions-heading">
 	<div class="mb-2 flex flex-wrap items-baseline gap-2">
-		<h2 id="directions-heading" class="ui-section-label">{m.recipes_edit_directions_label()}</h2>
+		<h2 id="directions-heading" class="ui-section-title">{m.recipes_edit_directions_label()}</h2>
 		<button
 			bind:this={addButton}
 			type="button"
-			class="btn btn-xs btn-ghost ml-auto min-h-9 border border-base-300"
+			class="ui-action ui-action-secondary ml-auto"
 			onclick={addDirection}>{m.recipes_edit_add_step_button()}</button
 		>
 	</div>
-	<ol class="space-y-2.5">
+	<ol class="ui-section-frame divide-y divide-base-300/70">
 		{#each directions as direction, index (direction.clientId)}
-			<li class="min-w-0" data-direction-id={direction.clientId}>
+			<li class="min-w-0 p-2.5" data-direction-id={direction.clientId}>
 				<div class="mb-1 flex items-center gap-1">
 					<span class="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-content">
 						{index + 1}
@@ -74,7 +74,7 @@
 						>
 						<button
 							type="button"
-							class="btn btn-sm btn-ghost h-9 min-h-9 min-w-9 px-2 text-error"
+							class="ui-action ui-action-danger ui-action-icon"
 							aria-label={m.recipes_edit_remove_direction_aria()}
 							onclick={() => removeDirection(index)}><Icon name="x" class="h-4 w-4" /></button
 						>
@@ -84,7 +84,7 @@
 						bind:value={direction.text}
 						rows="2"
 						aria-label={m.recipes_edit_direction_aria({ number: index + 1 })}
-						class="textarea textarea-bordered textarea-sm w-full min-w-0 leading-snug"
+						class="ui-field w-full min-w-0 leading-snug"
 						placeholder={m.recipes_edit_direction_placeholder()}
 					></textarea>
 			</li>

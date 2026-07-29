@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import FilterChip from '$lib/components/ui/FilterChip.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { RecurringShoppingItem } from './list-controller.svelte';
 
@@ -104,15 +105,15 @@
 	<div class="weekly-fields">
 		<label>
 			<span>{m.shopping_recurring_name()}</span>
-			<input bind:this={nameInput} required maxlength="256" disabled={pending} bind:value={name} />
+			<input class="ui-field" bind:this={nameInput} required maxlength="256" disabled={pending} bind:value={name} />
 		</label>
 		<label>
 			<span>{m.shopping_recurring_amount()}</span>
-			<input maxlength="64" disabled={pending} bind:value={amount} />
+			<input class="ui-field" maxlength="64" disabled={pending} bind:value={amount} />
 		</label>
 		<label>
 			<span>{m.shopping_recurring_unit()}</span>
-			<input maxlength="64" disabled={pending} bind:value={unit} />
+			<input class="ui-field" maxlength="64" disabled={pending} bind:value={unit} />
 		</label>
 	</div>
 {/snippet}
@@ -130,17 +131,17 @@
 				void save();
 			}}
 		>
-			<h3>{m.shopping_recurring_add()}</h3>
+			<h3 class="ui-section-title">{m.shopping_recurring_add()}</h3>
 			{@render weeklyFields()}
 			<div class="weekly-form-actions">
-				<button type="button" disabled={pending} onclick={closeDraft}>{m.shopping_cancel_button()}</button>
-				<button class="primary" type="submit" disabled={pending || !name.trim()}>
+				<button class="ui-action ui-action-tertiary" type="button" disabled={pending} onclick={closeDraft}>{m.shopping_cancel_button()}</button>
+				<button class="ui-action ui-action-primary" type="submit" disabled={pending || !name.trim()}>
 					{pending ? m.shopping_saving_label() : m.shopping_recurring_add()}
 				</button>
 			</div>
 		</form>
 	{:else if editable}
-		<button type="button" class="weekly-add" onclick={() => void showAdd()}>
+		<button type="button" class="ui-action ui-action-secondary weekly-add" onclick={() => void showAdd()}>
 			<Icon name="plus" />
 			{m.shopping_recurring_add()}
 		</button>
@@ -161,8 +162,8 @@
 							{@render weeklyFields()}
 							<p class="effective-copy">{m.shopping_weekly_effective_from_here()}</p>
 							<div class="weekly-form-actions">
-								<button type="button" disabled={pending} onclick={closeDraft}>{m.shopping_cancel_button()}</button>
-								<button class="primary" type="submit" disabled={pending || !name.trim()}>
+								<button class="ui-action ui-action-tertiary" type="button" disabled={pending} onclick={closeDraft}>{m.shopping_cancel_button()}</button>
+								<button class="ui-action ui-action-primary" type="submit" disabled={pending || !name.trim()}>
 									{pending ? m.shopping_saving_label() : m.shopping_save_choice()}
 								</button>
 							</div>
@@ -182,10 +183,9 @@
 								{/if}
 							</button>
 							{#if editable}
-								<button
-									type="button"
-									class:skipped={!item.included}
-									class="weekly-state-pill"
+								<FilterChip
+									selected={item.included}
+									tone="success"
 									disabled={pending || !item.entryId || !item.entryRevision}
 									aria-label={m.shopping_weekly_state_aria({
 										name: item.name,
@@ -196,10 +196,10 @@
 									onclick={() => void toggleIncluded(item)}
 								>
 									{item.included ? m.shopping_weekly_this_week() : m.shopping_weekly_skipped()}
-								</button>
+								</FilterChip>
 								<button
 									type="button"
-									class="weekly-stop"
+									class="ui-action ui-action-danger ui-action-icon weekly-stop"
 									disabled={pending}
 									aria-label={m.shopping_recurring_disable()}
 									onclick={() => {
@@ -215,8 +215,8 @@
 							<div class="weekly-stop-confirm">
 								<p>{m.shopping_weekly_stop_confirm({ name: item.name })}</p>
 								<div>
-									<button type="button" disabled={pending} onclick={closeDraft}>{m.shopping_cancel_button()}</button>
-									<button class="danger" type="button" disabled={pending} onclick={() => void stop(item)}>
+									<button class="ui-action ui-action-tertiary" type="button" disabled={pending} onclick={closeDraft}>{m.shopping_cancel_button()}</button>
+									<button class="ui-action ui-action-danger" type="button" disabled={pending} onclick={() => void stop(item)}>
 										{m.shopping_recurring_disable()}
 									</button>
 								</div>
@@ -253,17 +253,8 @@
 	}
 
 	.weekly-add {
-		display: inline-flex;
-		min-height: 2.75rem;
-		align-items: center;
-		gap: 0.35rem;
 		margin: 0.5rem 0.65rem;
-		border-radius: 999px;
-		padding: 0 0.7rem;
-		background: var(--market-olive, #304b3a);
-		color: white;
 		font-size: 0.66rem;
-		font-weight: 800;
 	}
 
 	.weekly-add :global(svg) {
@@ -317,29 +308,8 @@
 		font-size: 0.6rem;
 	}
 
-	.weekly-state-pill {
-		min-height: 2.75rem;
-		max-width: 7rem;
-		border-radius: 999px;
-		padding: 0 0.6rem;
-		background: color-mix(in oklab, var(--market-olive, #304b3a) 12%, var(--color-base-100));
-		color: var(--market-olive-ink, #304b3a);
-		font-size: 0.6rem;
-		font-weight: 800;
-	}
-
-	.weekly-state-pill.skipped {
-		background: color-mix(in oklab, var(--color-warning) 16%, var(--color-base-100));
-		color: color-mix(in oklab, var(--color-warning) 70%, var(--color-base-content));
-	}
-
 	.weekly-stop {
-		display: grid;
-		width: 2.75rem;
-		height: 2.75rem;
-		place-items: center;
-		border-radius: 0.6rem;
-		color: var(--color-error);
+		align-self: stretch;
 	}
 
 	.weekly-stop :global(svg) {
@@ -358,8 +328,6 @@
 
 	.weekly-form h3 {
 		margin-bottom: 0.6rem;
-		font-size: 0.72rem;
-		font-weight: 800;
 	}
 
 	.weekly-fields {
@@ -380,14 +348,8 @@
 		margin-bottom: 0.25rem;
 	}
 
-	.weekly-fields input {
+	.weekly-fields :global(.ui-field) {
 		width: 100%;
-		min-height: 2.75rem;
-		border: 1px solid var(--color-base-300);
-		border-radius: 0.55rem;
-		padding: 0 0.55rem;
-		background: var(--color-base-100);
-		color: var(--color-base-content);
 		font-size: 0.72rem;
 	}
 
@@ -405,18 +367,10 @@
 		margin-top: 0.55rem;
 	}
 
-	.weekly-form-actions button,
-	.weekly-stop-confirm button {
-		min-height: 2.75rem;
-		border-radius: 0.55rem;
-		padding: 0 0.65rem;
+	.weekly-form-actions :global(.ui-action),
+	.weekly-stop-confirm :global(.ui-action) {
+		padding-inline: 0.65rem;
 		font-size: 0.64rem;
-		font-weight: 800;
-	}
-
-	.weekly-form-actions .primary {
-		background: var(--market-olive, #304b3a);
-		color: white;
 	}
 
 	.weekly-stop-confirm {
@@ -427,11 +381,6 @@
 	.weekly-stop-confirm p {
 		font-size: 0.66rem;
 		line-height: 1.4;
-	}
-
-	.weekly-stop-confirm .danger {
-		background: var(--color-error);
-		color: var(--color-error-content);
 	}
 
 	button:focus-visible,

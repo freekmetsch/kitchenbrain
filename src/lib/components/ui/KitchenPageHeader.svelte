@@ -68,10 +68,15 @@
 
 	.kitchen-page-header-identity {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
 		gap: 1rem;
 		min-height: 2.75rem;
+	}
+
+	.kitchen-page-header-identity > div:first-child {
+		flex: 1 1 9rem;
 	}
 
 	.kitchen-page-header-identity p {
@@ -94,13 +99,22 @@
 
 	.kitchen-page-header-actions {
 		display: flex;
-		flex: 0 0 auto;
+		flex: 0 1 auto;
 		align-items: center;
+		justify-content: flex-end;
 		gap: 0.4rem;
+		max-width: 100%;
+		margin-left: auto;
 	}
 
 	.kitchen-page-header-payload {
 		margin-top: 0.65rem;
+	}
+
+	@media (max-width: 30rem) {
+		.kitchen-page-header-actions {
+			width: 100%;
+		}
 	}
 
 	@media (min-width: 48rem) {

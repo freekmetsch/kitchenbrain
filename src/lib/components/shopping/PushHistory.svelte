@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import {
@@ -138,7 +139,7 @@
 	{@const latestItems = splitShoppingPushItems(latest.items)}
 	{@const latestHelp = outcomeHelp(latestOutcome)}
 	<section class="push-history" class:compact aria-labelledby={headingId}>
-		<h2 id={headingId} class="ui-section-label">{m.shopping_sent_to_ah_heading()}</h2>
+		<h2 id={headingId} class="ui-section-title">{m.shopping_sent_to_ah_heading()}</h2>
 
 		<article
 			class="push-latest {latestOutcome}"
@@ -170,7 +171,9 @@
 			</header>
 
 			{#if latestHelp}
-				<p class="push-alert" role="alert">{latestHelp}</p>
+				<KitchenNotice tone="warning" class="mt-2 text-xs font-semibold" role="alert">
+					{latestHelp}
+				</KitchenNotice>
 			{/if}
 
 			{#if shoppingPushOutcomeNeedsReview(latestOutcome)}
@@ -317,17 +320,6 @@
 		font-size: 0.6rem;
 		font-weight: 750;
 		text-align: right;
-	}
-
-	.push-alert {
-		margin-top: 0.6rem;
-		border-radius: 0.55rem;
-		padding: 0.5rem 0.6rem;
-		background: color-mix(in oklab, var(--color-warning) 12%, transparent);
-		color: color-mix(in oklab, var(--color-warning) 82%, var(--color-base-content));
-		font-size: 0.66rem;
-		font-weight: 650;
-		line-height: 1.4;
 	}
 
 	.push-item-list {

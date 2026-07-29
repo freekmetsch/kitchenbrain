@@ -13,17 +13,17 @@
 <div class="min-h-screen flex items-center justify-center bg-base-200 p-4">
 	<div class="card w-full max-w-sm bg-base-100 shadow-xl">
 		<div class="card-body">
-			<div class="flex items-center justify-between gap-2">
+			<div class="flex flex-wrap items-center justify-between gap-2">
 				<h1 class="card-title text-2xl font-bold">{m.login_title()}</h1>
-				<div class="flex gap-1 text-xs" role="group" aria-label="Language">
+				<div class="ml-auto flex gap-1 text-xs" role="group" aria-label="Language">
 					<button
 						type="button"
-						class="btn btn-ghost btn-xs px-1.5 {getLocale() === 'en' ? 'font-bold underline' : ''}"
+						class="ui-action ui-action-tertiary px-1.5 {getLocale() === 'en' ? 'font-bold underline' : ''}"
 						onclick={() => setLocale('en')}>English</button
 					>
 					<button
 						type="button"
-						class="btn btn-ghost btn-xs px-1.5 {getLocale() === 'nl' ? 'font-bold underline' : ''}"
+						class="ui-action ui-action-tertiary px-1.5 {getLocale() === 'nl' ? 'font-bold underline' : ''}"
 						onclick={() => setLocale('nl')}>Nederlands</button
 					>
 				</div>
@@ -53,7 +53,7 @@
 					<input
 						type="text"
 						name="username"
-						class="input input-bordered w-full"
+						class="ui-field w-full"
 						required
 						autocomplete="username"
 					/>
@@ -64,13 +64,13 @@
 					<input
 						type="password"
 						name="password"
-						class="input input-bordered w-full"
+						class="ui-field w-full"
 						required
 						autocomplete="current-password"
 					/>
 				</label>
 
-				<PendingButton type="submit" pending={submitting} class="btn btn-primary w-full"
+				<PendingButton type="submit" pending={submitting} class="ui-action ui-action-primary w-full"
 					>{m.login_signin_button()}</PendingButton
 				>
 			</form>

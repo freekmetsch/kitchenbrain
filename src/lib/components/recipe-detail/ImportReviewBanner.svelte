@@ -7,6 +7,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { m } from '$lib/paraglide/messages';
 
@@ -60,7 +61,7 @@
 	}
 </script>
 
-<div class="mx-3 mt-3 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5">
+<KitchenNotice tone="warning" class="mx-3 mt-3">
 	<div class="flex items-start gap-2">
 		<span class="text-base leading-none mt-0.5" aria-hidden="true">📝</span>
 		<div class="min-w-0 flex-1">
@@ -69,9 +70,9 @@
 				{reviewReason(reason)}
 			</p>
 			<div class="flex gap-2 mt-2">
-				<button class="btn btn-xs btn-warning" onclick={onEditRaw}>{m.recipes_edit_heading()}</button>
+				<button class="ui-action ui-action-warning" onclick={onEditRaw}>{m.recipes_edit_heading()}</button>
 				<button
-					class="btn btn-xs btn-ghost"
+					class="ui-action ui-action-tertiary"
 					disabled={reviewDismissing}
 					onclick={dismissReview}
 				>
@@ -86,4 +87,4 @@
 			{/if}
 		</div>
 	</div>
-</div>
+</KitchenNotice>

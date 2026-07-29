@@ -3,6 +3,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import SettingsPanelHeader from '$lib/components/settings/SettingsPanelHeader.svelte';
 	import PendingButton from '$lib/components/ui/PendingButton.svelte';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -11,10 +13,6 @@
 	let { data }: { data: PageData } = $props();
 
 	const LOGIN_COMMAND = 'python scripts/ah_local_login.py';
-
-	function connectionChip(connected: boolean): string {
-		return connected ? 'ui-chip-active' : 'ui-chip-muted';
-	}
 
 	let ahPayload = $state('');
 	let ahSaving = $state(false);
@@ -129,9 +127,11 @@
 
 	<section class="ui-form-card">
 		<div class="mb-3 flex items-center justify-between gap-3">
-			<h2 class="ui-section-label">{m.settings_connections_ah_heading()}</h2>
+			<h2 class="ui-section-title">{m.settings_connections_ah_heading()}</h2>
 			<div class="flex flex-wrap justify-end gap-1.5" role="status" aria-live="polite">
-				<span class={connectionChip(data.ah.connected)}>{data.ah.connected ? m.settings_connections_status_connected() : m.settings_connections_status_off()}</span>
+				<StatusBadge tone={data.ah.connected ? 'success' : 'neutral'}>
+					{data.ah.connected ? m.settings_connections_status_connected() : m.settings_connections_status_off()}
+				</StatusBadge>
 			</div>
 		</div>
 
@@ -149,11 +149,11 @@
 						: m.settings_connections_ah_disconnected_desc()}
 				</p>
 				{#if data.ah.connected}
-					<button type="button" class="btn btn-xs btn-ghost mt-2 px-0 text-base-content/60" onclick={toggleAhForm}>
+					<button type="button" class="ui-action ui-action-tertiary mt-2 px-0" onclick={toggleAhForm}>
 						{ahShowForm ? m.settings_connections_cancel_button() : m.settings_connections_reconnect_button()}
 					</button>
 				{:else}
-					<button type="button" class="btn btn-sm btn-primary mt-2" onclick={toggleAhForm}>
+					<button type="button" class="ui-action ui-action-primary mt-2" onclick={toggleAhForm}>
 						{ahShowForm ? m.settings_connections_cancel_button() : m.settings_connections_connect_button()}
 					</button>
 				{/if}
@@ -173,7 +173,7 @@
 							<code class="flex-1 overflow-x-auto font-mono text-xs whitespace-nowrap text-base-content/80">{LOGIN_COMMAND}</code>
 							<button
 								type="button"
-								class="btn btn-ghost btn-xs shrink-0 gap-1"
+								class="ui-action ui-action-tertiary shrink-0"
 								onclick={copyCommand}
 								aria-label={m.settings_connections_copy_command()}
 							>
@@ -188,7 +188,7 @@
 						<h4 class="text-sm font-semibold">{m.settings_connections_step2_label()}</h4>
 						<p class="text-xs text-base-content/50">{m.settings_connections_step2_desc()}</p>
 						<PendingButton
-							class="btn btn-sm btn-primary mt-0.5 gap-1.5 self-start"
+							class="ui-action ui-action-primary mt-0.5 self-start"
 							onclick={pasteAndConnect}
 							pending={ahSaving || ahPasting}
 						>
@@ -199,13 +199,18 @@
 						</PendingButton>
 
 						{#if ahError}
-							<p class="text-sm text-error" role="alert">{ahError}</p>
+							<KitchenNotice tone="error" class="text-sm" role="alert">
+								<span class="flex items-start gap-2">
+									<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-error" />
+									{ahError}
+								</span>
+							</KitchenNotice>
 						{/if}
 
 						{#if !ahShowManual}
 							<button
 								type="button"
-								class="btn btn-ghost btn-xs mt-0.5 self-start px-0 text-base-content/50"
+								class="ui-action ui-action-tertiary mt-0.5 self-start px-0"
 								onclick={() => (ahShowManual = true)}
 							>
 								{m.settings_connections_paste_manually()}
@@ -215,14 +220,14 @@
 								<label class="ui-field-label" for="ah-payload">{m.settings_connections_token_label()}</label>
 								<textarea
 									id="ah-payload"
-									class="textarea textarea-bordered textarea-sm font-mono text-xs"
+									class="ui-field font-mono text-xs"
 									rows="3"
 									placeholder={'{"access_token": "...", "refresh_token": "..."}'}
 									bind:value={ahPayload}
 								></textarea>
 								<div class="flex items-center gap-2">
 									<PendingButton
-										class="btn btn-sm btn-primary self-start"
+										class="ui-action ui-action-primary self-start"
 										onclick={connectAhManual}
 										pending={ahSaving}
 										disabled={!ahPayload.trim()}
@@ -231,7 +236,7 @@
 									</PendingButton>
 									<button
 										type="button"
-										class="btn btn-ghost btn-xs text-base-content/50"
+										class="ui-action ui-action-tertiary"
 										onclick={() => (ahShowManual = false)}
 									>
 										{m.settings_connections_manual_hide()}

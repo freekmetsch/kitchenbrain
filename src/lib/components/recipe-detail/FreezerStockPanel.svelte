@@ -172,10 +172,10 @@
 		{/if}
 
 		<div class="flex justify-end gap-2 pt-1">
-			<button type="button" class="btn btn-ghost" disabled={saving} onclick={() => (editorOpen = false)}>
+			<button type="button" class="ui-action ui-action-tertiary" disabled={saving} onclick={() => (editorOpen = false)}>
 				{m.recipes_freezer_cancel_button()}
 			</button>
-			<button type="submit" class="btn btn-primary" disabled={saving}>
+			<button type="submit" class="ui-action ui-action-primary" disabled={saving}>
 				{#if saving}<Spinner size="xs" />{/if}
 				{m.recipes_freezer_save_target_button()}
 			</button>

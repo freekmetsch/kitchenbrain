@@ -81,11 +81,11 @@
 		<div class="grid grid-cols-2 gap-2.5">
 			<label class="col-span-2 flex flex-col gap-1">
 				<span class="ui-field-label">{m.inventory_addform_name_label()}</span>
-				<input class="input input-bordered input-sm w-full" placeholder={m.inventory_addform_name_placeholder()} bind:value={addName} required />
+				<input class="ui-field w-full" placeholder={m.inventory_addform_name_placeholder()} bind:value={addName} required />
 			</label>
 			<label class="flex flex-col gap-1">
 				<span class="ui-field-label">{m.inventory_addform_kind_label()}</span>
-				<select class="select select-bordered select-sm w-full" bind:value={addKind}>
+				<select class="ui-field w-full" bind:value={addKind}>
 					<option value="leftover">{m.inventory_addform_kind_meal()}</option>
 					<option value="ingredient">{m.inventory_addform_kind_ingredient()}</option>
 					<option value="processed">{m.inventory_addform_kind_ready_made()}</option>
@@ -93,22 +93,22 @@
 			</label>
 			<label class="flex flex-col gap-1">
 				<span class="ui-field-label">{m.inventory_addform_section_label()}</span>
-				<select class="select select-bordered select-sm w-full" bind:value={addSection}>
+				<select class="ui-field w-full" bind:value={addSection}>
 					<option value="freezer">{m.inventory_section_freezer()}</option>
 					<option value="pantry">{m.inventory_section_pantry()}</option>
 				</select>
 			</label>
 			<label class="flex flex-col gap-1">
 				<span class="ui-field-label">{m.inventory_addform_qty_label()}</span>
-				<input type="number" inputmode="decimal" min="0" step="any" class="input input-bordered input-sm w-full" bind:value={addQty} />
+				<input type="number" inputmode="decimal" min="0" step="any" class="ui-field w-full" bind:value={addQty} />
 			</label>
 			<label class="flex flex-col gap-1">
 				<span class="ui-field-label">{m.inventory_addform_unit_label()}</span>
-				<input class="input input-bordered input-sm w-full" placeholder={addKind === 'leftover' ? m.inventory_addform_unit_placeholder_portion() : m.inventory_addform_unit_placeholder_default()} bind:value={addUnit} />
+				<input class="ui-field w-full" placeholder={addKind === 'leftover' ? m.inventory_addform_unit_placeholder_portion() : m.inventory_addform_unit_placeholder_default()} bind:value={addUnit} />
 			</label>
 			<label class="col-span-2 flex flex-col gap-1">
 				<span class="ui-field-label">{m.inventory_addform_class_label()}</span>
-				<select class="select select-bordered select-sm w-full" bind:value={addClass}>
+				<select class="ui-field w-full" bind:value={addClass}>
 					<option value="">—</option>
 					{#each FOOD_CLASS_ROOTS as fc (fc)}
 						<option value={fc}>{foodClassText(fc)}</option>
@@ -123,8 +123,8 @@
 			{/if}
 		</div>
 		<div class="mt-3 flex items-center justify-end gap-1.5">
-			<button type="button" class="btn btn-ghost btn-sm h-8 min-h-0" onclick={() => onCancel()}>{m.inventory_addform_cancel_button()}</button>
-			<PendingButton type="submit" class="btn btn-primary btn-sm h-8 min-h-0 px-4" pending={addSubmitting} disabled={!addName.trim()}>
+			<button type="button" class="ui-action ui-action-tertiary" onclick={() => onCancel()}>{m.inventory_addform_cancel_button()}</button>
+			<PendingButton type="submit" class="ui-action ui-action-primary px-4" pending={addSubmitting} disabled={!addName.trim()}>
 				{addSubmitting ? m.inventory_addform_saving() : m.inventory_addform_submit_button()}
 			</PendingButton>
 		</div>

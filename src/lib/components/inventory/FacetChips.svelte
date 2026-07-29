@@ -82,6 +82,7 @@
 
 <script lang="ts">
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import RecipeRelationshipStatus from './RecipeRelationshipStatus.svelte';
 	import {
 		autofocus,
@@ -160,14 +161,14 @@
 
 	{#if item.qtyNum === 0}
 		{#if item.kind === 'leftover' && link?.isFreezerStaple}
-			<span class="rounded-full bg-warning/10 px-1.5 font-medium text-warning">{m.inventory_cook_again_badge()}</span>
+			<StatusBadge tone="warning">{m.inventory_cook_again_badge()}</StatusBadge>
 		{:else}
-			<span class="rounded-full bg-error/10 px-1.5 font-medium text-error/80">{m.inventory_out_badge()}</span>
+			<StatusBadge tone="error">{m.inventory_out_badge()}</StatusBadge>
 		{/if}
 		{#if item.isStaple}
 			<button
 				type="button"
-				class="inline-flex h-9 min-w-9 items-center justify-center rounded-full bg-base-200 px-1.5 text-primary disabled:opacity-50"
+				class="ui-action ui-action-tertiary ui-action-icon"
 				disabled={stapleBusy || stapleAdded}
 				aria-label={stapleAdded
 					? m.inventory_staples_on_list()
@@ -186,7 +187,7 @@
 	{#if matches.length > 0}
 		<a
 			href={recipeSearchHref(item.name)}
-			class="rounded-full bg-base-200 px-1.5 font-medium text-base-content/60 hover:bg-base-300 hover:text-base-content"
+			class="inline-flex min-h-11 items-center font-medium text-primary underline decoration-dotted underline-offset-2"
 		>{matches.length === 1 ? m.inventory_matches_singular({ count: matches.length }) : m.inventory_matches_plural({ count: matches.length })}</a>
 	{/if}
 
@@ -201,7 +202,7 @@
 						inputmode="numeric"
 						min="0"
 						step="1"
-						class="w-12 rounded border border-warning/50 bg-base-100 px-1 text-center tabular-nums text-base-content outline-none"
+						class="ui-field w-14 px-1 text-center tabular-nums"
 						bind:value={portionValue}
 						use:autofocus
 						onkeydown={(e) => {
@@ -212,17 +213,17 @@
 					/>
 					<button
 						type="button"
-						class="shrink-0 font-medium underline decoration-dotted underline-offset-2"
+						class="ui-action ui-action-tertiary shrink-0 px-1"
 						onmousedown={(e) => e.preventDefault()}
 						onclick={() => onCommitPortionEdit()}>{m.inventory_portion_save_button()}</button
 					>
 				</span>
 			{:else if reviewFix(item) === 'portions'}
-				<button type="button" class="shrink-0 font-medium underline decoration-dotted underline-offset-2" onclick={() => onOpenPortionEdit()}>{m.inventory_set_portions_button()}</button>
+				<button type="button" class="ui-action ui-action-tertiary shrink-0 px-1" onclick={() => onOpenPortionEdit()}>{m.inventory_set_portions_button()}</button>
 			{:else if reviewFix(item) === 'edit'}
-				<button type="button" class="shrink-0 font-medium underline decoration-dotted underline-offset-2" onclick={() => onOpenEdit()}>{m.inventory_fix_button()}</button>
+				<button type="button" class="ui-action ui-action-tertiary shrink-0 px-1" onclick={() => onOpenEdit()}>{m.inventory_fix_button()}</button>
 			{:else}
-				<button type="button" class="shrink-0 font-medium underline decoration-dotted underline-offset-2" onclick={() => onResolveReview()}>{m.inventory_resolve_button()}</button>
+				<button type="button" class="ui-action ui-action-tertiary shrink-0 px-1" onclick={() => onResolveReview()}>{m.inventory_resolve_button()}</button>
 			{/if}
 		</span>
 	{/if}

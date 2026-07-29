@@ -40,6 +40,7 @@ const CATEGORY_ALIASES = new Map<string, string>([
 ]);
 
 type Category = (typeof RECIPE_TYPE_OPTIONS)[number]['value'];
+export type FoodCategoryAccent = 'terra' | 'blue' | 'sage' | 'honey' | 'berry' | 'neutral';
 
 const CATEGORY_LABELS: Record<Category, (locale: AppLocale) => string> = {
 	meat: (locale) => m.food_category_meat({}, { locale }),
@@ -90,4 +91,28 @@ export function foodCategoryMatches(
 	const normalizedValue = normalizeFoodCategory(value);
 	const normalizedFilter = normalizeFoodCategory(filter);
 	return !!normalizedValue && !!normalizedFilter && normalizedValue === normalizedFilter;
+}
+
+const CATEGORY_ACCENTS: Record<Category, FoodCategoryAccent> = {
+	meat: 'terra',
+	fish: 'blue',
+	vegetarian: 'sage',
+	vegan: 'sage',
+	soup: 'honey',
+	salad: 'sage',
+	pasta: 'honey',
+	pizza: 'terra',
+	dessert: 'berry',
+	breakfast: 'honey',
+	side: 'sage',
+	sauce: 'terra',
+	snack: 'honey',
+	other: 'neutral'
+};
+
+export function foodCategoryAccent(value: string | null | undefined): FoodCategoryAccent {
+	const normalized = normalizeFoodCategory(value);
+	return normalized && normalized in CATEGORY_ACCENTS
+		? CATEGORY_ACCENTS[normalized as Category]
+		: 'neutral';
 }

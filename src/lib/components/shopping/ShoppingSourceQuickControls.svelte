@@ -73,7 +73,7 @@
 	</span>
 	<button
 		type="button"
-		class="need-pill"
+		class="ui-action ui-action-secondary need-choice"
 		data-source-key={source.sourceKey}
 		disabled={disabled || pending || needBlocked}
 		aria-busy={pending}
@@ -86,9 +86,10 @@
 		{needLabel(need())}
 	</button>
 	{#if source.approvedTerms.length > 1}
-		<label class="buy-pill" aria-busy={pending}>
+		<label class="buy-field" aria-busy={pending}>
 			<span class="sr-only">{m.shopping_buy_term_aria({ name: controlName() })}</span>
 			<select
+				class="ui-field"
 				value={source.term}
 				disabled={disabled || pending}
 				aria-label={m.shopping_buy_term_aria({ name: controlName() })}
@@ -140,62 +141,33 @@
 		font-size: 0.56rem;
 	}
 
-	.need-pill,
-	.buy-pill select {
-		min-width: 0;
-		min-height: 2.75rem;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 24%, var(--color-base-300));
-		border-radius: 999px;
-		background: color-mix(in oklab, var(--market-olive, #304b3a) 9%, var(--color-base-100));
-		color: var(--market-olive-ink, #304b3a);
-		font-size: 0.6rem;
-		font-weight: 800;
-	}
-
-	.need-pill {
+	.need-choice {
 		max-width: 7rem;
-		padding: 0 0.55rem;
+		min-width: 0;
+		padding-inline: 0.55rem;
 		overflow: hidden;
+		font-size: 0.6rem;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.buy-pill {
+	.buy-field {
 		position: relative;
 		display: block;
 		min-width: 0;
 	}
 
-	.buy-pill::after {
-		position: absolute;
-		top: 50%;
-		right: 0.48rem;
-		width: 0.32rem;
-		height: 0.32rem;
-		border-right: 1.5px solid color-mix(in oklab, var(--market-olive-ink, #304b3a) 74%, transparent);
-		border-bottom: 1.5px solid color-mix(in oklab, var(--market-olive-ink, #304b3a) 74%, transparent);
-		content: '';
-		pointer-events: none;
-		transform: translateY(-70%) rotate(45deg);
-	}
-
-	.buy-pill select {
+	.buy-field :global(.ui-field) {
 		width: min(6.5rem, 27vw);
-		padding: 0 1.15rem 0 0.55rem;
+		padding-inline: 0.55rem 1.15rem;
 		overflow: hidden;
-		appearance: none;
+		font-size: 0.6rem;
+		font-weight: 800;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.need-pill:focus-visible,
-	.buy-pill select:focus-visible {
-		outline: 3px solid var(--color-accent);
-		outline-offset: 2px;
-	}
-
-	.need-pill:disabled,
-	.buy-pill select:disabled {
+	.need-choice:disabled {
 		cursor: wait;
 		opacity: 0.58;
 	}
@@ -205,7 +177,7 @@
 			grid-template-columns: minmax(8rem, 1fr) auto auto;
 		}
 
-		.buy-pill select {
+		.buy-field :global(.ui-field) {
 			width: min(9rem, 18vw);
 		}
 	}

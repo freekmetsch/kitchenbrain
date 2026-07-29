@@ -5,14 +5,14 @@
 
 	// Button that disables itself and shows a leading spinner while `pending`.
 	// The label stays visible (spinner prepends), so adopting this needs no new
-	// i18n copy. daisyUI classes pass through via `class`; any extra attributes
+	// i18n copy. Semantic house-style classes pass through via `class`; any extra attributes
 	// (aria-*, title, onclick, form) flow through `...rest`. `rest` is spread
 	// first so the control props below always win.
 	let {
 		pending = false,
 		type = 'button',
 		disabled = false,
-		class: klass = 'btn btn-primary',
+		class: klass = 'ui-action ui-action-primary',
 		children,
 		...rest
 	}: {

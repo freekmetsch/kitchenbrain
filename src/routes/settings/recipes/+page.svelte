@@ -123,7 +123,7 @@
 
 	<div class="flex flex-col gap-5">
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settingsshell_panel_display()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settingsshell_panel_display()}</h2>
 			<div class="flex flex-col gap-4">
 				<div>
 					<span class="ui-field-label mb-1.5 block" id="recipe-language-label">{m.settings_recipes_language_label()}</span>
@@ -158,7 +158,7 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_recipes_imports_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_recipes_imports_heading()}</h2>
 			<div class="flex flex-col gap-4">
 				<div>
 					<span class="ui-field-label mb-1.5 block" id="auto-translate-label">{m.settings_recipes_autotranslate_label()}</span>
@@ -181,14 +181,14 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-2">{m.settings_recipes_normalize_heading()}</h2>
+			<h2 class="ui-section-title mb-2">{m.settings_recipes_normalize_heading()}</h2>
 			<p class="text-sm leading-relaxed text-base-content/70">{m.settings_recipes_normalize_hint()}</p>
 			<p class="mt-2 text-xs text-base-content/55">
 				{m.settings_recipes_normalize_counts({ remaining: data.legacyRecipeCount, review: data.reviewDraftCount })}
 			</p>
 			<button
 				type="button"
-				class="btn btn-sm btn-outline mt-3"
+				class="ui-action ui-action-secondary mt-3"
 				disabled={normalizationRunning || data.legacyRecipeCount === 0}
 				onclick={improveExistingRecipes}
 			>

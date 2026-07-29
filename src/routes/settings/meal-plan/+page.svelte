@@ -100,13 +100,13 @@
 		/>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_mealplan_window_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_mealplan_window_heading()}</h2>
 			<div class="flex flex-col gap-4">
 				<div>
 					<label class="ui-field-label mb-1.5 block" for="week-start-day">{m.settings_mealplan_week_start_label()}</label>
 					<select
 						id="week-start-day"
-						class="select select-bordered select-sm w-full"
+						class="ui-field w-full"
 						disabled={saving}
 						value={weekStartDay}
 						onchange={(e) => save({ weekStartDay: Number(e.currentTarget.value) })}
@@ -126,12 +126,12 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_mealplan_delivery_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_mealplan_delivery_heading()}</h2>
 			<div>
 				<label class="ui-field-label mb-1.5 block" for="grocery-day">{m.settings_mealplan_delivery_label()}</label>
 				<select
 					id="grocery-day"
-					class="select select-bordered select-sm w-full"
+					class="ui-field w-full"
 					disabled={saving}
 					value={groceryDay == null ? 'none' : String(groceryDay)}
 					onchange={(e) => {
@@ -148,7 +148,7 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_mealplan_day_planning_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_mealplan_day_planning_heading()}</h2>
 			<div>
 				<span class="ui-field-label mb-1.5 block" id="day-planning-label">{m.settings_mealplan_day_planning_label()}</span>
 				<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="day-planning-label">
@@ -158,7 +158,7 @@
 		</section>
 
 		<section class="ui-form-card">
-			<h2 class="ui-section-label mb-3">{m.settings_mealplan_suggestions_heading()}</h2>
+			<h2 class="ui-section-title mb-3">{m.settings_mealplan_suggestions_heading()}</h2>
 			<div class="flex flex-col gap-4">
 				<div>
 					<span class="ui-field-label mb-1.5 block" id="repeat-cycle-label">{m.settings_mealplan_repeat_cycle_label()}</span>
