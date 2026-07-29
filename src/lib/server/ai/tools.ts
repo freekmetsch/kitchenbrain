@@ -941,6 +941,15 @@ export function assistantToolRoute(
 			/\b(?:gemiste|niet gekookte|oude)\b.*\b(?:maaltijd|maaltijden|avondeten)\b/.test(
 				normalized
 			));
+	const afterCookCheckout =
+		/\b(?:we|i) (?:cooked|ate|finished|served)\b/.test(normalized) ||
+		/\b(?:mark|finish|check out)\b.*\b(?:meal|dinner)\b.*\b(?:cooked|eaten)\b/.test(
+			normalized
+		) ||
+		/\b(?:we|ik) (?:hebben|heb) .*\b(?:gekookt|gegeten|opgegeten)\b/.test(normalized) ||
+		/\b(?:markeer|rond af)\b.*\b(?:maaltijd|avondeten)\b.*\b(?:gekookt|gegeten)\b/.test(
+			normalized
+		);
 	const cookFromStock =
 		/\b(?:cook|make|meals?).*\b(?:from|with) stock\b/.test(normalized) ||
 		/\b(?:entirely|almost entirely).*\bfrom stock\b/.test(normalized) ||
@@ -993,6 +1002,9 @@ export function assistantToolRoute(
 	}
 	if (missedMealRollover) {
 		return forcedSequence(['get_meal_plan', 'propose_meal_plan'], completedToolNames);
+	}
+	if (afterCookCheckout) {
+		return forcedSequence(['get_meal_plan', 'mark_meal_cooked'], completedToolNames);
 	}
 	if (mealPlanEdit) {
 		return forcedSequence(['get_meal_plan', 'propose_meal_plan'], completedToolNames);

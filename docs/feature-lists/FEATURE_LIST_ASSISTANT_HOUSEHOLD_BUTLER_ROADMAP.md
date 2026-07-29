@@ -544,8 +544,6 @@ _R2 correction verified 2026-07-29; R3 replacement draft recut remains._
 
 ### Phase 8 — meal decisions and scoped choices
 
-_Completed locally 2026-07-29._
-
 - Deliver BTL-025/026/027/028/029/030/031: leftover follow-through, comparable meal cards,
   one-time/saved substitutions and AH choices, conflict resolution, missed-meal rollover, and
   Cook-this handoff.
@@ -1000,8 +998,6 @@ assertive trigger contract.
 
 ### BTL-N4 — Deliver meal decisions and scoped choices
 
-**Status: Implemented and locally verified 2026-07-29; draft delivery is pending.**
-
 - **Ideas:** BTL-025, BTL-026, BTL-027, BTL-028, BTL-029, BTL-030, BTL-031.
 - **Risk:** R3 only if a new durable substitution scope is required; otherwise R1/R2.
 - **Verification:** comparable facts; one-time choices leave no durable state; explicit saved
@@ -1010,45 +1006,6 @@ assertive trigger contract.
 - **Rollback:** disable new proposal kinds and keep shipped Plan → Shop plus native recipe/cook
   routes.
 - **Dependencies:** BTL-N1, BTL-N3, and the shipped plan/AH preference seams.
-
-The existing `suggest_meals` read now renders one recommended meal and two genuinely comparable
-alternatives with exact on-hand, missing, age-pressure, effort, repeat-distance, and freezer-effect
-facts. Each card carries the shared recommendation disclosure and a validated Cook-this link that
-preserves servings plus fresh/freezer source into the native recipe route. No new model-visible
-tool was added.
-
-Missed-meal rollover is a deterministic extension of `get_meal_plan`: past uncooked meals are
-returned only when explicitly requested, then the existing reviewed `propose_meal_plan` path
-stages move/drop/keep choices and Shopping reconciliation. It never silently rolls a meal or its
-sources forward. Tool-stage fingerprints cover the missed rows and source weeks.
-
-AH preview now exposes deterministic incompatible-unit, duplicate manual/recipe, and suspicious
-multi-source totals before the external confirmation. Ambiguous candidates require an explicit
-product, text, or skip choice, and the preview token binds the conflict signature. One-time AH
-choices remain preview-local; household ingredient favorites have explicit save/replace/forget
-controls. Recipe cook substitutions now distinguish one cook from a reversible saved recipe
-default. No automatic preference inference or new durable preference schema was introduced.
-
-For linked freezer meals, `mark_meal_cooked` now prepares one write-nothing checkout card instead
-of writing immediately. The card stages the meal and oldest linked freezer lots, accepts reviewed
-eaten portions, rechecks both fingerprints, and commits cook log plus oldest-first consumption in
-one SQLite transaction. Its exact receipt reports eaten and remaining portions; Undo restores both
-domains in one transaction. Fresh meals retain the existing direct cook path. The browser card
-stays disabled until its server status check completes so a pre-hydration approval cannot be
-silently lost.
-
-The exposed catalog remains exactly 28 tools and 25,300 serialized bytes under the checked
-28/26,000 ceiling. The focused provider-free selection, stage, registry, proposal, display, and
-executor matrix passed 46/46. Svelte diagnostics report zero errors and warnings. The complete
-Assistant browser file passed all eight setup/product stories for both isolated accounts,
-including phone and desktop meal comparison, after-cook apply/Undo, Plan → Shop/AH conflicts and
-scoped favorites, Stock → Shopping, dense decision surfaces, and horizontal-overflow checks. The
-complete primary repository browser matrix passed 26/26. The full unit matrix initially found two
-AH push fixtures that manually minted tokens without the new conflict signature; after making
-those fixtures reflect production preview binding, all 132 files / 713 tests passed. The
-production adapter-node build transformed 512 server and 357 client modules successfully. A
-bounded live-provider rerun remains deferred until the previously observed provider failures
-recover; no production household content was used.
 
 ### BTL-N5 — Deliver cooking assistance
 

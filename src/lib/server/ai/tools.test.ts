@@ -161,6 +161,22 @@ describe('recipe continuity tool contracts', () => {
 			).forcedToolName
 		).toBe('propose_meal_plan');
 		expect(
+			toolsForAssistantTurn('We ate the freezer curry tonight. Finish it properly.').map(
+				(candidate) => candidate.name
+			)
+		).toEqual(['get_meal_plan']);
+		const afterCookReview = assistantToolRoute(
+			'We ate the freezer curry tonight. Finish it properly.',
+			false,
+			[],
+			['get_meal_plan']
+		);
+		expect(afterCookReview.forcedToolName).toBe('mark_meal_cooked');
+		expect(afterCookReview.tools.map((candidate) => candidate.name)).toEqual([
+			'get_meal_plan',
+			'mark_meal_cooked'
+		]);
+		expect(
 			toolsForAssistantTurn('Sort out dinners for next week').map((candidate) => candidate.name)
 		).toEqual(['get_meal_plan']);
 		expect(
