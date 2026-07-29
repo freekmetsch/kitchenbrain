@@ -95,6 +95,7 @@
 				<span class="ui-field-label">{m.inventory_addform_section_label()}</span>
 				<select class="select select-bordered select-sm w-full" bind:value={addSection}>
 					<option value="freezer">{m.inventory_section_freezer()}</option>
+					<option value="fridge">{m.inventory_section_fridge()}</option>
 					<option value="pantry">{m.inventory_section_pantry()}</option>
 				</select>
 			</label>

@@ -20,6 +20,8 @@ import {
 	captureRecipeSource,
 	ensureDirectionIds
 } from '$lib/recipe_source_snapshot';
+import { normalizeUnit } from '$lib/food_class';
+import { validateParLevel } from '$lib/par_level';
 
 // Export serializes Date columns via JSON.stringify → ISO strings; drizzle's
 // `mode: 'timestamp'` insert columns expect real Date objects (verified fact,
@@ -47,7 +49,7 @@ const InventoryItemImport = z.object({
 	qtyText: z.string().nullable(),
 	qtyNum: z.number().nullable(),
 	unit: z.string().nullable(),
-	section: z.enum(['freezer', 'pantry']),
+	section: z.enum(['freezer', 'fridge', 'pantry']),
 	category: z.string().nullable(),
 	kind: z.enum(['ingredient', 'leftover', 'processed']).nullable(),
 	foodClass: z.string().nullable(),
@@ -57,6 +59,8 @@ const InventoryItemImport = z.object({
 	needsReview: z.boolean(),
 	reviewReason: z.string().nullable(),
 	isStaple: z.boolean(),
+	parTargetQty: z.number().nullable().default(null),
+	parTargetUnit: z.string().nullable().default(null),
 	expiryDate: z.string().nullable(),
 	tags: z
 		.array(z.string())
@@ -65,7 +69,16 @@ const InventoryItemImport = z.object({
 	createdAt: zTimestamp,
 	updatedAt: zTimestamp,
 	deletedAt: zTimestampOrNull
-});
+}).superRefine((item, ctx) => {
+	const validation = validateParLevel(item);
+	if (!validation.ok) {
+		ctx.addIssue({ code: z.ZodIssueCode.custom, message: validation.error });
+	}
+}).transform((item) => ({
+	...item,
+	parTargetUnit: normalizeUnit(item.parTargetUnit) || null,
+	isStaple: item.parTargetQty !== null ? true : item.isStaple
+}));
 
 const RecipeImport = z.object({
 	id: z.number().int(),

@@ -138,7 +138,7 @@
 </script>
 
 <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-base-content/65">
-	<span class="opacity-70">{item.section === 'freezer' ? '❄️' : '🫙'}</span>
+	<span class="opacity-70">{item.section === 'freezer' ? '❄️' : item.section === 'fridge' ? '🧊' : '🫙'}</span>
 
 	{#if item.kind === 'leftover'}
 		<RecipeRelationshipStatus

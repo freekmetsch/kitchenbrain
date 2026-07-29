@@ -8,7 +8,7 @@ import { isoDateSchema } from '$lib/date_schema';
 
 const AddSchema = z.object({
 	name: z.string().min(1),
-	section: z.enum(['freezer', 'pantry']),
+	section: z.enum(['freezer', 'fridge', 'pantry']),
 	qty_text: z.string().optional(),
 	qty_num: z.number().nonnegative().optional(),
 	unit: z.string().optional(),

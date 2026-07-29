@@ -294,7 +294,7 @@
 				</div>
 				<ul class="stock-list divide-y">
 					{#each controller.stockRows as item (item.id)}
-						{@render stockRow(item, null)}
+						{@render stockRow(item, controller.parLevelText(item))}
 					{/each}
 				</ul>
 			</section>

@@ -5,11 +5,12 @@ import { addDays, todayIso } from '$lib/week';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
 import { readInventoryItem } from './merge';
+import type { InventorySection } from '$lib/inventory_section';
 
 type InventoryItem = typeof schema.inventoryItems.$inferSelect;
 
 export type InventoryListOptions = {
-	section?: 'freezer' | 'pantry';
+	section?: InventorySection;
 	category?: string;
 	expiringWithinDays?: number;
 	addedBeforeDays?: number;
