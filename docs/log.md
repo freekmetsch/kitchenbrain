@@ -801,3 +801,18 @@ inline fallback was used.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_INTERACTION_STABILITY.md,
 docs/artifacts/archive/2026-07-29-plan-shopping-interaction-stability.html
+
+## 2026-07-29 | deploy-canary | Shopping interaction stability
+
+PR #37 merged as `2b8403f`. Railway deployment
+`b4638385-ab58-4e5d-882c-b1ace61fceb2` reached `SUCCESS` for that exact remote
+`main` revision, and both household authentication guards passed.
+
+The privacy-safe 320 and 1280 px Shopping canary verified stable filter order, unique row keys,
+the one-tap Weekly Manage path, zero outer-window scroll, bounded responsive history placement,
+no horizontal overflow or legacy progress/dialog/sort UI, and zero console, runtime, request, or
+HTTP 4xx/5xx failures. It performed no Shopping mutation, AH lookup, or AH push and retained no
+screenshot, response body, cookie, or household content.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_INTERACTION_STABILITY.md,
+docs/deploys/2026-07.md
