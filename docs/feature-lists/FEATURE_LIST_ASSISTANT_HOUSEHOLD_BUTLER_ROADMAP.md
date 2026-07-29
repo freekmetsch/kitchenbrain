@@ -1,7 +1,7 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 7 of 10 (stock and Shopping loops implemented and locally verified on
-their isolated R3 wide sweep; stacked draft PR pending; Phase 8 not started)_
+_Status: In flight - Phase 8 of 10 (stock and Shopping loops isolated in stacked draft PR #36;
+meal decisions and scoped choices starting)_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -877,7 +877,7 @@ gate before merge when the shared machine is quiet.
   proposals and retain native Stock/Shopping flows.
 - **Dependencies:** BTL-N1 and BTL-N2 recommendation/review primitives.
 
-**Status: Implemented locally 2026-07-29; R3 draft delivery pending.**
+**Status: Implemented and isolated in stacked draft PR #36 on 2026-07-29.**
 
 The isolated `wide-sweep/schema-inventory-zones-targets` branch adds append-only migration 0027
 with nullable pantry par-target quantity/unit columns. Fridge is now a first-class inventory zone
@@ -1104,12 +1104,12 @@ None. Feedback resolved the original gates on 2026-07-28 and promoted the litera
   6's passive Brief is live. Its durable state is implemented on
   `wide-sweep/schema-butler-service-state`;
   BTL-019 is truthful but partial, and BTL-020 is parked after four live regression failures.
-  Phase 7 is implemented and locally verified on stacked branch
+  Phase 7 is implemented and locally verified in stacked draft PR #36 on branch
   `wide-sweep/schema-inventory-zones-targets`: migration 0027, fridge/par levels, the reviewed
   Stock/Shopping proposal, and deterministic staged Assistant routing. The production build and
   all 704 unit tests pass; the canonical browser run is 21/24 under documented machine contention.
-- **First command:** open the stacked R3 draft PR, then start Phase 8 without merging either
-  production migration until the beta stage decision is explicit.
+- **First command:** start Phase 8 from the PR #36 tip without merging either production migration
+  until the beta stage decision is explicit.
 - **First files:** this feature list; `src/lib/server/ai/stock_action_proposal.ts`;
   `src/lib/server/ai/tools.ts`; `src/lib/server/ai/client.ts`;
   `src/lib/components/chat/StockActionReview.svelte`; `src/lib/par_level.ts`.
