@@ -36,12 +36,6 @@ Railway is de optie zonder technische rompslomp: je volgt de stappen, en Railway
 
 Elk platform dat een blijvende schijf (een persistent volume, een schijf die een herstart overleeft) aanbiedt en een langlopend Node-proces kan draaien, werkt hiervoor: Docker Compose op een VPS, Fly.io, Render, of vergelijkbare hosts. Het is dezelfde container als bij Railway, alleen op een ander adres.
 
-### Timermeldingen op een vergrendelde telefoon
-
-Kooktimers maken altijd geluid zolang de kookweergave open en actief blijft. Wil je ook een systeemmelding als de telefoon vergrendeld is of de app op de achtergrond staat, stel dan `VAPID_PRIVATE_KEY` en `VAPID_SUBJECT` uit `.env.example` in. Maak één vast VAPID-sleutelpaar met `npx web-push generate-vapid-keys`; bewaar de privésleutel alleen bij de server. De app kan de publieke sleutel zelf afleiden.
-
-De server bewaakt de eindtijd, dus hij moet onafgebroken blijven draaien. Schakel Railway Serverless/App Sleeping of een vergelijkbare slaapstand uit. Open de kookweergave daarna op elk apparaat, kies **Timermeldingen inschakelen** en verstuur de testmelding. Op iPhone en iPad werkt dit vanaf iOS/iPadOS 16.4 en alleen als Keukenbrein vanaf Safari aan het beginscherm is toegevoegd. Het geluid volgt altijd de meldings-, stille- en focusinstellingen van het apparaat.
-
 ### Alleen op je eigen computer
 
 Als je de app alleen voor jezelf wilt draaien, zonder hem te delen met de rest van het huishouden, hoef je niets te hosten. **Draai** `npm install && npm run dev` en **open** `http://localhost:5173`, of **draai** `docker compose up` en **open** `http://localhost:3000`. Er is niets om te deployen en niets dat blootstaat aan het internet.
@@ -160,12 +154,6 @@ Railway is the option that needs no technical setup beyond following the steps: 
 ### Self-host anywhere with a persistent volume
 
 Any platform that offers a persistent volume (a disk that survives restarts) and can run a long-lived Node process works: Docker Compose on a VPS, Fly.io, Render, or similar hosts. It is the same container as the Railway option, just at a different address.
-
-### Timer alerts on a locked phone
-
-Cooking timers always sound while the cooking view stays open and active. To also receive a system notification when the phone is locked or the app is in the background, set `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` from `.env.example`. Generate one stable VAPID key pair with `npx web-push generate-vapid-keys`, and keep the private key on the server only. The app can derive the public key itself.
-
-The server watches the deadline, so it must keep running continuously. Disable Railway Serverless/App Sleeping or any comparable sleep mode. Then open the cooking view on each device, choose **Enable timer alerts**, and send the test alert. On iPhone and iPad this requires iOS/iPadOS 16.4 or later and Keukenbrein installed to the Home Screen from Safari. Sound always follows the device's notification, silent, and Focus settings.
 
 ### Just run it on your own computer
 

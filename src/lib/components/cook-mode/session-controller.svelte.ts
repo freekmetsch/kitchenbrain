@@ -1,4 +1,4 @@
-import { readCookSession, type CookSessionReadResult, type CookSessionV4 } from './cook_session';
+import { readCookSession, type CookSessionReadResult, type CookSessionV5 } from './cook_session';
 
 export type CookSessionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -28,7 +28,7 @@ export class CookSessionStorageController {
 		}
 	}
 
-	save(session: CookSessionV4 | unknown): void {
+	save(session: CookSessionV5 | unknown): void {
 		try {
 			this.#storage?.setItem(this.key, JSON.stringify(session));
 		} catch {

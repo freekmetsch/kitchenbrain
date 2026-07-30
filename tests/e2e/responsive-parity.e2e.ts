@@ -723,16 +723,6 @@ for (const viewport of VIEWPORTS) {
 		await page.evaluate((key) => localStorage.removeItem(key), progressKey);
 		await page.reload();
 
-		await expect(
-			page.getByText(
-				'Background timer alerts are unavailable on this server. Keep this cooking view open.',
-				{ exact: true }
-			)
-		).toBeVisible({ timeout: 15_000 });
-		await page.getByRole('button', { name: 'Start timer for 1:00' }).click();
-		await expect(page.getByText('Keep this cooking view open', { exact: true })).toBeVisible();
-		await page.getByRole('button', { name: 'Cancel timer' }).click();
-
 		const firstStep = page.getByRole('button', {
 			name: 'Read step 1: Simmer until ready.'
 		});
@@ -761,7 +751,7 @@ for (const viewport of VIEWPORTS) {
 		await page.goto(route);
 		await expect(
 			page.getByText(
-				'Your earlier cooking session could not be restored safely. Source steps are ready, and old timers were cleared.',
+				'Your earlier cooking session could not be restored safely. Source steps are ready from the beginning.',
 				{ exact: true }
 			)
 		).toBeVisible({ timeout: 15_000 });

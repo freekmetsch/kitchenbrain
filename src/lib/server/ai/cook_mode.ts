@@ -61,10 +61,6 @@ const StepSchema = z.object({
 			allocation: AllocationSchema
 		})
 	),
-	timer_seconds: z.number().int().positive().nullable(),
-	timer_purpose: LocalizedTextSchema.nullable(),
-	timer_action: LocalizedTextSchema.nullable(),
-	timer_location: LocalizedTextSchema.nullable(),
 	stream_id: z.string().min(1),
 	merges_from: z.array(z.string())
 });
@@ -80,10 +76,6 @@ type GeneratedCookMode = {
 			ingredient_id: string;
 			allocation: CookModeIngredientAllocation;
 		}>;
-		timer_seconds: number | null;
-		timer_purpose: LocalizedCookModeText | null;
-		timer_action: LocalizedCookModeText | null;
-		timer_location: LocalizedCookModeText | null;
 		stream_id: string;
 		merges_from: string[];
 	}>;
@@ -96,12 +88,7 @@ function localizedValues(value: LocalizedCookModeText): string[] {
 function displayedText(data: GeneratedCookMode): string[] {
 	return [
 		...data.instructions.flatMap((instruction) => localizedValues(instruction.text)),
-		...data.streams.flatMap((stream) => localizedValues(stream.name)),
-		...data.steps.flatMap((step) => [
-			...(step.timer_purpose ? localizedValues(step.timer_purpose) : []),
-			...(step.timer_action ? localizedValues(step.timer_action) : []),
-			...(step.timer_location ? localizedValues(step.timer_location) : [])
-		])
+		...data.streams.flatMap((stream) => localizedValues(stream.name))
 	];
 }
 
@@ -218,33 +205,6 @@ const buildCookModeSchema = (
 						});
 					}
 				});
-				const timerFields = [step.timer_purpose, step.timer_action, step.timer_location];
-				if (step.timer_seconds == null && timerFields.some((value) => value != null)) {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						path: ['steps', index, 'timer_seconds'],
-						message: 'timer text must be null without a timer'
-					});
-				}
-				if (step.timer_seconds != null && timerFields.some((value) => value == null)) {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						path: ['steps', index, 'timer_seconds'],
-						message: 'all timer text is required with a timer'
-					});
-				}
-				if (step.timer_purpose) {
-					for (const language of ['en', 'nl'] as const) {
-						const issue = violatesActionState(step.timer_purpose[language]);
-						if (issue) {
-							ctx.addIssue({
-								code: z.ZodIssueCode.custom,
-								path: ['steps', index, 'timer_purpose', language],
-								message: issue
-							});
-						}
-					}
-				}
 			});
 
 			const candidate: LocalizedCookModeRecipeV5 = {

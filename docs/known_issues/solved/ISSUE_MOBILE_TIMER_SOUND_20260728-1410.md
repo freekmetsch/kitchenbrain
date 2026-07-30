@@ -1,6 +1,6 @@
 # Issue: Cooking timer does not reliably sound on mobile
 Created: 2026-07-28 14:10
-Status: AWAITING VERIFICATION
+Status: SOLVED — FEATURE RETIRED
 
 ## Symptom
 
@@ -16,6 +16,7 @@ the screen is locked. The UI must explain any platform limit that prevents this 
 
 | Date | Action | Result | Next Step |
 |------|--------|--------|-----------|
+| 2026-07-30 | Retired recipe timers from the product, including Cook Mode UI, persisted client coordination, background alerts, server routes, schema, configuration, dependencies, and tests. | The unreliable mobile sound path no longer exists because the timer feature itself has been removed. Existing recipe and Cook Mode progress remains usable. | Keep this issue as historical evidence; do not reintroduce recipe timers through Assistant or Cook Mode work. |
 | 2026-07-28 14:10 | Opened fix-mode diagnosis and located the existing timer media, worker, service-worker, notification copy, and archived timer plan. | The app already tries to keep one long encoded audio file playing from the timer-start gesture, but physical mobile behavior remains unverified and the user reports that sound does not reliably fire. | Trace the runtime path, build the cheapest reproducible browser/device matrix, and verify current iOS/Android browser constraints from primary sources. |
 | 2026-07-28 14:17 | Ran the three focused timer suites. | All 10 tests passed in under one second, but they only prove the mocked page-owned lifecycle. They do not cover OS suspension, Web Push, a restored timer's audio path, or physical sound. | Specify the missing correct-seam tests before implementation and keep physical devices as a release gate. |
 | 2026-07-28 14:18 | Inspected the shipped audio with `ffprobe` and `ffmpeg`. | It is a 12:00:30 AAC file: 12 hours of digital silence followed by roughly 30 seconds of alarm pulses. The page starts this media on the timer tap and seeks into the silent lead-in. | Retire the silent-lead-in workaround once an independent background delivery path exists; retain a short foreground alarm. |

@@ -5,7 +5,6 @@ import { validateSession } from '$lib/server/auth';
 import { base } from '$app/paths';
 import { db } from '$lib/server/db/index';
 import { runTaxonomyGuardianSweep } from '$lib/server/workflows/inventory-guardian';
-import { startTimerAlertScheduler } from '$lib/server/timer-alerts/runtime';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { getTextDirection } from '$lib/paraglide/runtime';
 
@@ -59,7 +58,6 @@ export const handle: Handle = sequence(authHandle, localeHandle);
 // Start background jobs once on server startup — skipped in dev to avoid HMR duplicates
 if (!dev) {
 	startTaxonomyGuardian();
-	startTimerAlertScheduler();
 }
 
 // ── Taxonomy guardian (P3.2) ─────────────────────────────────────────────────

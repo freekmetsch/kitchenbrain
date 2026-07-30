@@ -39,10 +39,6 @@ describe('generated v5 cooking structure', () => {
 				step_id: 'step-1',
 				direction_id: 'dir-1',
 				ingredient_uses: [{ ingredient_id: 'ui', allocation: { kind: 'all' } }],
-				timer_seconds: null,
-				timer_purpose: null,
-				timer_action: null,
-				timer_location: null,
 				stream_id: 'main',
 				merges_from: []
 			}

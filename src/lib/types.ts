@@ -8,10 +8,6 @@ export type CookModeStep = {
 	goal: string;
 	body: string;
 	ingredients: string[];
-	timer_seconds: number | null;
-	timer_purpose: string | null;
-	timer_action: string | null;
-	timer_location: string | null;
 	stream_id: string;
 	merges_from: string[];
 	ingredient_indexes?: number[];
@@ -46,10 +42,6 @@ export type LocalizedCookModeStep = {
 	goal: LocalizedCookModeText;
 	body: LocalizedCookModeText;
 	ingredients: LocalizedCookModeText[];
-	timer_seconds: number | null;
-	timer_purpose: LocalizedCookModeText | null;
-	timer_action: LocalizedCookModeText | null;
-	timer_location: LocalizedCookModeText | null;
 	stream_id: string;
 	merges_from: string[];
 	ingredient_indexes?: number[];
@@ -101,10 +93,6 @@ export type LocalizedCookModeStepV5 = {
 	stream_id: string;
 	merges_from: string[];
 	ingredient_uses: LocalizedCookModeIngredientUseV5[];
-	timer_seconds: number | null;
-	timer_purpose: LocalizedCookModeText | null;
-	timer_action: LocalizedCookModeText | null;
-	timer_location: LocalizedCookModeText | null;
 };
 
 export type LocalizedCookModeRecipeV5 = {
