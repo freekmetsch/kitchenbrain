@@ -127,13 +127,11 @@ export const actions: Actions = {
 		const semanticStructureChanged = recipeEditChangesCookingStructure(
 			{
 				ingredientIds: current.ingredients.map((ingredient) => ingredient.id),
-				directionIds: current.directionIdsJson,
-				directions: current.directions
+				directionIds: current.directionIdsJson
 			},
 			{
 				ingredientIds: ingredients.map((ingredient) => ingredient.id),
-				directionIds: payload.directionIds,
-				directions: payload.directions
+				directionIds: payload.directionIds
 			}
 		);
 		const translationInputsChanged =

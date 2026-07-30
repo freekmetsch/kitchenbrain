@@ -71,7 +71,6 @@
 	--ui-overlay-bottom: calc(
 		var(--ui-nav-offset) + var(--ui-fixed-bar-height) + var(--ui-overlay-gap)
 	);
-	--ui-timer-right: 0.75rem;
 	--motion-micro: 150ms;
 	--motion-content: 240ms;
 	--motion-large: 380ms;

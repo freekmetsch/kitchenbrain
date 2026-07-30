@@ -1,5 +1,3 @@
-import { extractTimers } from '$lib/timer_extract';
-
 export type SubstituteDraft = {
 	clientId: string;
 	name: string;
@@ -118,7 +116,6 @@ export function recipeIngredientsEqual(
 type CookingStructure = {
 	ingredientIds: Array<string | undefined>;
 	directionIds: string[];
-	directions: string[];
 };
 
 export function recipeEditChangesCookingStructure(
@@ -129,14 +126,6 @@ export function recipeEditChangesCookingStructure(
 		JSON.stringify(left) === JSON.stringify(right);
 	return (
 		!same(current.ingredientIds, next.ingredientIds) ||
-		!same(current.directionIds, next.directionIds) ||
-		!same(
-			current.directions.map((direction) =>
-				extractTimers(direction).map((timer) => timer.seconds)
-			),
-			next.directions.map((direction) =>
-				extractTimers(direction).map((timer) => timer.seconds)
-			)
-		)
+		!same(current.directionIds, next.directionIds)
 	);
 }

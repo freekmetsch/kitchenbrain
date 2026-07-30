@@ -17,8 +17,7 @@ export type ResetGroupKey =
 	| 'chat_history'
 	| 'spending_log'
 	| 'shopping_data'
-	| 'ah_favorites'
-	| 'timer_alerts';
+	| 'ah_favorites';
 
 export const RESET_GROUP_KEYS: ResetGroupKey[] = [
 	'inventory',
@@ -27,8 +26,7 @@ export const RESET_GROUP_KEYS: ResetGroupKey[] = [
 	'chat_history',
 	'spending_log',
 	'shopping_data',
-	'ah_favorites',
-	'timer_alerts'
+	'ah_favorites'
 ];
 
 export const RESET_GROUPS: Record<ResetGroupKey, { label: string; description: string }> = {
@@ -60,10 +58,6 @@ export const RESET_GROUPS: Record<ResetGroupKey, { label: string; description: s
 	ah_favorites: {
 		label: 'AH product preferences',
 		description: 'Household-wide favorites and product choices saved for individual recipes.'
-	},
-	timer_alerts: {
-		label: 'Timer alert devices',
-		description: 'Device push subscriptions and pending background timer alerts.'
 	}
 };
 
@@ -85,8 +79,7 @@ const GROUP_TABLES: Record<ResetGroupKey, AnySQLiteTable[]> = {
 		schema.shoppingListOverrides,
 		schema.shoppingPushHistory
 	],
-	ah_favorites: [schema.recipeAhPreferences, schema.ahFavorites],
-	timer_alerts: [schema.timerAlertJobs, schema.pushSubscriptions]
+	ah_favorites: [schema.recipeAhPreferences, schema.ahFavorites]
 };
 
 export type ResetResult = { group: ResetGroupKey; deleted: Record<string, number> };
