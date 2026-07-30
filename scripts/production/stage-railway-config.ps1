@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory, ParameterSetName = 'Stage')]
-    [ValidateSet('OpenRouter', 'FreekLogin', 'YlfaLogin', 'LitestreamReferences', 'RemoveRecipeTimerAlerts')]
+    [ValidateSet('OpenRouter', 'FreekLogin', 'YlfaLogin', 'LitestreamReferences')]
     [string]$Profile,
 
     [Parameter(Mandatory, ParameterSetName = 'Validate')]
@@ -114,54 +114,6 @@ function Invoke-RailwayVariableWrite {
     }
 }
 
-function Invoke-RailwayVariableDelete {
-    param(
-        [ValidateSet('VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT')]
-        [string]$VariableName,
-        [AllowNull()][pscustomobject]$Invocation = $null
-    )
-
-    $railway = if ($null -ne $Invocation) { $Invocation } else { Get-RailwayInvocation }
-    $start = [Diagnostics.ProcessStartInfo]::new()
-    $start.FileName = $railway.FileName
-    $start.UseShellExecute = $false
-    $start.CreateNoWindow = $true
-    $start.RedirectStandardInput = $true
-    $start.RedirectStandardOutput = $true
-    $start.RedirectStandardError = $true
-    foreach ($argument in @($railway.PrefixArguments) + @(
-        'variable', 'delete', $VariableName,
-        '--project', $projectId,
-        '--environment', $environmentName,
-        '--service', $serviceName
-    )) {
-        [void]$start.ArgumentList.Add($argument)
-    }
-
-    $process = [Diagnostics.Process]::new()
-    $process.StartInfo = $start
-    try {
-        [void]$process.Start()
-        $process.StandardInput.Close()
-        $stdout = $process.StandardOutput.ReadToEndAsync()
-        $stderr = $process.StandardError.ReadToEndAsync()
-        if (-not (Wait-ForProcess -Process $process -TimeoutMilliseconds 30000)) {
-            throw 'Railway variable deletion result is indeterminate.'
-        }
-        if (-not [Threading.Tasks.Task]::WhenAll([Threading.Tasks.Task[]]@($stdout, $stderr)).Wait(2000)) {
-            throw 'Railway variable deletion output capture did not close.'
-        }
-        if ($process.ExitCode -ne 0) {
-            throw 'Railway rejected the variable deletion.'
-        }
-    } finally {
-        try { $process.StandardInput.Close() } catch {}
-        try { $process.StandardOutput.Close() } catch {}
-        try { $process.StandardError.Close() } catch {}
-        $process.Dispose()
-    }
-}
-
 if ($ValidateOnly) {
     $parameterNames = $MyInvocation.MyCommand.Parameters.Keys
     if ($parameterNames -contains 'Value' -or $parameterNames -contains 'Secret') {
@@ -192,35 +144,6 @@ process.stdin.on('end', () => {
         })
     $fixtureValue = $null
     $fixtureScript = $null
-
-    $deleteFixtureScript = @'
-let input = '';
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', chunk => { input += chunk; });
-process.stdin.on('end', () => {
-  const args = process.argv.slice(1);
-  const variableName = args[2];
-  const allowedVariables = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'];
-  const expectedArgs = [
-    'variable', 'delete', variableName,
-    '--project', 'a8fd74d7-2c0e-4d95-a310-7c13dc1c7936',
-    '--environment', 'production', '--service', 'household-brain'
-  ];
-  const argsMatch = JSON.stringify(args) === JSON.stringify(expectedArgs);
-  process.stdout.write('DELETE-STDOUT-CANARY\n');
-  process.stderr.write('DELETE-STDERR-CANARY\n');
-  process.exitCode = input === '' && allowedVariables.includes(variableName) && argsMatch ? 0 : 9;
-});
-'@
-    foreach ($fixtureVariable in @('VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT')) {
-        Invoke-RailwayVariableDelete `
-            -VariableName $fixtureVariable `
-            -Invocation ([pscustomobject]@{
-                FileName = (Resolve-UniqueApplicationPath 'node')
-                PrefixArguments = @('-e', $deleteFixtureScript)
-            })
-    }
-    $deleteFixtureScript = $null
     Write-Output 'RAILWAY-CONFIG-STAGER-VALID'
     exit 0
 }
@@ -274,37 +197,16 @@ $writes = switch ($Profile) {
             }
         )
     }
-    'RemoveRecipeTimerAlerts' {
-        @()
-    }
-}
-
-$deletes = if ($Profile -eq 'RemoveRecipeTimerAlerts') {
-    @('VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT')
-} else {
-    @()
 }
 
 try {
     foreach ($write in $writes) {
         Invoke-RailwayVariableWrite -VariableName $write.Name -VariableValue $write.Value
     }
-    $deleteFailures = [Collections.Generic.List[string]]::new()
-    foreach ($delete in $deletes) {
-        try {
-            Invoke-RailwayVariableDelete -VariableName $delete
-        } catch {
-            $deleteFailures.Add($delete)
-        }
-    }
-    if ($deleteFailures.Count -gt 0) {
-        throw "Railway variable deletion failed or is indeterminate for: $($deleteFailures -join ', ')"
-    }
     Write-Output "RAILWAY-CONFIG-STAGED:$Profile"
 } catch {
-    Write-Error "Railway config staging failed for profile $Profile. $($_.Exception.Message) Child output was suppressed."
+    Write-Error "Railway config staging failed for profile $Profile. Child output was suppressed."
     exit 1
 } finally {
     $writes = $null
-    $deletes = $null
 }
