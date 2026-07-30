@@ -164,7 +164,7 @@
 <svelte:window onpaste={handleImagePaste} />
 
 <div class="recipe-edit-page">
-	<KitchenPageHeader eyebrow={data.recipe.title} title={m.recipes_edit_heading()}>
+	<KitchenPageHeader eyebrow={data.recipe.title} title={m.recipes_edit_heading()} layout="contextual">
 		{#snippet leading()}
 		<a
 			href="{base}/recipes/{data.recipe.slug}"
@@ -179,8 +179,8 @@
 			class="ui-action ui-action-primary shrink-0"
 			disabled={submitting || !dirty}
 		>
-			{#if submitting}<Spinner size="xs" />{/if}
-			{m.recipes_edit_save_button()}
+			{#if submitting}<Spinner size="xs" />{:else}<Icon name="check" class="h-4 w-4" />{/if}
+			<span class="kitchen-page-header-action-label">{m.recipes_edit_save_button()}</span>
 		</button>
 		{/snippet}
 	</KitchenPageHeader>

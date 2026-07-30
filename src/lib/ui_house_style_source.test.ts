@@ -55,14 +55,25 @@ describe('stable app house-style source contract', () => {
 
 	it('keeps Green Ribbon ownership compact and content-free', () => {
 		const header = readFileSync('src/lib/components/ui/KitchenPageHeader.svelte', 'utf8');
+		const recipeDetail = readFileSync(
+			'src/lib/components/recipe-detail/RecipeHeader.svelte',
+			'utf8'
+		);
+		const recipeEdit = readFileSync('src/routes/recipes/[slug]/edit/+page.svelte', 'utf8');
 
 		expect(header).toContain('data-house-style="green-ribbon"');
+		expect(header).toContain("layout?: 'standard' | 'contextual'");
+		expect(header).toContain('data-layout={layout}');
 		expect(header).toContain('leading?: Snippet');
 		expect(header).toContain('action?: Snippet');
 		expect(header).not.toContain('children');
 		expect(header).not.toContain('linear-gradient');
 		expect(header).not.toContain('radial-gradient');
 		expect(header).not.toContain('::after');
+		expect(recipeDetail).toContain('layout="contextual"');
+		expect(recipeDetail).toContain('kitchen-page-header-action-label');
+		expect(recipeEdit).toContain('layout="contextual"');
+		expect(recipeEdit).toContain('kitchen-page-header-action-label');
 	});
 
 	it('does not restore full-height recipe category markers', () => {

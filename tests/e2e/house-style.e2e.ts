@@ -28,7 +28,7 @@ async function expectRouteFrame(page: Page, route: string, width: number): Promi
 async function expectGreenRibbon(page: Page, width: number): Promise<void> {
 	const ribbon = page.locator('[data-house-style="green-ribbon"]');
 	await expect(ribbon).toBeVisible();
-	expect((await ribbon.boundingBox())?.height ?? 0).toBeCloseTo(width < 768 ? 56 : 64, 0);
+	expect((await ribbon.boundingBox())?.height ?? 0).toBeCloseTo(width < 768 ? 64 : 72, 0);
 	expect(await ribbon.evaluate((element) => getComputedStyle(element).backgroundImage)).toBe('none');
 	expect(
 		await ribbon.locator('h1').evaluate((element) => getComputedStyle(element).fontFamily)
@@ -100,24 +100,58 @@ test('house-style roles hold across stable routes and target viewports', async (
 	}
 });
 
-test('compact ribbon keeps Back, short copy, and the primary action on one row at 320px', async ({
+test('contextual Recipe ribbons keep the family geometry while fitting Back and action', async ({
 	page
 }, testInfo) => {
 	const fixture = kitchenFixtureFor(testInfo);
 	await page.setViewportSize({ width: 320, height: 900 });
-	await page.goto(`/recipes/${fixture.recipeSlug}/edit`);
-	await page.waitForLoadState('networkidle');
 
+	for (const route of [
+		`/recipes/${fixture.recipeSlug}`,
+		`/recipes/${fixture.recipeSlug}/edit`
+	]) {
+		await page.goto(route);
+		await page.waitForLoadState('networkidle');
+		await expectGreenRibbon(page, 320);
+
+		const ribbon = page.locator('[data-house-style="green-ribbon"]');
+		await expect(ribbon).toHaveAttribute('data-layout', 'contextual');
+		const leading = ribbon.locator('.kitchen-page-header-leading');
+		const action = ribbon.locator('.kitchen-page-header-action');
+		await expect(leading).toBeVisible();
+		await expect(action).toBeVisible();
+
+		const leadingBox = await leading.boundingBox();
+		const actionBox = await action.boundingBox();
+		expect(Math.abs((leadingBox?.y ?? 0) - (actionBox?.y ?? 0))).toBeLessThan(1);
+		expect(actionBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+			)
+		).toBe(0);
+	}
+
+	await page.evaluate(() => {
+		document.cookie = 'PARAGLIDE_LOCALE=nl; path=/';
+	});
+	await page.reload();
 	await expectGreenRibbon(page, 320);
-	const ribbon = page.locator('[data-house-style="green-ribbon"]');
-	const leading = ribbon.locator('.kitchen-page-header-leading');
-	const action = ribbon.locator('.kitchen-page-header-action');
-	await expect(leading).toBeVisible();
-	await expect(action).toBeVisible();
+	expect(
+		await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		)
+	).toBe(0);
 
-	const leadingBox = await leading.boundingBox();
-	const actionBox = await action.boundingBox();
-	expect(Math.abs((leadingBox?.y ?? 0) - (actionBox?.y ?? 0))).toBeLessThan(1);
+	const ribbon = page.locator('[data-house-style="green-ribbon"]');
+	await page.evaluate(() => {
+		document.documentElement.style.fontSize = '200%';
+	});
+	await expect
+		.poll(async () => (await ribbon.boundingBox())?.height ?? 0)
+		.toBeGreaterThan(64);
+	await expect(ribbon.locator('h1')).toBeVisible();
+	await expect(ribbon.locator('.kitchen-page-header-action')).toBeVisible();
 	expect(
 		await page.evaluate(
 			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -125,18 +159,17 @@ test('compact ribbon keeps Back, short copy, and the primary action on one row a
 	).toBe(0);
 
 	await page.evaluate(() => {
-		document.documentElement.style.fontSize = '200%';
+		document.documentElement.style.fontSize = '';
 	});
-	await expect
-		.poll(async () => (await ribbon.boundingBox())?.height ?? 0)
-		.toBeGreaterThan(56);
-	await expect(ribbon.locator('h1')).toBeVisible();
-	await expect(action).toBeVisible();
+	await page.setViewportSize({ width: 393, height: 900 });
+	await page.reload();
+	await expectGreenRibbon(page, 393);
+	expect((await ribbon.locator('.kitchen-page-header-action').boundingBox())?.width ?? 0).toBeGreaterThan(
+		44
+	);
 	expect(
-		await page.evaluate(
-			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
-		)
-	).toBe(0);
+		(await ribbon.locator('.kitchen-page-header-action-label').boundingBox())?.width ?? 0
+	).toBeGreaterThan(1);
 });
 
 test('selection, language, theme, and keyboard states remain explicit', async ({ page }) => {

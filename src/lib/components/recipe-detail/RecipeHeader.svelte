@@ -95,7 +95,7 @@
 	}}
 />
 
-<KitchenPageHeader eyebrow={m.recipes_header_context()} title={displayTitle}>
+<KitchenPageHeader eyebrow={m.recipes_header_context()} title={displayTitle} layout="contextual">
 	{#snippet leading()}
 		<a
 			href="{base}/recipes"
@@ -107,8 +107,11 @@
 		<button
 			type="button"
 			class="ui-action ui-action-primary shrink-0"
-			onclick={onAddToPlan}><Icon name="plus" class="h-3.5 w-3.5" /> {m.recipes_header_plan_button()}</button
+			onclick={onAddToPlan}
 		>
+			<Icon name="plus" class="h-3.5 w-3.5" />
+			<span class="kitchen-page-header-action-label">{m.recipes_header_plan_button()}</span>
+		</button>
 	{/snippet}
 </KitchenPageHeader>
 

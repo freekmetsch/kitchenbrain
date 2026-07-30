@@ -17,7 +17,7 @@ Do not add a universal component whose variants reproduce page-local drift.
 | Secondary action | A useful action that does not commit the main task | `ui-action ui-action-secondary`; paper with olive outline |
 | Tertiary action | A quiet or reversible action | `ui-action ui-action-tertiary`; use `ui-action-icon` only for a familiar icon |
 | Danger or warning action | Destructive work or a deliberate warning step | `ui-action-danger` or `ui-action-warning`; severity must also be clear from the label |
-| Page identity | The stable route title | `KitchenPageHeader`; solid Green Ribbon, one H1, optional Back/leading navigation, and at most one highest-value action |
+| Page identity | The stable route title | `KitchenPageHeader`; solid Green Ribbon, one H1, optional Back/leading navigation, and at most one highest-value action. Use `layout="contextual"` only when Back and a primary action share the ribbon |
 | Page utilities | Route context and working controls immediately below the ribbon | `ui-page-utility` with `ui-page-utility-inner`; metrics, week navigation, search, sort, filters, status, and secondary actions stay here |
 | Filter | A selectable compact option | `FilterChip`; real button, `aria-pressed`, 44 px target with a 32 px visual |
 | Status | Short passive metadata | `StatusBadge`; never focusable and never pressed |
@@ -34,8 +34,11 @@ Do not add a universal component whose variants reproduce page-local drift.
   least 44 CSS pixels even when its visible treatment is smaller.
 - Keep primary actions terra, secondary actions olive outline, and tertiary actions quiet. Do not
   choose accents by route.
-- The Green Ribbon is normally 56 CSS px below 768 px and 64 CSS px from 768 px upward. Long
+- The Green Ribbon is normally 64 CSS px below 768 px and 72 CSS px from 768 px upward. Long
   English/Dutch copy and 200%-equivalent text may grow it instead of clipping.
+- Contextual Recipe ribbons keep that same material, type, measure, and 64/72 px normal geometry.
+  Below 23 rem, their full accessible action label becomes an icon treatment; the text returns at
+  wider viewports. Do not use contextual layout as a general compact-header option.
 - The ribbon owns identity, not route payload. Put at most one primary action in it. Back is
   leading navigation, not a second action.
 - Filters and statuses are different roles. If a user can change it, use a button with a selected

@@ -4,17 +4,19 @@
 	let {
 		eyebrow,
 		title,
+		layout = 'standard',
 		leading,
 		action
 	}: {
 		eyebrow: string;
 		title: string;
+		layout?: 'standard' | 'contextual';
 		leading?: Snippet;
 		action?: Snippet;
 	} = $props();
 </script>
 
-<header class="kitchen-page-header" data-house-style="green-ribbon">
+<header class="kitchen-page-header" data-house-style="green-ribbon" data-layout={layout}>
 	<div class="kitchen-page-header-inner">
 		<div class="kitchen-page-header-identity">
 			{#if leading}
@@ -51,12 +53,11 @@
 		display: flex;
 		align-items: center;
 		gap: 0.625rem;
-		min-height: 3.5rem;
-		padding-block: 0.375rem;
+		min-height: 4rem;
 	}
 
 	.kitchen-page-header-copy {
-		flex: 1 1 6rem;
+		flex: 1 1 10rem;
 	}
 
 	.kitchen-page-header-leading {
@@ -109,6 +110,27 @@
 	@media (max-width: 23rem) {
 		.kitchen-page-header-identity {
 			flex-wrap: wrap;
+			padding-block: 0.5rem;
+		}
+
+		.kitchen-page-header[data-layout='contextual'] .kitchen-page-header-action :global(.ui-action) {
+			width: 2.75rem;
+			padding-inline: 0;
+		}
+
+		.kitchen-page-header[data-layout='contextual']
+			.kitchen-page-header-action
+			:global(.kitchen-page-header-action-label) {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			clip-path: inset(50%);
+			white-space: nowrap;
+			border: 0;
 		}
 	}
 
@@ -118,8 +140,7 @@
 		}
 
 		.kitchen-page-header-identity {
-			min-height: 4rem;
-			padding-block: 0.625rem;
+			min-height: 4.5rem;
 		}
 	}
 </style>

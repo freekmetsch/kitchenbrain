@@ -1022,3 +1022,45 @@ follow-up. The repository still has no `scripts/archive-scan.ps1`, so the valida
 fallback was used.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md
+
+## 2026-07-30 08:46 | plan + ui | Green Ribbon contextual coherence
+
+Diagnosed the compact Recipe Edit ribbon as a deterministic family-coherence regression from
+commit `8f4b1a5`: a shared 56/64 px geometry change was used to solve one Back + identity + Save
+composition. Planned a baseline restore followed by one explicit contextual layout in the shared
+Green Ribbon owner, used by Recipe detail and Recipe Edit. No HTML artifact was generated because
+the user requested immediate `$plan` into `$run`.
+
+Touched: docs/feature-lists/FEATURE_LIST_GREEN_RIBBON_CONTEXTUAL_COHERENCE.md,
+docs/known_issues/current/ISSUE_GREEN_RIBBON_RECIPE_EDIT_COHERENCE_20260730-0846.md,
+docs/log.md
+
+## 2026-07-30 09:15 | run + ui | Green Ribbon contextual coherence
+
+Reversed the global 56/64 compact geometry before implementing its replacement. Restored the
+standard 64/72 Green Ribbon family and added one explicit contextual composition in the shared
+header owner for Recipe detail/edit. At 320 px, contextual primary actions use a 44 px icon with
+the full accessible label preserved; full text returns at wider viewports. All other headers keep
+the standard layout.
+
+Real-browser verification covered standard, Back-only, action-only, and contextual headers at
+320/393/768/1280 px, English/Dutch, light/dark, 200%-equivalent text, and disabled/active/focused
+actions with no remaining P1-P3 finding. After one unrelated Cook Mode timeout and one SQLite I/O
+contention failure passed unchanged in isolation, the final clean gate passed 125 unit-test files
+/ 691 tests, 29 primary authenticated browser stories with one deliberate connected-AH skip,
+clean Svelte diagnostics, and the production build.
+
+Touched: src/lib/components/ui/KitchenPageHeader.svelte,
+src/lib/components/recipe-detail/RecipeHeader.svelte,
+src/routes/recipes/[slug]/edit/+page.svelte, src/lib/ui_house_style_source.test.ts,
+tests/e2e/house-style.e2e.ts, docs/ui-house-style.md,
+docs/feature-lists/archive/FEATURE_LIST_GREEN_RIBBON_CONTEXTUAL_COHERENCE.md,
+docs/known_issues/current/ISSUE_GREEN_RIBBON_RECIPE_EDIT_COHERENCE_20260730-0846.md,
+docs/log.md
+
+## 2026-07-30 09:15 | archive-scan | 1 feature list, 0 HTMLs archived
+
+Moved the completed Green Ribbon contextual-coherence plan into the feature-list archive. The
+repository still has no `scripts/archive-scan.ps1`, so the validated inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_GREEN_RIBBON_CONTEXTUAL_COHERENCE.md
