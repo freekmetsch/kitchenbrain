@@ -51,11 +51,12 @@
 		display: flex;
 		align-items: center;
 		gap: 0.625rem;
-		min-height: 4rem;
+		min-height: 3.5rem;
+		padding-block: 0.375rem;
 	}
 
 	.kitchen-page-header-copy {
-		flex: 1 1 10rem;
+		flex: 1 1 6rem;
 	}
 
 	.kitchen-page-header-leading {
@@ -108,11 +109,6 @@
 	@media (max-width: 23rem) {
 		.kitchen-page-header-identity {
 			flex-wrap: wrap;
-			padding-block: 0.5rem;
-		}
-
-		.kitchen-page-header-action {
-			margin-left: auto;
 		}
 	}
 
@@ -122,7 +118,8 @@
 		}
 
 		.kitchen-page-header-identity {
-			min-height: 4.5rem;
+			min-height: 4rem;
+			padding-block: 0.625rem;
 		}
 	}
 </style>

@@ -997,3 +997,28 @@ docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md,
 docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-v2.html,
 docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-v2-soft-utility-refinement.html,
 docs/artifacts/archive/2026-07-29-plan-app-house-style-green-ribbon.html
+
+## 2026-07-30 07:46 | run + ui | Green Ribbon vertical refinement
+
+Reduced the normal Green Ribbon from 64/72 px to 56/64 px on phone/desktop and narrowed the
+header-copy flex basis so a 320 px Recipe Edit header keeps Back, title, and Save on one row.
+Touch targets remain 44 px and long or 200%-equivalent text still grows the ribbon without
+horizontal overflow. Real-browser review covered the stable route matrix and representative
+phone, desktop, and Back+action states with no remaining P1-P3 finding.
+
+The complete provider-free gate passed 125 unit-test files / 691 tests, 29 primary authenticated
+browser stories with one deliberate connected-AH skip, clean Svelte diagnostics, and the
+production build. No route behavior, data, auth, provider, AH, schema, or runtime configuration
+changed.
+
+Touched: src/lib/components/ui/KitchenPageHeader.svelte, tests/e2e/house-style.e2e.ts,
+docs/ui-house-style.md,
+docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md
+
+## 2026-07-30 07:46 | archive-scan | 1 feature list, 0 HTMLs archived
+
+Returned the completed Green Ribbon implementation artifact to the archive after its compact
+follow-up. The repository still has no `scripts/archive-scan.ps1`, so the validated inline
+fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md

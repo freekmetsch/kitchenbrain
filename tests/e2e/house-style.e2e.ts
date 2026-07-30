@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { kitchenFixtureFor } from './fixtures';
 
 const VIEWPORTS = [
 	{ width: 320, height: 900 },
@@ -27,7 +28,7 @@ async function expectRouteFrame(page: Page, route: string, width: number): Promi
 async function expectGreenRibbon(page: Page, width: number): Promise<void> {
 	const ribbon = page.locator('[data-house-style="green-ribbon"]');
 	await expect(ribbon).toBeVisible();
-	expect((await ribbon.boundingBox())?.height ?? 0).toBeCloseTo(width < 768 ? 64 : 72, 0);
+	expect((await ribbon.boundingBox())?.height ?? 0).toBeCloseTo(width < 768 ? 56 : 64, 0);
 	expect(await ribbon.evaluate((element) => getComputedStyle(element).backgroundImage)).toBe('none');
 	expect(
 		await ribbon.locator('h1').evaluate((element) => getComputedStyle(element).fontFamily)
@@ -97,6 +98,45 @@ test('house-style roles hold across stable routes and target viewports', async (
 			await expect(status).not.toHaveAttribute('tabindex', /.+/);
 		}
 	}
+});
+
+test('compact ribbon keeps Back, short copy, and the primary action on one row at 320px', async ({
+	page
+}, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	await page.setViewportSize({ width: 320, height: 900 });
+	await page.goto(`/recipes/${fixture.recipeSlug}/edit`);
+	await page.waitForLoadState('networkidle');
+
+	await expectGreenRibbon(page, 320);
+	const ribbon = page.locator('[data-house-style="green-ribbon"]');
+	const leading = ribbon.locator('.kitchen-page-header-leading');
+	const action = ribbon.locator('.kitchen-page-header-action');
+	await expect(leading).toBeVisible();
+	await expect(action).toBeVisible();
+
+	const leadingBox = await leading.boundingBox();
+	const actionBox = await action.boundingBox();
+	expect(Math.abs((leadingBox?.y ?? 0) - (actionBox?.y ?? 0))).toBeLessThan(1);
+	expect(
+		await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		)
+	).toBe(0);
+
+	await page.evaluate(() => {
+		document.documentElement.style.fontSize = '200%';
+	});
+	await expect
+		.poll(async () => (await ribbon.boundingBox())?.height ?? 0)
+		.toBeGreaterThan(56);
+	await expect(ribbon.locator('h1')).toBeVisible();
+	await expect(action).toBeVisible();
+	expect(
+		await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		)
+	).toBe(0);
 });
 
 test('selection, language, theme, and keyboard states remain explicit', async ({ page }) => {

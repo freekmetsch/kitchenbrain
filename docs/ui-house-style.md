@@ -34,7 +34,7 @@ Do not add a universal component whose variants reproduce page-local drift.
   least 44 CSS pixels even when its visible treatment is smaller.
 - Keep primary actions terra, secondary actions olive outline, and tertiary actions quiet. Do not
   choose accents by route.
-- The Green Ribbon is normally 64 CSS px below 768 px and 72 CSS px from 768 px upward. Long
+- The Green Ribbon is normally 56 CSS px below 768 px and 64 CSS px from 768 px upward. Long
   English/Dutch copy and 200%-equivalent text may grow it instead of clipping.
 - The ribbon owns identity, not route payload. Put at most one primary action in it. Back is
   leading navigation, not a second action.

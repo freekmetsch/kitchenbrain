@@ -1,6 +1,21 @@
 # App House Style — Soft Utility Green Ribbon Implementation
 
-_Status: Shipped - 2026-07-30 (Soft Utility Green Ribbon implemented and fully browser-verified)_
+_Status: Shipped - 2026-07-30 (Green Ribbon height and narrow-screen action fit refined)_
+
+## Follow-up refinement — GR-10
+
+The approved Green Ribbon remains the visual direction, but its fixed normal geometry leaves more
+vertical padding than its compact identity/action row needs. Tighten the normal ribbon from 64/72
+px to 56/64 px on phone/desktop, preserve 44 px action and Back targets, and let long or enlarged
+copy grow the band instead of clipping. At 320 px, a Back control, short title, and normal primary
+action should share one row when they fit rather than wrapping because of an oversized copy basis.
+
+- **Scope in:** `KitchenPageHeader` spacing/flex geometry, focused browser assertions, and durable
+  geometry documentation.
+- **Scope out:** color, typography, route composition, navigation, behavior, data, auth, provider,
+  Albert Heijn, schema, and runtime configuration.
+- **Risk tier:** R1 localized shared presentation.
+- **Rollback:** revert the follow-up commit; no data or configuration recovery exists.
 
 ## Planning sources and approval
 
@@ -44,7 +59,7 @@ low framing, balanced desktop layouts, and deliberate dark-theme surfaces.
 ### Success criteria
 
 1. Every in-scope page has exactly one H1 and a recognizable herb-green identity ribbon.
-2. At normal text size, the ribbon is 64 CSS px on phone and 72 CSS px on desktop; it may grow
+2. At normal text size, the ribbon is 56 CSS px on phone and 64 CSS px on desktop; it may grow
    under long copy or 200%-equivalent text rather than clipping.
 3. The ribbon contains eyebrow, title, and at most one highest-value action. Route controls,
    metrics, week navigation, search, filters, status, and secondary actions sit immediately below
@@ -145,7 +160,7 @@ are the correct migration boundary.
 
 - `KitchenPageHeader` owns a solid muted-herb band with no gradient, illustration, overlap, or
   route payload.
-- The normal rendered band is 64 px below 768 px and 72 px from 768 px upward.
+- The normal rendered band is 56 px below 768 px and 64 px from 768 px upward.
 - It uses a compact sans-serif eyebrow and title, white/off-white content, and no display serif.
 - It accepts optional leading navigation and one `action` snippet. The action remains a native
   link or button with a 44 px target and visible focus.
@@ -218,7 +233,7 @@ are the correct migration boundary.
 ### GR-1 — Green Ribbon foundation and header migration
 
 - **Observable behavior:** Inventory, Meal plan, Shopping, and Recipes show a solid herb ribbon
-  with one H1, normal 64/72 px geometry, clean sans type, and no route payload inside the green
+  with one H1, normal 56/64 px geometry, clean sans type, and no route payload inside the green
   element. Secondary controls appear immediately below on a neutral utility surface.
 - **Scope in:** opt-in Soft Utility palette/type/surface tokens; new `KitchenPageHeader` leading
   and single-action contract; `ui-page-utility`; migration of current callers; deletion of the
@@ -489,7 +504,7 @@ This is a wide UI sweep, not an R3 schema/auth sweep. At beta, `requires_stage_g
 |---|---|
 | Viewports | 320, 393, 768, and 1280 px; 375 × 812 and 390 × 844 evidence states; 200%-equivalent text reflow |
 | Routes | `/inventory`, `/meal-plan`, `/shopping`, `/recipes`, representative recipe detail/edit, `/settings`, all Settings panels, `/login` |
-| Header | One H1; solid herb ribbon; 64/72 px normal geometry; long-copy growth; optional leading nav; at most one action; no payload/gradient/ring/serif |
+| Header | One H1; solid herb ribbon; 56/64 px normal geometry; long-copy growth; optional leading nav; at most one action; no payload/gradient/ring/serif |
 | Typography | Computed sans family for ribbon, section, row, recipe, result, and form headings; no stable Georgia/Times/`--kitchen-display` source |
 | Themes | Light and dark on every route; difficult dark Shopping state; focused/disabled secondary controls and notices remain distinct |
 | Languages | English and Dutch; long header/action/filter/status/form/notice/list copy; no meaning-losing truncation |
@@ -519,7 +534,7 @@ This is a wide UI sweep, not an R3 schema/auth sweep. At beta, `requires_stage_g
 | Failure mode | Trigger | Impact | Detectability | Mitigation | Residual risk |
 |---|---|---|---|---|---|
 | Soft Utility leaks into excluded surfaces | Global DaisyUI token or generic class override | Assistant, Cook Mode, navigation, or timers change outside approval | Excluded-surface smoke and source review | Change only opt-in `--kitchen-*` / `ui-*` owners; do not edit excluded component files | Low |
-| Ribbon clips long copy | Fixed 64/72 px height under Dutch or 200% text | Title/action becomes unreadable or unreachable | Geometry and reflow browser assertions | Use normal-size min-height contract and allow wrapping/growth under constrained text | Low |
+| Ribbon clips long copy | Fixed 56/64 px height under Dutch or 200% text | Title/action becomes unreadable or unreachable | Geometry and reflow browser assertions | Use normal-size min-height contract and allow wrapping/growth under constrained text | Low |
 | A secondary action disappears during header migration | Paired rail is deleted before every caller is rehomed | Existing workflow becomes inaccessible | Action role/count and existing journey tests | Inventory, Meal plan, Shopping, and Recipes callers migrate in GR-1 before rail deletion | Low |
 | Controls remain visually inside the header | Caller passes status/search/week/metrics through a compatibility slot | Header dominance survives and a second dialect remains | DOM assertion that green ribbon owns only identity/leading/action | Remove the payload slot; use sibling `ui-page-utility`; no compatibility prop | Low |
 | Frame removal erases group boundaries | Borders are removed without spacing/dividers/headings | Long lists become harder to scan | Long-content browser states | Migrate to named `ui-list-group` rhythm before deleting `ui-section-frame` | Low |
@@ -570,7 +585,7 @@ surfaces.
 ## Shipped result
 
 All nine tickets shipped as one code-only visual change. Stable Stock, Meal plan, Shopping,
-Recipes index/detail/edit, Settings index/panels, and Login now share the solid 64/72 px Green
+Recipes index/detail/edit, Settings index/panels, and Login now share the solid 56/64 px Green
 Ribbon, neutral route utilities, sans-serif hierarchy, low-frame repeated groups, content-led
 Recipe layouts, balanced desktop work areas, and deliberate dark secondary controls.
 
@@ -582,3 +597,12 @@ provider or real AH request ran.
 
 Rollback remains a single code revert. No schema, auth, runtime configuration, secret, provider,
 AH request behavior, persisted household data, or canonical Dutch ingredient seam changed.
+
+### GR-10 shipped result
+
+The follow-up tightened normal Green Ribbons from 64/72 px to 56/64 px on phone/desktop while
+retaining 44 px controls and long-copy growth. At 320 px, Recipe Edit now keeps Back, title, and
+Save on one 56 px row instead of expanding to 114 px. Browser verification covered every stable
+route at 320/393/768/1280 px, the Back+action case, 200%-equivalent text, focus, and overflow.
+The complete provider-free gate again passed 125 unit-test files / 691 tests, 29 primary browser
+stories with one deliberate connected-AH skip, clean Svelte diagnostics, and the production build.
