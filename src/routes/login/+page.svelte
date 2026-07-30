@@ -12,10 +12,10 @@
 	let submitting = $state(false);
 </script>
 
-<div class="login-page min-h-screen">
+<div class="login-page ui-grove-page min-h-screen">
 	<KitchenPageHeader eyebrow={m.settingsshell_brand_label()} title={m.login_title()} />
 
-	<main class="login-main">
+	<main class="login-main ui-grove-surface">
 		<div class="login-surface">
 			<div class="mb-5 flex flex-wrap items-start justify-between gap-3">
 				<p class="max-w-xs text-sm leading-relaxed text-base-content/65">{m.login_subtitle()}</p>
@@ -83,7 +83,7 @@
 
 <style>
 	.login-page {
-		background: var(--kitchen-paper);
+		background: var(--kitchen-grove);
 	}
 
 	.login-main {

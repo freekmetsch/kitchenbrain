@@ -62,7 +62,7 @@
 	<title>{m.settingsshell_title()}</title>
 </svelte:head>
 
-<div class="settings-page">
+<div class="settings-page ui-grove-page">
 	<KitchenPageHeader eyebrow={m.settingsshell_brand_label()} title={m.settingsshell_heading()} />
 	<div class="ui-page-utility">
 		<div class="ui-page-utility-inner flex items-center justify-between gap-3">
@@ -78,7 +78,7 @@
 		</div>
 	</div>
 
-	<main class="ui-page-shell px-4 pt-5">
+	<main class="ui-grove-surface ui-page-shell px-4 pt-5">
 	<div class="ui-list-group divide-y divide-base-200">
 		{#each panels as panel (panel.href)}
 			<a

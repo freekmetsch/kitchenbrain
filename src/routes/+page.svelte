@@ -37,7 +37,7 @@
 
 <svelte:head><title>{m.nav_home()}</title></svelte:head>
 
-<div class="mx-auto flex h-full w-full max-w-5xl flex-col">
+<div class="ui-grove-surface mx-auto flex h-full w-full max-w-5xl flex-col">
 	<div id="home-chat" class="flex-1 min-h-0">
 		<ChatView controller={chatAgent} />
 	</div>

@@ -1064,3 +1064,36 @@ Moved the completed Green Ribbon contextual-coherence plan into the feature-list
 repository still has no `scripts/archive-scan.ps1`, so the validated inline fallback was used.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_GREEN_RIBBON_CONTEXTUAL_COHERENCE.md
+
+## 2026-07-31 01:29 | run + iterative ui | Deep Grove app chassis
+
+Implemented the approved autopilot decision set as one coherent Soft Utility / Deep Grove
+chassis. Header, utility band, six-pixel page reveal, and bottom navigation now share the exact
+`#344f3e` material in light and dark themes. Stable routes use 14 px warm-paper work surfaces,
+focused desktop composition, connected ledgers with Soft Lift, cream active navigation, quiet
+secondary actions, Grove selected states, dot-plus-text status, Warm Wash notices, and the
+Shopping Paper Shelf. Recipe Edit is Recipe First, and Shopping's passive AH status now sits in
+the top action group.
+
+Iterative real-browser review covered Stock, Meal plan, Shopping, Recipes index/detail/edit,
+Settings index/panels, Home, and Login at 320/393/768/1280 px, light/dark, English/Dutch, long
+content, focus, invalid, disabled, selected, and uncertain-AH states. The final UI audit has no
+remaining P1-P3 finding. The complete gate passed 125 unit-test files / 692 tests, 30 primary
+authenticated browser stories with one deliberate connected-AH skip, clean Svelte diagnostics,
+and the production build. One Cook Mode contention failure from an earlier no-retry run passed
+unchanged in isolation; the final CI-equivalent complete gate passed without using its retry.
+No route behavior, data, auth, provider, AH, schema, migration, or runtime configuration changed.
+
+Touched: docs/ui-house-style.md, src/app.css,
+src/lib/components/{NavBar,shopping,ui}/, src/lib/ui_house_style_source.test.ts,
+src/routes/{inventory,login,meal-plan,recipes,settings,shopping}/, src/routes/+page.svelte,
+tests/e2e/house-style.e2e.ts,
+docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GROVE_CHASSIS_REFINEMENT.md,
+docs/log.md
+
+## 2026-07-31 01:29 | archive-scan | 1 feature list, 0 HTMLs archived
+
+Moved the shipped Grove chassis execution artifact into the feature-list archive. The repository
+still has no `scripts/archive-scan.ps1`, so the validated inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GROVE_CHASSIS_REFINEMENT.md

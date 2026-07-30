@@ -163,8 +163,8 @@
 
 <svelte:window onpaste={handleImagePaste} />
 
-<div class="recipe-edit-page">
-	<KitchenPageHeader eyebrow={data.recipe.title} title={m.recipes_edit_heading()} layout="contextual">
+<div class="recipe-edit-page ui-grove-page">
+	<KitchenPageHeader eyebrow={m.recipes_edit_heading()} title={data.recipe.title} layout="contextual">
 		{#snippet leading()}
 		<a
 			href="{base}/recipes/{data.recipe.slug}"
@@ -185,7 +185,7 @@
 		{/snippet}
 	</KitchenPageHeader>
 
-	<div class="ui-page-shell px-4 pb-8 pt-4">
+	<div class="ui-grove-surface ui-page-shell px-4 pb-8 pt-4">
 	{#if form?.error}
 		<KitchenNotice
 			bind:element={errorSummary}

@@ -67,7 +67,7 @@
 {/snippet}
 
 <!-- ── Responsive Radar Band ───────────────────────────────────────────────── -->
-<div class="stock-radar pb-[calc(var(--ui-fixed-bar-height)+1.5rem)]">
+<div class="stock-radar ui-grove-page pb-[calc(var(--ui-fixed-bar-height)+1.5rem)]">
 	<KitchenPageHeader eyebrow={m.inventory_header_context()} title={m.inventory_heading()}>
 		{#snippet action()}
 			<button
@@ -138,7 +138,7 @@
 		</div>
 	</div>
 
-	<main class="stock-ledger ui-kitchen-content">
+	<main class="stock-ledger ui-grove-surface ui-kitchen-content">
 		<div class="stock-tools">
 			<label class="ui-field-shell">
 				<span class="sr-only">{m.inventory_search_label()}</span>
@@ -404,7 +404,7 @@
 		--stock-paper: var(--kitchen-paper);
 		--stock-card: var(--kitchen-card);
 		min-height: 100%;
-		background: var(--stock-paper);
+		background: var(--kitchen-grove);
 		color: var(--color-base-content);
 	}
 

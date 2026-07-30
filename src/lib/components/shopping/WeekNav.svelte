@@ -56,9 +56,17 @@
 
 <KitchenPageHeader eyebrow={m.shopping_header_context()} title={m.shopping_heading()}>
 	{#snippet action()}
-		<button type="button" class="ui-action ui-action-primary" onclick={onAddItem}>
+		<StatusBadge tone={ahConnected ? 'success' : 'warning'} onDark>
+			{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
+		</StatusBadge>
+		<button
+			type="button"
+			class="ui-action ui-action-primary"
+			aria-label={m.shopping_additem_submit_aria()}
+			onclick={onAddItem}
+		>
 			<Icon name="plus" class="h-4 w-4" />
-			{m.shopping_additem_submit_aria()}
+			<span class="shopping-header-action-label">{m.shopping_additem_submit_aria()}</span>
 		</button>
 	{/snippet}
 </KitchenPageHeader>
@@ -88,35 +96,17 @@
 			</div>
 		</KitchenWeekNavigator>
 	</div>
-		<StatusBadge tone={ahConnected ? 'success' : 'warning'}>
-			<i aria-hidden="true"></i>
-			{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
-		</StatusBadge>
 	</div>
 </div>
 
 <style>
-	:global(.ui-status-badge) i {
-		width: 0.4rem;
-		height: 0.4rem;
-		border-radius: 999px;
-		background: #87cf98;
-	}
-
-	:global(.ui-status-badge[data-tone='warning']) i {
-		background: #f0b34b;
-	}
-
 	.market-run-state {
 		min-width: 0;
 		width: 100%;
 	}
 
 	.ui-page-utility-inner.market-run-state {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		align-items: center;
-		gap: 0.625rem;
+		display: block;
 	}
 
 	.market-week-copy {
@@ -133,13 +123,13 @@
 	}
 
 	.market-week-copy strong span {
-		color: var(--kitchen-honey-ink);
+		color: #f3cf8c;
 	}
 
 	.market-week-copy div {
 		overflow: hidden;
 		margin-top: 0.1rem;
-		color: var(--kitchen-muted);
+		color: var(--kitchen-ribbon-muted);
 		font-size: 0.58rem;
 		line-height: 1.3;
 		text-overflow: ellipsis;
@@ -155,6 +145,33 @@
 	.market-week-copy b {
 		font-weight: 400;
 		opacity: 0.5;
+	}
+
+	@media (max-width: 23rem) {
+		:global(
+			.kitchen-page-header:has(.shopping-header-action-label) .kitchen-page-header-identity
+		) {
+			flex-wrap: nowrap;
+			padding-block: 0;
+		}
+
+		.shopping-header-action-label {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			clip-path: inset(50%);
+			white-space: nowrap;
+			border: 0;
+		}
+
+		:global(.kitchen-page-header-action .ui-action-primary) {
+			width: 2.75rem;
+			padding-inline: 0;
+		}
 	}
 
 </style>

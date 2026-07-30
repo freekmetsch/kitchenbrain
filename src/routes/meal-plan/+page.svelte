@@ -69,7 +69,7 @@
 	<title>{m.mealplan_title()}</title>
 </svelte:head>
 
-<div class="meal-plan-page">
+<div class="meal-plan-page ui-grove-page">
 	<p class="sr-only" aria-live="polite">{controller.servingsStatus}</p>
 	<KitchenPageHeader eyebrow={m.mealplan_header_context()} title={m.mealplan_heading()}>
 		{#snippet action()}
@@ -183,7 +183,7 @@
 		</div>
 	{/if}
 
-	<main class="plan-ledger ui-kitchen-content">
+	<main class="plan-ledger ui-grove-surface ui-kitchen-content">
 		{#if controller.selectedWeek}
 			{@const week = controller.selectedWeek}
 		<div>
@@ -394,7 +394,7 @@
 <style>
 	.meal-plan-page {
 		min-height: 100%;
-		background: var(--kitchen-paper);
+		background: var(--kitchen-grove);
 		padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 	}
 

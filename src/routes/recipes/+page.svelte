@@ -343,7 +343,7 @@
 	<title>{m.recipes_title()}</title>
 </svelte:head>
 
-<div class="recipe-page">
+<div class="recipe-page ui-grove-page">
 	<KitchenPageHeader eyebrow={m.recipes_header_context()} title={m.recipes_heading()}>
 		{#snippet action()}
 			<button
@@ -445,7 +445,7 @@
 		</div>
 	</section>
 
-	<main class="recipe-ledger ui-kitchen-content">
+	<main class="recipe-ledger ui-grove-surface ui-kitchen-content">
 	{#if ingredientFilter}
 		<div class="mb-3 flex items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-3 py-2 text-sm">
 			<span class="min-w-0 flex-1 truncate">{m.recipes_using_ingredient_prefix()} <strong>{ingredientFilter}</strong></span>
@@ -531,7 +531,7 @@
 <style>
 	.recipe-page {
 		min-height: 100%;
-		background: var(--kitchen-paper);
+		background: var(--kitchen-grove);
 		padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 	}
 
@@ -550,9 +550,9 @@
 		position: sticky;
 		z-index: 20;
 		top: 0;
-		border-bottom: 1px solid var(--kitchen-line);
-		background: color-mix(in oklab, var(--kitchen-paper) 94%, transparent);
-		backdrop-filter: blur(0.65rem);
+		border: 0;
+		background: var(--kitchen-grove);
+		backdrop-filter: none;
 	}
 
 	.recipe-filter-inner {
@@ -563,6 +563,19 @@
 		min-height: 2.75rem;
 	}
 
+	.recipe-filter-shell :global(.ui-filter-chip-hit[aria-pressed='false'] .ui-filter-chip-visual) {
+		border-color: rgb(255 255 255 / 24%);
+		background: rgb(255 255 255 / 8%);
+		color: var(--kitchen-ribbon-ink);
+	}
+
+	.recipe-filter-shell :global(.ui-filter-chip-hit[aria-pressed='true'] .ui-filter-chip-visual) {
+		border-color: rgb(255 255 255 / 58%);
+		background: var(--kitchen-grove);
+		color: var(--kitchen-paper);
+		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 16%);
+	}
+
 	.recipe-ledger {
 		padding-block: 0.9rem max(6.5rem, var(--ui-overlay-bottom));
 	}
@@ -571,6 +584,11 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
 		gap: 0;
+		overflow: hidden;
+		border: 1px solid color-mix(in oklab, var(--kitchen-grove) 18%, var(--kitchen-line));
+		border-radius: var(--kitchen-surface-radius);
+		background: var(--kitchen-card);
+		box-shadow: 0 8px 20px rgb(35 58 46 / 9%);
 	}
 
 	.recipe-card-main {
@@ -614,7 +632,11 @@
 	}
 
 	.recipe-grid :global(.ui-recipe-card:first-child) {
-		border-top-width: 1px;
+		border-top-width: 0;
+	}
+
+	.recipe-grid :global(.ui-recipe-card:last-child) {
+		border-bottom-width: 0;
 	}
 
 	@media (min-width: 48rem) {
@@ -629,20 +651,31 @@
 
 		.recipe-grid {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
-			gap: 0.9rem;
+			gap: 0;
 		}
 
 		.recipe-grid :global(.ui-recipe-card) {
-			border-width: 1px;
-			border-radius: 0.75rem;
-			box-shadow: 0 1px 2px rgb(48 75 58 / 4%);
+			border-width: 0 0 1px;
+			border-radius: 0;
+			box-shadow: none;
 		}
 
+		.recipe-grid :global(.ui-recipe-card:nth-child(odd)) {
+			border-right-width: 1px;
+		}
 	}
 
 	@media (min-width: 68rem) {
 		.recipe-grid {
 			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		.recipe-grid :global(.ui-recipe-card:nth-child(odd)) {
+			border-right-width: 0;
+		}
+
+		.recipe-grid :global(.ui-recipe-card:not(:nth-child(3n))) {
+			border-right-width: 1px;
 		}
 
 	}

@@ -74,6 +74,9 @@ describe('stable app house-style source contract', () => {
 		expect(recipeDetail).toContain('kitchen-page-header-action-label');
 		expect(recipeEdit).toContain('layout="contextual"');
 		expect(recipeEdit).toContain('kitchen-page-header-action-label');
+		expect(recipeEdit).toContain(
+			'eyebrow={m.recipes_edit_heading()} title={data.recipe.title}'
+		);
 	});
 
 	it('does not restore full-height recipe category markers', () => {
@@ -90,7 +93,23 @@ describe('stable app house-style source contract', () => {
 		expect(filterChip).toContain('<button');
 		expect(filterChip).toContain('aria-pressed={selected}');
 		expect(statusBadge).toContain('<span');
+		expect(statusBadge).toContain('class="ui-status-dot"');
 		expect(statusBadge).not.toContain('aria-pressed');
 		expect(statusBadge).not.toContain('tabindex');
+	});
+
+	it('keeps one exact Grove chassis token and shared surface contract', () => {
+		const css = readFileSync('src/app.css', 'utf8');
+		const nav = readFileSync('src/lib/components/NavBar.svelte', 'utf8');
+		const shoppingHeader = readFileSync(
+			'src/lib/components/shopping/WeekNav.svelte',
+			'utf8'
+		);
+
+		expect(css).toContain('--kitchen-grove: #344f3e');
+		expect(css).toContain('--kitchen-surface-radius: 0.875rem');
+		expect(css).toContain('.ui-grove-surface::before');
+		expect(nav).toContain('background: var(--kitchen-paper)');
+		expect(shoppingHeader).toContain('onDark');
 	});
 });

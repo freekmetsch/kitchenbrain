@@ -724,7 +724,22 @@
 
 	.shopping-active-groups {
 		display: grid;
-		gap: 1rem;
+		gap: 0;
+		overflow: hidden;
+		border: 1px solid color-mix(in oklab, var(--kitchen-grove) 18%, var(--kitchen-line));
+		border-radius: var(--kitchen-surface-radius);
+		background: var(--kitchen-card);
+		box-shadow: 0 8px 20px rgb(35 58 46 / 9%);
+	}
+
+	.shopping-active-groups > .shopping-ledger-section {
+		border: 0;
+		border-radius: 0;
+		box-shadow: none;
+	}
+
+	.shopping-active-groups > .shopping-ledger-section + .shopping-ledger-section {
+		border-top: 1px solid color-mix(in oklab, var(--kitchen-grove) 14%, var(--kitchen-line));
 	}
 
 	.shopping-section-header {
