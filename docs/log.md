@@ -1252,3 +1252,17 @@ No provider turn, household mutation, AH lookup, AH push, authenticated body, co
 or household content was retained or performed.
 
 Touched: docs/deploys/2026-07.md, docs/log.md
+
+## 2026-07-31 22:55 | deploy-canary | Household work-surface refinement
+
+Merged PR #58 and supervised Railway deployment `9420e05e-9411-4677-8900-10c9cbd084a5` to
+`SUCCESS` at exact remote `main` commit `30fd1ea`. Both guarded household login checks passed;
+`/api/healthz` returned `200` with `status: ok`; and the 320 and 1280 px logged-out Inventory,
+Meal Plan, Recipes, and Shopping boundaries had no overflow, console error, failed dynamic request,
+or visual anomaly. Bounded Railway checks found zero application errors and zero HTTP 5xx.
+
+The complete authenticated behavior and responsive route matrix had already passed locally. No
+provider turn, household mutation, AH lookup, AH push, authenticated body, cookie, screenshot, or
+household content was retained or performed.
+
+Touched: docs/deploys/2026-07.md, docs/log.md
