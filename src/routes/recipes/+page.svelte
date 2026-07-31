@@ -532,7 +532,6 @@
 	.recipe-page {
 		min-height: 100%;
 		background: var(--kitchen-grove);
-		padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 	}
 
 	.recipe-search-row {
@@ -583,12 +582,7 @@
 	.recipe-grid {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 0;
-		overflow: hidden;
-		border: 1px solid color-mix(in oklab, var(--kitchen-grove) 18%, var(--kitchen-line));
-		border-radius: var(--kitchen-surface-radius);
-		background: var(--kitchen-card);
-		box-shadow: 0 8px 20px rgb(35 58 46 / 9%);
+		gap: 0.75rem;
 	}
 
 	.recipe-card-main {
@@ -625,20 +619,6 @@
 		line-height: 1.2;
 	}
 
-	.recipe-grid :global(.ui-recipe-card) {
-		border-width: 0 0 1px;
-		border-radius: 0;
-		box-shadow: none;
-	}
-
-	.recipe-grid :global(.ui-recipe-card:first-child) {
-		border-top-width: 0;
-	}
-
-	.recipe-grid :global(.ui-recipe-card:last-child) {
-		border-bottom-width: 0;
-	}
-
 	@media (min-width: 48rem) {
 		.recipe-utility {
 			grid-template-columns: minmax(0, 1fr) auto;
@@ -651,31 +631,12 @@
 
 		.recipe-grid {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
-			gap: 0;
-		}
-
-		.recipe-grid :global(.ui-recipe-card) {
-			border-width: 0 0 1px;
-			border-radius: 0;
-			box-shadow: none;
-		}
-
-		.recipe-grid :global(.ui-recipe-card:nth-child(odd)) {
-			border-right-width: 1px;
 		}
 	}
 
 	@media (min-width: 68rem) {
 		.recipe-grid {
 			grid-template-columns: repeat(3, minmax(0, 1fr));
-		}
-
-		.recipe-grid :global(.ui-recipe-card:nth-child(odd)) {
-			border-right-width: 0;
-		}
-
-		.recipe-grid :global(.ui-recipe-card:not(:nth-child(3n))) {
-			border-right-width: 1px;
 		}
 
 	}

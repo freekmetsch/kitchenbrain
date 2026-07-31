@@ -59,6 +59,16 @@
 			<h2 class="ui-section-title mb-3">{m.settings_account_password_heading()}</h2>
 			<p class="mb-3 text-xs text-base-content/50">{m.settings_account_signed_in_as({ username: data.username })}</p>
 			<form class="flex flex-col gap-2" onsubmit={(e) => { e.preventDefault(); void changePassword(); }}>
+				<input
+					type="text"
+					name="username"
+					value={data.username}
+					autocomplete="username"
+					class="password-manager-username"
+					tabindex="-1"
+					aria-hidden="true"
+					readonly
+				/>
 				<label class="ui-field-label" for="current-password">{m.settings_account_current_password_label()}</label>
 				<input
 					id="current-password"
@@ -100,3 +110,14 @@
 		<a href="{base}/logout" class="ui-action ui-action-danger w-full">{m.settings_account_logout_button()}</a>
 	</div>
 </div>
+
+<style>
+	.password-manager-username {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+</style>

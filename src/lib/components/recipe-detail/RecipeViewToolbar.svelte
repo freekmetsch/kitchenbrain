@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 
 	let {
 		view = $bindable<'cook' | 'original'>(),
@@ -16,8 +16,8 @@
 </script>
 
 <div class="mx-auto flex max-w-5xl items-center justify-between gap-2 px-3 py-2">
-	<SegmentedTabs
-		tabs={[
+	<SegmentedControl
+		options={[
 			{ value: 'cook', label: m.benchsheet_view_cooking() },
 			{ value: 'original', label: m.benchsheet_view_original() }
 		]}
@@ -26,8 +26,8 @@
 		onchange={(next) => (view = next)}
 	/>
 	{#if languageSwitchable}
-		<SegmentedTabs
-			tabs={[
+		<SegmentedControl
+			options={[
 				{ value: 'nl', label: 'NL' },
 				{ value: 'en', label: 'EN' }
 			]}

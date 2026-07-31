@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
-	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import SettingsPanelHeader from '$lib/components/settings/SettingsPanelHeader.svelte';
 	import { optimistic } from '$lib/optimistic';
 	import { m } from '$lib/paraglide/messages';
@@ -119,7 +119,7 @@
 				<div class="border-t border-base-300 pt-3">
 					<span class="ui-field-label mb-1.5 block" id="plan-ahead-label">{m.settings_mealplan_plan_ahead_label()}</span>
 					<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="plan-ahead-label">
-						<SegmentedTabs tabs={planAheadTabs} value={planAheadWeeks} onchange={(v) => save({ planAheadWeeks: v })} />
+						<SegmentedControl options={planAheadTabs} value={planAheadWeeks} onchange={(v) => save({ planAheadWeeks: v })} />
 					</div>
 				</div>
 			</div>
@@ -152,7 +152,7 @@
 			<div>
 				<span class="ui-field-label mb-1.5 block" id="day-planning-label">{m.settings_mealplan_day_planning_label()}</span>
 				<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="day-planning-label">
-					<SegmentedTabs tabs={onOffTabs} value={dayPlanning} onchange={(v) => save({ dayPlanning: v === 'on' })} />
+					<SegmentedControl options={onOffTabs} value={dayPlanning} onchange={(v) => save({ dayPlanning: v === 'on' })} />
 				</div>
 			</div>
 		</section>
@@ -163,13 +163,13 @@
 				<div>
 					<span class="ui-field-label mb-1.5 block" id="repeat-cycle-label">{m.settings_mealplan_repeat_cycle_label()}</span>
 					<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="repeat-cycle-label">
-						<SegmentedTabs tabs={repeatCycleTabs} value={repeatCycleDays} onchange={(v) => save({ repeatCycleDays: v })} />
+						<SegmentedControl options={repeatCycleTabs} value={repeatCycleDays} onchange={(v) => save({ repeatCycleDays: v })} />
 					</div>
 				</div>
 				<div class="border-t border-base-300 pt-3">
 					<span class="ui-field-label mb-1.5 block" id="suggest-count-label">{m.settings_mealplan_suggest_count_label()}</span>
 					<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="suggest-count-label">
-						<SegmentedTabs tabs={suggestCountTabs} value={suggestCount} onchange={(v) => save({ suggestCount: v })} />
+						<SegmentedControl options={suggestCountTabs} value={suggestCount} onchange={(v) => save({ suggestCount: v })} />
 					</div>
 				</div>
 			</div>

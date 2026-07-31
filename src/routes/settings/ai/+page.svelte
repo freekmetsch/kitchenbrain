@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
-	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import ModelPicker from '$lib/components/settings/ModelPicker.svelte';
 	import SpendCapField from '$lib/components/settings/SpendCapField.svelte';
 	import SettingsPanelHeader from '$lib/components/settings/SettingsPanelHeader.svelte';
@@ -160,8 +160,8 @@
 				<div>
 					<span class="ui-field-label mb-1.5 block" id="thinking-label">{m.settings_ai_thinking_label()}</span>
 					<div class:pointer-events-none={chatTuningSaving} class:opacity-60={chatTuningSaving} aria-labelledby="thinking-label">
-						<SegmentedTabs
-							tabs={reasoningTabs}
+						<SegmentedControl
+							options={reasoningTabs}
 							value={reasoning}
 							onchange={(v) => saveChatTuning({ reasoning: v })}
 						/>
@@ -174,8 +174,8 @@
 				<div class="border-t border-base-300 pt-3">
 					<span class="ui-field-label mb-1.5 block" id="provider-sort-label">{m.settings_ai_reply_route_label()}</span>
 					<div class:pointer-events-none={chatTuningSaving} class:opacity-60={chatTuningSaving} aria-labelledby="provider-sort-label">
-						<SegmentedTabs
-							tabs={providerSortTabs}
+						<SegmentedControl
+							options={providerSortTabs}
 							value={providerSort}
 							cols={2}
 							onchange={(v) => saveChatTuning({ provider_sort: v })}

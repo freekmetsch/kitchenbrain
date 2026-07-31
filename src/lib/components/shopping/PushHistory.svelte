@@ -20,15 +20,24 @@
 		pushHistory: Push[];
 		compact?: boolean;
 		headingId?: string;
+		mode?: 'all' | 'attention' | 'history';
+		showHeading?: boolean;
 	};
 	let {
 		pushHistory,
 		compact = false,
-		headingId = 'push-history-heading'
+		headingId = 'push-history-heading',
+		mode = 'all',
+		showHeading = true
 	}: Props = $props();
 
-	let latest = $derived(pushHistory[0]);
-	let previous = $derived(pushHistory.slice(1));
+	let visibleHistory = $derived.by(() => {
+		if (mode !== 'attention') return pushHistory;
+		const candidate = pushHistory[0];
+		return candidate && shoppingPushOutcomeNeedsReview(outcome(candidate)) ? [candidate] : [];
+	});
+	let latest = $derived(visibleHistory[0]);
+	let previous = $derived(mode === 'attention' ? [] : visibleHistory.slice(1));
 
 	function formatPushTime(value: string | Date): string {
 		return new Date(value).toLocaleString(getLocale() === 'nl' ? 'nl-NL' : 'en-GB', {
@@ -138,8 +147,15 @@
 	{@const latestOutcome = outcome(latest)}
 	{@const latestItems = splitShoppingPushItems(latest.items)}
 	{@const latestHelp = outcomeHelp(latestOutcome)}
-	<section class="push-history" class:compact aria-labelledby={headingId}>
-		<h2 id={headingId} class="ui-section-title">{m.shopping_sent_to_ah_heading()}</h2>
+	<section
+		class="push-history"
+		class:compact
+		aria-labelledby={showHeading ? headingId : undefined}
+		aria-label={showHeading ? undefined : m.shopping_sent_to_ah_heading()}
+	>
+		{#if showHeading}
+			<h2 id={headingId} class="ui-section-title">{m.shopping_sent_to_ah_heading()}</h2>
+		{/if}
 
 		<article
 			class="push-latest {latestOutcome}"

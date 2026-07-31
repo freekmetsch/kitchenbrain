@@ -80,6 +80,7 @@ export class InventoryController {
 	sectionFilter = $state<Section | 'all'>('all');
 	classFilter = $state<string | null>(null);
 	reviewOnly = $state(false);
+	relationshipReviewOnly = $state(false);
 	searchQuery = $state('');
 	quickView = $state<InventoryQuickView | null>(null);
 	filtersOpen = $state(false);
@@ -171,6 +172,9 @@ export class InventoryController {
 				(this.sectionFilter === 'all' || item.section === this.sectionFilter) &&
 				(this.classFilter === null || rollsUpTo(item.foodClass, this.classFilter)) &&
 				(!this.reviewOnly || item.needsReview) &&
+				(!this.relationshipReviewOnly ||
+					(item.kind === 'leftover' &&
+						recipeRelationshipKind(item, this.linkFor(item)) === 'unresolved')) &&
 				matchesInventoryScope(item, this.scope) &&
 				matchesInventoryQuickView(item, this.linkFor(item), this.quickView) &&
 				matchesInventoryQuery(this.searchQuery, [
@@ -197,6 +201,14 @@ export class InventoryController {
 		return recipeCoverage(this.visibleMealItems);
 	}
 
+	get unresolvedRelationshipCount(): number {
+		return this.items.filter(
+			(item) =>
+				item.kind === 'leftover' &&
+				recipeRelationshipKind(item, this.linkFor(item)) === 'unresolved'
+		).length;
+	}
+
 	get stockRows(): Item[] {
 		return [...this.filtered].sort(
 			(a, b) =>
@@ -210,6 +222,9 @@ export class InventoryController {
 				(this.sectionFilter === 'all' || item.section === this.sectionFilter) &&
 				(this.classFilter === null || rollsUpTo(item.foodClass, this.classFilter)) &&
 				(!this.reviewOnly || item.needsReview) &&
+				(!this.relationshipReviewOnly ||
+					(item.kind === 'leftover' &&
+						recipeRelationshipKind(item, this.linkFor(item)) === 'unresolved')) &&
 				!matchesInventoryScope(item, this.scope) &&
 				matchesInventoryQuery(this.searchQuery, [
 					item.name,
@@ -235,6 +250,7 @@ export class InventoryController {
 			(this.sectionFilter !== 'all' && this.sectionFilter !== 'freezer') ||
 			this.classFilter !== null ||
 			this.reviewOnly ||
+			this.relationshipReviewOnly ||
 			this.quickView === 'ready'
 		) {
 			return [];
@@ -868,6 +884,7 @@ export class InventoryController {
 		this.sectionFilter = section;
 		this.classFilter = null;
 		this.reviewOnly = false;
+		this.relationshipReviewOnly = false;
 		this.searchQuery = '';
 		this.quickView = null;
 		this.scope =
@@ -883,6 +900,7 @@ export class InventoryController {
 		this.sectionFilter = 'all';
 		this.classFilter = null;
 		this.reviewOnly = false;
+		this.relationshipReviewOnly = false;
 		this.searchQuery = '';
 		this.quickView = null;
 	}
@@ -918,7 +936,22 @@ export class InventoryController {
 
 	setScope(value: InventoryScope): void {
 		if (value !== 'meals') this.quickView = null;
+		if (value !== 'meals') this.relationshipReviewOnly = false;
 		this.scope = value;
+	}
+
+	openRelationshipReview(): void {
+		this.scope = 'meals';
+		this.sectionFilter = 'all';
+		this.classFilter = null;
+		this.reviewOnly = false;
+		this.quickView = null;
+		this.searchQuery = '';
+		this.relationshipReviewOnly = true;
+	}
+
+	closeRelationshipReview(): void {
+		this.relationshipReviewOnly = false;
 	}
 
 	toggleQuickView(value: InventoryQuickView): void {

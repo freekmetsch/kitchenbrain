@@ -29,6 +29,16 @@ type PersistedIngredient = Omit<IngredientDraft, 'clientId' | 'substitutes'> & {
 	substitutes?: PersistedSubstitute[];
 };
 
+export type RecipeEditSnapshotDraft = {
+	title: string;
+	language: 'nl' | 'en';
+	notes: string;
+	sourceUrl: string;
+	servings: number | null;
+	ingredients: PersistedIngredient[];
+	directions: Array<string | DirectionDraft>;
+};
+
 let nextClientId = 0;
 export function createRecipeEditId(prefix: 'ingredient' | 'substitute' | 'direction'): string {
 	nextClientId += 1;
@@ -101,6 +111,18 @@ export function serializeDirectionIds(items: DirectionDraft[]): string {
 	return JSON.stringify(
 		items.filter((direction) => direction.text.trim().length > 0).map((direction) => direction.clientId)
 	);
+}
+
+export function recipeEditSnapshot(draft: RecipeEditSnapshotDraft): string {
+	return JSON.stringify({
+		title: draft.title,
+		language: draft.language,
+		notes: draft.notes,
+		sourceUrl: draft.sourceUrl,
+		servings: draft.servings,
+		ingredients: serializeIngredients(hydrateIngredients(draft.ingredients)),
+		directions: serializeDirections(hydrateDirections(draft.directions))
+	});
 }
 
 export function recipeIngredientsEqual(

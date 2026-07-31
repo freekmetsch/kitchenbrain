@@ -85,6 +85,27 @@ describe('InventoryController', () => {
 		expect(source.items[0].qtyNum).toBe(1);
 	});
 
+	it('opens recipe review as a focused unresolved-meal view and restores the normal list', () => {
+		const unresolved = item(1);
+		const planned = { ...item(2), recipeStatus: 'plan_to_add' as const };
+		const ingredient = { ...item(3), kind: 'ingredient' as const, category: 'ingredient' };
+		const controller = new InventoryController(
+			data([unresolved, planned, ingredient]),
+			dependencies(vi.fn())
+		);
+
+		expect(controller.unresolvedRelationshipCount).toBe(1);
+		expect(controller.visibleMealItems.map(({ id }) => id)).toEqual([1, 2]);
+
+		controller.openRelationshipReview();
+		expect(controller.relationshipReviewOnly).toBe(true);
+		expect(controller.scope).toBe('meals');
+		expect(controller.visibleMealItems.map(({ id }) => id)).toEqual([1]);
+
+		controller.closeRelationshipReview();
+		expect(controller.visibleMealItems.map(({ id }) => id)).toEqual([1, 2]);
+	});
+
 	it('coalesces rapid quantity taps and rolls back to the last confirmed value', async () => {
 		const firstResponse = deferred<Response>();
 		const requests: Array<{ qty_num: number; qty_text: string }> = [];

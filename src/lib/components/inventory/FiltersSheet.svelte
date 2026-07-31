@@ -3,7 +3,7 @@
 	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import FilterChip from '$lib/components/ui/FilterChip.svelte';
-	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { foodClassText, type Section } from './shared';
 
@@ -42,7 +42,7 @@
 	<div class="space-y-5 pb-1">
 		<section>
 			<h3 class="ui-field-label mb-2">{m.inventory_filters_section_label()}</h3>
-			<SegmentedTabs tabs={sectionTabs} bind:value={sectionFilter} />
+			<SegmentedControl options={sectionTabs} bind:value={sectionFilter} />
 		</section>
 
 		<section>

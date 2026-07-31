@@ -95,6 +95,8 @@
 		item,
 		link,
 		matches,
+		signalLabel = null,
+		relationshipInteractive = false,
 		portionEditing,
 		portionValue = $bindable(),
 		onOpenLinkPicker,
@@ -110,6 +112,8 @@
 		item: Item;
 		link: RecipeLink | null;
 		matches: RecipeMatch[];
+		signalLabel?: string | null;
+		relationshipInteractive?: boolean;
 		portionEditing: boolean;
 		portionValue: string;
 		onOpenLinkPicker: () => void;
@@ -141,14 +145,20 @@
 <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-base-content/65">
 	<span class="opacity-70">{item.section === 'freezer' ? '❄️' : '🫙'}</span>
 
+	{#if signalLabel}
+		<span class="font-semibold text-base-content/65">{signalLabel}</span>
+	{/if}
+
 	{#if item.kind === 'leftover'}
-		<RecipeRelationshipStatus
-			{relationship}
-			label={`${relationshipLabel}. ${m.inventory_recipe_manage_button()}`}
-			showText={relationship === 'unresolved'}
-			interactive
-			onactivate={onOpenLinkPicker}
-		/>
+		{#if relationship !== 'unresolved' || relationshipInteractive}
+			<RecipeRelationshipStatus
+				{relationship}
+				label={`${relationshipLabel}. ${m.inventory_recipe_manage_button()}`}
+				showText={relationshipInteractive}
+				interactive={relationshipInteractive}
+				onactivate={onOpenLinkPicker}
+			/>
+		{/if}
 	{:else if item.foodClass}
 		<span class="inline-flex items-center gap-1">{foodClassEmoji(item.foodClass)} {foodClassText(item.foodClass)}</span>
 	{/if}

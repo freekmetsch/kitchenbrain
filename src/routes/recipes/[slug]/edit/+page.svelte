@@ -15,6 +15,7 @@
 	import {
 		hydrateDirections,
 		hydrateIngredients,
+		recipeEditSnapshot,
 		serializeDirectionIds,
 		serializeDirections,
 		serializeIngredients,
@@ -67,19 +68,22 @@
 	let serializedDirectionIds = $derived(serializeDirectionIds(directions));
 
 	function snapshot(): string {
-		return JSON.stringify({
+		return recipeEditSnapshot({
 			title,
 			language,
 			notes,
 			sourceUrl,
 			servings,
-			ingredients: serializedIngredients,
-			directions: serializedDirections
+			ingredients,
+			directions
 		});
 	}
 
-	const initialSnapshot = untrack(snapshot);
-	let dirty = $derived(snapshot() !== initialSnapshot || data.reviewingStructureDraft);
+	const initialSnapshot = untrack(() => recipeEditSnapshot(serverDraft()));
+	let cleanSnapshot = $state(initialSnapshot);
+	let dirty = $derived(
+		draftRecovered || snapshot() !== cleanSnapshot || data.reviewingStructureDraft
+	);
 
 	function applyDraft(draft: StoredDraft) {
 		title = draft.title;
@@ -106,8 +110,12 @@
 		};
 	}
 
-	function discardRecoveredDraft() {
+	async function discardRecoveredDraft() {
 		applyDraft(serverDraft());
+		await tick();
+		// This is the one safe baseline reset: the user explicitly chose the
+		// server copy, never the recovered session draft.
+		cleanSnapshot = snapshot();
 		draftRecovered = false;
 		sessionStorage.removeItem(draftKey);
 	}

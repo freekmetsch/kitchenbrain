@@ -6,6 +6,7 @@
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import FilterChip from '$lib/components/ui/FilterChip.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
@@ -39,7 +40,6 @@
 		recurring: RecurringShoppingItem[];
 		legacy: LegacyShoppingItem[];
 		notices?: Snippet;
-		history?: Snippet;
 		emptyState: 'no_meals' | 'nothing_needed';
 		editable: boolean;
 		showCovered: boolean;
@@ -79,7 +79,6 @@
 		recurring,
 		legacy,
 		notices,
-		history,
 		emptyState,
 		editable,
 		showCovered = $bindable(),
@@ -265,6 +264,27 @@
 			return source.mealNames.includes(controller.filter.mealName);
 		})
 	);
+	let shoppingFilterValue = $derived(
+		controller.filter.kind === 'meal'
+			? `meal:${controller.filter.mealName}`
+			: controller.filter.kind
+	);
+	let shoppingFilterOptions = $derived([
+		{ value: 'all', label: m.shopping_filter_all() },
+		{ value: 'weekly', label: m.shopping_filter_weekly() },
+		...controller.filterOptions.meals.map((meal) => ({
+			value: `meal:${meal}`,
+			label: meal
+		}))
+	]);
+
+	function selectShoppingFilter(value: string) {
+		if (value === 'all' || value === 'weekly') {
+			controller.setFilter({ kind: value });
+			return;
+		}
+		controller.setFilter({ kind: 'meal', mealName: value.slice('meal:'.length) });
+	}
 
 	async function closeWeeklyEditor() {
 		weeklyEditMode = false;
@@ -297,37 +317,16 @@
 
 <div class="shopping-controls" role="region" aria-label={m.shopping_list_controls()}>
 	<div class="shopping-filter-row">
-		<div
-			class="shopping-filter-rail"
-			role="toolbar"
-			aria-label={m.shopping_filter_label()}
-		>
-			<FilterChip
-				selected={controller.filterIs({ kind: 'all' })}
-				onclick={() => controller.setFilter({ kind: 'all' })}
-			>
-				{m.shopping_filter_all()}
-			</FilterChip>
-			<FilterChip
-				selected={controller.filterIs({ kind: 'weekly' })}
-				onclick={() => controller.setFilter({ kind: 'weekly' })}
-			>
-				{m.shopping_filter_weekly()}
-			</FilterChip>
-			{#each controller.filterOptions.meals as meal}
-				<FilterChip
-					selected={controller.filterIs({ kind: 'meal', mealName: meal })}
-					title={meal}
-					onclick={() => controller.setFilter({ kind: 'meal', mealName: meal })}
-				>
-					{meal}
-				</FilterChip>
-			{/each}
+		<div class="shopping-filter-rail">
+			<SegmentedControl
+				options={shoppingFilterOptions}
+				value={shoppingFilterValue}
+				onchange={selectShoppingFilter}
+				ariaLabel={m.shopping_filter_label()}
+			/>
 		</div>
 	</div>
 </div>
-
-{#if history}{@render history()}{/if}
 
 {#if visibleExcludedSources.length}
 	<details class="not-this-run ui-list-group" bind:open={offListOpen}>
@@ -694,9 +693,8 @@
 		border-bottom: 0;
 	}
 
-	.shopping-filter-rail :global(.ui-filter-chip-hit) {
+	.shopping-filter-rail :global(.ui-segmented-control) {
 		flex: 0 0 auto;
-		font-weight: 750;
 		scroll-snap-align: start;
 	}
 

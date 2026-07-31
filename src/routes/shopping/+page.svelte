@@ -8,6 +8,7 @@
 	import ShoppingLists from '$lib/components/shopping/ShoppingLists.svelte';
 	import WeekNav from '$lib/components/shopping/WeekNav.svelte';
 	import ShoppingNotices from '$lib/components/shopping/ShoppingNotices.svelte';
+	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type { PageData } from './$types';
@@ -26,6 +27,7 @@
 	let ahSheet = $state<{ openAhModal: () => Promise<void> }>();
 	let addItemForm = $state<{ openAddModal: () => Promise<void> }>();
 	let showCovered = $state(false);
+	let historyOpen = $state(false);
 
 	let pending = $derived(items.filter((item) => !item.bought));
 	let done = $derived(items.filter((item) => item.bought));
@@ -167,11 +169,26 @@
 		onAddItem={() => addItemForm?.openAddModal()}
 	/>
 
-	<div
-		class:single-column={data.pushHistory.length === 0}
-		class="shopping-market-layout ui-grove-surface ui-kitchen-content"
-	>
+	<div class="shopping-market-layout ui-grove-surface">
 		<main class="min-w-0">
+			{#if data.pushHistory.length}
+				<div class="shopping-history-tools">
+					<PushHistory
+						pushHistory={data.pushHistory}
+						mode="attention"
+						compact
+						headingId="shopping-push-attention"
+					/>
+					<button
+						type="button"
+						class="shopping-history-trigger ui-action ui-action-tertiary"
+						onclick={() => (historyOpen = true)}
+					>
+						<Icon name="clock" />
+						{m.shopping_sent_to_ah_heading()}
+					</button>
+				</div>
+			{/if}
 			<ShoppingLists
 				{pending}
 				{done}
@@ -233,11 +250,6 @@
 					});
 				}}
 			>
-				{#snippet history()}
-					<div class="shopping-market-mobile-history">
-						<PushHistory pushHistory={data.pushHistory} headingId="shopping-mobile-push-history" />
-					</div>
-				{/snippet}
 				{#snippet notices()}
 					<ShoppingNotices
 						mealsWithoutRecipe={data.mealsWithoutRecipe}
@@ -247,25 +259,9 @@
 				{/snippet}
 			</ShoppingLists>
 		</main>
-
-		{#if data.pushHistory.length}
-			<aside class="shopping-market-aside">
-				<div class="shopping-market-desktop-history">
-					<PushHistory
-						pushHistory={data.pushHistory}
-						compact
-						headingId="shopping-desktop-push-history"
-					/>
-				</div>
-			</aside>
-		{/if}
 	</div>
 
-	<div
-		class:single-column={data.pushHistory.length === 0}
-		class="shopping-market-dock"
-		aria-label={m.shopping_heading()}
-	>
+	<div class="shopping-market-dock" aria-label={m.shopping_heading()}>
 		<button type="button" class="market-add-action ui-action ui-action-secondary" onclick={() => addItemForm?.openAddModal()}>
 			<Icon name="plus" />
 			{m.shopping_additem_submit_aria()}
@@ -303,6 +299,18 @@
 	bind:bonusByName
 	onMarkedBought={markBought}
 />
+<BottomSheet
+	bind:open={historyOpen}
+	title={m.shopping_sent_to_ah_heading()}
+	desktopCentered
+>
+	<PushHistory
+		pushHistory={data.pushHistory}
+		mode="history"
+		showHeading={false}
+		headingId="shopping-push-history-sheet"
+	/>
+</BottomSheet>
 
 <style>
 	:global(.app-shell:has(.shopping-market)) {
@@ -323,21 +331,26 @@
 	}
 
 	.shopping-market-layout {
-		display: grid;
+		width: min(calc(100% - (2 * var(--kitchen-frame-width))), var(--kitchen-focus-width));
+		margin-inline: auto;
 		padding-block: 0.65rem max(7rem, var(--ui-overlay-bottom));
-		gap: 0.75rem;
 	}
 
-	.shopping-market-aside {
-		min-width: 0;
+	.shopping-history-tools {
+		display: grid;
+		gap: 0.4rem;
+		margin-bottom: 0.65rem;
 	}
 
-	.shopping-market-mobile-history {
-		display: block;
+	.shopping-history-trigger {
+		justify-self: end;
+		min-height: 2.75rem;
+		padding-inline: 0.65rem;
+		font-size: 0.68rem;
 	}
 
-	.shopping-market-desktop-history {
-		display: none;
+	.shopping-history-tools :global(.push-history) {
+		margin-bottom: 0;
 	}
 
 	.shopping-market-dock {
@@ -395,43 +408,16 @@
 	}
 
 	@media (min-width: 48rem) {
-		.shopping-market-layout:not(.single-column) {
-			grid-template-columns: minmax(0, 1fr) 17rem;
-		}
-
 		.shopping-market-layout {
-			align-items: start;
-			gap: 0.9rem;
 			padding-block: 0.85rem max(7rem, var(--ui-overlay-bottom));
-		}
-
-		.shopping-market-mobile-history {
-			display: none;
-		}
-
-		.shopping-market-desktop-history {
-			display: block;
 		}
 	}
 
 	@media (min-width: 64rem) {
-		.shopping-market-layout:not(.single-column) {
-			grid-template-columns: minmax(0, 1fr) 18.75rem;
-		}
-
-		.shopping-market-layout {
-			gap: 1rem;
-		}
-
 		.shopping-market-dock {
 			left: 50%;
 			right: auto;
 			width: 30rem;
-			/* Center the dock beneath the primary column, not the context rail. */
-			transform: translateX(-50%) translateX(-9.875rem);
-		}
-
-		.shopping-market-dock.single-column {
 			transform: translateX(-50%);
 		}
 	}

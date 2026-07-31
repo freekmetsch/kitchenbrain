@@ -54,9 +54,9 @@ test('Shopping keeps source order, focus, and singleton reflow local', async ({ 
 	await page.waitForLoadState('networkidle');
 
 	const appMain = page.locator('main.app-main');
-	const filterRail = page.getByRole('toolbar', { name: 'Filter shopping list' });
+	const filterRail = page.getByRole('radiogroup', { name: 'Filter shopping list' });
 	const filterOrder = async () =>
-		filterRail.getByRole('button').evaluateAll((buttons) =>
+		filterRail.getByRole('radio').evaluateAll((buttons) =>
 			buttons.map((button) => button.textContent?.trim() ?? '')
 		);
 	const recipeTarget = page.getByRole('checkbox', {
@@ -371,7 +371,25 @@ for (const viewport of VIEWPORTS) {
 		expect(
 			await page.getByRole('button', { name: /^Edit E2E .* freezer meal/ }).count()
 		).toBeGreaterThanOrEqual(fixture.longInventoryNames.length);
+		const compactRow = page
+			.getByRole('button', { name: `Edit ${fixture.longInventoryNames[0]}` })
+			.locator('xpath=ancestor::li[1]');
+		expect((await compactRow.boundingBox())?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(112);
+		await expect(
+			compactRow.getByRole('button', { name: `Decrease ${fixture.longInventoryNames[0]}` })
+		).toBeVisible();
+		await expect(
+			compactRow.getByRole('button', { name: `Increase ${fixture.longInventoryNames[0]}` })
+		).toBeVisible();
 		await expectResponsiveSurface(page, '/inventory (long)', viewport.width);
+
+		const relationshipReview = page.getByRole('button', { name: /\d+ to decide/ });
+		if (await relationshipReview.count()) {
+			await relationshipReview.click();
+			await expect(page.getByRole('button', { name: 'Close recipe review' })).toBeVisible();
+			await expect(page.getByRole('button', { name: /Recipe needed/ }).first()).toBeVisible();
+			await page.getByRole('button', { name: 'Close recipe review' }).click();
+		}
 
 		const search = page.getByRole('searchbox', { name: 'Search stock' });
 		await search.fill('no-e2e-stock-item-has-this-name');
@@ -474,6 +492,21 @@ for (const viewport of VIEWPORTS) {
 		await expect(servings).toHaveText(`${beforeCount} portions`);
 		await expectResponsiveSurface(page, '/meal-plan (pending failure)', viewport.width);
 
+		const mealRow = increase.locator('xpath=ancestor::li[1]');
+		const batchSize = mealRow.getByRole('button', {
+			name: `Choose batch size for ${fixture.recipeTitle}`
+		});
+		await batchSize.click();
+		const batchPopover = page.locator('.compact-popover-panel:popover-open');
+		await expect(batchPopover).toBeVisible();
+		await expect(
+			batchPopover.getByRole('radiogroup', { name: 'Whole recipe batches' })
+		).toBeVisible();
+		expect((await batchPopover.boundingBox())?.width ?? Number.POSITIVE_INFINITY).toBeLessThan(220);
+		await page.keyboard.press('Escape');
+		await expect(batchPopover).toBeHidden();
+		await expect(batchSize).toBeFocused();
+
 		const addMeal = page.getByRole('button', { name: 'Add meal', exact: true });
 		await addMeal.focus();
 		await addMeal.click();
@@ -520,10 +553,10 @@ for (const viewport of VIEWPORTS) {
 		await expectResponsiveSurface(page, '/shopping (long)', viewport.width);
 
 		const shoppingControls = page.getByRole('region', { name: 'Shopping list controls' });
-		const filterRail = shoppingControls.getByRole('toolbar', { name: 'Filter shopping list' });
-		await expect(filterRail.getByRole('button', { name: 'All', exact: true })).toBeVisible();
-		await expect(filterRail.getByRole('button', { name: 'Weekly items', exact: true })).toBeVisible();
-		await expect(filterRail.getByRole('button', { name: fixture.recipeTitle, exact: true })).toBeVisible();
+		const filterRail = shoppingControls.getByRole('radiogroup', { name: 'Filter shopping list' });
+		await expect(filterRail.getByRole('radio', { name: 'All', exact: true })).toBeVisible();
+		await expect(filterRail.getByRole('radio', { name: 'Weekly items', exact: true })).toBeVisible();
+		await expect(filterRail.getByRole('radio', { name: fixture.recipeTitle, exact: true })).toBeVisible();
 		await expect(page.getByRole('combobox', { name: 'Sort shopping list' })).toHaveCount(0);
 		await expect(page.getByRole('button', { name: 'List options' })).toHaveCount(0);
 		expect(await filterRail.evaluate((element) => getComputedStyle(element).maskImage)).toBe('none');
@@ -552,23 +585,30 @@ for (const viewport of VIEWPORTS) {
 		await expect(moreProductDetails).toBeVisible();
 		await expect(visibleHistory.getByText(/E2E AH almonds/)).toBeHidden();
 		const previousSends = visibleHistory.getByText('Previous sends (1)', { exact: true });
-		await expect(previousSends).toBeVisible();
-		await expect(visibleHistory.getByText('2 sent to shopping list', { exact: true })).toBeHidden();
+		await expect(previousSends).toHaveCount(0);
 		const historyBox = await visibleHistory.boundingBox();
 		const ledgerBox = await page.locator('.shopping-ledger-section').first().boundingBox();
+		expect(historyBox?.y).toBeLessThan(ledgerBox?.y ?? 0);
 		if (viewport.name === 'phone') {
-			expect(historyBox?.y).toBeLessThan(ledgerBox?.y ?? 0);
 			const firstRow = await page.locator('.shopping-ledger-section .market-run-row').first().boundingBox();
 			const dockBox = await page.locator('.shopping-market-dock').boundingBox();
 			expect((firstRow?.y ?? 0) + (firstRow?.height ?? 0)).toBeLessThanOrEqual(
 				dockBox?.y ?? 0
 			);
 		} else {
-			expect(historyBox?.x).toBeGreaterThan(ledgerBox?.x ?? Number.POSITIVE_INFINITY);
+			expect(Math.abs((historyBox?.x ?? 0) - (ledgerBox?.x ?? Number.POSITIVE_INFINITY))).toBeLessThan(
+				2
+			);
 		}
 		await moreProductDetails.focus();
 		await moreProductDetails.press('Enter');
 		await expect(visibleHistory.getByText(/E2E AH almonds/)).toBeVisible();
+		await page.getByRole('button', { name: 'Sent to AH', exact: true }).click();
+		const historySheet = page.getByRole('dialog', { name: 'Sent to AH' });
+		await expect(historySheet).toBeVisible();
+		await expect(historySheet.getByText('Previous sends (1)', { exact: true })).toBeVisible();
+		await expect(historySheet.getByText('2 sent to shopping list', { exact: true })).toBeHidden();
+		await historySheet.getByRole('button', { name: 'Close' }).click();
 
 		await expect(page.getByRole('button', { name: /^Shopping rules/ })).toHaveCount(0);
 		const needPill = page.getByRole('button', {
@@ -622,11 +662,11 @@ for (const viewport of VIEWPORTS) {
 				name: `Change need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}. Current: Nice to have`
 			})
 		).toBeVisible();
-		await filterRail.getByRole('button', { name: fixture.recipeTitle, exact: true }).click();
+		await filterRail.getByRole('radio', { name: fixture.recipeTitle, exact: true }).click();
 		await expect(page.getByText('Not this run (1)', { exact: true })).toBeVisible();
-		await filterRail.getByRole('button', { name: 'All', exact: true }).click();
+		await filterRail.getByRole('radio', { name: 'All', exact: true }).click();
 
-		const weeklyFilter = filterRail.getByRole('button', { name: 'Weekly items', exact: true });
+		const weeklyFilter = filterRail.getByRole('radio', { name: 'Weekly items', exact: true });
 		await weeklyFilter.click();
 		await expect(page.getByText(/^Not this run/)).toHaveCount(0);
 		await expect(page.getByText('No weekly items are included in this run.')).toBeVisible();
@@ -638,8 +678,8 @@ for (const viewport of VIEWPORTS) {
 		await expect(editWeekly).toBeFocused();
 
 		const mealFilter = page
-			.getByRole('toolbar', { name: 'Filter shopping list' })
-			.getByRole('button', { name: fixture.recipeTitle, exact: true });
+			.getByRole('radiogroup', { name: 'Filter shopping list' })
+			.getByRole('radio', { name: fixture.recipeTitle, exact: true });
 		await expect(mealFilter).toBeVisible();
 		await mealFilter.click();
 		const filteredItem = page.locator('input[data-shopping-key]').first();
@@ -701,7 +741,7 @@ for (const viewport of VIEWPORTS) {
 		await expect(emptyAhAction).toBeVisible();
 		await expect(emptyAhAction).toHaveAttribute('href', /\/settings\/connections$/);
 		await emptyControls
-			.getByRole('button', { name: 'Weekly items', exact: true })
+			.getByRole('radio', { name: 'Weekly items', exact: true })
 			.click();
 		await expect(page.getByText('No weekly items are included in this run.')).toBeVisible();
 		await page.getByRole('button', { name: 'Edit weekly', exact: true }).click();
@@ -773,20 +813,17 @@ test('Shopping keeps source controls compact at 320, 768, and 200% text', async 
 	await page.waitForLoadState('networkidle');
 
 	const controls = page.getByRole('region', { name: 'Shopping list controls' });
-	const filterRail = page.getByRole('toolbar', { name: 'Filter shopping list' });
+	const filterRail = page.getByRole('radiogroup', { name: 'Filter shopping list' });
 	const controlsBox = await controls.boundingBox();
 
 	expect(controlsBox?.height).toBeLessThanOrEqual(46);
 	await expect(page.getByRole('button', { name: 'List options' })).toHaveCount(0);
 	await expect(page.getByRole('combobox', { name: 'Sort shopping list' })).toHaveCount(0);
 	expect(
-		await filterRail.evaluate((element) => getComputedStyle(element).overflowX)
-	).toBe('auto');
-	expect(
-		await filterRail.evaluate((element) => getComputedStyle(element).scrollbarWidth)
-	).toBe('none');
+		await filterRail.evaluate((element) => element.scrollWidth <= element.clientWidth)
+	).toBe(true);
 	expect(await filterRail.evaluate((element) => getComputedStyle(element).maskImage)).toBe('none');
-	for (const button of await filterRail.getByRole('button').all()) {
+	for (const button of await filterRail.getByRole('radio').all()) {
 		expect(await button.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
 	}
 	await expect(page.locator('.shopping-ledger-section.weekly')).toHaveCount(0);

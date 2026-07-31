@@ -22,9 +22,12 @@ Do not add a universal component whose variants reproduce page-local drift.
 | Page identity | The stable route title | `KitchenPageHeader`; solid Green Ribbon, one H1, optional Back/leading navigation, and at most one highest-value action. Use `layout="contextual"` only when Back and a primary action share the ribbon |
 | Page utilities | Route context and working controls immediately below the ribbon | `ui-page-utility` with `ui-page-utility-inner`; the band uses the exact Grove material with no divider from the ribbon. Metrics, week navigation, search, sort, filters, and secondary actions stay here |
 | Filter | A selectable compact option | `FilterChip`; real button, `aria-pressed`, 44 px target with a 32 px visual |
+| Exclusive choice | One value from a small set | `SegmentedControl`; `radiogroup`/`radio` semantics, roving arrow-key focus, and one measured sliding paper indicator. Disabled choices are skipped; combinable filters remain chips |
 | Status | Short passive metadata | `StatusBadge`; dot plus text, never focusable and never pressed. Shopping's AH status sits beside its top action rather than in the week band |
 | Field | Generic text, search, number, date, select, or textarea input | `ui-field` or `ui-field-shell`; cream paper, 44 px single-line height, and visible focus, invalid, disabled, busy, and dark states |
-| Repeated rows | One related row group | `ui-list-group`; connected ledger with internal dividers, 14 px outer corners, and Soft Lift separation from other boards |
+| Connected rows | One tightly related ledger | `ui-list-group`; internal dividers, 14 px outer corners, and Soft Lift separation from other boards |
+| Object cards | Recipes, Stock items, or Meals that need their own boundary | Separate bordered cards with modest 8–12 px gaps. Do not join distinct objects into one sheet |
+| Anchored compact choice | A secondary choice needed beside repeated work | `CompactPopover`; native top-layer popover, viewport clamp/flip, focus return, and a shared segmented choice inside |
 | Focused form | A form section that needs a deliberate working boundary | `ui-form-card`; do not use it for explanatory copy or every page section |
 | Section title | A meaningful body section | `ui-section-title`; sentence-case sans-serif, with weight and spacing rather than a display face |
 | Notice | Contextual info, success, warning, or error | `KitchenNotice`; a Warm Wash tonal field with a quiet semantic border. The caller retains its icon, copy, role/live region, recovery action, and input state |
@@ -56,17 +59,22 @@ Do not add a universal component whose variants reproduce page-local drift.
 - Filters and statuses are different roles. If a user can change it, use a button with a selected
   state. Grove Fill is the shared selected treatment. If it only reports state, use passive
   dot-plus-text markup.
-- Group ordinary rows as connected ledgers with headings and dividers. Separate different boards
-  with spacing and Soft Lift; never connect forms, notices, or unrelated actions just to reduce
-  gaps.
+- Use connected ledgers only when the rows form one compact record set. Stock items, Meals, and
+  Recipe cards are independent objects, so each keeps its own boundary and a modest gap. Never
+  connect forms, notices, or unrelated actions just to reduce gaps.
+- Stock keeps quantity controls visible and reserves warning wash for real risk. Recipe
+  relationships are summarized once and expanded into a focused review instead of repeated on
+  every ordinary row.
+- Shopping uses one centered 52 rem work column. The latest unresolved AH outcome remains inline;
+  successful and previous sends live in the on-demand history sheet.
 - A notice shares material, not behavior. Do not move request state, validation, recovery, or
   announcements into `KitchenNotice`.
 - Stable headings use the system sans family. Do not restore Georgia, Times,
   `--kitchen-display`, a decorative header ring/gradient, a paired header rail, or a full-height
   Recipe-category stripe.
 - At desktop width, the paper surface uses the canvas while the useful content remains focused.
-  Context rails exist only when context is present. Recipes use two columns at tablet width and
-  three at wide desktop; phone uses one content-led row.
+  Context rails exist only when context is present. Recipes use separate cards in two columns at
+  tablet width and three at wide desktop; phone uses one content-led row.
 
 ## Explicit exceptions
 
