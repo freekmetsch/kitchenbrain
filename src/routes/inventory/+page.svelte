@@ -22,7 +22,7 @@
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import FilterChip from '$lib/components/ui/FilterChip.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
-	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -37,13 +37,14 @@
 {#snippet stockRow(item: Item, signalLabel: string | null)}
 	<li
 		id="inventory-item-{item.id}"
-		class="relative overflow-hidden"
+		class="stock-card relative min-w-0 overflow-hidden"
 	>
 		<ItemRow
 			{item}
 			link={controller.linkFor(item)}
 			matches={controller.data.recipeMatches[item.id] ?? []}
 			{signalLabel}
+			relationshipInteractive={controller.relationshipReviewOnly}
 			qtyEditing={controller.qtyEditId === item.id}
 			bind:qtyEditVal={controller.qtyEditVal}
 			portionEditing={controller.portionEditId === item.id}
@@ -67,7 +68,7 @@
 {/snippet}
 
 <!-- ── Responsive Radar Band ───────────────────────────────────────────────── -->
-<div class="stock-radar ui-grove-page pb-[calc(var(--ui-fixed-bar-height)+1.5rem)]">
+<div class="stock-radar ui-grove-page">
 	<KitchenPageHeader eyebrow={m.inventory_header_context()} title={m.inventory_heading()}>
 		{#snippet action()}
 			<button
@@ -180,13 +181,12 @@
 
 			<div class="stock-scope-row">
 				<div class="stock-scope-tabs">
-					<SegmentedTabs
-						tabs={SCOPES.map((value) => ({ value, label: controller.scopeLabel(value) }))}
+					<SegmentedControl
+						options={SCOPES.map((value) => ({ value, label: controller.scopeLabel(value) }))}
 						bind:value={controller.scope}
 						onchange={(value) => controller.setScope(value)}
 						cols={3}
 						ariaLabel={m.inventory_heading()}
-						idPrefix="inventory-scope"
 					/>
 				</div>
 				<FilterChip
@@ -208,28 +208,40 @@
 			</div>
 		{/if}
 
-		{#if controller.scope === 'meals' && controller.visibleMealItems.length > 0}
+		{#if controller.scope === 'meals' && (controller.visibleMealItems.length > 0 || controller.relationshipReviewOnly)}
 			<div class="stock-coverage" aria-label={m.inventory_recipe_coverage_label()}>
 				<strong>{m.inventory_recipe_coverage_label()}</strong>
-				<RecipeRelationshipStatus
-					relationship="linked"
-					label={m.inventory_recipe_coverage_linked({ count: controller.visibleRecipeCoverage.linked })}
-				/>
-				<RecipeRelationshipStatus
-					relationship="planned"
-					label={m.inventory_recipe_coverage_planned({ count: controller.visibleRecipeCoverage.planned })}
-				/>
-				<RecipeRelationshipStatus
-					relationship="not_needed"
-					label={m.inventory_recipe_coverage_not_needed({ count: controller.visibleRecipeCoverage.not_needed })}
-				/>
-				{#if controller.visibleRecipeCoverage.unresolved > 0}
+				{#if !controller.relationshipReviewOnly}
 					<RecipeRelationshipStatus
-						relationship="unresolved"
-						label={m.inventory_recipe_coverage_unresolved({
-							count: controller.visibleRecipeCoverage.unresolved
-						})}
+						relationship="linked"
+						label={m.inventory_recipe_coverage_linked({ count: controller.visibleRecipeCoverage.linked })}
 					/>
+					<RecipeRelationshipStatus
+						relationship="planned"
+						label={m.inventory_recipe_coverage_planned({ count: controller.visibleRecipeCoverage.planned })}
+					/>
+					<RecipeRelationshipStatus
+						relationship="not_needed"
+						label={m.inventory_recipe_coverage_not_needed({ count: controller.visibleRecipeCoverage.not_needed })}
+					/>
+				{/if}
+				{#if controller.unresolvedRelationshipCount > 0 || controller.relationshipReviewOnly}
+					<button
+						type="button"
+						class="ui-action ui-action-tertiary stock-recipe-review"
+						aria-expanded={controller.relationshipReviewOnly}
+						onclick={() =>
+							controller.relationshipReviewOnly
+								? controller.closeRelationshipReview()
+								: controller.openRelationshipReview()}
+					>
+						<Icon name={controller.relationshipReviewOnly ? 'x' : 'chevronRight'} class="h-3.5 w-3.5" />
+						{controller.relationshipReviewOnly
+							? m.inventory_recipe_review_close()
+							: m.inventory_recipe_coverage_unresolved({
+									count: controller.unresolvedRelationshipCount
+								})}
+					</button>
 				{/if}
 			</div>
 		{/if}
@@ -242,7 +254,7 @@
 						<span>{m.inventory_group_use_next_hint()}</span>
 					</div>
 					{#if controller.mealGroups.useNext.length > 0}
-						<ul class="stock-list stock-priority ui-list-group divide-y">
+						<ul class="stock-list stock-card-list stock-priority">
 							{#each controller.mealGroups.useNext as entry (entry.item.id)}
 								{@render stockRow(entry.item, controller.attentionText(entry.attention))}
 							{/each}
@@ -259,7 +271,7 @@
 								<h2 class="ui-section-title">{m.inventory_group_still_plenty()}</h2>
 								<span>{m.inventory_group_visible_count({ count: controller.mealGroups.stillPlenty.length })}</span>
 							</div>
-							<ul class="stock-list ui-list-group divide-y">
+							<ul class="stock-list stock-card-list">
 								{#each controller.mealGroups.stillPlenty as item (item.id)}
 									{@render stockRow(item, null)}
 								{/each}
@@ -275,7 +287,7 @@
 									count: controller.mealGroups.cookAgain.length + controller.ghostsVisible.length
 								})}</span>
 							</div>
-							<ul class="stock-list stock-cook-again ui-list-group divide-y">
+							<ul class="stock-list stock-card-list stock-cook-again">
 								{#each controller.mealGroups.cookAgain as item (item.id)}
 									{@render stockRow(item, m.inventory_group_cook_again())}
 								{/each}
@@ -294,7 +306,7 @@
 					<h2 class="ui-section-title">{controller.scopeLabel(controller.scope)}</h2>
 					<span>{m.inventory_group_visible_count({ count: controller.stockRows.length })}</span>
 				</div>
-				<ul class="stock-list ui-list-group divide-y">
+				<ul class="stock-list stock-card-list">
 					{#each controller.stockRows as item (item.id)}
 						{@render stockRow(item, null)}
 					{/each}
@@ -302,7 +314,15 @@
 			</section>
 		{:else}
 			<div class="stock-empty">
-				{#if controller.items.length === 0}
+				{#if controller.relationshipReviewOnly}
+					<EmptyState title={m.inventory_recipe_review_complete()}>
+						{#snippet action()}
+							<button type="button" class="ui-action ui-action-primary" onclick={() => controller.closeRelationshipReview()}>
+								{m.inventory_recipe_review_close()}
+							</button>
+						{/snippet}
+					</EmptyState>
+				{:else if controller.items.length === 0}
 					<EmptyState iconName="jar" title={m.inventory_empty_title()}>
 						{#snippet action()}
 							<button type="button" class="ui-action ui-action-primary" onclick={() => (controller.showAddForm = true)}>
@@ -535,11 +555,11 @@
 		min-width: 0;
 	}
 
-	.stock-scope-tabs :global([role='tablist']) {
+	.stock-scope-tabs :global([data-house-style='segmented-control']) {
 		height: 100%;
 	}
 
-	.stock-scope-tabs :global([role='tab']) {
+	.stock-scope-tabs :global([role='radio']) {
 		min-height: 2.75rem;
 	}
 
@@ -584,8 +604,13 @@
 
 	.stock-columns {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 1rem;
 		margin-top: 0.85rem;
+	}
+
+	.stock-group {
+		min-width: 0;
 	}
 
 	.stock-secondary-groups {
@@ -613,8 +638,19 @@
 		--stock-row-bg: var(--stock-card);
 	}
 
-	.stock-list > li + li {
-		border-color: color-mix(in oklab, var(--stock-olive) 11%, var(--kitchen-line));
+	.stock-card-list {
+		display: grid;
+		gap: 0.5rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.stock-card {
+		border: 1px solid color-mix(in oklab, var(--stock-olive) 15%, var(--kitchen-line));
+		border-radius: 0.75rem;
+		background: var(--stock-card);
+		box-shadow: 0 4px 12px rgb(35 58 46 / 7%);
 	}
 
 	.stock-quiet {
@@ -623,9 +659,7 @@
 	}
 
 	.stock-priority {
-		--stock-row-bg: color-mix(in oklab, var(--stock-honey) 13%, var(--stock-card));
-		border-color: color-mix(in oklab, var(--stock-honey) 35%, var(--color-base-300));
-		background: color-mix(in oklab, var(--stock-honey) 13%, var(--stock-card));
+		--stock-row-bg: var(--stock-card);
 	}
 
 	.stock-cook-again {

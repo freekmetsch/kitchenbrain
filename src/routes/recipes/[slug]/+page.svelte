@@ -301,8 +301,9 @@
 />
 
 <div
-	class="ui-grove-surface ui-page-shell !max-w-6xl overflow-x-clip"
+	class="ui-grove-surface ui-page-shell !max-w-6xl"
 >
+<div class="overflow-x-clip">
 
 <RecipeHero
 	imageUrl={recipe.imageUrl}
@@ -389,6 +390,8 @@
 {/if}
 
 <div class="mb-12"></div>
+
+</div>
 
 </div>
 

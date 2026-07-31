@@ -21,7 +21,21 @@ test.describe('logged-out login boundary', () => {
 		await expect(page).toHaveURL(new URL('/login', E2E_ORIGIN).toString(), {
 			timeout: 30_000
 		});
-		await expect(page.getByRole('alert')).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByRole('alert')).toHaveText(
+			'That username or password is not correct.',
+			{ timeout: 30_000 }
+		);
+		await page.evaluate(() => {
+			document.cookie = 'PARAGLIDE_LOCALE=nl; path=/';
+		});
+		await page.goto('/login');
+		await page.locator('input[name="username"]').fill(TEST_ACCOUNTS.primary.username);
+		await page.locator('input[name="password"]').fill('nog-steeds-onjuist');
+		await page.locator('form button[type="submit"]').click();
+		await expect(page.getByRole('alert')).toHaveText(
+			'Die gebruikersnaam of dat wachtwoord klopt niet.',
+			{ timeout: 30_000 }
+		);
 		expect((await context.cookies(E2E_ORIGIN)).some((cookie) => cookie.name === 'session_id')).toBe(
 			false
 		);
@@ -38,6 +52,14 @@ test('uses the selected authenticated test account', async ({ page, context }, t
 
 	await expect(page).toHaveURL(new URL('/settings/account', E2E_ORIGIN).toString());
 	await expect(page.getByText(account.username, { exact: false })).toBeVisible();
+	const passwordManagerUsername = page.locator('form input[name="username"]');
+	await expect(passwordManagerUsername).toHaveValue(account.username);
+	await expect(passwordManagerUsername).toHaveAttribute('autocomplete', 'username');
+	await expect(passwordManagerUsername).toHaveAttribute('aria-hidden', 'true');
+	await expect(passwordManagerUsername).toHaveAttribute('tabindex', '-1');
+	const usernameBox = await passwordManagerUsername.boundingBox();
+	expect(usernameBox?.width ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(1);
+	expect(usernameBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(1);
 	await expect(page.getByRole('navigation')).toBeVisible();
 	expect((await context.cookies(E2E_ORIGIN)).some((cookie) => cookie.name === 'session_id')).toBe(true);
 });

@@ -27,6 +27,20 @@ async function expectRouteFrame(page: Page, route: string, width: number): Promi
 	}
 }
 
+async function expectGroveSurfaceContinuity(page: Page, selector: string): Promise<void> {
+	const geometry = await page.locator(selector).evaluate((element) => {
+		const surface = element.getBoundingClientRect();
+		const main = document.querySelector<HTMLElement>('main.app-main')?.getBoundingClientRect();
+		return {
+			left: surface.left,
+			right: surface.right,
+			bottomGap: main ? main.bottom - surface.bottom : null
+		};
+	});
+	expect(geometry.bottomGap).not.toBeNull();
+	expect(geometry.bottomGap ?? Number.POSITIVE_INFINITY).toBeLessThan(1);
+}
+
 async function expectGreenRibbon(page: Page, width: number): Promise<void> {
 	const ribbon = page.locator('[data-house-style="green-ribbon"]');
 	await expect(ribbon).toBeVisible();
@@ -67,17 +81,24 @@ test('house-style roles hold across stable routes and target viewports', async (
 
 		await expectRouteFrame(page, '/inventory', viewport.width);
 		await expectGreenRibbon(page, viewport.width);
-		const inventoryGroup = page.locator('.ui-list-group').first();
-		await expect(inventoryGroup).toBeVisible();
-		expect(await inventoryGroup.evaluate((element) => getComputedStyle(element).borderLeftWidth)).toBe(
+		await expectGroveSurfaceContinuity(page, '.stock-ledger');
+		const inventoryCard = page.locator('.stock-card').first();
+		await expect(inventoryCard).toBeVisible();
+		expect(await inventoryCard.evaluate((element) => getComputedStyle(element).borderLeftWidth)).toBe(
 			'1px'
 		);
-		expect(await inventoryGroup.evaluate((element) => getComputedStyle(element).borderRadius)).toBe(
-			'14px'
+		expect(await inventoryCard.evaluate((element) => getComputedStyle(element).borderRadius)).toBe(
+			'12px'
 		);
-		expect(await inventoryGroup.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
+		expect(await inventoryCard.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
 			'none'
 		);
+		const stockCards = page.locator('.stock-card');
+		if ((await stockCards.count()) > 1) {
+			const first = await stockCards.nth(0).boundingBox();
+			const second = await stockCards.nth(1).boundingBox();
+			expect((second?.y ?? 0) - ((first?.y ?? 0) + (first?.height ?? 0))).toBeGreaterThan(0);
+		}
 		if (viewport.width === 1280) {
 			const focusedContent = page.locator('.stock-ledger > *').first();
 			expect((await focusedContent.boundingBox())?.width ?? 0).toBeLessThanOrEqual(832);
@@ -85,6 +106,12 @@ test('house-style roles hold across stable routes and target viewports', async (
 
 		await expectRouteFrame(page, '/meal-plan', viewport.width);
 		await expectGreenRibbon(page, viewport.width);
+		await expectGroveSurfaceContinuity(page, '.plan-ledger');
+		const mealCards = page.locator('.plan-meal-list > li');
+		await expect(mealCards.first()).toBeVisible();
+		expect(await mealCards.first().evaluate((element) => getComputedStyle(element).borderRadius)).toBe(
+			'14px'
+		);
 
 		await expectRouteFrame(page, '/shopping', viewport.width);
 		await expectGreenRibbon(page, viewport.width);
@@ -102,20 +129,26 @@ test('house-style roles hold across stable routes and target viewports', async (
 			page.locator('.kitchen-page-header-action [data-house-style="status-badge"]')
 		).toHaveCount(1);
 		await expect(page.locator('.ui-page-utility [data-house-style="status-badge"]')).toHaveCount(0);
-		const chips = page.locator('[data-house-style="filter-chip"]:visible');
-		expect(await chips.count()).toBeGreaterThan(0);
-		for (const chip of await chips.all()) {
-			const hit = await chip.boundingBox();
-			const visual = await chip.locator('.ui-filter-chip-visual').boundingBox();
-			expect(hit?.height ?? 0).toBe(44);
-			expect(visual?.height ?? 0).toBe(32);
-			await expect(chip).toHaveAttribute('aria-pressed', /true|false/);
+		const shoppingFilters = page.getByRole('radiogroup', { name: 'Filter shopping list' });
+		await expect(shoppingFilters).toBeVisible();
+		for (const option of await shoppingFilters.getByRole('radio').all()) {
+			await expect(option).toHaveAttribute('aria-checked', /true|false/);
+		}
+		await expect(shoppingFilters.locator('.ui-segmented-indicator')).toHaveClass(/visible/);
+		if (viewport.width === 1280) {
+			const layout = await page.locator('.shopping-market-layout').boundingBox();
+			expect(Math.abs((layout?.x ?? 0) + (layout?.width ?? 0) / 2 - 640)).toBeLessThan(1);
+			expect(layout?.width ?? 0).toBeLessThanOrEqual(832);
 		}
 
 		await expectRouteFrame(page, '/recipes', viewport.width);
 		await expectGreenRibbon(page, viewport.width);
+		await expectGroveSurfaceContinuity(page, '.recipe-ledger');
 		const recipeCard = page.locator('.ui-recipe-card').first();
 		await expect(recipeCard).toBeVisible();
+		expect(await recipeCard.evaluate((element) => getComputedStyle(element).borderRadius)).toBe(
+			'14px'
+		);
 		const expectedColumns = viewport.width < 768 ? 1 : viewport.width < 1088 ? 2 : 3;
 		expect(
 			(await page.locator('.recipe-grid').evaluate((element) =>
@@ -123,6 +156,15 @@ test('house-style roles hold across stable routes and target viewports', async (
 			))
 		).toBe(expectedColumns);
 		await expect(recipeCard.locator('.recipe-card-main:not(.has-image) figure')).toHaveCount(0);
+		const recipeCards = page.locator('.ui-recipe-card');
+		if ((await recipeCards.count()) > 1) {
+			const first = await recipeCards.nth(0).boundingBox();
+			const second = await recipeCards.nth(1).boundingBox();
+			const separated =
+				(second?.x ?? 0) > (first?.x ?? 0) + (first?.width ?? 0) ||
+				(second?.y ?? 0) > (first?.y ?? 0) + (first?.height ?? 0);
+			expect(separated).toBe(true);
+		}
 
 		await expectRouteFrame(page, '/settings/data', viewport.width);
 		await expectGreenRibbon(page, viewport.width);
@@ -210,6 +252,21 @@ test('contextual Recipe ribbons keep the family geometry while fitting Back and 
 		).toBe(0);
 	}
 
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto(`/recipes/${fixture.recipeSlug}`);
+	await page.waitForLoadState('networkidle');
+	const detailSurface = page.locator('.recipe-detail-page > .ui-grove-surface');
+	const detailPaper = await detailSurface.evaluate((element) => {
+		const rect = element.getBoundingClientRect();
+		const style = getComputedStyle(element, '::before');
+		return {
+			elementLeft: rect.left,
+			paperWidth: Number.parseFloat(style.width)
+		};
+	});
+	expect(detailPaper.elementLeft).toBeGreaterThan(6);
+	expect(detailPaper.paperWidth).toBeCloseTo(1268, 0);
+
 	await page.goto(`/recipes/${fixture.recipeSlug}/edit`);
 	const recipeRibbon = page.locator('[data-house-style="green-ribbon"]');
 	await expect(recipeRibbon.locator('h1')).toContainText('E2E');
@@ -218,6 +275,7 @@ test('contextual Recipe ribbons keep the family geometry while fitting Back and 
 	await page.evaluate(() => {
 		document.cookie = 'PARAGLIDE_LOCALE=nl; path=/';
 	});
+	await page.setViewportSize({ width: 320, height: 900 });
 	await page.reload();
 	await expectGreenRibbon(page, 320);
 	expect(
@@ -282,6 +340,20 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 	}
 
 	await page.goto('/shopping');
+	const shoppingFilters = page.getByRole('radiogroup', { name: 'Filter shopping list' });
+	const allFilter = shoppingFilters.getByRole('radio', { name: 'All', exact: true });
+	const weeklyFilter = shoppingFilters.getByRole('radio', { name: 'Weekly items', exact: true });
+	const indicator = shoppingFilters.locator('.ui-segmented-indicator');
+	await expect(indicator).toHaveClass(/visible/);
+	const indicatorStart = await indicator.boundingBox();
+	await allFilter.focus();
+	await expect(allFilter).toBeFocused();
+	await allFilter.press('ArrowRight');
+	await expect(weeklyFilter).toBeFocused();
+	await expect(weeklyFilter).toHaveAttribute('aria-checked', 'true');
+	await expect
+		.poll(async () => (await indicator.boundingBox())?.x ?? 0)
+		.toBeGreaterThan(indicatorStart?.x ?? 0);
 	await page.evaluate(() => {
 		document.cookie = 'PARAGLIDE_LOCALE=nl; path=/';
 	});
@@ -299,6 +371,35 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 	await expect(darkField).toBeVisible();
 	await darkField.focus();
 	expect(await darkField.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe('none');
+});
+
+test('fresh recipe edits stay clean while recovered drafts remain explicit', async ({ page }, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	const route = `/recipes/${fixture.recipeSlug}/edit`;
+	const key = `kitchenbrain:recipe-draft:${fixture.recipeSlug}`;
+	await page.goto(route);
+	await page.evaluate((draftKey) => sessionStorage.removeItem(draftKey), key);
+	await page.reload();
+
+	const save = page.getByRole('button', { name: 'Save changes' });
+	await expect(save).toBeDisabled();
+	await expect.poll(() => page.evaluate((draftKey) => sessionStorage.getItem(draftKey), key)).toBeNull();
+
+	const title = page.getByLabel('Title');
+	await title.fill(`${fixture.recipeTitle} recovered`);
+	await expect(save).toBeEnabled();
+	await expect.poll(() => page.evaluate((draftKey) => sessionStorage.getItem(draftKey), key)).not.toBeNull();
+
+	page.once('dialog', (dialog) => dialog.accept());
+	await page.reload();
+	await expect(page.getByText('Your unsaved draft was restored.', { exact: true })).toBeVisible();
+	await expect(save).toBeEnabled();
+	await expect(title).toHaveValue(`${fixture.recipeTitle} recovered`);
+
+	await page.getByRole('button', { name: 'Discard draft' }).click();
+	await expect(save).toBeDisabled();
+	await expect(title).toHaveValue(fixture.recipeTitle);
+	await expect.poll(() => page.evaluate((draftKey) => sessionStorage.getItem(draftKey), key)).toBeNull();
 });
 
 test.describe('unauthenticated field contract', () => {

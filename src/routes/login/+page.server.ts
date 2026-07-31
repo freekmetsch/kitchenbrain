@@ -17,7 +17,7 @@ export const actions: Actions = {
 
 		const user = await validateCredentials(username, password);
 		if (!user) {
-			return fail(400, { error: 'Ongeldige inloggegevens' });
+			return fail(400, { error: 'invalid_credentials' as const });
 		}
 
 		const sessionId = createSession(user.id);

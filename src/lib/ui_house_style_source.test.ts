@@ -88,6 +88,10 @@ describe('stable app house-style source contract', () => {
 
 	it('keeps selection and passive status semantics separate', () => {
 		const filterChip = readFileSync('src/lib/components/ui/FilterChip.svelte', 'utf8');
+		const segmentedControl = readFileSync(
+			'src/lib/components/ui/SegmentedControl.svelte',
+			'utf8'
+		);
 		const statusBadge = readFileSync('src/lib/components/ui/StatusBadge.svelte', 'utf8');
 
 		expect(filterChip).toContain('<button');
@@ -96,6 +100,12 @@ describe('stable app house-style source contract', () => {
 		expect(statusBadge).toContain('class="ui-status-dot"');
 		expect(statusBadge).not.toContain('aria-pressed');
 		expect(statusBadge).not.toContain('tabindex');
+		expect(segmentedControl).toContain('role="radiogroup"');
+		expect(segmentedControl).toContain('role="radio"');
+		expect(segmentedControl).toContain('aria-checked=');
+		expect(segmentedControl).toContain('ResizeObserver');
+		expect(segmentedControl).not.toContain('aria-controls');
+		expect(existsSync('src/lib/components/ui/SegmentedTabs.svelte')).toBe(false);
 	});
 
 	it('keeps one exact Grove chassis token and shared surface contract', () => {

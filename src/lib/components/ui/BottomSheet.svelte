@@ -58,6 +58,7 @@
 
 <dialog
 	bind:this={dialog}
+	aria-label={title}
 	onclose={handleClose}
 	onclick={handleClick}
 	oncancel={handleCancel}

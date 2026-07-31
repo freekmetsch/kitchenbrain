@@ -1097,3 +1097,38 @@ Moved the shipped Grove chassis execution artifact into the feature-list archive
 still has no `scripts/archive-scan.ps1`, so the validated inline fallback was used.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GROVE_CHASSIS_REFINEMENT.md
+
+## 2026-07-31 11:24 | plan + run + ui | Whole-app house-style refinement
+
+Completed the requested whole-app polish pass on top of the Deep Grove chassis. The six-pixel
+work-surface reveal now survives short and long desktop content; exclusive choices share one
+semantic sliding bar with keyboard, disabled, resize, and reduced-motion behavior; small
+secondary choices use a native top-layer popover.
+
+Stock now uses compact neutral cards with always-visible quantity steppers and a focused
+relationship-review state instead of repeated orange warnings. Meal Plan and Recipes use
+separate object cards. Shopping is centered on desktop, keeps unresolved AH outcomes inline, and
+moves successful/previous history into an on-demand sheet. Recipe Edit preserves recovered drafts
+while keeping fresh loads clean, and Login/account metadata received the remaining localization
+and password-manager fixes.
+
+The final complete gate passed with 0 Svelte errors/warnings, 107 unit-test files / 633 tests,
+31 primary authenticated browser tests with one deliberate connected-AH skip, and the production
+build. No schema, household-data, auth-boundary, provider, AH request, or runtime configuration
+behavior changed.
+
+Touched: messages/{en,nl}.json, src/app.css, src/lib/components/{inventory,meal-plan,recipe-detail,
+shopping,ui}/, src/lib/{inventory,meal_batch,recipe_edit,ui_house_style_source}*, src/routes/
+{inventory,login,meal-plan,recipes,settings,shopping}/, tests/e2e/{assistant-safety,auth,
+house-style,kitchen-flows,responsive-parity}.e2e.ts, docs/ui-house-style.md,
+docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_UI_REFINEMENT.md,
+docs/known_issues/solved/ISSUE_GROVE_CHASSIS_UI_REGRESSIONS_20260731-1010.md, docs/log.md
+
+## 2026-07-31 11:24 | archive-scan | 1 feature list, 0 HTMLs archived
+
+Moved the shipped UI-refinement plan into the feature-list archive and the resolved regression
+record into solved issues. The repository still has no `scripts/archive-scan.ps1`, so the
+validated inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_UI_REFINEMENT.md,
+docs/known_issues/solved/ISSUE_GROVE_CHASSIS_UI_REGRESSIONS_20260731-1010.md

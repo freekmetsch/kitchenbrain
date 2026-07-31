@@ -374,29 +374,33 @@ test('Recipe patch review stays selective and responsive at phone and desktop', 
 		await page.waitForLoadState('networkidle');
 		await page.getByRole('button', { name: 'AI suggestions' }).click();
 		await expect(page.getByRole('heading', { name: 'Review recipe ideas' })).toBeVisible();
-		await expect(page.getByText('Before', { exact: true }).first()).toBeVisible();
-		await expect(page.getByText('After', { exact: true }).first()).toBeVisible();
-		await page.locator('details summary').first().click();
+		const review = page
+			.locator('section[aria-label="Review recipe ideas"]')
+			.filter({ has: page.getByRole('button', { name: 'Apply selected' }) })
+			.last();
+		await expect(review.getByText('Before', { exact: true }).first()).toBeVisible();
+		await expect(review.getByText('After', { exact: true }).first()).toBeVisible();
+		await review.locator('details summary').first().click();
 		await expect(
-			page.getByText('Checked at AH: AH Tomatenblokjes (400 g)', { exact: true })
+			review.getByText('Checked at AH: AH Tomatenblokjes (400 g)', { exact: true })
 		).toBeVisible();
-		await expect(page.getByRole('group', { name: fixture.shoppingName })).toBeVisible();
+		await expect(review.getByRole('group', { name: fixture.shoppingName })).toBeVisible();
 		await expect(
-			page.getByRole('group', {
+			review.getByRole('group', {
 				name: 'Parmezaanse kaas met een bewust lange productomschrijving'
 			})
 		).toBeVisible();
-		await expect(page.getByRole('radio')).toHaveCount(viewport.name === 'phone' ? 3 : 6);
-		for (const radio of await page.getByRole('radio').all()) {
+		await expect(review.getByRole('radio')).toHaveCount(viewport.name === 'phone' ? 3 : 6);
+		for (const radio of await review.getByRole('radio').all()) {
 			await expect(radio).not.toBeChecked();
 		}
-		await expect(page.getByRole('button', { name: 'Show 3 more' })).toBeVisible();
-		await page.getByRole('radio').first().check();
+		await expect(review.getByRole('button', { name: 'Show 3 more' })).toBeVisible();
+		await review.getByRole('radio').first().check();
 
-		const apply = page.getByRole('button', { name: 'Apply selected' });
+		const apply = review.getByRole('button', { name: 'Apply selected' });
 		await expect(apply).toBeEnabled();
 		expect(applyRequests).toBe(viewport.name === 'phone' ? 0 : 1);
-		await page.getByRole('checkbox').first().check();
+		await review.getByRole('checkbox').first().check();
 		await expect(apply).toBeEnabled();
 
 		expect(
@@ -443,12 +447,16 @@ test('Persisted chat keeps only the latest dense recipe decision surface active'
 	for (const viewport of CHAT_VIEWPORTS) {
 		await page.setViewportSize(viewport);
 		await page.goto('/');
+		const review = page
+			.locator('section[aria-label="Review recipe ideas"]')
+			.filter({ has: page.getByRole('button', { name: 'Apply selected' }) })
+			.last();
 		await expect(
 			page.getByText('A newer review replaced these suggestions.', { exact: true })
 		).toBeVisible();
 		await expect.poll(() => checkedTokens).toContain(newToken);
-		await expect(page.getByRole('group', { name: fixture.shoppingName })).toBeVisible();
-		await expect(page.getByRole('group', { name: 'Parmezaanse kaas' })).toBeVisible();
+		await expect(review.getByRole('group', { name: fixture.shoppingName })).toBeVisible();
+		await expect(review.getByRole('group', { name: 'Parmezaanse kaas' })).toBeVisible();
 
 		const activity = page
 			.locator('details')
@@ -459,13 +467,13 @@ test('Persisted chat keeps only the latest dense recipe decision surface active'
 		await activity.locator('summary').click();
 		await expect(activity.locator('li')).toHaveCount(3);
 
-		const radios = page.getByRole('radio');
+		const radios = review.getByRole('radio');
 		await expect(radios).toHaveCount(viewport.width < 768 ? 3 : 6);
 		for (const radio of await radios.all()) {
 			await expect(radio).not.toBeChecked();
 		}
-		await expect(page.getByRole('button', { name: 'Apply selected' })).toBeDisabled();
-		await expect(page.getByRole('button', { name: 'Show 3 more' })).toBeVisible();
+		await expect(review.getByRole('button', { name: 'Apply selected' })).toBeDisabled();
+		await expect(review.getByRole('button', { name: 'Show 3 more' })).toBeVisible();
 
 		const chatSurface = await page.locator('#home-chat').boundingBox();
 		const assistantBubble = await page.locator('.chat-start .chat-bubble').last().boundingBox();
@@ -495,10 +503,10 @@ test('Persisted chat keeps only the latest dense recipe decision surface active'
 		).toBe(false);
 
 		if (viewport.name === 'narrow-phone') {
-			await page.getByRole('button', { name: 'Show 3 more' }).click();
-			await expect(page.getByRole('radio')).toHaveCount(6);
+			await review.getByRole('button', { name: 'Show 3 more' }).click();
+			await expect(review.getByRole('radio')).toHaveCount(6);
 			await expect(
-				page
+				review
 					.getByRole('group', { name: fixture.shoppingName })
 					.getByRole('button', { name: 'Find different options' })
 			).toBeVisible();
@@ -507,10 +515,10 @@ test('Persisted chat keeps only the latest dense recipe decision surface active'
 			await radios.first().focus();
 			await page.keyboard.press('Space');
 			await expect(radios.first()).toBeChecked();
-			await expect(page.getByRole('button', { name: 'Apply selected' })).toBeEnabled();
-			await page.getByRole('button', { name: 'Clear choice' }).click();
+			await expect(review.getByRole('button', { name: 'Apply selected' })).toBeEnabled();
+			await review.getByRole('button', { name: 'Clear choice' }).click();
 			await expect(radios.first()).not.toBeChecked();
-			await expect(page.getByRole('button', { name: 'Apply selected' })).toBeDisabled();
+			await expect(review.getByRole('button', { name: 'Apply selected' })).toBeDisabled();
 		}
 	}
 });

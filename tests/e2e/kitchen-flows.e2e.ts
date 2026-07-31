@@ -296,7 +296,7 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 	await expect(page.getByRole('button', { name: /^Shopping rules/ })).toHaveCount(0);
 	await expect(page.getByRole('dialog')).toHaveCount(0);
 
-	await page.getByRole('button', { name: 'Weekly items', exact: true }).click();
+	await page.getByRole('radio', { name: 'Weekly items', exact: true }).click();
 	await page.getByRole('button', { name: 'Edit weekly', exact: true }).click();
 	await expect(page.getByRole('dialog')).toHaveCount(0);
 	await page.getByRole('button', { name: 'Add weekly item', exact: true }).click();

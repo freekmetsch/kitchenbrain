@@ -7,7 +7,7 @@
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import PendingButton from '$lib/components/ui/PendingButton.svelte';
 
-	let { form } = $props<{ form: { error?: string } | null }>();
+	let { form } = $props<{ form: { error?: 'invalid_credentials' } | null }>();
 
 	let submitting = $state(false);
 </script>
@@ -19,7 +19,11 @@
 		<div class="login-surface">
 			<div class="mb-5 flex flex-wrap items-start justify-between gap-3">
 				<p class="max-w-xs text-sm leading-relaxed text-base-content/65">{m.login_subtitle()}</p>
-				<div class="ml-auto flex gap-1 text-xs" role="group" aria-label="Language">
+				<div
+					class="ml-auto flex gap-1 text-xs"
+					role="group"
+					aria-label={m.login_language_aria()}
+				>
 					<button
 						type="button"
 						class="ui-action ui-action-tertiary px-1.5 {getLocale() === 'en' ? 'font-bold underline' : ''}"
@@ -35,7 +39,7 @@
 
 			{#if form?.error}
 				<KitchenNotice tone="error" class="mb-4 text-sm" role="alert">
-					<span>{form.error}</span>
+					<span>{m.login_invalid_credentials()}</span>
 				</KitchenNotice>
 			{/if}
 

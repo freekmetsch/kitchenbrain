@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batchServingTarget, batchServingToggleTarget } from './meal_batch';
+import { batchServingMultiplier, batchServingTarget } from './meal_batch';
 
 describe('batchServingTarget', () => {
 	it('uses the saved recipe yield rather than the current meal count', () => {
@@ -18,18 +18,11 @@ describe('batchServingTarget', () => {
 	});
 });
 
-describe('batchServingToggleTarget', () => {
-	it('sets an inactive multiplier and returns an active multiplier to baseline', () => {
-		expect(batchServingToggleTarget(6, 2, 6)).toBe(12);
-		expect(batchServingToggleTarget(6, 2, 12)).toBe(6);
-	});
-
-	it('sets a multiplier from a custom portion count', () => {
-		expect(batchServingToggleTarget(6, 3, 7)).toBe(18);
-	});
-
-	it('keeps unavailable multipliers disabled', () => {
-		expect(batchServingToggleTarget(null, 2, 4)).toBeNull();
-		expect(batchServingToggleTarget(50, 2, 50)).toBeNull();
+describe('batchServingMultiplier', () => {
+	it('recognizes whole recipe batches and leaves custom portion counts unselected', () => {
+		expect(batchServingMultiplier(6, 6)).toBe(1);
+		expect(batchServingMultiplier(6, 18)).toBe(3);
+		expect(batchServingMultiplier(6, 7)).toBeNull();
+		expect(batchServingMultiplier(null, 4)).toBeNull();
 	});
 });

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
-	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import SettingsPanelHeader from '$lib/components/settings/SettingsPanelHeader.svelte';
 	import { optimistic } from '$lib/optimistic';
 	import { m } from '$lib/paraglide/messages';
@@ -132,8 +132,8 @@
 						class:opacity-60={recipePrefsSaving}
 						aria-labelledby="recipe-language-label"
 					>
-						<SegmentedTabs
-							tabs={languageTabs}
+						<SegmentedControl
+							options={languageTabs}
 							value={recipeLanguage}
 							onchange={(v) => saveRecipePrefs({ recipeLanguage: v })}
 						/>
@@ -146,8 +146,8 @@
 						class:opacity-60={recipePrefsSaving}
 						aria-labelledby="default-sort-label"
 					>
-						<SegmentedTabs
-							tabs={sortOptions()}
+						<SegmentedControl
+							options={sortOptions()}
 							value={defaultSort}
 							onchange={(v) => saveRecipePrefs({ defaultSort: v })}
 							cols={2}
@@ -167,8 +167,8 @@
 						class:opacity-60={recipeTogglesSaving}
 						aria-labelledby="auto-translate-label"
 					>
-						<SegmentedTabs
-							tabs={onOffTabs}
+						<SegmentedControl
+							options={onOffTabs}
 							value={autoTranslate}
 							onchange={(v) => saveRecipeToggles(v === 'on')}
 						/>

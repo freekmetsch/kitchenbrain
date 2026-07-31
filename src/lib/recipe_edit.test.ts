@@ -3,6 +3,7 @@ import {
 	hydrateDirections,
 	hydrateIngredients,
 	recipeEditChangesCookingStructure,
+	recipeEditSnapshot,
 	recipeIngredientsEqual,
 	serializeDirections,
 	serializeIngredients
@@ -57,6 +58,25 @@ describe('recipe edit UI identity', () => {
 				[{ name: 'ui', amount: '1', role: 'cook_in', substitutes: [] }]
 			)
 		).toBe(true);
+	});
+
+	it('builds the clean baseline through the same normalized seam as the live editor', () => {
+		const serverDraft = {
+			title: 'Pasta',
+			language: 'nl' as const,
+			notes: '',
+			sourceUrl: '',
+			servings: 4,
+			ingredients: [{ name: ' ui ', amount: ' 1 ', substitutes: [] }],
+			directions: [{ clientId: 'server-step-1', text: ' Snijd. ' }]
+		};
+		const hydratedDraft = {
+			...serverDraft,
+			ingredients: hydrateIngredients(serverDraft.ingredients),
+			directions: hydrateDirections(serverDraft.directions)
+		};
+
+		expect(recipeEditSnapshot(serverDraft)).toBe(recipeEditSnapshot(hydratedDraft));
 	});
 });
 

@@ -7,12 +7,14 @@
 	import ConsumePortionsModal from '$lib/components/ConsumePortionsModal.svelte';
 	import FreezePortionsModal from '$lib/components/FreezePortionsModal.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
+	import CompactPopover from '$lib/components/ui/CompactPopover.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import FilterChip from '$lib/components/ui/FilterChip.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -21,7 +23,7 @@
 	import type { PageData } from './$types';
 	import { formatDate } from '$lib/i18n';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
-	import { batchServingTarget, batchServingToggleTarget } from '$lib/meal_batch';
+	import { batchServingMultiplier, batchServingTarget } from '$lib/meal_batch';
 	import { mealPlanWeekHref } from '$lib/meal_plan_navigation';
 	import MealSourceChoice from '$lib/components/meal-plan/MealSourceChoice.svelte';
 	import { MealPlanController } from '$lib/components/meal-plan/controller.svelte';
@@ -189,14 +191,14 @@
 		<div>
 			<section
 				id="week-{week.weekStartDate}"
-				class="ui-list-group {week.weekStartDate === controller.currentWeekStart ? 'plan-current-week' : ''}"
+				class="plan-meal-board {week.weekStartDate === controller.currentWeekStart ? 'plan-current-week' : ''}"
 			>
 				{#if week.meals.length > 0}
-					<ul class="divide-y divide-base-200">
+					<ul class="plan-meal-list">
 						{#each controller.displayMeals(week) as meal (meal.id)}
 							{@const linkedRecipe = controller.recipeForMeal(meal)}
 							<li
-								class="meal-row transition-colors hover:bg-base-200/60"
+								class="meal-row"
 								transition:slide={{ duration: MOTION_MICRO_MS }}
 								animate:flip={{ duration: MOTION_CONTENT_MS }}
 							>
@@ -224,7 +226,7 @@
 								{/if}
 								<button
 									type="button"
-									class="meal-remove ui-action ui-action-danger ui-action-icon"
+									class="meal-remove ui-action ui-action-tertiary ui-action-icon"
 									onclick={() => controller.removeMeal(meal)}
 									disabled={!!controller.pendingDeletes[meal.id]}
 									aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
@@ -254,42 +256,39 @@
 												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={meal.servings >= 99} aria-disabled={!!controller.pendingServings[meal.id] || meal.servings >= 99} aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })} onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, 1)}>+</button>
 											</div>
 											{#if linkedRecipe && meal.source !== 'freezer'}
-												<div class="meal-batch-options" aria-label={linkedRecipe.scalingMode === 'fixed_batch' ? m.mealplan_batch_fixed() : m.mealplan_batch_scalable()}>
-													{#each [2, 3, 4] as multiplier}
-														{@const target = batchServingTarget(linkedRecipe.servings, multiplier)}
-														{@const pressed = target === meal.servings}
-														{@const toggleTarget = batchServingToggleTarget(
-															linkedRecipe.servings,
-															multiplier,
-															meal.servings
-														)}
-														<button
-															type="button"
-															class="btn btn-xs h-11 min-h-0 w-11 px-0 {pressed ? 'btn-primary' : 'btn-ghost border border-base-300'}"
-															disabled={toggleTarget == null}
-															aria-disabled={toggleTarget == null || !!controller.pendingServings[meal.id]}
-															aria-label={target == null
-																? m.mealplan_batch_unavailable_aria({ multiplier, dinner: meal.dinner })
-																: pressed && toggleTarget != null
-																	? m.mealplan_batch_reset_aria({
-																			count: toggleTarget,
-																			dinner: meal.dinner
-																		})
-																	: m.mealplan_batch_aria({
-																			multiplier,
-																			count: target,
-																			dinner: meal.dinner
-																		})}
-															aria-pressed={pressed}
-															onclick={() =>
-																toggleTarget != null &&
-																!controller.pendingServings[meal.id] &&
-																controller.setServings(meal, toggleTarget)}
-														>
-															×{multiplier}
-														</button>
-													{/each}
-												</div>
+												{@const selectedBatch = batchServingMultiplier(linkedRecipe.servings, meal.servings)}
+												<CompactPopover
+													disabled={!!controller.pendingServings[meal.id]}
+													ariaLabel={m.mealplan_batch_size_aria({ dinner: meal.dinner })}
+												>
+													{#snippet trigger()}
+														<span>{m.mealplan_batch_size_button()}</span>
+														{#if selectedBatch}
+															<strong>×{selectedBatch}</strong>
+														{/if}
+													{/snippet}
+													{#snippet children(close)}
+														<SegmentedControl
+															options={[1, 2, 3, 4].map((multiplier) => ({
+																value: multiplier,
+																label: `×${multiplier}`,
+																disabled: batchServingTarget(linkedRecipe.servings, multiplier) == null
+															}))}
+															value={selectedBatch}
+															cols={2}
+															ariaLabel={linkedRecipe.scalingMode === 'fixed_batch'
+																? m.mealplan_batch_fixed()
+																: m.mealplan_batch_scalable()}
+															onchange={(multiplier) => {
+																const target = batchServingTarget(linkedRecipe.servings, multiplier);
+																if (target != null && !controller.pendingServings[meal.id]) {
+																	controller.setServings(meal, target);
+																	close();
+																}
+															}}
+														/>
+													{/snippet}
+												</CompactPopover>
 											{/if}
 										</div>
 									{/if}
@@ -395,7 +394,6 @@
 	.meal-plan-page {
 		min-height: 100%;
 		background: var(--kitchen-grove);
-		padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 	}
 
 	.plan-more {
@@ -474,8 +472,16 @@
 		padding-block: 0.75rem max(6.5rem, var(--ui-overlay-bottom));
 	}
 
-	.plan-current-week {
-		border-top-color: color-mix(in oklab, var(--kitchen-olive) 44%, var(--kitchen-line));
+	.plan-current-week .meal-row {
+		border-color: color-mix(in oklab, var(--kitchen-olive) 44%, var(--kitchen-line));
+	}
+
+	.plan-meal-list {
+		display: grid;
+		gap: 0.625rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 
 	.meal-row {
@@ -483,7 +489,20 @@
 		grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
 		align-items: center;
 		column-gap: 0.35rem;
+		border: 1px solid color-mix(in oklab, var(--kitchen-grove) 15%, var(--kitchen-line));
+		border-radius: 0.875rem;
 		padding: 0.45rem 0.7rem 0.65rem;
+		background: var(--kitchen-card);
+		box-shadow: 0 4px 12px rgb(35 58 46 / 7%);
+		transition:
+			border-color var(--motion-micro) var(--ease-standard),
+			box-shadow var(--motion-micro) var(--ease-standard);
+	}
+
+	.meal-row:hover,
+	.meal-row:focus-within {
+		border-color: color-mix(in oklab, var(--kitchen-grove) 28%, var(--kitchen-line));
+		box-shadow: 0 6px 16px rgb(35 58 46 / 10%);
 	}
 
 	.meal-check,
@@ -528,6 +547,7 @@
 		display: grid;
 		gap: 0.4rem;
 		min-width: 0;
+		padding-left: 3.1rem;
 	}
 
 	.meal-details:empty {
@@ -543,12 +563,6 @@
 
 	.meal-serving-stepper {
 		min-width: 8.5rem;
-	}
-
-	.meal-batch-options {
-		display: inline-grid;
-		grid-template-columns: repeat(3, 2.75rem);
-		gap: 0.35rem;
 	}
 
 	.meal-source-row {
@@ -571,31 +585,6 @@
 		}
 	}
 
-	@media (min-width: 64rem) {
-		.meal-row {
-			grid-template-columns: 2.75rem minmax(12rem, 1fr) 2.75rem auto;
-		}
-
-		.meal-title {
-			grid-column: 2;
-			grid-row: 1;
-		}
-
-		.meal-remove {
-			grid-column: 3;
-			grid-row: 1;
-		}
-
-		.meal-details {
-			grid-column: 4;
-			grid-row: 1;
-			display: flex;
-			align-items: center;
-			justify-content: flex-end;
-			gap: 0.5rem;
-		}
-
-	}
 </style>
 
 <BottomSheet bind:open={controller.drawerOpen} title={m.mealplan_add_meal_sheet_title()}>

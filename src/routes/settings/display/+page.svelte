@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
-	import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import SettingsPanelHeader from '$lib/components/settings/SettingsPanelHeader.svelte';
 	import { optimistic } from '$lib/optimistic';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -72,14 +72,14 @@
 	<section class="ui-form-card">
 		<span class="ui-field-label mb-1.5 block" id="theme-label">{m.settingsshell_theme_label()}</span>
 		<div class:pointer-events-none={themeSaving} class:opacity-60={themeSaving} aria-labelledby="theme-label">
-			<SegmentedTabs tabs={themeTabs} value={theme} onchange={setTheme} />
+			<SegmentedControl options={themeTabs} value={theme} onchange={setTheme} />
 		</div>
 	</section>
 
 	<section class="ui-form-card">
 		<span class="ui-field-label mb-1.5 block" id="language-label">{m.settingsshell_language_label()}</span>
 		<div aria-labelledby="language-label">
-			<SegmentedTabs tabs={languageTabs} value={language} onchange={setLanguage} />
+			<SegmentedControl options={languageTabs} value={language} onchange={setLanguage} />
 		</div>
 	</section>
 </div>

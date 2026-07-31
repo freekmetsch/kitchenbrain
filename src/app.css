@@ -220,6 +220,91 @@ html[data-theme='dark'] {
 	padding: 0.5rem 1rem 0.625rem;
 }
 
+.ui-segmented-control {
+	position: relative;
+	display: inline-flex;
+	align-items: stretch;
+	gap: 0.125rem;
+	min-width: 0;
+	border-radius: 0.625rem;
+	padding: 0.125rem;
+	background: color-mix(in oklab, var(--kitchen-grove) 9%, var(--color-base-200));
+	isolation: isolate;
+}
+
+.ui-segmented-control-grid {
+	display: grid;
+	width: 100%;
+}
+
+.ui-segmented-control-cols-2 {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ui-segmented-control-cols-3 {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ui-segmented-indicator {
+	position: absolute;
+	z-index: -1;
+	top: 0.125rem;
+	bottom: 0.125rem;
+	left: 0;
+	border: 1px solid color-mix(in oklab, var(--kitchen-grove) 18%, var(--kitchen-line));
+	border-radius: 0.5rem;
+	background: var(--kitchen-paper);
+	box-shadow: 0 2px 7px rgb(35 58 46 / 10%);
+	opacity: 0;
+	transition:
+		left var(--motion-micro) var(--ease-emphasized),
+		width var(--motion-micro) var(--ease-emphasized),
+		opacity var(--motion-micro) var(--ease-standard);
+}
+
+.ui-segmented-indicator.visible {
+	opacity: 1;
+}
+
+.ui-segmented-control > button {
+	position: relative;
+	z-index: 1;
+	display: inline-flex;
+	min-width: 0;
+	min-height: 2.25rem;
+	align-items: center;
+	justify-content: center;
+	gap: 0.25rem;
+	border-radius: 0.5rem;
+	padding: 0.25rem 0.625rem;
+	color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+	font-size: 0.75rem;
+	font-weight: 650;
+	line-height: 1.2;
+	white-space: nowrap;
+	transition: color var(--motion-micro) var(--ease-standard);
+}
+
+.ui-segmented-control > button.active {
+	color: var(--kitchen-ink);
+}
+
+.ui-segmented-control > button:focus-visible {
+	outline: 2px solid var(--kitchen-grove);
+	outline-offset: 2px;
+}
+
+.ui-segmented-control > button:disabled {
+	cursor: not-allowed;
+	opacity: 0.38;
+}
+
+.ui-segmented-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .ui-action {
 	display: inline-flex;
 	min-height: 2.75rem;
@@ -675,13 +760,6 @@ textarea.ui-field {
 
 .ui-status-badge-on-dark[data-tone='info'] .ui-status-dot {
 	background: #8fc5ee;
-}
-
-[role='tab'][aria-selected='true'] {
-	border-color: var(--kitchen-grove);
-	background: var(--kitchen-grove);
-	color: var(--kitchen-paper);
-	box-shadow: none;
 }
 
 /* `xs` is a visual-density choice, not a smaller hit target. */
