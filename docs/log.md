@@ -1132,3 +1132,18 @@ validated inline fallback was used.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_UI_REFINEMENT.md,
 docs/known_issues/solved/ISSUE_GROVE_CHASSIS_UI_REGRESSIONS_20260731-1010.md
+
+## 2026-07-31 13:47 | deploy-canary | Whole-app house-style refinement
+
+Merged PR #54 and supervised the GitHub-sourced Railway release through a platform Dashboard/API
+incident. The original deployment remained stuck at `INITIALIZING`; after Railway resolved the
+incident, one same-revision `--from-source` redeploy reached `SUCCESS` at exact remote `main`
+commit `52a9775`.
+
+Both guarded household authentication checks passed. `/api/healthz`, the 320 and 1280 px
+logged-out boundary, and bounded Railway application/HTTP checks were healthy with no overflow,
+console error, failed dynamic request, visual anomaly, application error, or HTTP 5xx. No provider
+turn, household mutation, AH lookup, AH push, authenticated body, cookie, screenshot, or household
+content was retained or performed.
+
+Touched: docs/deploys/2026-07.md, docs/log.md
