@@ -56,6 +56,7 @@ export function loadRecipeListData(input: {
 	const haveAll = input.url.searchParams.get('have') === '1';
 	const freezerOnly = input.url.searchParams.get('freezer') === '1';
 	const belowTargetOnly = input.url.searchParams.get('below') === '1';
+	const rotationOnly = input.url.searchParams.get('rotation') === '1';
 
 	const stockNames = listActiveInventoryNames(appDb);
 	const frozenByRecipe = frozenPortionsByRecipe(appDb);
@@ -124,6 +125,11 @@ export function loadRecipeListData(input: {
 	if (haveAll) enriched = enriched.filter((recipe) => recipe.hasAllIngredients);
 	if (freezerOnly) enriched = enriched.filter((recipe) => recipe.isFreezerStaple);
 	if (belowTargetOnly) enriched = enriched.filter((recipe) => recipe.belowTarget);
+	if (rotationOnly) {
+		enriched = enriched.filter(
+			(recipe) => recipe.rotationPolicy !== null && recipe.rotationPolicy !== 'never'
+		);
+	}
 
 	if (sortBy === 'rating') {
 		enriched.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
@@ -156,7 +162,7 @@ export function loadRecipeListData(input: {
 		classFilter,
 		dishFilter,
 		ingredientFilter,
-		toggles: { haveAll, freezerOnly, belowTargetOnly },
+		toggles: { haveAll, freezerOnly, belowTargetOnly, rotationOnly },
 		dishTypes: DISH_TYPES,
 		recipeLang: input.recipeLang,
 		weeks

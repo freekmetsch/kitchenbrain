@@ -18,8 +18,6 @@
 		groceryDay?: number | null;
 		planAheadWeeks?: number;
 		dayPlanning?: boolean;
-		repeatCycleDays?: number;
-		suggestCount?: number;
 	};
 
 	type OnOff = 'on' | 'off';
@@ -29,36 +27,22 @@
 	] satisfies { value: OnOff; label: string }[];
 
 	const planAheadTabs = [2, 3, 4, 6].map((n) => ({ value: n, label: String(n) }));
-	const repeatCycleTabs = [
-		{ value: 0, label: m.settings_mealplan_cycle_off() },
-		{ value: 7, label: m.settings_mealplan_cycle_weeks({ count: 1 }) },
-		{ value: 14, label: m.settings_mealplan_cycle_weeks({ count: 2 }) },
-		{ value: 28, label: m.settings_mealplan_cycle_weeks({ count: 4 }) }
-	];
-	const suggestCountTabs = [3, 5, 7].map((n) => ({ value: n, label: String(n) }));
-
 	let weekStartDay = $state(untrack(() => data.prefs.weekStartDay));
 	let groceryDay = $state<number | null>(untrack(() => data.prefs.groceryDay));
 	let planAheadWeeks = $state(untrack(() => data.prefs.planAheadWeeks));
 	let dayPlanning = $state<OnOff>(untrack(() => (data.prefs.dayPlanning ? 'on' : 'off')));
-	let repeatCycleDays = $state(untrack(() => data.prefs.repeatCycleDays));
-	let suggestCount = $state(untrack(() => data.prefs.suggestCount));
 	let saving = $state(false);
 
 	// Non-preset stored values (e.g. env-free defaults edited by hand) still need
 	// a selectable segment — snap the tab row to the nearest preset for display.
 	if (!planAheadTabs.some((t) => t.value === planAheadWeeks)) planAheadWeeks = 4;
-	if (!repeatCycleTabs.some((t) => t.value === repeatCycleDays)) repeatCycleDays = 14;
-	if (!suggestCountTabs.some((t) => t.value === suggestCount)) suggestCount = 5;
 
 	async function save(patch: Patch) {
-		const previous = { weekStartDay, groceryDay, planAheadWeeks, dayPlanning, repeatCycleDays, suggestCount };
+		const previous = { weekStartDay, groceryDay, planAheadWeeks, dayPlanning };
 		if (patch.weekStartDay !== undefined) weekStartDay = patch.weekStartDay;
 		if (patch.groceryDay !== undefined) groceryDay = patch.groceryDay;
 		if (patch.planAheadWeeks !== undefined) planAheadWeeks = patch.planAheadWeeks;
 		if (patch.dayPlanning !== undefined) dayPlanning = patch.dayPlanning ? 'on' : 'off';
-		if (patch.repeatCycleDays !== undefined) repeatCycleDays = patch.repeatCycleDays;
-		if (patch.suggestCount !== undefined) suggestCount = patch.suggestCount;
 		saving = true;
 		const ok = await optimistic(
 			() =>
@@ -68,7 +52,7 @@
 					body: JSON.stringify(patch)
 				}),
 			() => {
-				({ weekStartDay, groceryDay, planAheadWeeks, dayPlanning, repeatCycleDays, suggestCount } = previous);
+				({ weekStartDay, groceryDay, planAheadWeeks, dayPlanning } = previous);
 			},
 			m.settings_mealplan_save_failed()
 		);
@@ -94,8 +78,6 @@
 			{groceryDay}
 			{planAheadWeeks}
 			dayPlanning={dayPlanning === 'on'}
-			{repeatCycleDays}
-			{suggestCount}
 			{saving}
 		/>
 
@@ -153,24 +135,6 @@
 				<span class="ui-field-label mb-1.5 block" id="day-planning-label">{m.settings_mealplan_day_planning_label()}</span>
 				<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="day-planning-label">
 					<SegmentedControl options={onOffTabs} value={dayPlanning} onchange={(v) => save({ dayPlanning: v === 'on' })} />
-				</div>
-			</div>
-		</section>
-
-		<section class="ui-form-card">
-			<h2 class="ui-section-title mb-3">{m.settings_mealplan_suggestions_heading()}</h2>
-			<div class="flex flex-col gap-4">
-				<div>
-					<span class="ui-field-label mb-1.5 block" id="repeat-cycle-label">{m.settings_mealplan_repeat_cycle_label()}</span>
-					<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="repeat-cycle-label">
-						<SegmentedControl options={repeatCycleTabs} value={repeatCycleDays} onchange={(v) => save({ repeatCycleDays: v })} />
-					</div>
-				</div>
-				<div class="border-t border-base-300 pt-3">
-					<span class="ui-field-label mb-1.5 block" id="suggest-count-label">{m.settings_mealplan_suggest_count_label()}</span>
-					<div class:pointer-events-none={saving} class:opacity-60={saving} aria-labelledby="suggest-count-label">
-						<SegmentedControl options={suggestCountTabs} value={suggestCount} onchange={(v) => save({ suggestCount: v })} />
-					</div>
 				</div>
 			</div>
 		</section>

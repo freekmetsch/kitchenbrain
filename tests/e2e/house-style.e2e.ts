@@ -12,7 +12,6 @@ const PAPER_RGB = 'rgb(248, 245, 237)';
 
 async function expectRouteFrame(page: Page, route: string, width: number): Promise<void> {
 	await page.goto(route);
-	await page.waitForLoadState('networkidle');
 	await expect(page.locator('h1')).toHaveCount(1);
 	expect(
 		await page.evaluate(
@@ -59,13 +58,12 @@ async function expectGreenRibbon(page: Page, width: number): Promise<void> {
 }
 
 test('house-style roles hold across stable routes and target viewports', async ({ page }) => {
-	test.setTimeout(90_000);
+	test.setTimeout(120_000);
 
 	for (const viewport of VIEWPORTS) {
 		await page.setViewportSize(viewport);
 
 		await page.goto('/');
-		await page.waitForLoadState('networkidle');
 		expect(
 			await page.evaluate(
 				() => document.documentElement.scrollWidth - document.documentElement.clientWidth

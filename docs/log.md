@@ -1133,6 +1133,46 @@ validated inline fallback was used.
 Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_UI_REFINEMENT.md,
 docs/known_issues/solved/ISSUE_GROVE_CHASSIS_UI_REGRESSIONS_20260731-1010.md
 
+## 2026-07-31 13:26 | run + tdd | Recipe Rotation + Freezer Rhythm
+
+Replaced Meal Plan's paid page-specific AI Suggest action with a deterministic Recommended
+shortlist. Recipes now carry an optional weekly, fortnightly, monthly, seasonal, special, or
+never rhythm plus season filters. The selected week shows capped `For this week` and `Freezer
+low` lanes with exactly `Cook` or `Use freezer`; planning is drift-guarded and undoable. `Cook`
+uses the existing fresh/whole-recipe shopping path and normal post-cook freeze confirmation,
+while `Use freezer` uses on-hand portions and only the recipe's canonical Dutch `serve_fresh`
+ingredients. No top-up or batch-gap action was introduced.
+
+The recipe detail now has one atomic Rhythm & freezer editor, the recipe index can filter and
+scan cadence, old repeat/suggestion settings were removed, and the Assistant suggestion context
+now exposes stored rotation truth. Settings has an optional explicit AI review that can propose
+season tags only, with cap, single-flight, strict validation, stale protection, atomic apply, and
+guarded undo. A secondary-account regression also exposed and fixed three-line contextual Recipe
+titles at phone width by capping the visual ribbon title at two lines.
+
+The additive `0027_funny_wallop` migration passed populated upgrade, foreign-key integrity, and
+old-code rollback rehearsals. The canonical gate passed 114 unit-test files / 669 tests, 32
+primary authenticated browser stories with one deliberate connected-AH skip, zero Svelte
+diagnostics, and the production build. The complete secondary suite passed 32 stories with the
+same deliberate skip. No provider or real AH request was used.
+
+Touched: drizzle/0027_funny_wallop.sql, drizzle/meta/, messages/{en,nl}.json,
+src/lib/{meal_rotation,meal_rotation_shortlist,meal_rotation_source,recipe_rhythm}*,
+src/lib/components/{meal-plan,recipe-detail,settings,ui}/,
+src/lib/server/{ai,db,domains,meal_plan,settings,workflows}/,
+src/routes/{api,meal-plan,recipes,settings}/, tests/e2e/kitchen-flows.e2e.ts,
+docs/feature-lists/archive/FEATURE_LIST_RECIPE_ROTATION.md,
+docs/artifacts/archive/2026-07-31-plan-recipe-rotation.html, docs/log.md
+
+## 2026-07-31 13:26 | archive-scan | 1 feature list, 1 HTML archived
+
+Moved the completed Recipe Rotation execution plan and its decision workspace into their archive
+directories. The repository still has no `scripts/archive-scan.ps1`, so the validated inline
+fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_RECIPE_ROTATION.md,
+docs/artifacts/archive/2026-07-31-plan-recipe-rotation.html
+
 ## 2026-07-31 13:47 | deploy-canary | Whole-app house-style refinement
 
 Merged PR #54 and supervised the GitHub-sourced Railway release through a platform Dashboard/API

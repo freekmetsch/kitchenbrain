@@ -9,6 +9,7 @@
 	import { sortOptions, type SortBy } from '$lib/recipe_sort';
 	import { untrack } from 'svelte';
 	import type { PageData } from './$types';
+	import type { RotationSeason } from '$lib/meal_rotation';
 
 	let { data }: { data: PageData } = $props();
 
@@ -32,6 +33,30 @@
 	let recipeTogglesSaving = $state(false);
 	let normalizationRunning = $state(false);
 	let normalizationStatus = $state('');
+	type SeasonProposal = {
+		recipeId: number;
+		title: string;
+		seasons: RotationSeason[];
+		reason: string;
+		expectedUpdatedAt: number;
+	};
+	type SeasonUndo = {
+		recipeId: number;
+		previousSeasons: RotationSeason[];
+		appliedSeasons: RotationSeason[];
+		appliedUpdatedAt: number;
+	};
+	const seasonOptions: Array<{ value: RotationSeason; label: () => string }> = [
+		{ value: 'spring', label: m.recipes_rhythm_spring },
+		{ value: 'summer', label: m.recipes_rhythm_summer },
+		{ value: 'autumn', label: m.recipes_rhythm_autumn },
+		{ value: 'winter', label: m.recipes_rhythm_winter }
+	];
+	let seasonProposals = $state<SeasonProposal[]>([]);
+	let seasonUndo = $state<SeasonUndo[]>([]);
+	let seasonRunning = $state(false);
+	let seasonApplying = $state(false);
+	let seasonStatus = $state('');
 
 	async function saveRecipePrefs(patch: { recipeLanguage?: RecipeLanguage; defaultSort?: SortBy }) {
 		const previous = { recipeLanguage, defaultSort };
@@ -112,6 +137,95 @@
 			normalizationRunning = false;
 		}
 	}
+
+	async function proposeSeasons() {
+		if (seasonRunning) return;
+		seasonRunning = true;
+		seasonStatus = '';
+		seasonUndo = [];
+		try {
+			const response = await fetch(`${base}/api/settings/recipes/rotation-seasons`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'propose' })
+			});
+			if (!response.ok) throw new Error();
+			const body = (await response.json()) as { proposals: SeasonProposal[] };
+			seasonProposals = body.proposals;
+			if (seasonProposals.length === 0) seasonStatus = m.settings_recipes_rotation_none();
+		} catch {
+			seasonStatus = m.settings_recipes_rotation_failed();
+			toast.error(seasonStatus);
+		} finally {
+			seasonRunning = false;
+		}
+	}
+
+	function toggleProposalSeason(recipeId: number, season: RotationSeason) {
+		seasonProposals = seasonProposals.map((proposal) =>
+			proposal.recipeId !== recipeId
+				? proposal
+				: {
+						...proposal,
+						seasons: proposal.seasons.includes(season)
+							? proposal.seasons.filter((value) => value !== season)
+							: [...proposal.seasons, season]
+					}
+		);
+	}
+
+	async function applySeasons() {
+		const items = seasonProposals
+			.filter((proposal) => proposal.seasons.length > 0)
+			.map(({ recipeId, seasons, expectedUpdatedAt }) => ({ recipeId, seasons, expectedUpdatedAt }));
+		if (seasonApplying || items.length === 0) return;
+		seasonApplying = true;
+		try {
+			const response = await fetch(`${base}/api/settings/recipes/rotation-seasons`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'apply', items })
+			});
+			if (response.status === 409) {
+				seasonStatus = m.settings_recipes_rotation_stale();
+				return;
+			}
+			if (!response.ok) throw new Error();
+			const body = (await response.json()) as { applied: number; undo: SeasonUndo[] };
+			seasonUndo = body.undo;
+			seasonProposals = [];
+			seasonStatus = m.settings_recipes_rotation_applied({ count: body.applied });
+			toast.success(seasonStatus);
+			await invalidateAll();
+		} catch {
+			seasonStatus = m.settings_recipes_rotation_failed();
+			toast.error(seasonStatus);
+		} finally {
+			seasonApplying = false;
+		}
+	}
+
+	async function undoSeasons() {
+		if (seasonApplying || seasonUndo.length === 0) return;
+		seasonApplying = true;
+		try {
+			const response = await fetch(`${base}/api/settings/recipes/rotation-seasons`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'undo', items: seasonUndo })
+			});
+			if (!response.ok) throw new Error();
+			seasonUndo = [];
+			seasonStatus = m.settings_recipes_rotation_undone();
+			toast.success(seasonStatus);
+			await invalidateAll();
+		} catch {
+			seasonStatus = m.settings_recipes_rotation_undo_failed();
+			toast.error(seasonStatus);
+		} finally {
+			seasonApplying = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -178,6 +292,66 @@
 					</p>
 				</div>
 			</div>
+		</section>
+
+		<section class="ui-form-card">
+			<h2 class="ui-section-title mb-2">{m.settings_recipes_rotation_heading()}</h2>
+			<p class="text-sm leading-relaxed text-base-content/70">{m.settings_recipes_rotation_hint()}</p>
+			<button
+				type="button"
+				class="ui-action ui-action-secondary mt-3"
+				disabled={seasonRunning || seasonApplying}
+				onclick={proposeSeasons}
+			>
+				{seasonRunning ? m.settings_recipes_rotation_running() : m.settings_recipes_rotation_button()}
+			</button>
+
+			{#if seasonProposals.length > 0}
+				<div class="mt-4 space-y-2">
+					{#each seasonProposals as proposal (proposal.recipeId)}
+						<article class="rounded-xl border border-base-300 bg-base-100 p-3">
+							<div class="flex items-start justify-between gap-3">
+								<div class="min-w-0">
+									<h3 class="font-semibold">{proposal.title}</h3>
+									<p class="text-xs text-base-content/60">{proposal.reason}</p>
+								</div>
+								<button
+									type="button"
+									class="ui-action ui-action-tertiary"
+									onclick={() => (seasonProposals = seasonProposals.filter((item) => item.recipeId !== proposal.recipeId))}
+								>{m.settings_recipes_rotation_remove()}</button
+								>
+							</div>
+							<div class="mt-3 grid grid-cols-2 gap-2">
+								{#each seasonOptions as season}
+									<label class="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-base-300 px-3">
+										<input
+											type="checkbox"
+											class="checkbox checkbox-sm"
+											checked={proposal.seasons.includes(season.value)}
+											onchange={() => toggleProposalSeason(proposal.recipeId, season.value)}
+										/>
+										<span class="text-sm">{season.label()}</span>
+									</label>
+								{/each}
+							</div>
+						</article>
+					{/each}
+				</div>
+				<button
+					type="button"
+					class="ui-action ui-action-primary mt-3"
+					disabled={seasonApplying || !seasonProposals.some((proposal) => proposal.seasons.length > 0)}
+					onclick={applySeasons}
+				>{m.settings_recipes_rotation_apply()}</button
+				>
+			{/if}
+			{#if seasonUndo.length > 0}
+				<button type="button" class="ui-action ui-action-tertiary mt-3" disabled={seasonApplying} onclick={undoSeasons}>
+					{m.settings_recipes_rotation_undo()}
+				</button>
+			{/if}
+			{#if seasonStatus}<p class="mt-2 text-xs" role="status">{seasonStatus}</p>{/if}
 		</section>
 
 		<section class="ui-form-card">

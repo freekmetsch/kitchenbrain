@@ -12,6 +12,7 @@ function seedRecipe(
 		ingredients: Array<{ id: string; name: string; amount: string }>;
 		lastCookedAt?: Date;
 		rating?: number;
+		rotationPolicy?: 'never' | 'weekly' | 'fortnightly' | 'monthly' | 'seasonal' | 'special';
 	}
 ) {
 	const now = new Date();
@@ -124,5 +125,35 @@ describe('comparable meal recommendation', () => {
 			stale_on_hand: ['bonen'],
 			why: expect.arrayContaining([expect.stringMatching(/at least 30 days/)])
 		});
+	});
+
+	it('ranks due rotation facts and excludes recipes marked never', () => {
+		const db = createTestDb();
+		seedRecipe(db, {
+			slug: 'due',
+			title: 'Due stew',
+			totalTimeMin: 60,
+			ingredients: [],
+			lastCookedAt: new Date('2026-01-01'),
+			rotationPolicy: 'weekly',
+			rating: 1
+		});
+		seedRecipe(db, {
+			slug: 'never',
+			title: 'Never soup',
+			totalTimeMin: 5,
+			ingredients: [],
+			rotationPolicy: 'never',
+			rating: 5
+		});
+
+		const result = getMealSuggestionContext(db, { count: 3 });
+
+		expect(result.recommendation?.default).toMatchObject({
+			slug: 'due',
+			rotation_status: 'due',
+			why: expect.arrayContaining([expect.stringMatching(/rhythm/i)])
+		});
+		expect(result.recipes.map((recipe) => recipe.slug)).not.toContain('never');
 	});
 });

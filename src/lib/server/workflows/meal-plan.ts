@@ -27,6 +27,7 @@ import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
 import type { BenchSheetRating } from '$lib/types';
 import { addDays, isoWeekNumber, todayIso, weekStartFor } from '$lib/week';
+import { rotationShortlistForWeek } from '$lib/server/workflows/meal-rotation';
 
 type CreateInput = {
 	weekStartDate: string;
@@ -109,6 +110,41 @@ export function createMealPlanService(
 	dependencies: MealPlanDependencies = DEFAULT_DEPENDENCIES
 ) {
 	return {
+		createFromRotation(input: {
+			weekStartDate: string;
+			recipeSlug: string;
+			candidateKey: string;
+		}) {
+			return db.transaction((tx) => {
+				const weekStartDay = getWeekStartDay(tx);
+				const weekStartDate = weekStartFor(input.weekStartDate, weekStartDay);
+				const currentWeekStart = weekStartFor(todayIso(), weekStartDay);
+				const shortlist = rotationShortlistForWeek(tx, weekStartDate, currentWeekStart);
+				const candidate = [...shortlist.due, ...shortlist.freezerLow].find(
+					(row) => row.slug === input.recipeSlug && row.key === input.candidateKey
+				);
+				if (!candidate) {
+					return {
+						ok: false as const,
+						code: 'rotation_drift' as const,
+						candidates: shortlist
+					};
+				}
+				const meal = createMealPlanMeal(tx, {
+					weekNumber: isoWeekNumber(weekStartDate),
+					weekStartDate,
+					dinner: candidate.titleEn ?? candidate.title,
+					recipeSlug: candidate.slug,
+					servings: candidate.servings,
+					plannedDate: null,
+					source: candidate.source,
+					note: null
+				});
+				dependencies.reconcileShopping(tx, [weekStartDate]);
+				return { ok: true as const, meal };
+			});
+		},
+
 		create(input: CreateInput) {
 			return db.transaction((tx) => {
 				if (input.source === 'freezer' && !input.recipeSlug && input.sourcePolicy === 'reject') {

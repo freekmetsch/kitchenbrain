@@ -20,6 +20,7 @@ import {
 	captureRecipeSource,
 	ensureDirectionIds
 } from '$lib/recipe_source_snapshot';
+import { normalizeRotationSettings } from '$lib/meal_rotation';
 
 // Export serializes Date columns via JSON.stringify → ISO strings; drizzle's
 // `mode: 'timestamp'` insert columns expect real Date objects (verified fact,
@@ -104,6 +105,11 @@ const RecipeImport = z.object({
 	translatedAt: zTimestampOrNull,
 	lastCookedAt: zTimestampOrNull,
 	cookedCount: z.number().int(),
+	rotationPolicy: z
+		.enum(['never', 'weekly', 'fortnightly', 'monthly', 'seasonal', 'special'])
+		.nullable()
+		.default(null),
+	rotationSeasonsJson: z.array(z.enum(['spring', 'summer', 'autumn', 'winter'])).default([]),
 	cookModeJson: z.any().nullable(),
 	cookModeGeneratedAt: zTimestampOrNull,
 	isFreezerStaple: z.boolean(),
@@ -113,22 +119,41 @@ const RecipeImport = z.object({
 	reviewReason: z.string().nullable(),
 	createdAt: zTimestamp,
 	updatedAt: zTimestamp
-}).transform((recipe) => ({
-	...recipe,
-	directionIdsJson: ensureDirectionIds(recipe.directions, recipe.directionIdsJson),
-	sourceSnapshotJson:
-		recipe.sourceSnapshotJson ??
-		captureRecipeSource(
-			{
-				title: recipe.title,
-				servings: recipe.servings,
-				sourceUrl: recipe.sourceUrl,
-				ingredients: recipe.ingredients,
-				directions: recipe.directions
-			},
-			{ provenance: 'legacy_baseline', capturedAt: recipe.updatedAt.getTime() }
-		)
-}));
+})
+	.superRefine((recipe, ctx) => {
+		try {
+			normalizeRotationSettings(recipe.rotationPolicy, recipe.rotationSeasonsJson);
+		} catch (error) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: error instanceof Error ? error.message : 'Invalid recipe rotation'
+			});
+		}
+	})
+	.transform((recipe) => {
+		const rotation = normalizeRotationSettings(
+			recipe.rotationPolicy,
+			recipe.rotationSeasonsJson
+		);
+		return {
+			...recipe,
+			rotationPolicy: rotation.policy,
+			rotationSeasonsJson: rotation.seasons,
+			directionIdsJson: ensureDirectionIds(recipe.directions, recipe.directionIdsJson),
+			sourceSnapshotJson:
+				recipe.sourceSnapshotJson ??
+				captureRecipeSource(
+					{
+						title: recipe.title,
+						servings: recipe.servings,
+						sourceUrl: recipe.sourceUrl,
+						ingredients: recipe.ingredients,
+						directions: recipe.directions
+					},
+					{ provenance: 'legacy_baseline', capturedAt: recipe.updatedAt.getTime() }
+				)
+		};
+	});
 
 const MealPlanMealImport = z.object({
 	id: z.number().int(),

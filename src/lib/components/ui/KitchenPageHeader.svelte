@@ -84,6 +84,23 @@
 		text-wrap: balance;
 	}
 
+	/* Contextual ribbons share their narrow row with Back and a primary action.
+	   Natural wrapping keeps short recipe names to two lines; balancing can split
+	   the same name into three equal fragments and unnecessarily grow the ribbon. */
+	.kitchen-page-header[data-layout='contextual'] h1 {
+		text-wrap: wrap;
+	}
+
+	@media (max-width: 47.99rem) {
+		.kitchen-page-header[data-layout='contextual'] h1 {
+			display: -webkit-box;
+			overflow: hidden;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+			line-clamp: 2;
+		}
+	}
+
 	.kitchen-page-header-action {
 		display: flex;
 		flex: 0 0 auto;

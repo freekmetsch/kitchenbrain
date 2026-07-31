@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
 import { createMealPlanService } from './meal-plan';
+import { rotationShortlistForWeek } from './meal-rotation';
+import { initializeShoppingSourceData } from './reconcile-shopping';
+
+afterEach(() => vi.useRealTimers());
 
 describe('meal-plan workflow', () => {
 	it('normalizes the planning week and preserves the web freezer coercion', () => {
@@ -79,5 +83,162 @@ describe('meal-plan workflow', () => {
 			cookedCount: 0,
 			lastCookedAt: null
 		});
+	});
+
+	it('recomputes a rotation candidate inside the planning transaction', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-08-03T10:00:00.000Z'));
+		const db = createTestDb();
+		const now = new Date();
+		db.insert(schema.recipes)
+			.values({
+				slug: 'bolo',
+				title: 'Spaghetti bolognese',
+				servings: 4,
+				ingredients: [],
+				directions: [],
+				rotationPolicy: 'weekly',
+				lastCookedAt: new Date('2026-07-01T12:00:00.000Z'),
+				createdAt: now,
+				updatedAt: now
+			})
+			.run();
+		const weekStartDate = '2026-07-29';
+		const candidate = rotationShortlistForWeek(db, weekStartDate, weekStartDate).due[0];
+		const mealPlan = createMealPlanService(db);
+
+		const result = mealPlan.createFromRotation({
+			weekStartDate,
+			recipeSlug: candidate.slug,
+			candidateKey: candidate.key
+		});
+
+		expect(result).toMatchObject({
+			ok: true,
+			meal: { recipeSlug: 'bolo', source: 'fresh', servings: 4 }
+		});
+	});
+
+	it('returns fresh candidates instead of planning when source evidence changed', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-08-03T10:00:00.000Z'));
+		const db = createTestDb();
+		const now = new Date();
+		const recipe = db
+			.insert(schema.recipes)
+			.values({
+				slug: 'soep',
+				title: 'Soup',
+				servings: 2,
+				ingredients: [],
+				directions: [],
+				rotationPolicy: 'weekly',
+				lastCookedAt: new Date('2026-07-01T12:00:00.000Z'),
+				createdAt: now,
+				updatedAt: now
+			})
+			.returning()
+			.get();
+		const weekStartDate = '2026-07-29';
+		const stale = rotationShortlistForWeek(db, weekStartDate, weekStartDate).due[0];
+		db.insert(schema.inventoryItems)
+			.values({
+				name: 'Soup portions',
+				qtyNum: 3,
+				section: 'freezer',
+				kind: 'leftover',
+				madeFromRecipeId: recipe.id,
+				createdAt: now,
+				updatedAt: now
+			})
+			.run();
+
+		const result = createMealPlanService(db).createFromRotation({
+			weekStartDate,
+			recipeSlug: stale.slug,
+			candidateKey: stale.key
+		});
+
+		expect(result).toMatchObject({ ok: false, code: 'rotation_drift' });
+		expect(db.select().from(schema.mealPlanMeals).all()).toEqual([]);
+	});
+
+	it('keeps Cook on full Dutch ingredients and Use freezer on serve-fresh ingredients', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-08-03T10:00:00.000Z'));
+		const db = createTestDb();
+		const now = new Date();
+		const [freshRecipe, freezerRecipe] = db
+			.insert(schema.recipes)
+			.values([
+				{
+					slug: 'verse-soep',
+					title: 'Verse soep',
+					servings: 2,
+					ingredients: [
+						{ id: 'fresh-tomaat', name: 'tomaat', amount: '4', role: 'cook_in' },
+						{ id: 'fresh-brood', name: 'brood', amount: '1', role: 'serve_fresh' }
+					],
+					directions: [],
+					rotationPolicy: 'weekly',
+					lastCookedAt: new Date('2026-07-01'),
+					createdAt: now,
+					updatedAt: now
+				},
+				{
+					slug: 'vries-soep',
+					title: 'Vries-soep',
+					servings: 2,
+					ingredients: [
+						{ id: 'freezer-tomaat', name: 'tomaat', amount: '4', role: 'cook_in' },
+						{ id: 'freezer-brood', name: 'brood', amount: '1', role: 'serve_fresh' }
+					],
+					directions: [],
+					rotationPolicy: 'weekly',
+					lastCookedAt: new Date('2026-07-01'),
+					createdAt: now,
+					updatedAt: now
+				}
+			])
+			.returning()
+			.all();
+		db.insert(schema.inventoryItems)
+			.values({
+				name: 'Vries-soep porties',
+				qtyNum: 3,
+				section: 'freezer',
+				kind: 'leftover',
+				madeFromRecipeId: freezerRecipe.id,
+				createdAt: now,
+				updatedAt: now
+			})
+			.run();
+		const weekStartDate = '2026-07-29';
+		initializeShoppingSourceData(db);
+		const shortlist = rotationShortlistForWeek(db, weekStartDate, weekStartDate);
+		const service = createMealPlanService(db);
+		for (const candidate of shortlist.due.filter((row) =>
+			[freshRecipe.id, freezerRecipe.id].includes(row.id)
+		)) {
+			expect(
+				service.createFromRotation({
+					weekStartDate,
+					recipeSlug: candidate.slug,
+					candidateKey: candidate.key
+				}).ok
+			).toBe(true);
+		}
+
+		const entries = db
+			.select({ recipeSlug: schema.shoppingWeekEntries.recipeSlug, name: schema.shoppingWeekEntries.name })
+			.from(schema.shoppingWeekEntries)
+			.all();
+		expect(entries.filter((entry) => entry.recipeSlug === 'verse-soep').map((entry) => entry.name).sort()).toEqual([
+			'brood',
+			'tomaat'
+		]);
+		expect(entries.filter((entry) => entry.recipeSlug === 'vries-soep').map((entry) => entry.name)).toEqual([
+			'brood'
+		]);
 	});
 });

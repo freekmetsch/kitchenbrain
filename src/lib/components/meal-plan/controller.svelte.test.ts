@@ -17,15 +17,12 @@ function data(weekStartDate: string): MealPlanControllerData {
 		recipeList: [],
 		showPastWeeks: false,
 		hasPastWeeks: false,
-		freezerPromptSummary: '',
-		recentlyCookedSummary: '',
+		rotationShortlists: { [weekStartDate]: { due: [], freezerLow: [] } },
 		mealPlanPrefs: {
 			weekStartDay: 2,
 			groceryDay: null,
 			planAheadWeeks: 4,
-			dayPlanning: false,
-			repeatCycleDays: 14,
-			suggestCount: 5
+			dayPlanning: false
 		}
 	};
 }
@@ -103,6 +100,59 @@ describe('MealPlanController', () => {
 		expect(await first).toBe(true);
 		expect(controller.weeks[0].meals).toHaveLength(1);
 		expect(controller.weeks[0].meals[0].id).toBe(7);
+	});
+
+	it('lets a planned rotation row be undone back into its shortlist lane', async () => {
+		const weekStartDate = '2026-07-01';
+		const candidate = {
+			key: `${weekStartDate}:lasagne:cook:never:0:none:weekly:`,
+			id: 3,
+			slug: 'lasagne',
+			title: 'Lasagne',
+			titleEn: null,
+			action: 'cook' as const,
+			source: 'fresh' as const,
+			servings: 4,
+			onHandPortions: 0,
+			targetPortions: null,
+			reason: { code: 'cadence_due' as const, dueDate: '2026-06-24' }
+		};
+		const initial = data(weekStartDate);
+		initial.rotationShortlists[weekStartDate].due = [candidate];
+		const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+			if (init?.method === 'DELETE') return new Response(null, { status: 200 });
+			return new Response(
+				JSON.stringify({
+					id: 7,
+					weekStartDate,
+					weekNumber: 31,
+					dinner: 'Lasagne',
+					recipeSlug: 'lasagne',
+					servings: 4,
+					status: 'planned',
+					source: 'fresh',
+					cookedDate: null,
+					plannedDate: null,
+					note: null,
+					sortOrder: 0,
+					createdAt: new Date().toISOString()
+				}),
+				{ status: 200, headers: { 'Content-Type': 'application/json' } }
+			);
+		});
+		const controller = new MealPlanController(initial, { fetcher });
+
+		await controller.planRotationCandidate(weekStartDate, candidate);
+
+		expect(controller.weeks[0].meals).toHaveLength(1);
+		expect(controller.rotationShortlists[weekStartDate].due).toEqual([]);
+		expect(toast.current?.action?.label).toBe('Undo');
+
+		toast.current?.action?.run();
+		await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+		await vi.waitFor(() => expect(controller.weeks[0].meals).toEqual([]));
+		expect(controller.rotationShortlists[weekStartDate].due).toEqual([candidate]);
+		toast.dismiss();
 	});
 
 	it('restores edited servings and notes when a deleted meal is undone', async () => {

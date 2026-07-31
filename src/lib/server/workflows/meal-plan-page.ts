@@ -4,6 +4,7 @@ import { frozenPortionsByRecipe } from '$lib/server/domains/inventory/freezer';
 import { listMealPlanMeals } from '$lib/server/domains/meal-plan/queries';
 import { listRecipePlanningOptions } from '$lib/server/domains/recipes';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
+import { buildRotationShortlist } from '$lib/meal_rotation_shortlist';
 import {
 	addDays,
 	deliveryDateForPlanningWeek,
@@ -58,36 +59,27 @@ export function loadMealPlanPage(url: URL, db: Db = appDb) {
 
 	const frozenPortions = frozenPortionsByRecipe(db);
 	const recipeRows = listRecipePlanningOptions(db);
-	const recipeList = recipeRows.map(({ lastCookedAt, ...recipe }) => ({
+	const recipeList = recipeRows.map(({ lastCookedAt, rotationSeasonsJson, ...recipe }) => ({
 		...recipe,
+		rotationSeasons: rotationSeasonsJson,
 		onHandPortions: frozenPortions.get(recipe.id) ?? 0
 	}));
-	const freezerPromptSummary = recipeList
-		.filter((recipe) => recipe.onHandPortions > 0)
-		.sort((left, right) => right.onHandPortions - left.onHandPortions)
-		.slice(0, 8)
-		.map(
-			(recipe) =>
-				`${recipe.onHandPortions} portion${recipe.onHandPortions === 1 ? '' : 's'} ${recipe.titleEn ?? recipe.title}`
-		)
-		.join('; ');
-	const cycleCutoffMs = Date.now() - prefs.repeatCycleDays * 86_400_000;
-	const recentlyCookedSummary =
-		prefs.repeatCycleDays === 0
-			? ''
-			: recipeRows
-					.filter(
-						(recipe) =>
-							recipe.lastCookedAt instanceof Date &&
-							recipe.lastCookedAt.getTime() >= cycleCutoffMs
-					)
-					.sort(
-						(left, right) =>
-							right.lastCookedAt!.getTime() - left.lastCookedAt!.getTime()
-					)
-					.slice(0, 20)
-					.map((recipe) => recipe.titleEn ?? recipe.title)
-					.join('; ');
+	const shortlistRecipes = recipeRows.map(({ rotationSeasonsJson, ...recipe }) => ({
+		...recipe,
+		rotationSeasons: rotationSeasonsJson,
+		onHandPortions: frozenPortions.get(recipe.id) ?? 0
+	}));
+	const rotationShortlists = Object.fromEntries(
+		weeks.map((week) => [
+			week.weekStartDate,
+			buildRotationShortlist({
+				recipes: shortlistRecipes,
+				plannedMeals: allMeals,
+				targetWeekStart: week.weekStartDate,
+				currentWeekStart
+			})
+		])
+	);
 
 	return {
 		weeks,
@@ -96,8 +88,7 @@ export function loadMealPlanPage(url: URL, db: Db = appDb) {
 		recipeList,
 		showPastWeeks,
 		hasPastWeeks: hasPastWeeks && !showPastWeeks,
-		freezerPromptSummary,
-		recentlyCookedSummary,
+		rotationShortlists,
 		mealPlanPrefs: prefs
 	};
 }

@@ -24,6 +24,7 @@
 	import MakeRecipeSheet from '$lib/components/recipe-detail/MakeRecipeSheet.svelte';
 	import FreezePortionsModal from '$lib/components/FreezePortionsModal.svelte';
 	import { labelWeeks } from '$lib/components/recipe-detail/types';
+	import type { RotationPolicy } from '$lib/meal_rotation';
 
 	type Recipe = {
 		id: number;
@@ -44,6 +45,7 @@
 		belowTarget: boolean;
 		isFreezerStaple: boolean;
 		targetPortions: number | null;
+		rotationPolicy: RotationPolicy | null;
 		needsReview: boolean;
 		subCount: number;
 		servings: number | null;
@@ -54,6 +56,7 @@
 		haveAll: boolean;
 		freezerOnly: boolean;
 		belowTargetOnly: boolean;
+		rotationOnly: boolean;
 	};
 
 	let {
@@ -176,10 +179,11 @@
 	type ToggleName = keyof Toggles;
 
 	// data.toggles uses JS names; the URL contract uses short param names.
-	const TOGGLE_PARAM: Record<ToggleName, 'have' | 'freezer' | 'below'> = {
+	const TOGGLE_PARAM: Record<ToggleName, 'have' | 'freezer' | 'below' | 'rotation'> = {
 		haveAll: 'have',
 		freezerOnly: 'freezer',
-		belowTargetOnly: 'below'
+		belowTargetOnly: 'below',
+		rotationOnly: 'rotation'
 	};
 
 	function recipeHref(overrides: {
@@ -191,6 +195,7 @@
 		have?: boolean;
 		freezer?: boolean;
 		below?: boolean;
+		rotation?: boolean;
 	} = {}) {
 		const params = new URLSearchParams();
 		const nextQ = overrides.q ?? searchInput;
@@ -201,6 +206,7 @@
 		const nextHave = overrides.have ?? data.toggles.haveAll;
 		const nextFreezer = overrides.freezer ?? data.toggles.freezerOnly;
 		const nextBelow = overrides.below ?? data.toggles.belowTargetOnly;
+		const nextRotation = overrides.rotation ?? data.toggles.rotationOnly;
 		if (nextQ) params.set('q', nextQ);
 		if (nextSort !== 'title') params.set('sort', nextSort);
 		if (nextClass) params.set('class', nextClass);
@@ -209,6 +215,7 @@
 		if (nextHave) params.set('have', '1');
 		if (nextFreezer) params.set('freezer', '1');
 		if (nextBelow) params.set('below', '1');
+		if (nextRotation) params.set('rotation', '1');
 		const qs = params.toString();
 		return `${base}/recipes${qs ? '?' + qs : ''}`;
 	}
@@ -251,7 +258,8 @@
 	const anyToggle = $derived(
 		data.toggles.haveAll ||
 			data.toggles.freezerOnly ||
-		data.toggles.belowTargetOnly
+			data.toggles.belowTargetOnly ||
+			data.toggles.rotationOnly
 	);
 	const hasActiveFilters = $derived(
 		Boolean(data.query || ingredientFilter || classFilter || dishFilter || anyToggle)
@@ -268,7 +276,7 @@
 		classFilter = '';
 		dishFilter = '';
 		ingredientFilter = '';
-		goto(recipeHref({ q: '', sort: 'title', class: '', dish: '', ingredient: '', have: false, freezer: false, below: false }));
+		goto(recipeHref({ q: '', sort: 'title', class: '', dish: '', ingredient: '', have: false, freezer: false, below: false, rotation: false }));
 	}
 
 	async function scrape() {
@@ -335,6 +343,15 @@
 		if (recipe.ingredientTotal <= 0) return null;
 		if (recipe.hasAllIngredients) return m.recipes_have_all_label();
 		if (recipe.coverage > 0) return m.recipes_coverage_on_hand({ have: recipe.coverage, total: recipe.ingredientTotal });
+		return null;
+	}
+
+	function rhythmLabel(policy: RotationPolicy | null): string | null {
+		if (policy === 'weekly') return m.recipes_rhythm_summary_weekly();
+		if (policy === 'fortnightly') return m.recipes_rhythm_summary_fortnightly();
+		if (policy === 'monthly') return m.recipes_rhythm_summary_monthly();
+		if (policy === 'seasonal') return m.recipes_rhythm_summary_seasonal();
+		if (policy === 'special') return m.recipes_rhythm_summary_special();
 		return null;
 	}
 </script>
@@ -423,6 +440,9 @@
 			<FilterChip class="shrink-0" selected={data.toggles.belowTargetOnly} tone="warning" onclick={() => toggle('belowTargetOnly')}>
 				{m.recipes_filter_below_target()}
 			</FilterChip>
+			<FilterChip class="shrink-0" selected={data.toggles.rotationOnly} onclick={() => toggle('rotationOnly')}>
+				{m.recipes_filter_in_rotation()}
+			</FilterChip>
 			<span class="h-4 w-px shrink-0 bg-base-300" aria-hidden="true"></span>
 			{#each CORE_FOOD_TYPE_OPTIONS as option}
 				<FilterChip
@@ -475,6 +495,7 @@
 				{@const category = displayCategory(recipe)}
 				{@const cookedLabel = lastCookedLabel(recipe)}
 				{@const coverage = coverageLabel(recipe)}
+				{@const rhythm = rhythmLabel(recipe.rotationPolicy)}
 				<article
 					class="ui-recipe-card transition-colors hover:border-primary"
 					animate:flip={{ duration: MOTION_CONTENT_MS }}
@@ -513,6 +534,7 @@
 								{:else if recipe.isFreezerStaple}
 									<StatusBadge>{m.recipes_freezer_badge()}</StatusBadge>
 								{/if}
+								{#if rhythm}<StatusBadge tone="neutral">{rhythm}</StatusBadge>{/if}
 							{#if cookedLabel}<span class="truncate text-xs text-base-content/40">{cookedLabel}</span>{/if}
 						</div>
 					</div>

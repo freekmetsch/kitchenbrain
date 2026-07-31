@@ -164,11 +164,35 @@ describe('validateImportFile', () => {
 			expect(legacy.data.recipes[0].contentRevision).toBe(1);
 			expect(legacy.data.recipes[0].directionIdsJson).toHaveLength(2);
 			expect(legacy.data.recipes[0].sourceSnapshotJson?.provenance).toBe('legacy_baseline');
+			expect(legacy.data.recipes[0].rotationPolicy).toBeNull();
+			expect(legacy.data.recipes[0].rotationSeasonsJson).toEqual([]);
 		}
 
 		const invalid = validateImportFile(emptyFile({
 			recipes: [baseRecipe({ ingredients: [{ name: 'kroepoek', amount: '1', origin: 'ai_suggested' }] })]
 		}));
+		expect(invalid.ok).toBe(false);
+	});
+
+	it('restores normalized recipe rhythm and rejects incomplete seasonal rhythm', () => {
+		const valid = validateImportFile(
+			emptyFile({
+				recipes: [
+					baseRecipe({
+						rotationPolicy: 'seasonal',
+						rotationSeasonsJson: ['winter', 'autumn', 'winter']
+					})
+				]
+			})
+		);
+		expect(valid.ok).toBe(true);
+		if (valid.ok) {
+			expect(valid.data.recipes[0].rotationSeasonsJson).toEqual(['autumn', 'winter']);
+		}
+
+		const invalid = validateImportFile(
+			emptyFile({ recipes: [baseRecipe({ rotationPolicy: 'seasonal', rotationSeasonsJson: [] })] })
+		);
 		expect(invalid.ok).toBe(false);
 	});
 

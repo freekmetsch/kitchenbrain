@@ -11,6 +11,8 @@ import {
 	defaultServingsForMealSource,
 	type MealSource
 } from '$lib/meal_source_choice';
+import type { RotationPolicy, RotationSeason } from '$lib/meal_rotation';
+import type { RotationShortlistCandidate } from '$lib/meal_rotation_shortlist';
 
 export type MealPlanMeal = {
 	id: number;
@@ -48,6 +50,8 @@ export type MealPlanRecipe = {
 	targetPortions: number | null;
 	isFreezerStaple: boolean;
 	onHandPortions: number;
+	rotationPolicy: RotationPolicy | null;
+	rotationSeasons: RotationSeason[];
 };
 
 export type MealPlanControllerData = {
@@ -57,15 +61,15 @@ export type MealPlanControllerData = {
 	recipeList: MealPlanRecipe[];
 	showPastWeeks: boolean;
 	hasPastWeeks: boolean;
-	freezerPromptSummary: string;
-	recentlyCookedSummary: string;
+	rotationShortlists: Record<
+		string,
+		{ due: RotationShortlistCandidate[]; freezerLow: RotationShortlistCandidate[] }
+	>;
 	mealPlanPrefs: {
 		weekStartDay: number;
 		groceryDay: number | null;
 		planAheadWeeks: number;
 		dayPlanning: boolean;
-		repeatCycleDays: number;
-		suggestCount: number;
 	};
 };
 
@@ -75,6 +79,8 @@ type AddMealInput = {
 	recipeSlug?: string | null;
 	source?: MealSource;
 	servings?: number | null;
+	rotationCandidateKey?: string;
+	onSaved?: (meal: MealPlanMeal) => void;
 };
 
 type ControllerDependencies = {
@@ -96,15 +102,12 @@ export class MealPlanController {
 	recipeList = $state<MealPlanRecipe[]>([]);
 	showPastWeeks = $state(false);
 	hasPastWeeks = $state(false);
-	freezerPromptSummary = $state('');
-	recentlyCookedSummary = $state('');
+	rotationShortlists = $state<MealPlanControllerData['rotationShortlists']>({});
 	prefs = $state<MealPlanControllerData['mealPlanPrefs']>({
 		weekStartDay: 2,
 		groceryDay: null,
 		planAheadWeeks: 4,
-		dayPlanning: false,
-		repeatCycleDays: 14,
-		suggestCount: 5
+		dayPlanning: false
 	});
 
 	drawerOpen = $state(false);
@@ -113,14 +116,8 @@ export class MealPlanController {
 	drawerCategory = $state('');
 	drawerSubmitting = $state(false);
 
-	suggestActive = $state<string | null>(null);
-	suggestText = $state('');
-	suggestLoading = $state(false);
-	suggestError = $state('');
-	applyingSuggestion = $state<Record<string, boolean>>({});
-	addedSuggestions = $state<Record<string, boolean>>({});
-
 	pendingAdds = $state<Record<string, boolean>>({});
+	pendingRotation = $state<Record<string, boolean>>({});
 	pendingToggles = $state<Record<number, boolean>>({});
 	pendingDeletes = $state<Record<number, boolean>>({});
 	pendingSourceToggles = $state<Record<number, boolean>>({});
@@ -156,8 +153,7 @@ export class MealPlanController {
 		this.recipeList = [...data.recipeList];
 		this.showPastWeeks = data.showPastWeeks;
 		this.hasPastWeeks = data.hasPastWeeks;
-		this.freezerPromptSummary = data.freezerPromptSummary;
-		this.recentlyCookedSummary = data.recentlyCookedSummary;
+		this.rotationShortlists = structuredClone(data.rotationShortlists);
 		this.prefs = { ...data.mealPlanPrefs };
 	}
 
@@ -178,15 +174,6 @@ export class MealPlanController {
 					this.recipeDisplayTitle(left).localeCompare(this.recipeDisplayTitle(right))
 			)
 			.slice(0, 40);
-	}
-
-	get suggestLines(): string[] {
-		return this.suggestText
-			.split('\n')
-			.map((line) => line.trim())
-			.filter((line) => /^(\d+[\.)]|[-*])\s+.+/.test(line))
-			.map((line) => line.replace(/^(\d+[\.)]|[-*])\s+/, '').trim())
-			.filter(Boolean);
 	}
 
 	get dayPlanning(): boolean {
@@ -260,13 +247,6 @@ export class MealPlanController {
 		if (pending) next[key] = true;
 		else delete next[key];
 		this.pendingAdds = next;
-	}
-
-	private setApplyingSuggestion(key: string, pending: boolean): void {
-		const next = { ...this.applyingSuggestion };
-		if (pending) next[key] = true;
-		else delete next[key];
-		this.applyingSuggestion = next;
 	}
 
 	private updateMeal(updated: MealPlanMeal): void {
@@ -372,17 +352,41 @@ export class MealPlanController {
 		let saved: MealPlanMeal | null = null;
 		const ok = await optimistic(
 			async () => {
-				const response = await this.fetcher(`${this.basePath}/api/meal-plan`, {
+				const response = await this.fetcher(
+					input.rotationCandidateKey
+						? `${this.basePath}/api/meal-plan/rotation`
+						: `${this.basePath}/api/meal-plan`,
+					{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						weekStartDate: input.weekStartDate,
-						dinner,
-						recipeSlug: input.recipeSlug ?? null,
-						servings: input.servings ?? null,
-						source: input.source ?? 'fresh'
-					})
-				});
+					body: JSON.stringify(
+						input.rotationCandidateKey
+							? {
+									weekStartDate: input.weekStartDate,
+									recipeSlug: input.recipeSlug,
+									candidateKey: input.rotationCandidateKey
+								}
+							: {
+									weekStartDate: input.weekStartDate,
+									dinner,
+									recipeSlug: input.recipeSlug ?? null,
+									servings: input.servings ?? null,
+									source: input.source ?? 'fresh'
+								}
+					)
+					}
+				);
+				if (response.status === 409) {
+					const drift = (await response.clone().json()) as {
+						candidates?: { due: RotationShortlistCandidate[]; freezerLow: RotationShortlistCandidate[] };
+					};
+					if (drift.candidates) {
+						this.rotationShortlists = {
+							...this.rotationShortlists,
+							[input.weekStartDate]: drift.candidates
+						};
+					}
+				}
 				if (response.ok) saved = await response.json();
 				return response;
 			},
@@ -394,8 +398,91 @@ export class MealPlanController {
 		this.drawerSubmitting = false;
 		if (!ok || !saved) return false;
 		this.replaceMeal(tempId, saved);
+		input.onSaved?.(saved);
 		if (closeDrawer) this.drawerOpen = false;
 		return true;
+	};
+
+	rotationShortlistFor(weekStartDate: string) {
+		return this.rotationShortlists[weekStartDate] ?? { due: [], freezerLow: [] };
+	}
+
+	planRotationCandidate = async (
+		weekStartDate: string,
+		candidate: RotationShortlistCandidate
+	): Promise<void> => {
+		if (this.pendingRotation[candidate.key]) return;
+		this.pendingRotation = { ...this.pendingRotation, [candidate.key]: true };
+		let savedMeal: MealPlanMeal | null = null;
+		const ok = await this.addMealOptimistic(
+			{
+				weekStartDate,
+				dinner: candidate.titleEn ?? candidate.title,
+				recipeSlug: candidate.slug,
+				servings: candidate.servings,
+				source: candidate.source,
+				rotationCandidateKey: candidate.key,
+				onSaved: (meal) => (savedMeal = meal)
+			},
+			false
+		);
+		const pending = { ...this.pendingRotation };
+		delete pending[candidate.key];
+		this.pendingRotation = pending;
+		if (!ok) return;
+		const shortlist = this.rotationShortlistFor(weekStartDate);
+		const lane = shortlist.due.some((row) => row.key === candidate.key)
+			? 'due'
+			: 'freezerLow';
+		this.rotationShortlists = {
+			...this.rotationShortlists,
+			[weekStartDate]: {
+				due: shortlist.due.filter((row) => row.slug !== candidate.slug),
+				freezerLow: shortlist.freezerLow.filter((row) => row.slug !== candidate.slug)
+			}
+		};
+		const plannedMeal = savedMeal as MealPlanMeal | null;
+		if (plannedMeal) {
+			toast.undo(
+				m.mealplan_rotation_planned({ dinner: plannedMeal.dinner }),
+				() => void this.undoRotationPlan(plannedMeal, candidate, lane)
+			);
+		}
+	};
+
+	private undoRotationPlan = async (
+		meal: MealPlanMeal,
+		candidate: RotationShortlistCandidate,
+		lane: 'due' | 'freezerLow'
+	): Promise<void> => {
+		if (this.pendingDeletes[meal.id]) return;
+		const before = cloneWeeks(this.weeks);
+		this.pendingDeletes = { ...this.pendingDeletes, [meal.id]: true };
+		this.removeMealFromState(meal.id);
+		const ok = await optimistic(
+			() =>
+				this.fetcher(`${this.basePath}/api/meal-plan/${meal.id}`, {
+					method: 'DELETE'
+				}),
+			() => {
+				this.weeks = before;
+			},
+			m.mealplan_toast_could_not_remove()
+		);
+		const pending = { ...this.pendingDeletes };
+		delete pending[meal.id];
+		this.pendingDeletes = pending;
+		if (!ok) return;
+
+		const shortlist = this.rotationShortlistFor(meal.weekStartDate);
+		const restored = [candidate, ...shortlist[lane].filter((row) => row.key !== candidate.key)];
+		this.rotationShortlists = {
+			...this.rotationShortlists,
+			[meal.weekStartDate]: {
+				due: lane === 'due' ? restored.slice(0, 3) : shortlist.due,
+				freezerLow: lane === 'freezerLow' ? restored.slice(0, 2) : shortlist.freezerLow
+			}
+		};
 	};
 
 	toggleCooked = async (meal: MealPlanMeal): Promise<void> => {
@@ -667,80 +754,4 @@ export class MealPlanController {
 		await this.addMealOptimistic({ weekStartDate: this.drawerWeek, dinner });
 	};
 
-	startSuggest = async (weekStartDate: string): Promise<void> => {
-		this.suggestActive = weekStartDate;
-		this.suggestText = '';
-		this.suggestError = '';
-		this.suggestLoading = true;
-		const recipeLibrary = this.recipeList
-			.slice(0, 60)
-			.map((recipe) => this.recipeDisplayTitle(recipe))
-			.join(', ');
-		const freezerContext = this.freezerPromptSummary
-			? `Freezer stock available: ${this.freezerPromptSummary}. Meals served from the freezer only need their fresh sides bought that week (bread, rice, fresh garnishes), so they are cheap low-effort picks.`
-			: 'No linked freezer meals are currently available.';
-		const rotationContext =
-			this.prefs.repeatCycleDays > 0 && this.recentlyCookedSummary
-				? ` Do NOT suggest these meals — they were cooked within the last ${this.prefs.repeatCycleDays} days: ${this.recentlyCookedSummary}.`
-				: '';
-		try {
-			const response = await this.fetcher(`${this.basePath}/api/chat`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					message: `Suggest ${this.prefs.suggestCount} meals for the week of ${weekStartDate}. Use this household context when useful: ${freezerContext} Recipe library: ${recipeLibrary}. Prefer meals that use available freezer portions or known recipes.${rotationContext} Reply in English with only a numbered list of meal names, no explanation.`
-				})
-			});
-			if (!response.ok || !response.body) throw new Error('no stream');
-			const reader = response.body.getReader();
-			const decoder = new TextDecoder();
-			let buffer = '';
-			let doneReading = false;
-			while (!doneReading) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split('\n');
-				buffer = lines.pop() ?? '';
-				for (const line of lines) {
-					if (!line.startsWith('data: ')) continue;
-					const payload = line.slice(6);
-					if (payload === '[DONE]') {
-						doneReading = true;
-						break;
-					}
-					try {
-						const event = JSON.parse(payload);
-						if (event.type === 'text') this.suggestText += event.text;
-					} catch {
-						// Ignore malformed stream chunks; a later chunk may still be valid.
-					}
-				}
-			}
-		} catch {
-			this.suggestError = m.mealplan_toast_suggestions_failed();
-			toast.error(m.mealplan_toast_suggestions_failed());
-		} finally {
-			this.suggestLoading = false;
-		}
-	};
-
-	closeSuggest = (): void => {
-		this.suggestActive = null;
-		this.suggestText = '';
-		this.suggestError = '';
-	};
-
-	applySuggestion = async (dinner: string): Promise<void> => {
-		if (!this.suggestActive) return;
-		const key = this.addKey(this.suggestActive, dinner);
-		if (this.applyingSuggestion[key] || this.addedSuggestions[key]) return;
-		this.setApplyingSuggestion(key, true);
-		const ok = await this.addMealOptimistic(
-			{ weekStartDate: this.suggestActive, dinner },
-			false
-		);
-		if (ok) this.addedSuggestions = { ...this.addedSuggestions, [key]: true };
-		this.setApplyingSuggestion(key, false);
-	};
 }

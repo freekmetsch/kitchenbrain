@@ -61,6 +61,8 @@ export function listRecipePlanningOptions(db: DbOrTx) {
 			scalingMode: schema.recipes.scalingMode,
 			targetPortions: schema.recipes.targetPortions,
 			isFreezerStaple: schema.recipes.isFreezerStaple,
+			rotationPolicy: schema.recipes.rotationPolicy,
+			rotationSeasonsJson: schema.recipes.rotationSeasonsJson,
 			lastCookedAt: schema.recipes.lastCookedAt
 		})
 		.from(schema.recipes)
@@ -77,9 +79,14 @@ export function listRecipeSuggestionCandidates(db: DbOrTx, limit = 60) {
 			category: schema.recipes.category,
 			rating: schema.recipes.rating,
 			totalTimeMin: schema.recipes.totalTimeMin,
+			servings: schema.recipes.servings,
 			ingredients: schema.recipes.ingredients,
 			lastCookedAt: schema.recipes.lastCookedAt,
-			cookedCount: schema.recipes.cookedCount
+			cookedCount: schema.recipes.cookedCount,
+			rotationPolicy: schema.recipes.rotationPolicy,
+			rotationSeasonsJson: schema.recipes.rotationSeasonsJson,
+			isFreezerStaple: schema.recipes.isFreezerStaple,
+			targetPortions: schema.recipes.targetPortions
 		})
 		.from(schema.recipes)
 		.orderBy(desc(schema.recipes.rating))

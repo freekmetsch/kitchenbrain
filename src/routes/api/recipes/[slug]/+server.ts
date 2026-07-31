@@ -7,6 +7,13 @@ import { patchRecipeMetadata } from '$lib/server/workflows/recipe-metadata';
 const PatchSchema = z.object({
 	is_freezer_staple: z.boolean().optional(),
 	target_portions: z.number().int().min(1).max(99).nullable().optional(),
+	rotation_policy: z
+		.enum(['never', 'weekly', 'fortnightly', 'monthly', 'seasonal', 'special'])
+		.nullable()
+		.optional(),
+	rotation_seasons: z
+		.array(z.enum(['spring', 'summer', 'autumn', 'winter']))
+		.optional(),
 	dismiss_review: z.boolean().optional()
 });
 
@@ -16,6 +23,8 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	const updated = patchRecipeMetadata(params.slug, {
 		isFreezerStaple: input.is_freezer_staple,
 		targetPortions: input.target_portions,
+		rotationPolicy: input.rotation_policy,
+		rotationSeasons: input.rotation_seasons,
 		dismissReview: input.dismiss_review
 	});
 	if (!updated) throw error(404, 'Recipe not found');
