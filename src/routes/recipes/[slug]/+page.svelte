@@ -340,11 +340,13 @@
 		{recipe}
 		frozenPortions={data.frozenPortions}
 		onSaved={(payload) => {
-			recipe = {
-				...recipe,
-				isFreezerStaple: payload.isFreezerStaple,
-				targetPortions: payload.targetPortions
-			};
+				recipe = {
+					...recipe,
+					isFreezerStaple: payload.isFreezerStaple,
+					targetPortions: payload.targetPortions,
+					rotationPolicy: payload.rotationPolicy,
+					rotationSeasonsJson: payload.rotationSeasons
+				};
 		}}
 	/>
 	<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />

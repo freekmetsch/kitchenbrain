@@ -3,6 +3,7 @@
 import type { StoredCookModeRecipe } from '$lib/types';
 import type { Ingredient, TranslatedIngredient, RecipeScalingMode } from '$lib/recipe_ingredient';
 import type { RecipeSourceSnapshot } from '$lib/recipe_source_snapshot';
+import type { RotationPolicy, RotationSeason } from '$lib/meal_rotation';
 
 export type { Ingredient } from '$lib/recipe_ingredient';
 type TranslationStatus = 'pending' | 'ready' | 'error';
@@ -38,6 +39,8 @@ export type Recipe = {
 	cookModeJson: StoredCookModeRecipe | null;
 	isFreezerStaple: boolean;
 	targetPortions: number | null;
+	rotationPolicy: RotationPolicy | null;
+	rotationSeasonsJson: RotationSeason[];
 	needsReview: boolean;
 	reviewReason: string | null;
 };

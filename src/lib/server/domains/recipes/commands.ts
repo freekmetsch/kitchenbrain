@@ -162,6 +162,8 @@ export function updateRecipeMetadata(
 	recipeId: number,
 	changes: {
 		targetPortions?: number | null;
+		rotationPolicy?: RecipeInsert['rotationPolicy'];
+		rotationSeasonsJson?: RecipeInsert['rotationSeasonsJson'];
 		needsReview?: boolean;
 		reviewReason?: string | null;
 	},

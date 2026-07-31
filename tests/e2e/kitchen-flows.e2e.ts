@@ -97,6 +97,72 @@ test('Meal Plan serving edits and remove undo stay recoverable', async ({ page }
 	).toBeVisible();
 });
 
+test('Recipe rhythm creates a deterministic Cook shortlist without the old Suggest action', async ({
+	page
+}, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+
+	await page.setViewportSize({ width: 393, height: 852 });
+	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+	await page.waitForLoadState('networkidle');
+	await page.getByRole('button', { name: 'Edit recipe rhythm and freezer target' }).click();
+	const rhythmDialog = page.getByRole('dialog').filter({
+		has: page.getByRole('heading', { name: 'Rhythm & freezer' })
+	});
+	await expect(rhythmDialog).toBeVisible();
+	await rhythmDialog.getByLabel('Cooking rhythm').selectOption('seasonal');
+	const seasonGroup = rhythmDialog.getByRole('group', { name: 'Only in these seasons' });
+	await seasonGroup.getByLabel('Winter').check();
+	await rhythmDialog.getByLabel('Cooking rhythm').selectOption('');
+	await rhythmDialog.getByLabel('Cooking rhythm').selectOption('weekly');
+	await expect(seasonGroup.getByLabel('Winter')).not.toBeChecked();
+	await rhythmDialog.getByLabel('Keep stocked').check();
+	const saved = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PATCH' &&
+			response.url().endsWith(`/api/recipes/${fixture.cookRecipeSlug}`)
+	);
+	await rhythmDialog.getByRole('button', { name: 'Save rhythm' }).click();
+	const savedResponse = await saved;
+	expect(savedResponse.ok()).toBe(true);
+	expect(savedResponse.request().postDataJSON()).toMatchObject({
+		rotation_policy: 'weekly',
+		rotation_seasons: [],
+		is_freezer_staple: true
+	});
+	await expect(rhythmDialog).toBeHidden();
+
+	await page.goto('/meal-plan');
+	await page.waitForLoadState('networkidle');
+	await expect(page.getByRole('button', { name: 'Suggest', exact: true })).toHaveCount(0);
+	const shortlist = page.getByRole('complementary', { name: 'Recommended shortlist' });
+	const shortlistRow = shortlist.getByRole('listitem').filter({ hasText: fixture.cookRecipeTitle });
+	await expect(shortlistRow).toContainText('Due in your rhythm');
+	const planned = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' &&
+			response.url().endsWith('/api/meal-plan/rotation')
+	);
+	await shortlistRow.getByRole('button', { name: 'Cook', exact: true }).click();
+	expect((await planned).ok()).toBe(true);
+	const plannedMeal = page.getByRole('link', { name: fixture.cookRecipeTitle, exact: true });
+	await expect(plannedMeal).toHaveCount(1);
+	await expect(plannedMeal).toBeVisible();
+	const plannedToast = page.getByRole('status').filter({
+		hasText: `Planned ${fixture.cookRecipeTitle}`
+	});
+	await expect(plannedToast).toBeVisible();
+	const removed = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'DELETE' &&
+			response.url().includes('/api/meal-plan/')
+	);
+	await plannedToast.getByRole('button', { name: 'Undo' }).click();
+	expect((await removed).ok()).toBe(true);
+	await expect(plannedMeal).toHaveCount(0);
+	await expect(shortlist).toContainText(fixture.cookRecipeTitle);
+});
+
 test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 	page
 }, testInfo) => {

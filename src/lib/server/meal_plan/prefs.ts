@@ -1,7 +1,6 @@
 // Household-wide meal-planning settings: where the planning week starts
 // ("plan from delivery to delivery"), which day groceries arrive, how far
-// ahead the plan looks, whether meals get pinned to specific days, and how
-// AI suggestions rotate recipes. Same household_prefs resolution as
+// ahead the plan looks, and whether meals get pinned to specific days. Same household_prefs resolution as
 // recipes/prefs.ts — none of these knobs has a Railway env-var layer, so
 // precedence collapses to household_prefs → hardcoded default.
 import { db as appDb } from '$lib/server/db/index';
@@ -13,8 +12,6 @@ export const K_WEEK_START_DAY = 'mealplan.week_start_day';
 export const K_GROCERY_DAY = 'mealplan.grocery_day';
 export const K_PLAN_AHEAD_WEEKS = 'mealplan.plan_ahead_weeks';
 export const K_DAY_PLANNING = 'mealplan.day_planning';
-export const K_REPEAT_CYCLE_DAYS = 'mealplan.repeat_cycle_days';
-export const K_SUGGEST_COUNT = 'mealplan.suggest_count';
 
 export type MealPlanPrefs = {
 	/** 0 = Monday … 6 = Sunday; first day of the planning week. */
@@ -25,10 +22,6 @@ export type MealPlanPrefs = {
 	planAheadWeeks: number;
 	/** Pin meals to specific days of the week (off = a per-week pool). */
 	dayPlanning: boolean;
-	/** Suggestions avoid recipes cooked within this many days; 0 = no limit. */
-	repeatCycleDays: number;
-	/** How many meals one "Suggest" round asks for. */
-	suggestCount: number;
 };
 
 export const MEAL_PLAN_PREF_DEFAULTS: MealPlanPrefs = {
@@ -36,9 +29,7 @@ export const MEAL_PLAN_PREF_DEFAULTS: MealPlanPrefs = {
 	weekStartDay: 2,
 	groceryDay: null,
 	planAheadWeeks: 4,
-	dayPlanning: false,
-	repeatCycleDays: 14,
-	suggestCount: 5
+	dayPlanning: false
 };
 
 // Every accessor clamps to a known-good value: a malformed household_prefs row
@@ -73,22 +64,12 @@ export function getDayPlanning(db: DbOrTx = appDb): boolean {
 	return MEAL_PLAN_PREF_DEFAULTS.dayPlanning;
 }
 
-export function getRepeatCycleDays(db: DbOrTx = appDb): number {
-	return intInRange(getHouseholdPref(db, K_REPEAT_CYCLE_DAYS), 0, 365, MEAL_PLAN_PREF_DEFAULTS.repeatCycleDays);
-}
-
-export function getSuggestCount(db: DbOrTx = appDb): number {
-	return intInRange(getHouseholdPref(db, K_SUGGEST_COUNT), 1, 10, MEAL_PLAN_PREF_DEFAULTS.suggestCount);
-}
-
 export function getMealPlanPrefs(db: DbOrTx = appDb): MealPlanPrefs {
 	return {
 		weekStartDay: getWeekStartDay(db),
 		groceryDay: getGroceryDay(db),
 		planAheadWeeks: getPlanAheadWeeks(db),
-		dayPlanning: getDayPlanning(db),
-		repeatCycleDays: getRepeatCycleDays(db),
-		suggestCount: getSuggestCount(db)
+		dayPlanning: getDayPlanning(db)
 	};
 }
 
@@ -108,12 +89,4 @@ export function setPlanAheadWeeks(weeks: number, db: Db = appDb): void {
 
 export function setDayPlanning(enabled: boolean, db: Db = appDb): void {
 	setHouseholdPref(db, K_DAY_PLANNING, String(enabled));
-}
-
-export function setRepeatCycleDays(days: number, db: Db = appDb): void {
-	setHouseholdPref(db, K_REPEAT_CYCLE_DAYS, String(days));
-}
-
-export function setSuggestCount(count: number, db: Db = appDb): void {
-	setHouseholdPref(db, K_SUGGEST_COUNT, String(count));
 }

@@ -57,4 +57,45 @@ describe('recipe-metadata workflow', () => {
 			needsReview: true
 		});
 	});
+
+	it('saves rotation rhythm and freezer target as one metadata transaction', () => {
+		const db = createTestDb();
+		const recipe = seedRecipe(db);
+		const service = createRecipeMetadataService(db);
+
+		expect(
+			service.patch(recipe.slug, {
+				rotationPolicy: 'seasonal',
+				rotationSeasons: ['winter', 'autumn', 'winter'],
+				isFreezerStaple: true,
+				targetPortions: 6
+			})
+		).toMatchObject({
+			rotationPolicy: 'seasonal',
+			rotationSeasons: ['autumn', 'winter'],
+			isFreezerStaple: true,
+			targetPortions: 6
+		});
+	});
+
+	it('rejects invalid rhythm without changing the freezer target', () => {
+		const db = createTestDb();
+		const recipe = seedRecipe(db);
+		const service = createRecipeMetadataService(db);
+
+		expect(() =>
+			service.patch(recipe.slug, {
+				rotationPolicy: 'seasonal',
+				rotationSeasons: [],
+				isFreezerStaple: true,
+				targetPortions: 8
+			})
+		).toThrow(/season/i);
+		expect(service.patch(recipe.slug, {})).toMatchObject({
+			rotationPolicy: null,
+			rotationSeasons: [],
+			isFreezerStaple: false,
+			targetPortions: null
+		});
+	});
 });

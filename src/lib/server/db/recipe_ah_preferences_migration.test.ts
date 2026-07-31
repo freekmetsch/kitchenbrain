@@ -85,18 +85,21 @@ describe('recipe AH preference migration', () => {
 					unit: 'g'
 				}
 			];
-			const recipe = db
-				.insert(schema.recipes)
-				.values({
-					slug: 'migration-pasta',
-					title: 'Migration pasta',
-					ingredients,
-					directions: ['Kook.'],
-					createdAt: new Date('2026-07-28T12:00:00.000Z'),
-					updatedAt: new Date('2026-07-28T12:00:00.000Z')
-				})
-				.returning()
-				.get();
+			const inserted = sqlite
+				.prepare(
+					`INSERT INTO recipes
+					(slug, title, ingredients, directions, created_at, updated_at)
+					VALUES (?, ?, ?, ?, ?, ?)`
+				)
+				.run(
+					'migration-pasta',
+					'Migration pasta',
+					JSON.stringify(ingredients),
+					JSON.stringify(['Kook.']),
+					1_753_706_800,
+					1_753_706_800
+				);
+			const recipeId = Number(inserted.lastInsertRowid);
 
 			migrate(db, { migrationsFolder: migrationRoot });
 
@@ -105,7 +108,7 @@ describe('recipe AH preference migration', () => {
 			).toEqual({ ingredients });
 			db.insert(schema.recipeAhPreferences)
 				.values({
-					recipeId: recipe.id,
+					recipeId,
 					ingredientId: 'stable-parmesan',
 					productId: 'server-product',
 					productName: 'AH Parmigiano Reggiano stuk',

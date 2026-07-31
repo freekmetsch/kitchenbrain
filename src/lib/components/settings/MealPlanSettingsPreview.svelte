@@ -12,16 +12,12 @@
 		groceryDay,
 		planAheadWeeks,
 		dayPlanning,
-		repeatCycleDays,
-		suggestCount,
 		saving = false
 	}: {
 		weekStartDay: number;
 		groceryDay: number | null;
 		planAheadWeeks: number;
 		dayPlanning: boolean;
-		repeatCycleDays: number;
-		suggestCount: number;
 		saving?: boolean;
 	} = $props();
 
@@ -90,18 +86,5 @@
 				{m.settings_mealplan_preview_pool()}
 			</p>
 		{/if}
-	</div>
-
-	<div class="mt-3 flex items-center justify-between gap-3">
-		<div class="flex min-w-0 flex-wrap gap-1" aria-label={m.settings_mealplan_preview_suggestions({ count: suggestCount })}>
-			{#each Array(suggestCount) as _, index}
-				<span class="h-2.5 w-2.5 rounded-full bg-secondary/50" title={String(index + 1)}></span>
-			{/each}
-		</div>
-		<span class="shrink-0 text-xs text-base-content/60">
-			{repeatCycleDays === 0
-				? m.settings_mealplan_cycle_off()
-				: m.settings_mealplan_preview_repeat({ days: repeatCycleDays })}
-		</span>
 	</div>
 </section>

@@ -11,11 +11,9 @@
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import FilterChip from '$lib/components/ui/FilterChip.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
-	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { APP_TIME_ZONE } from '$lib/week';
@@ -136,16 +134,6 @@
 						<Icon name="cart" class="h-4 w-4" />
 						{m.mealplan_shopping_link()}
 					</a>
-					<button
-						type="button"
-						class="ui-action ui-action-tertiary"
-						onclick={() => controller.startSuggest(week.weekStartDate)}
-						disabled={controller.suggestLoading && controller.suggestActive === week.weekStartDate}
-					>
-						{controller.suggestLoading && controller.suggestActive === week.weekStartDate
-							? m.mealplan_thinking_label()
-							: m.mealplan_suggest_button()}
-					</button>
 					<details class="dropdown dropdown-end">
 						<summary
 							class="plan-more ui-action ui-action-tertiary ui-action-icon"
@@ -325,64 +313,52 @@
 					</div>
 				{/if}
 
-				{#if controller.suggestActive === week.weekStartDate}
-					<div class="border-t border-base-200 bg-base-200/35 px-3 py-3" transition:slide={{ duration: MOTION_CONTENT_MS }}>
-						<div class="mb-2 flex items-center justify-between gap-2">
-							<h3 class="ui-section-title">{m.mealplan_ai_suggestions_label()}</h3>
-							<button type="button" class="ui-action ui-action-tertiary" onclick={controller.closeSuggest}>
-								{m.mealplan_close_suggest_button()}
-							</button>
-						</div>
-						{#if controller.suggestLoading}
-							<div class="flex items-center gap-2 py-2 text-sm text-base-content/60">
-								<Spinner variant="simmer" size="xs" />
-								{m.mealplan_thinking_label()}
-							</div>
-							{#if controller.suggestText}
-								<div class="mt-2 whitespace-pre-wrap rounded-xl bg-base-100 px-3 py-2 text-sm text-base-content/75">
-									{controller.suggestText}
-								</div>
-							{/if}
-						{:else if controller.suggestError}
-							<KitchenNotice tone="error" class="text-sm" role="alert">
-								<span class="flex items-start gap-2">
-									<Icon name="warn" class="mt-0.5 h-4 w-4 shrink-0 text-error" />
-									{controller.suggestError}
-								</span>
-							</KitchenNotice>
-							<button type="button" class="ui-action ui-action-secondary mt-2" onclick={() => controller.startSuggest(week.weekStartDate)}>
-								{m.mealplan_retry_button()}
-							</button>
-						{:else if controller.suggestLines.length > 0}
-							<div class="flex flex-col gap-1.5">
-								{#each controller.suggestLines as suggestion}
-									{@const key = controller.addKey(week.weekStartDate, suggestion)}
-									<div class="flex items-center justify-between gap-2 rounded-xl bg-base-100 px-3 py-2">
-										<span class="min-w-0 flex-1 truncate text-sm">{suggestion}</span>
-										{#if controller.addedSuggestions[key]}
-											<span class="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-success">
-												<Icon name="check" class="h-3.5 w-3.5" />
-												{m.mealplan_planned_chip()}
-											</span>
-										{:else}
-											<button
-												type="button"
-												class="ui-action ui-action-primary"
-												onclick={() => controller.applySuggestion(suggestion)}
-												disabled={!!controller.applyingSuggestion[key] || !!controller.pendingAdds[key]}
-											>
-												{m.mealplan_add_suggestion_button()}
-											</button>
-										{/if}
+				{#if week}
+					{@const shortlist = controller.rotationShortlistFor(week.weekStartDate)}
+				{#if shortlist.due.length > 0 || shortlist.freezerLow.length > 0}
+					<aside class="rotation-ledger" aria-labelledby="rotation-ledger-{week.weekStartDate}">
+						<h2 id="rotation-ledger-{week.weekStartDate}" class="ui-section-title">
+							{m.mealplan_rotation_heading()}
+						</h2>
+						{#each [
+							{ kind: 'due', rows: shortlist.due, heading: m.mealplan_rotation_due_heading(), description: m.mealplan_rotation_due_desc() },
+							{ kind: 'freezerLow', rows: shortlist.freezerLow, heading: m.mealplan_rotation_low_heading(), description: m.mealplan_rotation_low_desc() }
+						] as lane}
+							{#if lane.rows.length > 0}
+								<section class="rotation-lane">
+									<div>
+										<h3>{lane.heading}</h3>
+										<p>{lane.description}</p>
 									</div>
-								{/each}
-							</div>
-						{:else if controller.suggestText}
-							<div class="whitespace-pre-wrap rounded-xl bg-base-100 px-3 py-2 text-sm text-base-content/75">
-								{controller.suggestText}
-							</div>
-						{/if}
-					</div>
+									<ul>
+										{#each lane.rows as candidate (candidate.key)}
+											<li class="rotation-row">
+												<div class="min-w-0">
+											<strong>{candidate.titleEn ?? candidate.title}</strong>
+											<p>
+													{lane.kind === 'freezerLow' && candidate.targetPortions !== null
+															? m.mealplan_rotation_stock_reason({ onHand: candidate.onHandPortions, target: candidate.targetPortions })
+															: m.mealplan_rotation_due_reason()}
+													</p>
+												</div>
+												<button
+													type="button"
+													class="ui-action {candidate.action === 'cook' ? 'ui-action-primary' : 'ui-action-secondary'}"
+													disabled={!!controller.pendingRotation[candidate.key]}
+													onclick={() => controller.planRotationCandidate(week.weekStartDate, candidate)}
+												>
+													{candidate.action === 'cook'
+														? m.mealplan_rotation_cook()
+														: m.mealplan_rotation_use_freezer()}
+												</button>
+											</li>
+										{/each}
+									</ul>
+								</section>
+							{/if}
+						{/each}
+					</aside>
+				{/if}
 				{/if}
 			</section>
 		</div>
@@ -458,7 +434,7 @@
 
 	.plan-actions {
 		display: grid;
-		grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) 2.75rem;
+		grid-template-columns: minmax(0, 1fr) 2.75rem;
 		gap: 0.4rem;
 	}
 
@@ -567,6 +543,56 @@
 
 	.meal-source-row {
 		min-width: 0;
+	}
+
+	.rotation-ledger {
+		display: grid;
+		gap: 0.8rem;
+		border-top: 1px solid var(--kitchen-line);
+		padding: 1rem 0.8rem;
+		background: color-mix(in oklab, var(--kitchen-card) 88%, var(--kitchen-honey) 12%);
+	}
+
+	.rotation-lane {
+		display: grid;
+		gap: 0.55rem;
+	}
+
+	.rotation-lane h3 {
+		font-size: 0.8rem;
+		font-weight: 800;
+		letter-spacing: 0.01em;
+	}
+
+	.rotation-lane > div > p,
+	.rotation-row p {
+		color: color-mix(in oklab, var(--color-base-content) 58%, transparent);
+		font-size: 0.72rem;
+	}
+
+	.rotation-lane ul {
+		display: grid;
+		gap: 0.4rem;
+	}
+
+	.rotation-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.7rem;
+		min-height: 3.75rem;
+		border: 1px solid var(--kitchen-line);
+		border-radius: 0.85rem;
+		padding: 0.55rem 0.6rem 0.55rem 0.75rem;
+		background: var(--kitchen-card);
+	}
+
+	.rotation-row strong {
+		display: block;
+		overflow: hidden;
+		font-size: 0.85rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	@media (min-width: 48rem) {

@@ -11,6 +11,7 @@ import {
 import type { BenchSheetRating, StoredCookModeRecipe } from '$lib/types';
 import type { RecipeSourceSnapshot } from '$lib/recipe_source_snapshot';
 import type { MachineActor } from '$lib/actors';
+import type { RotationPolicy, RotationSeason } from '$lib/meal_rotation';
 import type {
 	Ingredient,
 	IngredientRole,
@@ -136,6 +137,11 @@ export const recipes = sqliteTable('recipes', {
 	translatedAt: integer('translated_at', { mode: 'timestamp' }),
 	lastCookedAt: integer('last_cooked_at', { mode: 'timestamp' }),
 	cookedCount: integer('cooked_count').notNull().default(0),
+	rotationPolicy: text('rotation_policy').$type<RotationPolicy>(),
+	rotationSeasonsJson: text('rotation_seasons_json', { mode: 'json' })
+		.$type<RotationSeason[]>()
+		.notNull()
+		.default([]),
 	cookModeJson: text('cook_mode_json', { mode: 'json' }).$type<StoredCookModeRecipe>(),
 	cookModeGeneratedAt: integer('cook_mode_generated_at', { mode: 'timestamp' }),
 	isFreezerStaple: integer('is_freezer_staple', { mode: 'boolean' }).notNull().default(false),
