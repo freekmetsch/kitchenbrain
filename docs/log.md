@@ -1207,3 +1207,16 @@ Touched: messages/{en,nl}.json, src/lib/components/recipe-detail/FreezerStockPan
 src/lib/meal_rotation*, src/lib/server/{settings,workflows}/,
 src/routes/{api/recipes,meal-plan,settings/recipes}/, tests/e2e/kitchen-flows.e2e.ts,
 docs/feature-lists/archive/FEATURE_LIST_RECIPE_ROTATION.md, docs/log.md
+
+## 2026-07-31 16:03 | deploy-canary | Recipe Rotation
+
+Merged PR #56 and supervised Railway deployment `8788b1f0-9443-4404-bc4e-96212b96bba7` to
+`SUCCESS` at exact remote `main` commit `d98c122`. Both guarded household login checks passed;
+`/api/healthz`, the 320 and 1280 px logged-out Meal Plan boundary, and bounded Railway
+application/HTTP checks were healthy with no overflow, browser or runtime error, failed request,
+application error, or HTTP 5xx.
+
+No provider turn, household mutation, AH lookup, AH push, authenticated body, cookie, screenshot,
+or household content was retained or performed.
+
+Touched: docs/deploys/2026-07.md, docs/log.md
