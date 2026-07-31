@@ -821,6 +821,7 @@
 	"settings_recipes_rotation_running": "Preparing suggestions…",
 	"settings_recipes_rotation_none": "No useful season tags were suggested.",
 	"settings_recipes_rotation_failed": "Could not prepare season suggestions.",
+	"settings_recipes_rotation_cap_reached": "AI season suggestions are paused for today because the daily limit was reached. Try again tomorrow.",
 	"settings_recipes_rotation_stale": "Some recipes changed. Generate a fresh review before applying.",
 	"settings_recipes_rotation_apply": "Apply reviewed tags",
 	"settings_recipes_rotation_applied": "Season tags applied to {count} recipes.",

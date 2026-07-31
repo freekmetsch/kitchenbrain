@@ -1187,3 +1187,23 @@ turn, household mutation, AH lookup, AH push, authenticated body, cookie, screen
 content was retained or performed.
 
 Touched: docs/deploys/2026-07.md, docs/log.md
+
+## 2026-07-31 15:59 | review-fix | Recipe Rotation review corrections
+
+Addressed all 11 actionable PR review threads before promotion: cadence-boundary reservations,
+invalid rotation request handling, import validation, duplicate undo protection, freezer-aware
+shortlist reasons, precise Settings failure states, accessible season controls, cleared draft
+seasons, recipe-scoped E2E actions, and stale archive text. The strengthened phone story now also
+proves season clearing, freezer targeting, the due-lane reason, and the exact recipe action.
+
+The CI-mode canonical gate passed 114 unit-test files / 670 tests, 31 primary product browser
+stories plus auth setup with one deliberate connected-AH skip, zero Svelte diagnostics, and the
+production build. The secondary suite passed the same 31 product stories plus auth setup and skip;
+one Chromium worker startup closed unexpectedly, passed on the configured retry, and passed again
+in isolation. Correction to the earlier log entry: its 32-story totals included auth setup; the
+product-story count is 31 per account.
+
+Touched: messages/{en,nl}.json, src/lib/components/recipe-detail/FreezerStockPanel.svelte,
+src/lib/meal_rotation*, src/lib/server/{settings,workflows}/,
+src/routes/{api/recipes,meal-plan,settings/recipes}/, tests/e2e/kitchen-flows.e2e.ts,
+docs/feature-lists/archive/FEATURE_LIST_RECIPE_ROTATION.md, docs/log.md

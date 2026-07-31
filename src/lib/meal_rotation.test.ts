@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateRotation, normalizeRotationSettings } from './meal_rotation';
+import {
+	evaluateRotation,
+	normalizeRotationSettings,
+	RotationSettingsError
+} from './meal_rotation';
 
 describe('evaluateRotation', () => {
 	it('makes a weekly recipe due exactly seven local calendar days after cooking', () => {
@@ -116,7 +120,7 @@ describe('evaluateRotation', () => {
 		expect(result).toMatchObject({ status: 'not_due', reason: { code: 'season_inactive' } });
 	});
 
-	it('suppresses a weekly recipe reserved by an uncooked plan in the previous week', () => {
+	it('makes a weekly recipe due again at the exact reservation cadence boundary', () => {
 		const result = evaluateRotation({
 			policy: 'weekly',
 			seasons: [],
@@ -124,6 +128,19 @@ describe('evaluateRotation', () => {
 			targetWeekStart: '2026-08-10',
 			currentWeekStart: '2026-08-10',
 			reservedWeekStarts: ['2026-08-03']
+		});
+
+		expect(result).toMatchObject({ status: 'due', reason: { code: 'cadence_due' } });
+	});
+
+	it('suppresses a weekly recipe reserved in the target week', () => {
+		const result = evaluateRotation({
+			policy: 'weekly',
+			seasons: [],
+			lastCookedAt: null,
+			targetWeekStart: '2026-08-10',
+			currentWeekStart: '2026-08-10',
+			reservedWeekStarts: ['2026-08-10']
 		});
 
 		expect(result).toMatchObject({ status: 'reserved', reason: { code: 'reserved' } });
@@ -145,7 +162,7 @@ describe('evaluateRotation', () => {
 
 describe('normalizeRotationSettings', () => {
 	it('rejects seasonal without a season and clears seasons for non-seasonal opt-outs', () => {
-		expect(() => normalizeRotationSettings('seasonal', [])).toThrow(/season/i);
+		expect(() => normalizeRotationSettings('seasonal', [])).toThrow(RotationSettingsError);
 		expect(normalizeRotationSettings('never', ['winter'])).toEqual({
 			policy: 'never',
 			seasons: []

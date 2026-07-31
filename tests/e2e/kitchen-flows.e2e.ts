@@ -110,27 +110,40 @@ test('Recipe rhythm creates a deterministic Cook shortlist without the old Sugge
 		has: page.getByRole('heading', { name: 'Rhythm & freezer' })
 	});
 	await expect(rhythmDialog).toBeVisible();
+	await rhythmDialog.getByLabel('Cooking rhythm').selectOption('seasonal');
+	const seasonGroup = rhythmDialog.getByRole('group', { name: 'Only in these seasons' });
+	await seasonGroup.getByLabel('Winter').check();
+	await rhythmDialog.getByLabel('Cooking rhythm').selectOption('');
 	await rhythmDialog.getByLabel('Cooking rhythm').selectOption('weekly');
+	await expect(seasonGroup.getByLabel('Winter')).not.toBeChecked();
+	await rhythmDialog.getByLabel('Keep stocked').check();
 	const saved = page.waitForResponse(
 		(response) =>
 			response.request().method() === 'PATCH' &&
 			response.url().endsWith(`/api/recipes/${fixture.cookRecipeSlug}`)
 	);
 	await rhythmDialog.getByRole('button', { name: 'Save rhythm' }).click();
-	expect((await saved).ok()).toBe(true);
+	const savedResponse = await saved;
+	expect(savedResponse.ok()).toBe(true);
+	expect(savedResponse.request().postDataJSON()).toMatchObject({
+		rotation_policy: 'weekly',
+		rotation_seasons: [],
+		is_freezer_staple: true
+	});
 	await expect(rhythmDialog).toBeHidden();
 
 	await page.goto('/meal-plan');
 	await page.waitForLoadState('networkidle');
 	await expect(page.getByRole('button', { name: 'Suggest', exact: true })).toHaveCount(0);
 	const shortlist = page.getByRole('complementary', { name: 'Recommended shortlist' });
-	await expect(shortlist).toContainText(fixture.cookRecipeTitle);
+	const shortlistRow = shortlist.getByRole('listitem').filter({ hasText: fixture.cookRecipeTitle });
+	await expect(shortlistRow).toContainText('Due in your rhythm');
 	const planned = page.waitForResponse(
 		(response) =>
 			response.request().method() === 'POST' &&
 			response.url().endsWith('/api/meal-plan/rotation')
 	);
-	await shortlist.getByRole('button', { name: 'Cook', exact: true }).click();
+	await shortlistRow.getByRole('button', { name: 'Cook', exact: true }).click();
 	expect((await planned).ok()).toBe(true);
 	const plannedMeal = page.getByRole('link', { name: fixture.cookRecipeTitle, exact: true });
 	await expect(plannedMeal).toHaveCount(1);

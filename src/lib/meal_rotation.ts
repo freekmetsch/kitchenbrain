@@ -14,22 +14,24 @@ export const ROTATION_SEASONS = ['spring', 'summer', 'autumn', 'winter'] as cons
 export type RotationPolicy = (typeof ROTATION_POLICIES)[number];
 export type RotationSeason = (typeof ROTATION_SEASONS)[number];
 
+export class RotationSettingsError extends Error {}
+
 export function normalizeRotationSettings(
 	policy: unknown,
 	seasons: unknown
 ): { policy: RotationPolicy | null; seasons: RotationSeason[] } {
 	if (policy !== null && !ROTATION_POLICIES.includes(policy as RotationPolicy)) {
-		throw new Error('Invalid rotation policy');
+		throw new RotationSettingsError('Invalid rotation policy');
 	}
 	if (!Array.isArray(seasons) || seasons.some((season) => !ROTATION_SEASONS.includes(season))) {
-		throw new Error('Invalid rotation seasons');
+		throw new RotationSettingsError('Invalid rotation seasons');
 	}
 	if (policy === 'never' || policy === 'special') {
 		return { policy, seasons: [] };
 	}
 	const normalizedSeasons = ROTATION_SEASONS.filter((season) => seasons.includes(season));
 	if (policy === 'seasonal' && normalizedSeasons.length === 0) {
-		throw new Error('Seasonal rotation requires at least one season');
+		throw new RotationSettingsError('Seasonal rotation requires at least one season');
 	}
 	return { policy: policy as RotationPolicy | null, seasons: normalizedSeasons };
 }
@@ -106,7 +108,7 @@ function reservationMatches(
 	reservedWeekStart: string
 ): boolean {
 	if (policy === 'weekly' || policy === 'fortnightly') {
-		return calendarDayDistance(targetWeekStart, reservedWeekStart) <=
+		return calendarDayDistance(targetWeekStart, reservedWeekStart) <
 			(policy === 'weekly' ? 7 : 14);
 	}
 	if (policy === 'monthly') {

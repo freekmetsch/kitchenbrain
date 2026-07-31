@@ -51,6 +51,9 @@ describe('recipe rotation season bootstrap', () => {
 			rotationSeasonsJson: ['winter']
 		});
 
+		expect(() => service.undo([applied.undo[0], { ...applied.undo[0] }])).toThrow(
+			/invalid season undo batch/i
+		);
 		service.undo(applied.undo);
 		expect(db.select().from(schema.recipes).get()).toMatchObject({
 			rotationPolicy: null,

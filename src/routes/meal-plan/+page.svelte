@@ -321,8 +321,8 @@
 							{m.mealplan_rotation_heading()}
 						</h2>
 						{#each [
-							{ rows: shortlist.due, heading: m.mealplan_rotation_due_heading(), description: m.mealplan_rotation_due_desc() },
-							{ rows: shortlist.freezerLow, heading: m.mealplan_rotation_low_heading(), description: m.mealplan_rotation_low_desc() }
+							{ kind: 'due', rows: shortlist.due, heading: m.mealplan_rotation_due_heading(), description: m.mealplan_rotation_due_desc() },
+							{ kind: 'freezerLow', rows: shortlist.freezerLow, heading: m.mealplan_rotation_low_heading(), description: m.mealplan_rotation_low_desc() }
 						] as lane}
 							{#if lane.rows.length > 0}
 								<section class="rotation-lane">
@@ -334,9 +334,9 @@
 										{#each lane.rows as candidate (candidate.key)}
 											<li class="rotation-row">
 												<div class="min-w-0">
-													<strong>{candidate.titleEn ?? candidate.title}</strong>
-													<p>
-														{candidate.targetPortions !== null
+											<strong>{candidate.titleEn ?? candidate.title}</strong>
+											<p>
+													{lane.kind === 'freezerLow' && candidate.targetPortions !== null
 															? m.mealplan_rotation_stock_reason({ onHand: candidate.onHandPortions, target: candidate.targetPortions })
 															: m.mealplan_rotation_due_reason()}
 													</p>

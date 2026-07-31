@@ -43,7 +43,9 @@ function mealOptionScore(recipe: {
 }
 
 export function getMealSuggestionContext(db: Db, input: { weekStartDate?: string; count?: number }) {
-	const targetWeek = weekStartFor(input.weekStartDate ?? todayIso(), getWeekStartDay(db));
+	const weekStartDay = getWeekStartDay(db);
+	const targetWeek = weekStartFor(input.weekStartDate ?? todayIso(), weekStartDay);
+	const currentWeek = weekStartFor(todayIso(), weekStartDay);
 	const inventory = listInventorySuggestionRows(db);
 	const inventoryWithAge = inventory.map((item) => ({
 		...item,
@@ -85,7 +87,7 @@ export function getMealSuggestionContext(db: Db, input: { weekStartDate?: string
 				seasons: recipe.rotationSeasonsJson,
 				lastCookedAt: recipe.lastCookedAt,
 				targetWeekStart: targetWeek,
-				currentWeekStart: weekStartFor(todayIso(), getWeekStartDay(db)),
+				currentWeekStart: currentWeek,
 				reservedWeekStarts: reservedBySlug.get(recipe.slug) ?? []
 			});
 			const source = projectRotationSource({

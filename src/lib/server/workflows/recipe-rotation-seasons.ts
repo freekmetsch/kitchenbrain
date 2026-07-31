@@ -175,7 +175,13 @@ export function createRecipeRotationSeasonService(
 		},
 
 		undo(items: RotationSeasonUndo[]): { undone: number } {
-			if (items.length === 0 || items.length > 40) throw new Error('Invalid season undo batch');
+			if (
+				items.length === 0 ||
+				items.length > 40 ||
+				new Set(items.map((item) => item.recipeId)).size !== items.length
+			) {
+				throw new Error('Invalid season undo batch');
+			}
 			return db.transaction((tx) => {
 				const rows = tx
 					.select()

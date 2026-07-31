@@ -149,6 +149,11 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ action: 'propose' })
 			});
+			if (response.status === 429) {
+				seasonStatus = m.settings_recipes_rotation_cap_reached();
+				toast.error(seasonStatus);
+				return;
+			}
 			if (!response.ok) throw new Error();
 			const body = (await response.json()) as { proposals: SeasonProposal[] };
 			seasonProposals = body.proposals;
@@ -190,6 +195,11 @@
 				seasonStatus = m.settings_recipes_rotation_stale();
 				return;
 			}
+			if (response.status === 429) {
+				seasonStatus = m.settings_recipes_rotation_cap_reached();
+				toast.error(seasonStatus);
+				return;
+			}
 			if (!response.ok) throw new Error();
 			const body = (await response.json()) as { applied: number; undo: SeasonUndo[] };
 			seasonUndo = body.undo;
@@ -214,6 +224,10 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ action: 'undo', items: seasonUndo })
 			});
+			if (response.status === 409) {
+				seasonStatus = m.settings_recipes_rotation_stale();
+				return;
+			}
 			if (!response.ok) throw new Error();
 			seasonUndo = [];
 			seasonStatus = m.settings_recipes_rotation_undone();

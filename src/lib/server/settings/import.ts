@@ -120,21 +120,17 @@ const RecipeImport = z.object({
 	createdAt: zTimestamp,
 	updatedAt: zTimestamp
 })
-	.superRefine((recipe, ctx) => {
+	.transform((recipe, ctx) => {
+		let rotation: ReturnType<typeof normalizeRotationSettings>;
 		try {
-			normalizeRotationSettings(recipe.rotationPolicy, recipe.rotationSeasonsJson);
+			rotation = normalizeRotationSettings(recipe.rotationPolicy, recipe.rotationSeasonsJson);
 		} catch (error) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
 				message: error instanceof Error ? error.message : 'Invalid recipe rotation'
 			});
+			return z.NEVER;
 		}
-	})
-	.transform((recipe) => {
-		const rotation = normalizeRotationSettings(
-			recipe.rotationPolicy,
-			recipe.rotationSeasonsJson
-		);
 		return {
 			...recipe,
 			rotationPolicy: rotation.policy,

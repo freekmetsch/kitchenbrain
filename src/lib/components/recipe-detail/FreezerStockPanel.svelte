@@ -74,7 +74,7 @@
 
 	function setPolicy(value: string) {
 		draftPolicy = value === '' ? null : (value as RotationPolicy);
-		if (draftPolicy === 'never' || draftPolicy === 'special') {
+		if (draftPolicy === null || draftPolicy === 'never' || draftPolicy === 'special') {
 			draftSeasons = [];
 		}
 		markChanged();
@@ -155,18 +155,24 @@
 				</select>
 			</label>
 			{#if draftPolicy !== null && draftPolicy !== 'never' && draftPolicy !== 'special'}
-				<div>
-					<p class="mb-2 text-sm font-semibold">{m.recipes_rhythm_seasons_label()}</p>
+				<fieldset>
+					<legend class="mb-2 text-sm font-semibold">{m.recipes_rhythm_seasons_label()}</legend>
 					<div class="grid grid-cols-2 gap-2">
 						{#each seasonOptions as season}
 							<label class="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-base-300 px-3">
-								<input type="checkbox" class="checkbox checkbox-sm" checked={draftSeasons.includes(season.value)} onchange={() => toggleSeason(season.value)} />
+								<input
+									type="checkbox"
+									class="checkbox checkbox-sm"
+									checked={draftSeasons.includes(season.value)}
+									aria-describedby={seasonRequired ? 'recipe-rhythm-season-error' : undefined}
+									onchange={() => toggleSeason(season.value)}
+								/>
 								<span class="text-sm">{season.label()}</span>
 							</label>
 						{/each}
 					</div>
-					{#if seasonRequired}<p class="mt-2 text-sm text-error">{m.recipes_rhythm_season_required()}</p>{/if}
-				</div>
+					{#if seasonRequired}<p id="recipe-rhythm-season-error" class="mt-2 text-sm text-error" role="alert">{m.recipes_rhythm_season_required()}</p>{/if}
+				</fieldset>
 			{/if}
 		</fieldset>
 

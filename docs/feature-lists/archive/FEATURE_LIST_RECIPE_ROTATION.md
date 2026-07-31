@@ -115,7 +115,7 @@ manual special shelf, and optional season-only AI scope are resolved.
 
 - Additive migration `0027_funny_wallop` passed populated upgrade, foreign-key integrity, and
   pre-rotation code rollback compatibility rehearsals.
-- `npm test` passed 114 test files / 669 unit tests, 31 primary authenticated browser stories
+- `npm test` passed 114 test files / 670 unit tests, 31 primary authenticated browser stories
   with one deliberate connected-AH skip, zero Svelte diagnostics, and the production build.
 - The complete secondary-account browser suite passed 31 stories with the same deliberate skip.
 - The new phone E2E sets a weekly rhythm, confirms Meal Plan has no `Suggest` action, plans the
@@ -124,15 +124,3 @@ manual special shelf, and optional season-only AI scope are resolved.
   `Use freezer` derives only canonical Dutch `serve_fresh` ingredients.
 - The reviewed AI bootstrap is explicit, capped, strict-schema, season-only, stale-guarded,
   atomic, and undoable; ordinary shortlist page loads make no provider request.
-
-## Resume pack
-
-- **Goal:** ship deterministic recipe rotation with freezer-aware Cook/Use freezer actions.
-- **Current state:** implementation and local stage gates are complete on
-  `wide-sweep/schema-recipe-rotation`; draft PR creation is next.
-- **First command:** review and merge the draft PR when ready.
-- **First files:** `src/lib/meal_rotation.ts`, `src/lib/meal_rotation_shortlist.ts`,
-  `src/lib/server/workflows/meal-plan.ts`, `src/routes/meal-plan/+page.svelte`.
-- **Pending verification:** after merge, supervise Railway `main` deployment truth and run the
-  privacy-safe authenticated canary before calling the feature live.
-- **Open questions:** none.
