@@ -74,14 +74,70 @@
 	<KitchenPageHeader eyebrow={m.mealplan_header_context()} title={m.mealplan_heading()}>
 		{#snippet action()}
 			{#if controller.selectedWeek}
-				<button
-					type="button"
-					class="ui-action ui-action-primary"
-					onclick={() => controller.openAddDrawer(controller.selectedWeek!.weekStartDate)}
-				>
-					<Icon name="plus" class="h-4 w-4" />
-					{m.mealplan_add_meal()}
-				</button>
+				{@const headerWeek = controller.selectedWeek}
+				<div class="plan-header-actions">
+					<button
+						type="button"
+						class="ui-action ui-action-primary"
+						onclick={() => controller.openAddDrawer(headerWeek.weekStartDate)}
+					>
+						<Icon name="plus" class="h-4 w-4" />
+						{m.mealplan_add_meal()}
+					</button>
+					<a
+						href="{base}/shopping?week={headerWeek.weekStartDate}"
+						class="plan-shopping-action ui-action ui-action-secondary ui-action-on-dark"
+						aria-label={headerWeek.deliveryDate
+							? m.mealplan_delivery_label({ date: deliveryLabel(headerWeek.deliveryDate) })
+							: m.mealplan_shopping_link()}
+					>
+						<Icon name="cart" class="h-4 w-4" />
+						{#if headerWeek.deliveryDate}
+							<span class="plan-shopping-label-full">
+								{m.mealplan_delivery_label({ date: deliveryLabel(headerWeek.deliveryDate) })}
+							</span>
+							<span class="plan-shopping-label-short" aria-hidden="true">
+								{deliveryLabel(headerWeek.deliveryDate)}
+							</span>
+						{:else}
+							<span>{m.mealplan_shopping_link()}</span>
+						{/if}
+					</a>
+					<details class="dropdown dropdown-end">
+						<summary
+							class="plan-more ui-action ui-action-tertiary ui-action-on-dark ui-action-icon"
+							aria-label={m.mealplan_more_options_aria()}
+						>
+							<span aria-hidden="true">⋯</span>
+						</summary>
+						<ul
+							class="menu dropdown-content right-0 z-30 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 text-base-content shadow-lg"
+						>
+							{#if data.hasPastWeeks || data.showPastWeeks}
+								<li>
+									<a
+										href={mealPlanWeekHref(
+											base,
+											headerWeek.weekStartDate,
+											!data.showPastWeeks
+										)}
+									>
+										<Icon name="clock" class="h-4 w-4" />
+										{data.showPastWeeks
+											? m.mealplan_hide_past_weeks()
+											: m.mealplan_show_past_weeks()}
+									</a>
+								</li>
+							{/if}
+							<li>
+								<a href="{base}/settings/meal-plan">
+									<Icon name="settings" class="h-4 w-4" />
+									{m.mealplan_settings_aria()}
+								</a>
+							</li>
+						</ul>
+					</details>
+				</div>
 			{/if}
 		{/snippet}
 	</KitchenPageHeader>
@@ -117,58 +173,8 @@
 							{/if}
 						</div>
 						<p>{formatWeekRange(week.weekStartDate)}</p>
-						{#if week.deliveryDate}
-							<p class="plan-delivery">
-								<Icon name="cart" class="h-3 w-3" />
-								{m.mealplan_delivery_label({ date: deliveryLabel(week.deliveryDate) })}
-							</p>
-						{/if}
 					</div>
 				</KitchenWeekNavigator>
-
-				<div class="plan-actions">
-					<a
-						href="{base}/shopping?week={week.weekStartDate}"
-						class="ui-action ui-action-secondary"
-					>
-						<Icon name="cart" class="h-4 w-4" />
-						{m.mealplan_shopping_link()}
-					</a>
-					<details class="dropdown dropdown-end">
-						<summary
-							class="plan-more ui-action ui-action-tertiary ui-action-icon"
-							aria-label={m.mealplan_more_options_aria()}
-						>
-							<span aria-hidden="true">⋯</span>
-						</summary>
-						<ul
-							class="menu dropdown-content right-0 z-30 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 text-base-content shadow-lg"
-						>
-							{#if data.hasPastWeeks || data.showPastWeeks}
-								<li>
-									<a
-										href={mealPlanWeekHref(
-											base,
-											controller.selectedWeek.weekStartDate,
-											!data.showPastWeeks
-										)}
-									>
-										<Icon name="clock" class="h-4 w-4" />
-										{data.showPastWeeks
-											? m.mealplan_hide_past_weeks()
-											: m.mealplan_show_past_weeks()}
-									</a>
-								</li>
-							{/if}
-							<li>
-								<a href="{base}/settings/meal-plan">
-									<Icon name="settings" class="h-4 w-4" />
-									{m.mealplan_settings_aria()}
-								</a>
-							</li>
-						</ul>
-					</details>
-				</div>
 			</div>
 		</div>
 	{/if}
@@ -212,19 +218,34 @@
 										{meal.dinner}
 									</span>
 								{/if}
-								<button
-									type="button"
-									class="meal-remove ui-action ui-action-tertiary ui-action-icon"
-									onclick={() => controller.removeMeal(meal)}
-									disabled={!!controller.pendingDeletes[meal.id]}
-									aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
-								>
-									<Icon name="trash" />
-								</button>
+								{#if meal.status !== 'cooked' && meal.recipeSlug && meal.servings}
+									<div
+										class="meal-serving-stepper"
+										aria-label={m.mealplan_servings_label()}
+										aria-busy={!!controller.pendingServings[meal.id]}
+									>
+										<button
+											type="button"
+											disabled={meal.servings <= 1}
+											aria-disabled={!!controller.pendingServings[meal.id] || meal.servings <= 1}
+											aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })}
+											onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, -1)}
+										>−</button>
+										<span class="meal-serving-count-short" aria-hidden="true">{meal.servings}</span>
+										<span class="meal-serving-count-long">{m.mealplan_servings_count({ count: meal.servings })}</span>
+										<button
+											type="button"
+											disabled={meal.servings >= 99}
+											aria-disabled={!!controller.pendingServings[meal.id] || meal.servings >= 99}
+											aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })}
+											onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, 1)}
+										>+</button>
+									</div>
+								{/if}
 								<div class="meal-details">
 									{#if controller.dayPlanning && meal.status !== 'cooked'}
 										<select
-											class="ui-field w-24 {meal.plannedDate ? '' : 'text-base-content/40'}"
+											class="meal-day ui-field {meal.plannedDate ? '' : 'text-base-content/40'}"
 											value={meal.plannedDate ?? ''}
 											disabled={!!controller.pendingToggles[meal.id] || meal.id < 0}
 											aria-label={m.mealplan_day_picker_aria({ dinner: meal.dinner })}
@@ -237,12 +258,6 @@
 										</select>
 									{/if}
 									{#if meal.status !== 'cooked' && meal.recipeSlug && meal.servings}
-										<div class="meal-portion-row">
-											<div class="meal-serving-stepper inline-flex items-center rounded-lg border border-base-300" aria-label={m.mealplan_servings_label()} aria-busy={!!controller.pendingServings[meal.id]}>
-												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-r-none" disabled={meal.servings <= 1} aria-disabled={!!controller.pendingServings[meal.id] || meal.servings <= 1} aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })} onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, -1)}>−</button>
-												<span class="min-w-0 flex-1 px-1 text-center text-xs tabular-nums">{m.mealplan_servings_count({ count: meal.servings })}</span>
-												<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 rounded-l-none" disabled={meal.servings >= 99} aria-disabled={!!controller.pendingServings[meal.id] || meal.servings >= 99} aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })} onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, 1)}>+</button>
-											</div>
 											{#if linkedRecipe && meal.source !== 'freezer'}
 												{@const selectedBatch = batchServingMultiplier(linkedRecipe.servings, meal.servings)}
 												<CompactPopover
@@ -278,7 +293,6 @@
 													{/snippet}
 												</CompactPopover>
 											{/if}
-										</div>
 									{/if}
 									{#if meal.cookedDate && meal.status === 'cooked'}
 										<span class="inline-flex items-center gap-1 text-xs text-base-content/35">
@@ -303,6 +317,15 @@
 											</div>
 										{/if}
 									{/if}
+									<button
+										type="button"
+										class="meal-remove ui-action ui-action-tertiary ui-action-icon"
+										onclick={() => controller.removeMeal(meal)}
+										disabled={!!controller.pendingDeletes[meal.id]}
+										aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
+									>
+										<Icon name="trash" />
+									</button>
 								</div>
 							</li>
 						{/each}
@@ -326,8 +349,9 @@
 						] as lane}
 							{#if lane.rows.length > 0}
 								<section class="rotation-lane">
-									<div>
+									<div class="rotation-lane-heading">
 										<h3>{lane.heading}</h3>
+										<span aria-hidden="true">·</span>
 										<p>{lane.description}</p>
 									</div>
 									<ul>
@@ -390,9 +414,35 @@
 		min-height: 2.75rem;
 	}
 
+	.plan-header-actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.3rem;
+	}
+
+	.plan-header-actions .ui-action {
+		padding-inline: 0.65rem;
+	}
+
+	.plan-shopping-label-short {
+		display: none;
+	}
+
+	.plan-shopping-action {
+		border-color: rgb(255 255 255 / 28%);
+		background: rgb(255 255 255 / 7%);
+		color: var(--kitchen-ribbon-ink);
+	}
+
+	.plan-shopping-action:hover,
+	.plan-shopping-action:focus-visible {
+		border-color: rgb(255 255 255 / 52%);
+		background: rgb(255 255 255 / 14%);
+	}
+
 	.plan-header-payload {
-		display: grid;
-		gap: 0.55rem;
+		display: block;
 	}
 
 	.plan-week-copy {
@@ -412,13 +462,6 @@
 		font-size: 0.68rem;
 	}
 
-	.plan-week-copy .plan-delivery {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.3rem;
-	}
-
 	.plan-now {
 		display: inline-flex;
 		min-height: 1.65rem;
@@ -430,18 +473,6 @@
 		color: var(--kitchen-honey-ink);
 		font-size: 0.65rem;
 		font-weight: 750;
-	}
-
-	.plan-actions {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) 2.75rem;
-		gap: 0.4rem;
-	}
-
-	.plan-actions :global(.ui-action) {
-		min-width: 0;
-		padding-inline: 0.55rem;
-		font-size: 0.72rem;
 	}
 
 	.plan-ledger {
@@ -462,12 +493,14 @@
 
 	.meal-row {
 		display: grid;
-		grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+		grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+		grid-template-rows: minmax(2.75rem, auto) minmax(2.75rem, auto);
 		align-items: center;
 		column-gap: 0.35rem;
+		row-gap: 0.2rem;
 		border: 1px solid color-mix(in oklab, var(--kitchen-grove) 15%, var(--kitchen-line));
 		border-radius: 0.875rem;
-		padding: 0.45rem 0.7rem 0.65rem;
+		padding: 0.35rem 0.55rem 0.45rem;
 		background: var(--kitchen-card);
 		box-shadow: 0 4px 12px rgb(35 58 46 / 7%);
 		transition:
@@ -482,8 +515,7 @@
 	}
 
 	.meal-check,
-	.meal-title,
-	.meal-remove {
+	.meal-title {
 		min-height: 2.75rem;
 	}
 
@@ -497,6 +529,7 @@
 
 	.meal-title {
 		display: flex;
+		grid-column: 2;
 		min-width: 0;
 		align-items: center;
 		overflow: hidden;
@@ -507,7 +540,12 @@
 		white-space: nowrap;
 	}
 
+	.meal-row:not(:has(.meal-serving-stepper)) .meal-title {
+		grid-column: 2 / -1;
+	}
+
 	.meal-remove {
+		flex: 0 0 2.75rem;
 		width: 2.75rem;
 		padding: 0;
 		color: color-mix(in oklab, var(--color-base-content) 52%, transparent);
@@ -520,29 +558,101 @@
 
 	.meal-details {
 		grid-column: 1 / -1;
-		display: grid;
-		gap: 0.4rem;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.2rem;
 		min-width: 0;
-		padding-left: 3.1rem;
 	}
 
 	.meal-details:empty {
 		display: none;
 	}
 
-	.meal-portion-row {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.35rem;
+	.meal-day {
+		width: 4.25rem;
+		flex: 0 0 4.25rem;
+		padding-inline: 0.3rem;
+		font-size: 0.68rem;
 	}
 
 	.meal-serving-stepper {
-		min-width: 8.5rem;
+		display: grid;
+		grid-template-columns: 2.75rem minmax(3.25rem, 1fr) 2.75rem;
+		min-width: 8.75rem;
+		min-height: 2.75rem;
+		align-items: center;
+		overflow: hidden;
+		border: 1px solid var(--kitchen-line);
+		border-radius: 0.5rem;
+		background: var(--kitchen-paper);
+		font-size: 0.7rem;
+		font-variant-numeric: tabular-nums;
+		font-weight: 700;
+	}
+
+	.meal-serving-stepper > button {
+		min-height: 2.75rem;
+		border: 0;
+		background: transparent;
+		color: var(--kitchen-olive);
+		font-weight: 800;
+	}
+
+	.meal-serving-stepper > button + span,
+	.meal-serving-stepper > span + button {
+		border-inline-start: 1px solid var(--kitchen-line);
+	}
+
+	.meal-serving-stepper > span {
+		display: grid;
+		min-height: 2.75rem;
+		place-items: center;
+		padding-inline: 0.25rem;
+		text-align: center;
+		white-space: nowrap;
+	}
+
+	.meal-serving-stepper > button:focus-visible {
+		z-index: 1;
+		outline: 2px solid var(--kitchen-grove);
+		outline-offset: -2px;
+	}
+
+	.meal-serving-stepper > button:disabled {
+		cursor: not-allowed;
+		opacity: 0.38;
+	}
+
+	.meal-serving-count-short {
+		display: none !important;
+	}
+
+	.meal-details :global(.compact-popover-trigger) {
+		flex: 0 1 5.25rem;
+		min-width: 0;
+		max-width: 5.25rem;
+		padding-inline: 0.35rem;
+		overflow: hidden;
+		font-size: 0.67rem;
+		white-space: nowrap;
 	}
 
 	.meal-source-row {
-		min-width: 0;
+		min-width: 5.75rem;
+		flex: 1 1 8rem;
+		overflow: hidden;
+	}
+
+	.meal-source-row :global(.ui-segmented-control),
+	.meal-source-row :global(.ui-action) {
+		width: 100%;
+	}
+
+	.meal-source-row :global(.ui-segmented-control > button) {
+		min-height: 2.75rem;
+		padding-inline: 0.3rem;
+		font-size: 0.65rem;
 	}
 
 	.rotation-ledger {
@@ -555,7 +665,14 @@
 
 	.rotation-lane {
 		display: grid;
-		gap: 0.55rem;
+		gap: 0.4rem;
+	}
+
+	.rotation-lane-heading {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.2rem 0.35rem;
 	}
 
 	.rotation-lane h3 {
@@ -564,7 +681,7 @@
 		letter-spacing: 0.01em;
 	}
 
-	.rotation-lane > div > p,
+	.rotation-lane-heading > p,
 	.rotation-row p {
 		color: color-mix(in oklab, var(--color-base-content) 58%, transparent);
 		font-size: 0.72rem;
@@ -595,17 +712,39 @@
 		white-space: nowrap;
 	}
 
+	@media (max-width: 23rem) {
+		.plan-shopping-label-full {
+			display: none;
+		}
+
+		.plan-shopping-label-short {
+			display: inline;
+		}
+
+		.plan-header-actions {
+			width: 100%;
+		}
+
+		.plan-header-actions .ui-action {
+			padding-inline: 0.5rem;
+			font-size: 0.7rem;
+		}
+
+		.meal-serving-stepper {
+			grid-template-columns: 2.75rem 1.5rem 2.75rem;
+			min-width: 7rem;
+		}
+
+		.meal-serving-count-long {
+			display: none !important;
+		}
+
+		.meal-serving-count-short {
+			display: grid !important;
+		}
+	}
+
 	@media (min-width: 48rem) {
-		.plan-header-payload {
-			grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.72fr);
-			align-items: center;
-			gap: 1rem;
-		}
-
-		.plan-actions {
-			align-self: center;
-		}
-
 		.plan-ledger {
 			padding-block: 1.1rem max(6.5rem, var(--ui-overlay-bottom));
 		}

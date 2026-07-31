@@ -40,6 +40,7 @@
 	let ahItems = $state<PreviewItem[] | null>(null);
 	let decisions = $state<Record<string, Decision>>({});
 	let expanded = $state<Record<string, boolean>>({});
+	let reviewed = $state<Record<string, boolean>>({});
 	let previewToken = $state('');
 	let ahError = $state('');
 	let ahStale = $state(false);
@@ -59,6 +60,7 @@
 		ahItems = null;
 		decisions = {};
 		expanded = {};
+		reviewed = {};
 		previewToken = '';
 		favorites = {};
 		ahError = '';
@@ -101,6 +103,18 @@
 		}
 		return { products, text, excluded, unconfirmed, unresolved };
 	});
+
+	function itemNeedsAttention(item: PreviewItem): boolean {
+		const decision = decisions[item.ref];
+		if (!decision) return Boolean(item.requiresExplicitDecision);
+		if (decision.mode !== 'product') return false;
+		if (!item.candidates[decision.pick]) return true;
+		if (item.incompatibleQuantities && !decision.quantityConfirmed) return true;
+		return item.lowConfidence && !reviewed[item.ref];
+	}
+
+	let attentionItems = $derived((ahItems ?? []).filter((item) => itemNeedsAttention(item)));
+	let confirmedItems = $derived((ahItems ?? []).filter((item) => !itemNeedsAttention(item)));
 
 	export async function openAhModal() {
 		const weekAtOpen = weekStart;
@@ -187,6 +201,7 @@
 			}
 		};
 		expanded = { ...expanded, [ref]: false };
+		reviewed = { ...reviewed, [ref]: true };
 	}
 
 	function setQuantity(ref: string, qty: number) {
@@ -194,12 +209,14 @@
 		if (!current) return;
 		const safe = Number.isFinite(qty) ? Math.max(1, Math.min(99, Math.round(qty))) : current.qty;
 		decisions = { ...decisions, [ref]: { ...current, qty: safe, quantityConfirmed: true } };
+		reviewed = { ...reviewed, [ref]: true };
 	}
 
 	function confirmQuantity(ref: string) {
 		const current = decisions[ref];
 		if (!current) return;
 		decisions = { ...decisions, [ref]: { ...current, quantityConfirmed: true } };
+		reviewed = { ...reviewed, [ref]: true };
 	}
 
 	/**
@@ -215,6 +232,7 @@
 			favorites = rest;
 		} else {
 			favorites = { ...favorites, [item.term]: cand.id };
+			reviewed = { ...reviewed, [item.ref]: true };
 			decisions = {
 				...decisions,
 				[item.ref]: {
@@ -244,6 +262,7 @@
 	function demoteToText(ref: string) {
 		decisions = { ...decisions, [ref]: { mode: 'freetext', pick: 0, qty: 1, quantityConfirmed: true } };
 		expanded = { ...expanded, [ref]: false };
+		reviewed = { ...reviewed, [ref]: true };
 	}
 
 	function toggleExclude(ref: string, item: PreviewItem) {
@@ -268,6 +287,7 @@
 				? back
 				: { mode: 'exclude', pick: cur?.pick ?? 0, qty: cur?.qty ?? 1, quantityConfirmed: true }
 		};
+		reviewed = { ...reviewed, [ref]: true };
 	}
 
 	async function confirmPush() {
@@ -371,6 +391,23 @@
 	}
 </script>
 
+{#snippet previewRow(item: PreviewItem, compact: boolean)}
+	<AhPreviewItem
+		{item}
+		{compact}
+		dec={decisions[item.ref]}
+		favoriteId={favorites[item.term]}
+		expanded={expanded[item.ref]}
+		onToggleExclude={() => toggleExclude(item.ref, item)}
+		onPickProduct={(idx) => pickProduct(item.ref, idx)}
+		onQuantityChange={(qty) => setQuantity(item.ref, qty)}
+		onQuantityConfirm={() => confirmQuantity(item.ref)}
+		onToggleFavorite={(cand, idx) => void toggleFavorite(item, cand, idx)}
+		onDemoteToText={() => demoteToText(item.ref)}
+		onToggleExpanded={() => (expanded = { ...expanded, [item.ref]: !expanded[item.ref] })}
+	/>
+{/snippet}
+
 <BottomSheet
 	bind:open={ahOpen}
 	title={ahPushing ? m.shopping_ah_sending_title() : m.shopping_review_ah_order()}
@@ -452,44 +489,55 @@
 			<button type="button" class="ui-action ui-action-secondary" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
 		</div>
 	{:else if ahItems}
-		<ul class="mb-4 max-h-[55vh] space-y-2 overflow-y-auto" in:fade={{ duration: MOTION_MICRO_MS }}>
-			{#each ahItems as item (item.ref)}
-				<AhPreviewItem
-					{item}
-					dec={decisions[item.ref]}
-					favoriteId={favorites[item.term]}
-					expanded={expanded[item.ref]}
-					onToggleExclude={() => toggleExclude(item.ref, item)}
-					onPickProduct={(idx) => pickProduct(item.ref, idx)}
-					onQuantityChange={(qty) => setQuantity(item.ref, qty)}
-					onQuantityConfirm={() => confirmQuantity(item.ref)}
-					onToggleFavorite={(cand, idx) => void toggleFavorite(item, cand, idx)}
-					onDemoteToText={() => demoteToText(item.ref)}
-					onToggleExpanded={() => (expanded = { ...expanded, [item.ref]: !expanded[item.ref] })}
-				/>
-			{/each}
-		</ul>
-
-		<div class="mb-2 text-xs text-base-content/50">
-			{pushSummary.products === 1
-				? m.shopping_ah_summary_products_singular({ count: pushSummary.products })
-				: m.shopping_ah_summary_products_plural({ count: pushSummary.products })}, {m.shopping_ah_summary_as_text({ count: pushSummary.text })}{#if pushSummary.excluded}, {m.shopping_ah_summary_skipped({ count: pushSummary.excluded })}{/if}
-		</div>
-		<div class="flex justify-end gap-2">
-			<button type="button" class="ui-action ui-action-tertiary" onclick={() => (ahOpen = false)}>{m.shopping_cancel_button()}</button>
-			<button
-				type="button"
-				class="ui-action ui-action-primary"
-				onclick={confirmPush}
-				disabled={ahPushing || pushSummary.unconfirmed > 0 || pushSummary.unresolved > 0 || (pushSummary.products === 0 && pushSummary.text === 0)}
-			>
-				{#if ahPushing}
-					<Spinner size="xs" />
-					{m.shopping_ah_sending_label()}
-				{:else}
-					{m.shopping_send_to_ah_button()}
+		<div class="ah-review-shell" in:fade={{ duration: MOTION_MICRO_MS }}>
+			<div class="ah-review-scroll">
+				{#if attentionItems.length > 0}
+					<section class="ah-review-group ah-review-attention">
+						<div class="ah-review-heading">
+							<h3>{m.shopping_ah_review_needs_attention()}</h3>
+							<span>{attentionItems.length}</span>
+						</div>
+						<ul class="ah-review-list">
+							{#each attentionItems as item (item.ref)}
+								{@render previewRow(item, false)}
+							{/each}
+						</ul>
+					</section>
 				{/if}
-			</button>
+
+				{#if confirmedItems.length > 0}
+					<section class="ah-review-group">
+						<div class="ah-review-heading">
+							<h3>{m.shopping_ah_review_confirmed()}</h3>
+							<span>{confirmedItems.length}</span>
+						</div>
+						<ul class="ah-review-list ah-review-confirmed">
+							{#each confirmedItems as item (item.ref)}
+								{@render previewRow(item, true)}
+							{/each}
+						</ul>
+					</section>
+				{/if}
+			</div>
+
+			<div class="ah-review-footer">
+				<div class="ah-review-summary">
+					{pushSummary.products === 1
+						? m.shopping_ah_summary_products_singular({ count: pushSummary.products })
+						: m.shopping_ah_summary_products_plural({ count: pushSummary.products })}, {m.shopping_ah_summary_as_text({ count: pushSummary.text })}{#if pushSummary.excluded}, {m.shopping_ah_summary_skipped({ count: pushSummary.excluded })}{/if}
+				</div>
+				<div class="ah-review-actions">
+					<button type="button" class="ui-action ui-action-tertiary" onclick={() => (ahOpen = false)}>{m.shopping_cancel_button()}</button>
+					<button
+						type="button"
+						class="ui-action ui-action-primary"
+						onclick={confirmPush}
+						disabled={ahPushing || pushSummary.unconfirmed > 0 || pushSummary.unresolved > 0 || (pushSummary.products === 0 && pushSummary.text === 0)}
+					>
+						{m.shopping_send_to_ah_button()}
+					</button>
+				</div>
+			</div>
 		</div>
 	{/if}
 </BottomSheet>
@@ -512,5 +560,90 @@
 		color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
 		font-size: 0.82rem;
 		line-height: 1.5;
+	}
+
+	.ah-review-shell {
+		display: grid;
+		min-height: 0;
+	}
+
+	.ah-review-scroll {
+		display: grid;
+		max-height: min(58vh, 38rem);
+		overflow-y: auto;
+		gap: 1rem;
+		padding: 0.1rem 0.1rem 0.8rem;
+	}
+
+	.ah-review-group,
+	.ah-review-list {
+		display: grid;
+		gap: 0.45rem;
+	}
+
+	.ah-review-list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.ah-review-heading {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		padding-inline: 0.2rem;
+		color: color-mix(in oklab, var(--color-base-content) 58%, transparent);
+	}
+
+	.ah-review-heading h3 {
+		font-size: 0.72rem;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.ah-review-heading span {
+		font-size: 0.72rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.ah-review-attention .ah-review-heading {
+		color: var(--kitchen-honey-ink);
+	}
+
+	.ah-review-footer {
+		position: sticky;
+		z-index: 3;
+		bottom: 0;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.7rem 0.1rem 0.1rem;
+		border-block-start: 1px solid var(--kitchen-line);
+		background: var(--kitchen-card);
+	}
+
+	.ah-review-summary {
+		color: color-mix(in oklab, var(--color-base-content) 58%, transparent);
+		font-size: 0.72rem;
+	}
+
+	.ah-review-actions {
+		display: flex;
+		flex: 0 0 auto;
+		gap: 0.4rem;
+	}
+
+	@media (max-width: 23rem) {
+		.ah-review-footer {
+			align-items: stretch;
+			flex-direction: column;
+		}
+
+		.ah-review-actions {
+			justify-content: flex-end;
+		}
 	}
 </style>

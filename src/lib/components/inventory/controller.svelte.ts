@@ -83,7 +83,6 @@ export class InventoryController {
 	relationshipReviewOnly = $state(false);
 	searchQuery = $state('');
 	quickView = $state<InventoryQuickView | null>(null);
-	filtersOpen = $state(false);
 	searchInput = $state<HTMLInputElement>();
 
 	showAddForm = $state(false);

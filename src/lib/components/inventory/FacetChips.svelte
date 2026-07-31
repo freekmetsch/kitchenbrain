@@ -1,24 +1,15 @@
 <!--
-	Quiet row metadata: section, one compact meal-recipe state, staple and
-	stock alerts, best-before, recipe coverage, and review recovery. Recipe
-	management itself lives in one sheet so settled rows do not repeat actions.
+	Text-forward Stock metadata. Ordinary rows use words and whitespace instead
+	of section emoji, food emoji, ageing dots, review dots, and nested status
+	badges. Recovery controls remain explicit when a row actually needs work.
 -->
 <script module lang="ts">
-	// Static per-component constants + pure helpers live in module scope so they
-	// are allocated once, not once per rendered stock row.
 	import { base } from '$app/paths';
 	import { m } from '$lib/paraglide/messages';
 	import { RULE_REVIEW_CODES, reasonTokens } from '$lib/review_reasons';
 	import type { Item } from './shared';
 	import { formatDate } from '$lib/i18n';
 
-	const FOOD_CLASS_EMOJI: Record<string, string> = {
-		meat: '🥩', chicken: '🍗', beef: '🥩', pork: '🥓', lamb: '🍖',
-		fish: '🐟', vegetarian: '🥦', vegan: '🌱', other: '🫙'
-	};
-	// Humanize machine review-reason slugs for a non-technical reader (P6.5 #5).
-	// Codes are written by the inventory domain and guardian workflow; unmapped
-	// ones fall through to a de-slugged form, so coverage need not be exhaustive.
 	function reviewReasonLabel(key: string): string | undefined {
 		switch (key) {
 			case 'undo_conflict': return m.inventory_review_reason_undo_conflict();
@@ -34,8 +25,6 @@
 	}
 
 	function reviewReasonText(reason: string | null): string {
-		// Reasons can be joined ('a; b') and each may carry a ':param' — map every token,
-		// don't drop the tail. Raw string stays available via the title tooltip.
 		return reasonTokens(reason)
 			.map((part) => {
 				const key = part.split(':')[0];
@@ -43,10 +32,7 @@
 			})
 			.join(' · ');
 	}
-	function foodClassEmoji(slug: string | null): string {
-		if (!slug) return '❓';
-		return FOOD_CLASS_EMOJI[slug] ?? '🫙';
-	}
+
 	function expiryBadge(expiry: string | null): { label: string; cls: string } | null {
 		if (!expiry) return null;
 		const today = new Date();
@@ -62,28 +48,24 @@
 		return { label, cls };
 	}
 
-	// ── review fix affordances (UX-STOCK-1) ────────────────────────────────────
-	// Rule-derived flags re-assert on every write, so a bare "resolve" can never
-	// clear them — the offending fact has to change. Each rule code maps to the
-	// control that changes it; only sticky (non-rule) flags keep plain Resolve.
 	function reviewFix(item: Item): 'portions' | 'edit' | 'resolve' {
-		const codes = reasonTokens(item.reviewReason).map((t) => t.split(':')[0]);
-		if (codes.includes('leftover_non_portion_unit') || codes.includes('leftover_non_integer_portions')) {
+		const codes = reasonTokens(item.reviewReason).map((token) => token.split(':')[0]);
+		if (
+			codes.includes('leftover_non_portion_unit') ||
+			codes.includes('leftover_non_integer_portions')
+		) {
 			return 'portions';
 		}
-		if (codes.some((c) => RULE_REVIEW_CODES.has(c))) return 'edit';
+		if (codes.some((code) => RULE_REVIEW_CODES.has(code))) return 'edit';
 		return 'resolve';
 	}
 
 	function recipeSearchHref(name: string): string {
-		return `${base}/recipes?${new URLSearchParams({ ingredient: name }).toString()}`;
+		return base + '/recipes?' + new URLSearchParams({ ingredient: name }).toString();
 	}
 </script>
 
 <script lang="ts">
-	import Icon from '$lib/components/ui/icons/Icon.svelte';
-	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
-	import RecipeRelationshipStatus from './RecipeRelationshipStatus.svelte';
 	import {
 		autofocus,
 		foodClassText,
@@ -129,6 +111,9 @@
 
 	const exp = $derived(expiryBadge(item.expiryDate));
 	const relationship = $derived(recipeRelationshipKind(item, link));
+	const sectionLabel = $derived(
+		item.section === 'freezer' ? m.inventory_section_freezer() : m.inventory_section_pantry()
+	);
 	const relationshipLabel = $derived(
 		relationship === 'linked'
 			? m.inventory_recipe_linked_label({
@@ -142,50 +127,53 @@
 	);
 </script>
 
-<div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-base-content/65">
-	<span class="opacity-70">{item.section === 'freezer' ? '❄️' : '🫙'}</span>
-
+<div class="stock-card-meta">
 	{#if signalLabel}
-		<span class="font-semibold text-base-content/65">{signalLabel}</span>
+		<strong class="stock-signal">{signalLabel}</strong>
 	{/if}
+
+	<span>{sectionLabel}</span>
 
 	{#if item.kind === 'leftover'}
 		{#if relationship !== 'unresolved' || relationshipInteractive}
-			<RecipeRelationshipStatus
-				{relationship}
-				label={`${relationshipLabel}. ${m.inventory_recipe_manage_button()}`}
-				showText={relationshipInteractive}
-				interactive={relationshipInteractive}
-				onactivate={onOpenLinkPicker}
-			/>
+			{#if relationshipInteractive}
+				<button
+					type="button"
+					class="stock-meta-link"
+					aria-label={relationshipLabel + '. ' + m.inventory_recipe_manage_button()}
+					onclick={onOpenLinkPicker}
+				>
+					{relationshipLabel}
+				</button>
+			{:else}
+				<span>{relationshipLabel}</span>
+			{/if}
 		{/if}
 	{:else if item.foodClass}
-		<span class="inline-flex items-center gap-1">{foodClassEmoji(item.foodClass)} {foodClassText(item.foodClass)}</span>
+		<span>{foodClassText(item.foodClass)}</span>
 	{/if}
 
 	{#if item.isStaple}
-		<span class="inline-flex items-center gap-1 text-base-content/60">
-			<span class="h-1 w-1 rounded-full bg-secondary/70"></span> {m.inventory_staple_label()}
-		</span>
+		<span>{m.inventory_staple_label()}</span>
 	{/if}
 
 	{#if item.qtyNum === 0}
-		{#if item.kind === 'leftover' && link?.isFreezerStaple}
-			<StatusBadge tone="warning">{m.inventory_cook_again_badge()}</StatusBadge>
-		{:else}
-			<StatusBadge tone="error">{m.inventory_out_badge()}</StatusBadge>
-		{/if}
+		<strong class="stock-warning">
+			{item.kind === 'leftover' && link?.isFreezerStaple
+				? m.inventory_cook_again_badge()
+				: m.inventory_out_badge()}
+		</strong>
 		{#if item.isStaple}
 			<button
 				type="button"
-				class="ui-action ui-action-tertiary ui-action-icon"
+				class="stock-meta-link"
 				disabled={stapleBusy || stapleAdded}
 				aria-label={stapleAdded
 					? m.inventory_staples_on_list()
 					: m.inventory_staples_add_aria({ name: item.name })}
 				onclick={onAddStaple}
 			>
-				<Icon name={stapleAdded ? 'check' : 'cart'} class="h-3.5 w-3.5" />
+				{stapleAdded ? m.inventory_staples_on_list() : m.inventory_staples_add_button()}
 			</button>
 		{/if}
 	{/if}
@@ -195,46 +183,132 @@
 	{/if}
 
 	{#if matches.length > 0}
-		<a
-			href={recipeSearchHref(item.name)}
-			class="inline-flex min-h-11 items-center font-medium text-primary underline decoration-dotted underline-offset-2"
-		>{matches.length === 1 ? m.inventory_matches_singular({ count: matches.length }) : m.inventory_matches_plural({ count: matches.length })}</a>
-	{/if}
-
-	{#if item.needsReview}
-		<span class="inline-flex min-w-0 items-center gap-1.5 text-warning">
-			<Icon name="warn" class="h-3 w-3" />
-			{#if item.reviewReason}<span class="max-w-40 truncate" title={item.reviewReason}>{reviewReasonText(item.reviewReason)}</span>{/if}
-			{#if portionEditing}
-				<span class="inline-flex shrink-0 items-center gap-1">
-					<input
-						type="number"
-						inputmode="numeric"
-						min="0"
-						step="1"
-						class="ui-field w-14 px-1 text-center tabular-nums"
-						bind:value={portionValue}
-						use:autofocus
-						onkeydown={(e) => {
-							if (e.key === 'Enter') onCommitPortionEdit();
-							else if (e.key === 'Escape') onCancelPortionEdit();
-						}}
-						aria-label={m.inventory_portion_count_aria({ name: item.name })}
-					/>
-					<button
-						type="button"
-						class="ui-action ui-action-tertiary shrink-0 px-1"
-						onmousedown={(e) => e.preventDefault()}
-						onclick={() => onCommitPortionEdit()}>{m.inventory_portion_save_button()}</button
-					>
-				</span>
-			{:else if reviewFix(item) === 'portions'}
-				<button type="button" class="ui-action ui-action-tertiary shrink-0 px-1" onclick={() => onOpenPortionEdit()}>{m.inventory_set_portions_button()}</button>
-			{:else if reviewFix(item) === 'edit'}
-				<button type="button" class="ui-action ui-action-tertiary shrink-0 px-1" onclick={() => onOpenEdit()}>{m.inventory_fix_button()}</button>
-			{:else}
-				<button type="button" class="ui-action ui-action-tertiary shrink-0 px-1" onclick={() => onResolveReview()}>{m.inventory_resolve_button()}</button>
-			{/if}
-		</span>
+		<a href={recipeSearchHref(item.name)} class="stock-meta-link">
+			{matches.length === 1
+				? m.inventory_matches_singular({ count: matches.length })
+				: m.inventory_matches_plural({ count: matches.length })}
+		</a>
 	{/if}
 </div>
+
+{#if item.needsReview}
+	<div class="stock-review-row">
+		<span class="stock-review-copy">
+			{item.reviewReason
+				? reviewReasonText(item.reviewReason)
+				: m.inventory_row_needs_review_title()}
+		</span>
+		{#if portionEditing}
+			<span class="stock-review-actions">
+				<input
+					type="number"
+					inputmode="numeric"
+					min="0"
+					step="1"
+					class="ui-field w-14 px-1 text-center tabular-nums"
+					bind:value={portionValue}
+					use:autofocus
+					onkeydown={(event) => {
+						if (event.key === 'Enter') onCommitPortionEdit();
+						else if (event.key === 'Escape') onCancelPortionEdit();
+					}}
+					aria-label={m.inventory_portion_count_aria({ name: item.name })}
+				/>
+				<button
+					type="button"
+					class="ui-action ui-action-tertiary"
+					onmousedown={(event) => event.preventDefault()}
+					onclick={onCommitPortionEdit}
+				>
+					{m.inventory_portion_save_button()}
+				</button>
+			</span>
+		{:else if reviewFix(item) === 'portions'}
+			<button type="button" class="ui-action ui-action-tertiary" onclick={onOpenPortionEdit}>
+				{m.inventory_set_portions_button()}
+			</button>
+		{:else if reviewFix(item) === 'edit'}
+			<button type="button" class="ui-action ui-action-tertiary" onclick={onOpenEdit}>
+				{m.inventory_fix_button()}
+			</button>
+		{:else}
+			<button type="button" class="ui-action ui-action-tertiary" onclick={onResolveReview}>
+				{m.inventory_resolve_button()}
+			</button>
+		{/if}
+	</div>
+{/if}
+
+<style>
+	.stock-card-meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.15rem 0.65rem;
+		min-width: 0;
+		margin-top: 0.2rem;
+		color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+		font-size: 0.7rem;
+		line-height: 1.35;
+	}
+
+	.stock-signal,
+	.stock-warning {
+		color: var(--kitchen-honey-ink);
+		font-weight: 760;
+	}
+
+	.stock-meta-link {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		border-radius: 0.4rem;
+		color: var(--kitchen-olive);
+		font-weight: 720;
+		text-decoration: underline;
+		text-decoration-style: dotted;
+		text-underline-offset: 0.18rem;
+	}
+
+	.stock-meta-link:focus-visible {
+		outline: 2px solid var(--kitchen-grove);
+		outline-offset: 2px;
+	}
+
+	.stock-meta-link:disabled {
+		cursor: not-allowed;
+		opacity: 0.55;
+	}
+
+	.stock-review-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-top: 0.25rem;
+		padding-top: 0.25rem;
+		border-block-start: 1px solid color-mix(in oklab, var(--color-warning) 28%, var(--kitchen-line));
+		color: var(--kitchen-honey-ink);
+		font-size: 0.7rem;
+	}
+
+	.stock-review-copy {
+		min-width: 0;
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.stock-review-actions {
+		display: inline-flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.stock-review-row :global(.ui-action) {
+		flex: 0 0 auto;
+		padding-inline: 0.55rem;
+	}
+</style>

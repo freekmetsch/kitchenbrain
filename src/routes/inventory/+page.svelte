@@ -9,7 +9,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import ActivitySheet from '$lib/components/inventory/ActivitySheet.svelte';
 	import AddItemForm from '$lib/components/inventory/AddItemForm.svelte';
-	import FiltersSheet from '$lib/components/inventory/FiltersSheet.svelte';
 	import GhostRows from '$lib/components/inventory/GhostRows.svelte';
 	import ItemEditor from '$lib/components/inventory/ItemEditor.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
@@ -18,9 +17,13 @@
 	import LinkRecipeSheet from '$lib/components/inventory/LinkRecipeSheet.svelte';
 	import RecipeRelationshipStatus from '$lib/components/inventory/RecipeRelationshipStatus.svelte';
 	import { InventoryController } from '$lib/components/inventory/controller.svelte';
-	import type { InventoryScope, Item } from '$lib/components/inventory/shared';
+	import {
+		foodClassText,
+		type InventoryScope,
+		type Item
+	} from '$lib/components/inventory/shared';
+	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
-	import FilterChip from '$lib/components/ui/FilterChip.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import type { PageData } from './$types';
@@ -30,6 +33,19 @@
 	const SCOPES: InventoryScope[] = ['meals', 'ingredients', 'all'];
 
 	onMount(() => controller.mount());
+
+	function setSectionFilter(value: string) {
+		controller.sectionFilter =
+			value === 'freezer' || value === 'pantry' ? value : 'all';
+	}
+
+	function setClassFilter(value: string) {
+		controller.classFilter = value || null;
+	}
+
+	function setReviewFilter(value: string) {
+		controller.reviewOnly = value === 'review';
+	}
 </script>
 
 <svelte:head><title>{m.inventory_title()}</title></svelte:head>
@@ -38,6 +54,7 @@
 	<li
 		id="inventory-item-{item.id}"
 		class="stock-card relative min-w-0 overflow-hidden"
+		class:stock-card-attention={Boolean(signalLabel || item.needsReview)}
 	>
 		<ItemRow
 			{item}
@@ -84,120 +101,160 @@
 	</KitchenPageHeader>
 
 	<div class="ui-page-utility">
-		<div class="stock-overview ui-page-utility-inner">
-		<div class="stock-stats" aria-label={m.inventory_heading()}>
-				{#if controller.readyMealCount > 0}
-					<button
-						type="button"
-						class="stock-stat stock-stat-action"
-						class:active={controller.quickView === 'ready'}
-						aria-pressed={controller.quickView === 'ready'}
-						aria-label={m.inventory_radar_ready_aria({ count: controller.readyMealCount })}
-						onclick={() => controller.toggleQuickView('ready')}
+		<div class="stock-console ui-page-utility-inner">
+			<div class="stock-overview">
+				<div class="stock-stats" aria-label={m.inventory_heading()}>
+					{#if controller.readyMealCount > 0}
+						<button
+							type="button"
+							class="stock-stat stock-stat-action"
+							class:active={controller.quickView === 'ready'}
+							aria-pressed={controller.quickView === 'ready'}
+							aria-label={m.inventory_radar_ready_aria({ count: controller.readyMealCount })}
+							onclick={() => controller.toggleQuickView('ready')}
+						>
+							<strong>{controller.readyMealCount}</strong>
+							<span>{m.inventory_radar_meals_label()}</span>
+						</button>
+					{:else}
+						<div class="stock-stat stock-stat-zero">
+							<strong>0</strong>
+							<span>{m.inventory_radar_ready_zero()}</span>
+						</div>
+					{/if}
+					{#if controller.belowTargetCount > 0}
+						<button
+							type="button"
+							class="stock-stat stock-stat-action attention"
+							class:active={controller.quickView === 'below_target'}
+							aria-pressed={controller.quickView === 'below_target'}
+							aria-label={m.inventory_radar_below_target_aria({ count: controller.belowTargetCount })}
+							onclick={() => controller.toggleQuickView('below_target')}
+						>
+							<strong>{controller.belowTargetCount}</strong>
+							<span>{m.inventory_radar_below_target_label()}</span>
+						</button>
+					{:else}
+						<div class="stock-stat stock-stat-zero">
+							<strong>0</strong>
+							<span>{m.inventory_radar_below_target_zero()}</span>
+						</div>
+					{/if}
+				</div>
+				<button
+					type="button"
+					class="stock-activity ui-action ui-action-tertiary ui-action-on-dark ui-action-icon"
+					aria-label={m.inventory_activity_aria()}
+					onclick={() => controller.openActivity()}
+				>
+					<Icon name="clock" class="h-4 w-4" />
+				</button>
+			</div>
+
+			<div class="stock-tools">
+				<label class="ui-field-shell">
+					<span class="sr-only">{m.inventory_search_label()}</span>
+					<svg
+						viewBox="0 0 16 16"
+						class="pointer-events-none h-4 w-4 opacity-55"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						aria-hidden="true"
 					>
-						<strong>{controller.readyMealCount}</strong>
-						<span>{m.inventory_radar_meals_label()}</span>
-						<Icon name={controller.quickView === 'ready' ? 'x' : 'chevronRight'} class="h-4 w-4" />
-					</button>
-				{:else}
-					<div class="stock-stat stock-stat-zero">
-						<Icon name="check" class="h-4 w-4" />
-						<span>{m.inventory_radar_ready_zero()}</span>
-					</div>
-				{/if}
-				{#if controller.belowTargetCount > 0}
-					<button
-						type="button"
-						class="stock-stat stock-stat-action attention"
-						class:active={controller.quickView === 'below_target'}
-						aria-pressed={controller.quickView === 'below_target'}
-						aria-label={m.inventory_radar_below_target_aria({ count: controller.belowTargetCount })}
-						onclick={() => controller.toggleQuickView('below_target')}
-					>
-						<strong>{controller.belowTargetCount}</strong>
-						<span>{m.inventory_radar_below_target_label()}</span>
-						<Icon
-							name={controller.quickView === 'below_target' ? 'x' : 'chevronRight'}
-							class="h-4 w-4"
+						<path d="M11.25 11.25 14 14" />
+						<circle cx="7.25" cy="7.25" r="5" />
+					</svg>
+					<input
+						bind:this={controller.searchInput}
+						type="search"
+						placeholder={m.inventory_search_placeholder()}
+						bind:value={controller.searchQuery}
+						onkeydown={(event) => {
+							if (event.key === 'Escape' && controller.searchQuery) {
+								event.preventDefault();
+								controller.clearSearch();
+							}
+						}}
+					/>
+					{#if controller.searchQuery}
+						<button
+							type="button"
+							aria-label={m.inventory_search_clear()}
+							onclick={() => controller.clearSearch()}
+						>
+							<Icon name="x" class="h-3.5 w-3.5" />
+						</button>
+					{:else}
+						<kbd>/</kbd>
+					{/if}
+				</label>
+
+				<div class="stock-controls">
+					<div class="stock-scope-tabs">
+						<SegmentedControl
+							options={SCOPES.map((value) => ({ value, label: controller.scopeLabel(value) }))}
+							bind:value={controller.scope}
+							onchange={(value) => controller.setScope(value)}
+							cols={3}
+							ariaLabel={m.inventory_heading()}
 						/>
-					</button>
-				{:else}
-					<div class="stock-stat stock-stat-zero">
-						<Icon name="check" class="h-4 w-4" />
-						<span>{m.inventory_radar_below_target_zero()}</span>
 					</div>
-				{/if}
-		</div>
-			<button
-				type="button"
-				class="stock-activity ui-action ui-action-tertiary ui-action-icon"
-				aria-label={m.inventory_activity_aria()}
-				onclick={() => controller.openActivity()}
-			>
-				<Icon name="clock" class="h-4 w-4" />
-			</button>
+					<div class="stock-filter-grid">
+						<label>
+							<span>{m.inventory_filters_section_label()}</span>
+							<select
+								class="ui-field"
+								value={controller.sectionFilter}
+								onchange={(event) => setSectionFilter(event.currentTarget.value)}
+							>
+								<option value="all">{m.inventory_facet_all()}</option>
+								<option value="freezer">{m.inventory_section_freezer()}</option>
+								<option value="pantry">{m.inventory_section_pantry()}</option>
+							</select>
+						</label>
+						<label>
+							<span>{m.inventory_filters_class_label()}</span>
+							<select
+								class="ui-field"
+								value={controller.classFilter ?? ''}
+								onchange={(event) => setClassFilter(event.currentTarget.value)}
+							>
+								<option value="">{m.inventory_facet_all()}</option>
+								{#each FOOD_CLASS_ROOTS as foodClass (foodClass)}
+									<option value={foodClass}>{foodClassText(foodClass)}</option>
+								{/each}
+							</select>
+						</label>
+						<label>
+							<span>{m.inventory_filters_review_label()}</span>
+							<select
+								class="ui-field"
+								value={controller.reviewOnly ? 'review' : 'all'}
+								onchange={(event) => setReviewFilter(event.currentTarget.value)}
+							>
+								<option value="all">{m.inventory_facet_all()}</option>
+								<option value="review" disabled={controller.needsReviewCount === 0}>
+									{m.inventory_filters_review_count({ count: controller.needsReviewCount })}
+								</option>
+							</select>
+						</label>
+						{#if controller.hasActiveFilters}
+							<button
+								type="button"
+								class="ui-action ui-action-tertiary ui-action-on-dark stock-clear-filters"
+								onclick={() => controller.clearFilters()}
+							>
+								{m.inventory_clear_filters_button()}
+							</button>
+						{/if}
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 
 	<main class="stock-ledger ui-grove-surface ui-kitchen-content">
-		<div class="stock-tools">
-			<label class="ui-field-shell">
-				<span class="sr-only">{m.inventory_search_label()}</span>
-				<svg
-					viewBox="0 0 16 16"
-					class="pointer-events-none h-4 w-4 opacity-55"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					aria-hidden="true"
-				>
-					<path d="M11.25 11.25 14 14" />
-					<circle cx="7.25" cy="7.25" r="5" />
-				</svg>
-				<input
-					bind:this={controller.searchInput}
-					type="search"
-					placeholder={m.inventory_search_placeholder()}
-					bind:value={controller.searchQuery}
-					onkeydown={(event) => {
-						if (event.key === 'Escape' && controller.searchQuery) {
-							event.preventDefault();
-							controller.clearSearch();
-						}
-					}}
-				/>
-				{#if controller.searchQuery}
-					<button
-						type="button"
-						aria-label={m.inventory_search_clear()}
-						onclick={() => controller.clearSearch()}
-					>
-						<Icon name="x" class="h-3.5 w-3.5" />
-					</button>
-				{:else}
-					<kbd>/</kbd>
-				{/if}
-			</label>
-
-			<div class="stock-scope-row">
-				<div class="stock-scope-tabs">
-					<SegmentedControl
-						options={SCOPES.map((value) => ({ value, label: controller.scopeLabel(value) }))}
-						bind:value={controller.scope}
-						onchange={(value) => controller.setScope(value)}
-						cols={3}
-						ariaLabel={m.inventory_heading()}
-					/>
-				</div>
-				<FilterChip
-					selected={controller.hasActiveFilters}
-					onclick={() => (controller.filtersOpen = true)}
-				>
-					{m.inventory_scope_filters()}
-				</FilterChip>
-			</div>
-		</div>
-
 		{#if controller.quickView}
 			<div class="stock-quick-view" aria-live="polite">
 				<span>{controller.quickViewStatus()}</span>
@@ -357,14 +414,6 @@
 	</main>
 </div>
 
-<FiltersSheet
-	bind:open={controller.filtersOpen}
-	bind:sectionFilter={controller.sectionFilter}
-	bind:classFilter={controller.classFilter}
-	bind:reviewOnly={controller.reviewOnly}
-	needsReviewCount={controller.needsReviewCount}
-/>
-
 <BottomSheet bind:open={controller.showAddForm} title={m.inventory_add_button()} desktopCentered>
 	<AddItemForm
 		open={controller.showAddForm}
@@ -455,7 +504,7 @@
 	}
 
 	.stock-stat-action {
-		grid-template-columns: auto minmax(0, 1fr) auto;
+		grid-template-columns: auto minmax(0, 1fr);
 		width: 100%;
 		text-align: left;
 		cursor: pointer;
@@ -522,6 +571,11 @@
 		padding-block: 0.9rem max(6.5rem, var(--ui-overlay-bottom));
 	}
 
+	.stock-console {
+		display: grid;
+		gap: 0.65rem;
+	}
+
 	.stock-tools {
 		display: grid;
 		gap: 0.55rem;
@@ -544,11 +598,9 @@
 		font-size: 0.68rem;
 	}
 
-	.stock-scope-row {
+	.stock-controls {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		align-items: center;
-		gap: 0.25rem;
+		gap: 0.45rem;
 	}
 
 	.stock-scope-tabs {
@@ -561,6 +613,46 @@
 
 	.stock-scope-tabs :global([role='radio']) {
 		min-height: 2.75rem;
+	}
+
+	.stock-filter-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: end;
+		gap: 0.4rem;
+	}
+
+	.stock-filter-grid label {
+		display: grid;
+		min-width: 0;
+		gap: 0.18rem;
+	}
+
+	.stock-filter-grid label > span {
+		padding-inline: 0.1rem;
+		color: color-mix(in oklab, white 76%, transparent);
+		font-size: 0.65rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+	}
+
+	.stock-filter-grid .ui-field {
+		width: 100%;
+		min-width: 0;
+		min-height: 2.75rem;
+		border-color: color-mix(in oklab, white 24%, transparent);
+		background: color-mix(in oklab, white 9%, transparent);
+		color: white;
+	}
+
+	.stock-filter-grid .ui-field option {
+		background: var(--stock-card);
+		color: var(--kitchen-ink);
+	}
+
+	.stock-clear-filters {
+		grid-column: 1 / -1;
+		justify-self: end;
 	}
 
 	.stock-quick-view {
@@ -647,10 +739,27 @@
 	}
 
 	.stock-card {
+		position: relative;
 		border: 1px solid color-mix(in oklab, var(--stock-olive) 15%, var(--kitchen-line));
 		border-radius: 0.75rem;
 		background: var(--stock-card);
 		box-shadow: 0 4px 12px rgb(35 58 46 / 7%);
+	}
+
+	.stock-card-attention::before {
+		position: absolute;
+		z-index: 1;
+		inset-block: 0.55rem;
+		inset-inline-start: 0.22rem;
+		width: 0.2rem;
+		border-radius: 99px;
+		background: var(--stock-honey);
+		content: '';
+		pointer-events: none;
+	}
+
+	.stock-card-attention :global(.stock-item-row) {
+		padding-inline-start: 1rem;
 	}
 
 	.stock-quiet {
@@ -689,8 +798,23 @@
 		}
 
 		.stock-tools {
-			grid-template-columns: minmax(16rem, 1fr) auto;
+			grid-template-columns: minmax(14rem, 0.75fr) minmax(0, 1.65fr);
 			align-items: center;
+		}
+
+		.stock-controls {
+			grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 1.2fr);
+			align-items: end;
+		}
+
+		.stock-filter-grid {
+			grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+		}
+
+		.stock-clear-filters {
+			grid-column: auto;
+			align-self: end;
+			justify-self: stretch;
 		}
 	}
 
