@@ -1188,6 +1188,38 @@ content was retained or performed.
 
 Touched: docs/deploys/2026-07.md, docs/log.md
 
+## 2026-07-31 19:34 | ship | Household work-surface refinement
+
+Implemented the recommended design composite across Meal plan, Recipes, Stock, and Review AH
+order. Meal plan now combines Add meal, delivery-as-Shopping, and overflow in one named ribbon
+exception; ordinary meal cards use two rows and the shortlist introduction uses two text rows.
+Recipes now use a no-scroll responsive filter grid and compact Paper Shelf cards. Stock moves
+outcomes, search, scope, and visible dropdown filters into the green utility band, removes the old
+Filters sheet, and replaces dot/emoji chains with text metadata plus at most one urgency marker.
+The AH review now triages unresolved, unconfirmed, and unreviewed low-confidence choices above
+compact confirmed rows, with disclosed details and a sticky send summary.
+
+The canonical gate passed 114 unit-test files / 671 tests, 31 primary authenticated product stories
+plus auth setup with one deliberate connected-AH skip, zero Svelte diagnostics, and the production
+build. The responsive house-style story exercised 320, 393, 768, and 1280 px. The first clean
+unit run encountered a one-time concurrent SQLite migration collision; the immediate canonical
+rerun passed and the final complete gate remained green. No provider call, real AH request,
+shopping derivation, preview-token behavior, schema, auth, or household data changed.
+
+Touched: docs/{ui-house-style.md,log.md}, docs/feature-lists/archive/,
+docs/artifacts/archive/, messages/{en,nl}.json, src/lib/components/{inventory,shopping}/,
+src/routes/{inventory,meal-plan,recipes}/, src/lib/ui_house_style_source.test.ts,
+tests/e2e/house-style.e2e.ts
+
+## 2026-07-31 19:35 | archive-scan | 1 feature list, 1 HTML archived
+
+Moved the shipped Household Work Surfaces brief and its collective design-shotgun workspace into
+their archive directories. The repository still has no `scripts/archive-scan.ps1`, so the validated
+inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_HOUSEHOLD_WORK_SURFACE_REFINEMENT.md,
+docs/artifacts/archive/2026-07-31-design-shotgun-household-work-surfaces.html, docs/log.md
+
 ## 2026-07-31 15:59 | review-fix | Recipe Rotation review corrections
 
 Addressed all 11 actionable PR review threads before promotion: cadence-boundary reservations,

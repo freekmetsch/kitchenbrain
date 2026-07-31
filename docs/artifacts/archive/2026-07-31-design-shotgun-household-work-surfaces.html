@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Keukenbrein household work surfaces — design shotgun</title>
+	<style>
+		:root {
+			--grove: #344f3e;
+			--grove-2: #42604c;
+			--paper: #f8f5ed;
+			--card: #fffefa;
+			--ink: #27312b;
+			--muted: #647069;
+			--line: #ded8cc;
+			--terra: #aa5233;
+			--honey: #d8aa55;
+			--honey-ink: #69460f;
+			--wash: #f2ead9;
+			--white: #fffdf7;
+			--shadow: 0 12px 34px rgb(24 45 33 / 12%);
+			--soft-shadow: 0 5px 16px rgb(24 45 33 / 9%);
+			--radius: 14px;
+			--control-radius: 8px;
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			color: var(--ink);
+			background: #e7e2d7;
+		}
+
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+		body { margin: 0; min-width: 320px; background: #e7e2d7; }
+		button, select, textarea, input { font: inherit; }
+		button, select { min-height: 44px; }
+		button { cursor: pointer; }
+		a { color: inherit; }
+		.sr-only {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			white-space: nowrap;
+			border: 0;
+		}
+
+		.hero {
+			background: var(--grove);
+			color: var(--white);
+			padding: 38px max(20px, calc((100vw - 1180px) / 2)) 34px;
+		}
+		.hero-inner { max-width: 1180px; margin: 0 auto; }
+		.eyebrow {
+			margin: 0 0 8px;
+			color: #dce8de;
+			font-size: 12px;
+			font-weight: 800;
+			letter-spacing: .11em;
+			text-transform: uppercase;
+		}
+		h1, h2, h3, p { margin-top: 0; }
+		h1 {
+			max-width: 780px;
+			margin-bottom: 12px;
+			font-size: clamp(2rem, 5vw, 4.4rem);
+			line-height: .98;
+			letter-spacing: -.055em;
+		}
+		.hero-copy {
+			max-width: 760px;
+			margin-bottom: 22px;
+			color: #dce8de;
+			font-size: clamp(.95rem, 1.5vw, 1.08rem);
+			line-height: 1.6;
+		}
+		.hero-stats {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+		.hero-stat {
+			display: flex;
+			gap: 7px;
+			align-items: baseline;
+			min-height: 44px;
+			padding: 10px 13px;
+			border: 1px solid rgb(255 255 255 / 18%);
+			border-radius: 10px;
+			background: rgb(255 255 255 / 7%);
+		}
+		.hero-stat strong { font-size: 18px; }
+		.hero-stat span { color: #dce8de; font-size: 12px; }
+
+		.control-bar {
+			position: sticky;
+			z-index: 90;
+			top: 0;
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			padding: 9px max(16px, calc((100vw - 1180px) / 2));
+			border-bottom: 1px solid var(--line);
+			background: rgb(248 245 237 / 94%);
+			backdrop-filter: blur(14px);
+		}
+		.control-group { display: flex; flex-wrap: wrap; gap: 6px; }
+		.control-button, .button {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 7px;
+			border: 1px solid color-mix(in srgb, var(--grove) 25%, var(--line));
+			border-radius: var(--control-radius);
+			padding: 0 12px;
+			background: transparent;
+			color: var(--grove);
+			font-size: 12px;
+			font-weight: 760;
+		}
+		.control-button[aria-pressed="true"], .button-primary {
+			border-color: var(--grove);
+			background: var(--grove);
+			color: white;
+		}
+		.button-clay { border-color: var(--terra); background: var(--terra); color: white; }
+		.button-quiet { border-color: transparent; }
+		.control-button:focus-visible, .button:focus-visible, select:focus-visible, textarea:focus-visible {
+			outline: 3px solid color-mix(in srgb, var(--honey) 75%, white);
+			outline-offset: 2px;
+		}
+		.storage-state { color: var(--muted); font-size: 11px; }
+		.storage-state.warn { color: #8e4b28; font-weight: 700; }
+
+		main { max-width: 1220px; margin: 0 auto; padding: 24px 20px 70px; }
+		.intro-grid {
+			display: grid;
+			grid-template-columns: minmax(0, 1.4fr) minmax(270px, .6fr);
+			gap: 18px;
+			margin-bottom: 24px;
+		}
+		.panel {
+			border: 1px solid var(--line);
+			border-radius: var(--radius);
+			background: var(--paper);
+			box-shadow: var(--soft-shadow);
+		}
+		.intro-copy { padding: 22px; }
+		.intro-copy h2, .section-heading h2 { margin-bottom: 8px; font-size: 24px; letter-spacing: -.025em; }
+		.intro-copy p, .section-heading p { color: var(--muted); line-height: 1.6; }
+		.recommendation {
+			padding: 20px;
+			border-top: 5px solid var(--terra);
+		}
+		.recommendation .label {
+			display: inline-flex;
+			margin-bottom: 10px;
+			padding: 4px 7px;
+			border-radius: 6px;
+			background: color-mix(in srgb, var(--terra) 12%, var(--paper));
+			color: var(--terra);
+			font-size: 11px;
+			font-weight: 850;
+			letter-spacing: .08em;
+			text-transform: uppercase;
+		}
+		.recommendation h3 { margin-bottom: 7px; font-size: 19px; }
+		.recommendation p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+		.tension {
+			margin-top: 15px;
+			padding: 11px 13px;
+			border: 1px solid color-mix(in srgb, var(--honey) 55%, var(--line));
+			border-radius: 10px;
+			background: color-mix(in srgb, var(--honey) 12%, var(--paper));
+			font-size: 12px;
+			line-height: 1.5;
+		}
+
+		.section-heading { margin: 36px 0 15px; }
+		.section-heading .kicker {
+			margin-bottom: 5px;
+			color: var(--terra);
+			font-size: 11px;
+			font-weight: 850;
+			letter-spacing: .1em;
+			text-transform: uppercase;
+		}
+
+		.direction-index {
+			display: grid;
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+			gap: 10px;
+		}
+		.direction-card {
+			display: flex;
+			min-height: 184px;
+			flex-direction: column;
+			align-items: stretch;
+			padding: 14px;
+			border: 1px solid var(--line);
+			border-radius: var(--radius);
+			background: var(--card);
+			box-shadow: var(--soft-shadow);
+		}
+		.direction-card.recommended { border-top: 5px solid var(--terra); padding-top: 10px; }
+		.direction-letter {
+			display: grid;
+			width: 36px;
+			height: 36px;
+			place-items: center;
+			margin-bottom: 12px;
+			border-radius: 9px;
+			background: var(--grove);
+			color: white;
+			font-weight: 850;
+		}
+		.direction-card h3 { margin-bottom: 5px; font-size: 15px; }
+		.direction-card p { flex: 1; margin-bottom: 12px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+		.direction-card .button { width: 100%; }
+
+		.variant-stack { display: grid; gap: 22px; }
+		.workspace[data-focus]:not([data-focus="all"]) .direction { display: none; }
+		.workspace[data-focus="a"] .direction-a,
+		.workspace[data-focus="b"] .direction-b,
+		.workspace[data-focus="c"] .direction-c,
+		.workspace[data-focus="d"] .direction-d,
+		.workspace[data-focus="e"] .direction-e { display: block; }
+		.direction {
+			overflow: clip;
+			border: 1px solid var(--line);
+			border-radius: 18px;
+			background: var(--paper);
+			box-shadow: var(--shadow);
+		}
+		.direction-head {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 18px;
+			align-items: start;
+			padding: 22px;
+			border-bottom: 1px solid var(--line);
+		}
+		.direction-title { display: flex; gap: 12px; align-items: start; }
+		.direction-title .direction-letter { margin: 0; flex: 0 0 auto; }
+		.direction-title h2 { margin-bottom: 5px; font-size: 23px; }
+		.direction-title p { max-width: 720px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+		.pro-con {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+			width: min(100%, 330px);
+		}
+		.pro-con div { padding: 9px 10px; border-radius: 9px; background: #ede9df; }
+		.pro-con strong { display: block; margin-bottom: 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; }
+		.pro-con span { color: var(--muted); font-size: 11px; line-height: 1.35; }
+
+		.surface-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 14px;
+			padding: 14px;
+		}
+		.mock {
+			min-width: 0;
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			background: #d8d3c9;
+			overflow: clip;
+		}
+		.mock-label {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			min-height: 38px;
+			padding: 8px 11px;
+			background: #ebe7de;
+			color: var(--muted);
+			font-size: 10px;
+			font-weight: 800;
+			letter-spacing: .07em;
+			text-transform: uppercase;
+		}
+		.mock-label span:last-child { font-weight: 600; text-transform: none; letter-spacing: 0; }
+		.device {
+			container-type: inline-size;
+			width: 100%;
+			margin: 0 auto;
+			background: var(--grove);
+			transition: max-width 180ms ease;
+		}
+		.workspace[data-viewport="phone"] .device {
+			max-width: 375px;
+			border-inline: 1px solid rgb(255 255 255 / 22%);
+		}
+		.workspace[data-viewport="desktop"] .phone-only { display: none !important; }
+		.workspace[data-viewport="phone"] .desktop-only { display: none !important; }
+		.mini-ribbon {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			min-height: 58px;
+			padding: 9px 12px;
+			background: var(--grove);
+			color: white;
+		}
+		.mini-title { min-width: 0; }
+		.mini-title small {
+			display: block;
+			margin-bottom: 1px;
+			color: #c9dbcD;
+			font-size: 8px;
+			font-weight: 800;
+			letter-spacing: .09em;
+			text-transform: uppercase;
+		}
+		.mini-title strong {
+			display: block;
+			overflow: hidden;
+			font-size: 15px;
+			letter-spacing: -.02em;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.mini-actions { display: flex; flex: 0 0 auto; gap: 4px; align-items: center; }
+		.mini-button {
+			display: inline-flex;
+			min-height: 36px;
+			align-items: center;
+			justify-content: center;
+			gap: 4px;
+			border: 1px solid rgb(255 255 255 / 30%);
+			border-radius: 7px;
+			padding: 0 8px;
+			background: transparent;
+			color: white;
+			font-size: 9px;
+			font-weight: 780;
+			white-space: nowrap;
+		}
+		.mini-button.primary { border-color: var(--terra); background: var(--terra); }
+		.mini-button.icon { width: 36px; padding: 0; font-size: 15px; }
+		.mini-utility {
+			padding: 8px 12px 10px;
+			background: var(--grove);
+			color: white;
+		}
+		.work-surface {
+			min-height: 240px;
+			margin-inline: 5px;
+			padding: 10px;
+			border-radius: 13px 13px 0 0;
+			background: var(--paper);
+		}
+		.week-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			font-size: 10px;
+		}
+		.week-row strong { font-size: 11px; }
+		.mini-field {
+			display: flex;
+			min-width: 0;
+			min-height: 36px;
+			align-items: center;
+			border: 1px solid rgb(255 255 255 / 25%);
+			border-radius: 7px;
+			padding: 0 9px;
+			background: rgb(255 255 255 / 10%);
+			color: white;
+			font-size: 9px;
+		}
+		.paper-field {
+			display: flex;
+			min-width: 0;
+			min-height: 36px;
+			align-items: center;
+			border: 1px solid var(--line);
+			border-radius: 7px;
+			padding: 0 9px;
+			background: var(--card);
+			color: var(--ink);
+			font-size: 9px;
+		}
+		.filter-key {
+			display: inline-flex;
+			min-height: 32px;
+			align-items: center;
+			justify-content: center;
+			border: 1px solid rgb(255 255 255 / 28%);
+			border-radius: 7px;
+			padding: 0 8px;
+			background: rgb(255 255 255 / 8%);
+			color: white;
+			font-size: 8px;
+			font-weight: 750;
+			white-space: nowrap;
+		}
+		.filter-key.active { background: white; color: var(--grove); }
+		.card-stack { display: grid; gap: 7px; }
+		.two-line-card {
+			display: grid;
+			gap: 5px;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			padding: 7px 8px;
+			background: var(--card);
+			box-shadow: 0 3px 8px rgb(35 58 46 / 6%);
+		}
+		.object-line {
+			display: flex;
+			min-width: 0;
+			align-items: center;
+			gap: 7px;
+		}
+		.object-line .grow { min-width: 0; flex: 1; }
+		.object-line strong {
+			display: block;
+			overflow: hidden;
+			font-size: 10px;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.object-line small { color: var(--muted); font-size: 8px; }
+		.check {
+			display: grid;
+			width: 22px;
+			height: 22px;
+			flex: 0 0 auto;
+			place-items: center;
+			border: 1px solid var(--line);
+			border-radius: 6px;
+			color: var(--grove);
+			font-size: 10px;
+		}
+		.portions {
+			display: inline-flex;
+			flex: 0 0 auto;
+			align-items: center;
+			gap: 4px;
+			min-height: 25px;
+			padding: 0 6px;
+			border: 1px solid var(--line);
+			border-radius: 6px;
+			background: var(--paper);
+			font-size: 8px;
+			font-weight: 760;
+		}
+		.segment {
+			display: inline-flex;
+			min-height: 28px;
+			align-items: center;
+			border-radius: 7px;
+			padding: 2px;
+			background: #ebe7de;
+			font-size: 8px;
+			font-weight: 740;
+		}
+		.segment span { display: grid; min-height: 24px; place-items: center; padding: 0 7px; border-radius: 5px; }
+		.segment .selected { border: 1px solid var(--line); background: white; box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
+		.more-key {
+			display: inline-flex;
+			min-height: 28px;
+			align-items: center;
+			border: 1px solid var(--line);
+			border-radius: 6px;
+			padding: 0 7px;
+			color: var(--grove);
+			font-size: 8px;
+			font-weight: 760;
+		}
+		.shortlist {
+			display: grid;
+			gap: 5px;
+			margin-top: 8px;
+			padding-top: 8px;
+			border-top: 1px solid var(--line);
+		}
+		.shortlist-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+		.shortlist-head strong { font-size: 10px; }
+		.shortlist-head span { color: var(--muted); font-size: 8px; }
+		.shortlist-row {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			align-items: center;
+			gap: 7px;
+			min-height: 34px;
+			padding: 5px 7px;
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			background: var(--card);
+			font-size: 8px;
+		}
+		.shortlist-row strong { display: block; font-size: 9px; }
+		.shortlist-row span { color: var(--muted); }
+
+		.filter-layout { display: grid; gap: 6px; }
+		.search-sort { display: grid; grid-template-columns: minmax(0, 1fr) minmax(92px, .35fr); gap: 6px; }
+		.status-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+		.select-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+		.recipe-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
+		.recipe-card {
+			min-width: 0;
+			overflow: clip;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			background: var(--card);
+		}
+		.recipe-main { display: grid; grid-template-columns: 62px minmax(0, 1fr); min-height: 65px; }
+		.food-photo {
+			position: relative;
+			overflow: hidden;
+			background: #d6b97c;
+		}
+		.food-photo::before, .food-photo::after {
+			position: absolute;
+			border-radius: 50%;
+			content: "";
+		}
+		.food-photo::before { width: 42px; height: 42px; left: 10px; top: 11px; background: #f4e5bd; box-shadow: inset 0 0 0 8px #9d5f35; }
+		.food-photo::after { width: 15px; height: 8px; left: 24px; top: 28px; background: #476647; transform: rotate(-18deg); }
+		.food-photo.green { background: #8aa27c; }
+		.food-photo.terra { background: #c78768; }
+		.recipe-copy { display: grid; align-content: center; gap: 3px; min-width: 0; padding: 7px; }
+		.recipe-copy strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+		.recipe-copy small { color: var(--muted); font-size: 8px; }
+		.recipe-meta { display: flex; flex-wrap: wrap; gap: 3px 6px; color: var(--muted); font-size: 7px; }
+		.recipe-actions { display: flex; justify-content: space-between; gap: 5px; padding: 5px 7px; border-top: 1px solid var(--line); }
+		.text-action { color: var(--grove); font-size: 8px; font-weight: 780; }
+
+		.stock-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+		.metric {
+			display: flex;
+			min-height: 36px;
+			align-items: center;
+			gap: 6px;
+			padding: 5px 7px;
+			border: 1px solid rgb(255 255 255 / 22%);
+			border-radius: 8px;
+			background: rgb(255 255 255 / 8%);
+			color: white;
+			font-size: 8px;
+		}
+		.metric strong { font-size: 14px; }
+		.stock-filter-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, minmax(76px, .38fr)); gap: 5px; margin-top: 6px; }
+		.stock-columns { display: grid; grid-template-columns: 1.25fr .75fr; gap: 9px; }
+		.group-title { display: flex; align-items: baseline; justify-content: space-between; gap: 7px; margin-bottom: 5px; }
+		.group-title strong { font-size: 10px; }
+		.group-title span { color: var(--muted); font-size: 8px; }
+		.stock-card {
+			position: relative;
+			display: grid;
+			gap: 4px;
+			min-width: 0;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			padding: 7px 8px 7px 10px;
+			background: var(--card);
+		}
+		.stock-card.attention::before {
+			position: absolute;
+			inset-block: 7px;
+			left: 3px;
+			width: 3px;
+			border-radius: 3px;
+			background: var(--honey);
+			content: "";
+		}
+		.qty { display: inline-flex; min-height: 27px; align-items: center; border: 1px solid var(--line); border-radius: 7px; overflow: clip; font-size: 8px; }
+		.qty span { display: grid; min-width: 25px; min-height: 25px; place-items: center; }
+		.qty span + span { border-left: 1px solid var(--line); }
+		.stock-meta { overflow: hidden; color: var(--muted); font-size: 8px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+		.stock-meta.warning { color: #8b5714; font-weight: 700; }
+
+		.sheet {
+			margin-left: auto;
+			width: min(100%, 470px);
+			min-height: 360px;
+			background: var(--paper);
+			color: var(--ink);
+		}
+		.sheet-head {
+			display: flex;
+			min-height: 50px;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			padding: 9px 12px;
+			border-bottom: 1px solid var(--line);
+		}
+		.sheet-head strong { font-size: 13px; }
+		.sheet-body { padding: 9px; }
+		.ah-summary {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			margin-bottom: 7px;
+			padding: 7px 9px;
+			border-radius: 8px;
+			background: color-mix(in srgb, var(--grove) 8%, var(--paper));
+			font-size: 8px;
+		}
+		.ah-list { display: grid; gap: 6px; }
+		.ah-row {
+			display: grid;
+			gap: 5px;
+			border: 1px solid var(--line);
+			border-radius: 9px;
+			padding: 7px;
+			background: var(--card);
+		}
+		.ah-row.needs-look { border-color: color-mix(in srgb, var(--honey) 65%, var(--line)); background: color-mix(in srgb, var(--honey) 8%, var(--card)); }
+		.ah-product { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 7px; }
+		.ah-product strong { display: block; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+		.ah-product small { display: block; color: var(--muted); font-size: 7px; }
+		.price { font-size: 9px; font-weight: 820; }
+		.ah-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 9px; color: var(--grove); font-size: 8px; font-weight: 720; }
+		.ah-footer {
+			position: sticky;
+			bottom: 0;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			margin-top: 8px;
+			padding: 8px;
+			border-top: 1px solid var(--line);
+			background: rgb(248 245 237 / 95%);
+			font-size: 8px;
+		}
+
+		/* B — utility-forward console */
+		.direction-b .mini-utility { padding-bottom: 11px; }
+		.direction-b .console-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 6px; align-items: center; }
+		.direction-b .work-surface { padding-top: 8px; }
+		.direction-b .recipe-card, .direction-b .stock-card { box-shadow: none; border-color: color-mix(in srgb, var(--grove) 14%, var(--line)); }
+		.direction-b .console-filter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+		.direction-b .recipe-main { grid-template-columns: minmax(0, 1fr); min-height: 60px; }
+		.direction-b .food-photo { display: none; }
+		.direction-b .recipe-actions { justify-content: flex-end; }
+		.direction-b .ah-summary { background: var(--grove); color: white; }
+
+		/* C — warm image-aware shelf */
+		.direction-c .work-surface { background: #f4efe5; }
+		.direction-c .two-line-card, .direction-c .recipe-card, .direction-c .stock-card { border-color: #d6ccbb; box-shadow: 0 5px 12px rgb(90 67 38 / 9%); }
+		.direction-c .meal-date {
+			display: grid;
+			width: 34px;
+			height: 34px;
+			flex: 0 0 auto;
+			place-items: center;
+			border-radius: 8px;
+			background…7 tokens truncated…nt must carry forward.</p>
+						<textarea data-note aria-label="Follow-up request" placeholder="Optional follow-up, kept verbatim"></textarea>
+					</fieldset>
+				</div>
+
+				<aside class="handoff">
+					<h3>Generated forward handoff</h3>
+					<p>Paste this into the next task. It points to the Markdown source; the next agent does not need this HTML.</p>
+					<textarea id="handoff-output" readonly aria-label="Generated handoff prompt"></textarea>
+					<div class="handoff-actions">
+						<button class="button button-primary" type="button" id="copy-handoff">Copy handoff</button>
+						<button class="button" type="button" id="reset-choices">Reset recommendations</button>
+					</div>
+					<p class="copy-state" id="copy-state" aria-live="polite"></p>
+					<details class="option-table">
+						<summary>What the prompt preserves</summary>
+						<ul>
+							<li>source, evidence, fixed house-style constraints, and responsive states;</li>
+							<li>every option, selection, recommendation, rationale, uncertainty, and consequence;</li>
+							<li>accepted recommendations, overrides, exclusions, and verbatim notes;</li>
+							<li>the R2 presentation-only boundary and requested next work.</li>
+						</ul>
+					</details>
+				</aside>
+			</div>
+		</section>
+	</main>
+
+	<footer>
+		<strong>Source of truth:</strong> docs/feature-lists/archive/FEATURE_LIST_HOUSEHOLD_WORK_SURFACE_REFINEMENT.md
+		· Local decision workspace · No production UI changed
+	</footer>
+
+	<script>
+		(function () {
+			"use strict";
+
+			var artifactPath = "docs/artifacts/archive/2026-07-31-design-shotgun-household-work-surfaces.html";
+			var sourcePath = "docs/feature-lists/archive/FEATURE_LIST_HOUSEHOLD_WORK_SURFACE_REFINEMENT.md";
+			var schemaVersion = "household-work-surfaces-v1";
+			var storageKey = artifactPath + "::" + schemaVersion;
+			var workspace = document.querySelector(".workspace");
+			var storageState = document.getElementById("storage-state");
+			var output = document.getElementById("handoff-output");
+			var copyState = document.getElementById("copy-state");
+			var storageAvailable = true;
+
+			var directionNames = {
+				a: "A — Calm Ledger",
+				b: "B — Grove Console",
+				c: "C — Paper Shelf",
+				d: "D — Triage First",
+				e: "E — Quiet Table",
+				composite: "Recommended composite",
+				exclude: "Exclude / keep current"
+			};
+
+			var meta = {
+				baseline: {
+					question: "Which cohesive baseline should govern the work?",
+					options: "Recommended composite; A — Calm Ledger everywhere; B — Grove Console everywhere; C — Paper Shelf everywhere; D — Triage First everywhere; E — Quiet Table everywhere; exclude a whole-direction baseline.",
+					recommendation: "Recommended composite.",
+					rationale: "It uses the calmest row grammar for repeated work, the strongest responsive filter system, the prettiest compact Recipe cards, and the safest exception-first AH review.",
+					assumptions: "Surface-specific composition is acceptable as long as Deep Grove materials and semantic control roles stay shared.",
+					evidence: "The current routes already have different information architecture; docs/ui-house-style.md says shared roles should converge while pages keep their own structure.",
+					uncertainty: "A single whole direction would reduce implementation and verification complexity.",
+					consequences: "Composite maximizes fit but needs careful cross-surface consistency; A everywhere is simpler but less visually tailored."
+				},
+				meal: {
+					question: "Which Meal plan composition should be implemented?",
+					options: "A Calm Ledger; B Grove Console; C Paper Shelf; D Triage First; E Quiet Table; exclude and keep current cards.",
+					recommendation: "A — Calm Ledger.",
+					rationale: "It directly satisfies two visual rows, moves portions beside the title, and places Batch/Options beside Serve/Cook with the least extra hierarchy.",
+					assumptions: "Ordinary meals need quick scanning more often than rich imagery or exception grouping.",
+					evidence: "The current card reaches a third line because servings, batch, and source are separate blocks.",
+					uncertainty: "If source conflicts are common, D may save more time.",
+					consequences: "A is calm and familiar; other options add stronger console, editorial, triage, or table character."
+				},
+				recipe_filters: {
+					question: "How should Recipe filters fit without horizontal scrolling?",
+					options: "A responsive field groups; B strict console grid; C two-tier shelf; D priority-first filters; E compact form header; exclude and keep the rail.",
+					recommendation: "B — Grove Console.",
+					rationale: "Four status keys fit a wrapping 2-by-2 phone grid while Food type and Dish type use labeled native selects.",
+					assumptions: "Dynamic dish types cannot safely remain individual phone chips.",
+					evidence: "The current ui-scroll-rail intentionally scrolls; the request explicitly rejects that behavior.",
+					uncertainty: "Exact Dutch label lengths may require a 1-by-4 stack at high zoom.",
+					consequences: "B guarantees fit and visibility; chip-heavy alternatives need more wrapping rules."
+				},
+				recipe_cards: {
+					question: "Which Recipe card treatment should balance beauty and density?",
+					options: "A horizontal ledger card; B text-only console card; C shallow Paper Shelf card; D next-action card; E table row; exclude and keep current cards.",
+					recommendation: "C — Paper Shelf.",
+					rationale: "A shallow image region and warm paper layering make browsing more attractive without returning to tall poster cards.",
+					assumptions: "Most recipes have useful imagery, while no-image cards can promote text without a placeholder.",
+					evidence: "The current cards already support optional images and responsive 1/2/3 columns.",
+					uncertainty: "Poor source images may make A look more consistent.",
+					consequences: "C is prettiest; A is most robust; E is densest."
+				},
+				stock_header: {
+					question: "How should Stock use the green utility band and expose filters?",
+					options: "A outcome band plus responsive fields; B full Grove Console; C warm shelf controls; D attention-first controls; E aligned form header; exclude and keep the Filters sheet.",
+					recommendation: "B — Grove Console.",
+					rationale: "It moves outcomes, search, scope, and responsive filters into one continuous green utility region.",
+					assumptions: "Desktop users benefit from always-visible controls and phone users prefer labeled dropdowns.",
+					evidence: "The current green band contains only two outcome cards and Activity, while search/scope sit on paper and detailed filters always open a sheet.",
+					uncertainty: "At 200 percent text, the utility band will grow vertically.",
+					consequences: "B uses space well and removes a layer; it also makes the green region busier."
+				},
+				stock_cards: {
+					question: "Which Stock card grammar should replace icon and dot overload?",
+					options: "A one-signal ledger card; B plain console card; C typographic shelf card; D attention/settled card; E aligned row; exclude and keep current iconography.",
+					recommendation: "A — Calm Ledger.",
+					rationale: "Only real urgency gets a small leading bar; section, class, staple, expiry, relationship, and matches become one text sentence.",
+					assumptions: "Words are faster than decoding several small symbols in a household list.",
+					evidence: "Current ItemRow and FacetChips can combine ageing and review dots, section and food emoji, status dots, warning icons, and action icons.",
+					uncertainty: "A single persistent section marker may still be useful during mixed-scope browsing.",
+					consequences: "A is calm and legible; C adds more crafted character; D makes attention states more dominant."
+				},
+				ah_review: {
+					question: "How should Review AH order become compact without hiding risky choices?",
+					options: "A accordion ledger; B summary console; C grocery receipt; D Triage First; E purchasing table; exclude and keep current cards.",
+					recommendation: "D — Triage First.",
+					rationale: "Unresolved quantities and product conflicts stay expanded, while confirmed products collapse to one line and a sticky footer keeps the send summary visible.",
+					assumptions: "Most preview matches are accepted and only a minority require detailed product work.",
+					evidence: "The current card gives selected product, quantity, favorite, alternatives, text, skip, and warnings similar visual weight.",
+					uncertainty: "If most AH matches are low confidence, D will resemble the current expanded list.",
+					consequences: "D is fastest when matches are usually good; A is more neutral and predictable."
+				},
+				header_exception: {
+					question: "Should Meal plan adopt a narrow three-affordance identity-ribbon exception?",
+					options: "Accept Add meal plus Delivery/Shopping plus overflow; keep Add meal alone and put the other two in the utility band; exclude and retain current separation.",
+					recommendation: "Accept the narrow three-affordance group.",
+					rationale: "One clay primary, one compact destination, and one quiet overflow remain clearly ranked and fulfill the explicit request.",
+					assumptions: "Delivery can shorten visually at 320 px while retaining its full accessible label.",
+					evidence: "The user explicitly asked to place Shopping and overflow beside Add meal and turn Delivery into the Shopping button.",
+					uncertainty: "Long localized delivery labels may force natural ribbon growth.",
+					consequences: "Accepting improves proximity but evolves the current one-action rule; the utility option preserves the written contract."
+				},
+				followup: {
+					question: "What additional follow-up must the next agent preserve?",
+					options: "Free-form request or no additional follow-up.",
+					recommendation: "No additional follow-up by default.",
+					rationale: "The source brief already defines the state and responsive boundaries.",
+					assumptions: "Any new note is deliberate and should be reproduced verbatim.",
+					evidence: "The artifact captures the requested surfaces and current house-style constraints.",
+					uncertainty: "Implementation may reveal a missing edge state.",
+					consequences: "A note becomes a mandatory input to the next planning task."
+				}
+			};
+
+			function selectedLabel(select) {
+				if (!select) return "No structured selection";
+				return select.options[select.selectedIndex].text;
+			}
+
+			function collectState() {
+				var decisions = {};
+				document.querySelectorAll("[data-decision-id]").forEach(function (field) {
+					var id = field.getAttribute("data-decision-id");
+					var select = field.querySelector("[data-choice]");
+					var note = field.querySelector("[data-note]");
+					decisions[id] = {
+						value: select ? select.value : "",
+						label: selectedLabel(select),
+						note: note ? note.value : ""
+					};
+				});
+				return {
+					version: schemaVersion,
+					viewport: workspace.getAttribute("data-viewport"),
+					focus: workspace.getAttribute("data-focus"),
+					decisions: decisions
+				};
+			}
+
+			function saveState() {
+				if (!storageAvailable) return;
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(collectState()));
+					storageState.textContent = "Choices saved in this browser.";
+					storageState.classList.remove("warn");
+				} catch (error) {
+					storageAvailable = false;
+					storageState.textContent = "Changes work for this session but are not saved.";
+					storageState.classList.add("warn");
+				}
+			}
+
+			function restoreState() {
+				try {
+					var raw = localStorage.getItem(storageKey);
+					if (!raw) return;
+					var state = JSON.parse(raw);
+					if (!state || state.version !== schemaVersion) return;
+					if (state.viewport) setViewport(state.viewport, false);
+					if (state.focus) setFocus(state.focus, false);
+					Object.keys(state.decisions || {}).forEach(function (id) {
+						var field = document.querySelector('[data-decision-id="' + id + '"]');
+						if (!field) return;
+						var item = state.decisions[id];
+						var select = field.querySelector("[data-choice]");
+						var note = field.querySelector("[data-note]");
+						if (select && Array.from(select.options).some(function (option) { return option.value === item.value; })) select.value = item.value;
+						if (note) note.value = item.note || "";
+					});
+				} catch (error) {
+					storageAvailable = false;
+					storageState.textContent = "Saved choices could not be read; this session still works.";
+					storageState.classList.add("warn");
+				}
+			}
+
+			function setViewport(value, persist) {
+				workspace.setAttribute("data-viewport", value);
+				document.querySelectorAll("[data-viewport-button]").forEach(function (button) {
+					button.setAttribute("aria-pressed", button.getAttribute("data-viewport-button") === value ? "true" : "false");
+				});
+				if (persist !== false) {
+					saveState();
+					updatePrompt();
+				}
+			}
+
+			function setFocus(value, persist) {
+				workspace.setAttribute("data-focus", value);
+				document.querySelectorAll(".control-bar [data-focus-target]").forEach(function (button) {
+					button.setAttribute("aria-pressed", button.getAttribute("data-focus-target") === value ? "true" : "false");
+				});
+				if (persist !== false) saveState();
+				if (value !== "all") {
+					var target = document.querySelector(".direction-" + value);
+					if (target) target.scrollIntoView({ block: "start" });
+				}
+			}
+
+			function updatePrompt() {
+				var state = collectState();
+				var lines = [];
+				lines.push("Load " + sourcePath + " in full and continue with the plan workflow for the Keukenbrein household work-surface refinement.");
+				lines.push("");
+				lines.push("Authoritative context");
+				lines.push("- Source: " + sourcePath + ".");
+				lines.push("- Evidence baseline: origin/main ac3a1a1 after the shipped Deep Grove and Recipe Rotation work.");
+				lines.push("- Purpose: turn the selected design direction into an implementation-ready, presentation-only R2 plan. Do not implement from this handoff unless explicitly asked.");
+				lines.push("- Fixed house style: Deep Grove #344f3e chassis; warm paper/charcoal surfaces; clay primary action; quiet Grove secondary action; clean sans; 4/8/12 rhythm; 8 px controls; 14 px work surfaces; native semantics; visible focus; 44 CSS px targets.");
+				lines.push("- Fixed product seams: no schema, auth, household-data, provider, shopping derivation, Dutch AH lookup, preview-token, or AH request behavior changes.");
+				lines.push("- Required responsive and state evidence: 320, 393, 768, 1280 px; long English/Dutch copy; high zoom; light/dark; keyboard; no images; dynamic dish types; selected/empty/error/pending; Stock review/expiry/zero quantity; AH product/text/skip/unresolved/low-confidence/incompatible quantity/stale/failure/uncertain/sending/success.");
+				lines.push("");
+				lines.push("Selected decisions");
+				Object.keys(meta).forEach(function (id, index) {
+					var definition = meta[id];
+					var decision = state.decisions[id] || { label: "No selection", value: "", note: "" };
+					var defaultOutcome = id === "followup" ? "No additional follow-up." : definition.recommendation;
+					var disposition = decision.value === "exclude" ? "EXCLUDED" : (decision.label.indexOf(definition.recommendation.replace(".", "")) >= 0 ? "ACCEPTED RECOMMENDATION" : "SELECTED / OVERRIDE");
+					lines.push("");
+					lines.push((index + 1) + ". " + definition.question);
+					lines.push("Source concept: " + id + " in the Decisions carried by the HTML section.");
+					lines.push("Options: " + definition.options);
+					lines.push("Selected outcome: " + (decision.label || defaultOutcome));
+					lines.push("Disposition: " + disposition + ".");
+					lines.push("Recommendation: " + definition.recommendation);
+					lines.push("Why recommended: " + definition.rationale);
+					lines.push("Assumptions: " + definition.assumptions);
+					lines.push("Evidence: " + definition.evidence);
+					lines.push("Uncertainty: " + definition.uncertainty);
+					lines.push("Practical consequences: " + definition.consequences);
+					if (decision.note) {
+						lines.push("User note — reproduce verbatim under this exact decision:");
+						lines.push(decision.note);
+					} else {
+						lines.push("User note: none.");
+					}
+				});
+				lines.push("");
+				lines.push("Mandatory design outcomes");
+				lines.push("- Meal plan: Delivery becomes the Shopping destination; Add meal, delivery/shopping, and overflow form the selected compact top group; ordinary meal cards are exactly two visual rows; portions move beside the title; Batch/Options sits beside Serve/Cook; shortlist introduction is at most two text rows.");
+				lines.push("- Recipes: no horizontal filter rail at any supported width; phone uses wrapping status controls and labeled native selects for long/dynamic groups; card imagery is optional and no placeholder remains when absent; Plan and Make stay distinct.");
+				lines.push("- Stock: desktop detailed filters are visible; phone uses labeled Section and Food type dropdowns plus a compact review control; the green utility band carries the selected high-value controls; ordinary cards have at most one leading visual signal and use words instead of chains of dots and emoji.");
+				lines.push("- Review AH order: selected product, price, pack count, and attention state are primary; alternates/favorite management use disclosure; unresolved work stays explicit; a sticky summary and Send action remain visible; sending and recovery states stay safe.");
+				lines.push("");
+				lines.push("Next work");
+				lines.push("- Reconcile these selections with the source and docs/ui-house-style.md.");
+				lines.push("- Produce route/component tickets, responsive/state acceptance criteria, rollback, and focused verification.");
+				lines.push("- Preserve current data and interaction behavior; this handoff changes composition and visual hierarchy only.");
+				lines.push("- Do not instruct a later agent to read the HTML.");
+				output.value = lines.join("\n");
+			}
+
+			document.querySelectorAll("[data-viewport-button]").forEach(function (button) {
+				button.addEventListener("click", function () { setViewport(button.getAttribute("data-viewport-button")); });
+			});
+			document.querySelectorAll("[data-focus-target]").forEach(function (button) {
+				button.addEventListener("click", function () { setFocus(button.getAttribute("data-focus-target")); });
+			});
+			document.querySelectorAll("[data-choice], [data-note]").forEach(function (control) {
+				control.addEventListener("input", function () {
+					saveState();
+					updatePrompt();
+				});
+			});
+			document.getElementById("copy-handoff").addEventListener("click", function () {
+				updatePrompt();
+				var success = function () {
+					copyState.textContent = "Handoff copied.";
+				};
+				var fallback = function () {
+					output.focus();
+					output.select();
+					copyState.textContent = "Clipboard access failed. The handoff is selected; copy it manually.";
+				};
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(output.value).then(success).catch(fallback);
+				} else {
+					fallback();
+				}
+			});
+			document.getElementById("reset-choices").addEventListener("click", function () {
+				if (!window.confirm("Reset every selection and note to the recommended defaults?")) return;
+				try { localStorage.removeItem(storageKey); } catch (error) {}
+				document.querySelectorAll("[data-decision-id]").forEach(function (field) {
+					var select = field.querySelector("[data-choice]");
+					var note = field.querySelector("[data-note]");
+					if (select) select.selectedIndex = 0;
+					if (note) note.value = "";
+				});
+				setViewport("desktop", false);
+				setFocus("all", false);
+				saveState();
+				updatePrompt();
+				copyState.textContent = "Recommendations restored.";
+			});
+
+			restoreState();
+			updatePrompt();
+		})();
+	</script>
+</body>
+</html>

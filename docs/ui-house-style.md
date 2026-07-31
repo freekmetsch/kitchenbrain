@@ -19,14 +19,14 @@ Do not add a universal component whose variants reproduce page-local drift.
 | Secondary action | A useful action that does not commit the main task | `ui-action ui-action-secondary`; transparent with a quiet Grove outline |
 | Tertiary action | A quiet or reversible action | `ui-action ui-action-tertiary`; use `ui-action-icon` only for a familiar icon |
 | Danger or warning action | Destructive work or a deliberate warning step | `ui-action-danger` or `ui-action-warning`; severity must also be clear from the label |
-| Page identity | The stable route title | `KitchenPageHeader`; solid Green Ribbon, one H1, optional Back/leading navigation, and at most one highest-value action. Use `layout="contextual"` only when Back and a primary action share the ribbon |
+| Page identity | The stable route title | `KitchenPageHeader`; solid Green Ribbon, one H1, optional Back/leading navigation, and normally at most one highest-value action. Use `layout="contextual"` only when Back and a primary action share the ribbon. Meal plan has the one named compact-action exception below |
 | Page utilities | Route context and working controls immediately below the ribbon | `ui-page-utility` with `ui-page-utility-inner`; the band uses the exact Grove material with no divider from the ribbon. Metrics, week navigation, search, sort, filters, and secondary actions stay here |
-| Filter | A selectable compact option | `FilterChip`; real button, `aria-pressed`, 44 px target with a 32 px visual |
+| Filter | A selectable compact option | `FilterChip`; real button, `aria-pressed`, 44 px target with a 32 px visual. Long or dynamic filter families use labeled native selects inside a responsive grid rather than a horizontal rail |
 | Exclusive choice | One value from a small set | `SegmentedControl`; `radiogroup`/`radio` semantics, roving arrow-key focus, and one measured sliding paper indicator. Disabled choices are skipped; combinable filters remain chips |
 | Status | Short passive metadata | `StatusBadge`; dot plus text, never focusable and never pressed. Shopping's AH status sits beside its top action rather than in the week band |
 | Field | Generic text, search, number, date, select, or textarea input | `ui-field` or `ui-field-shell`; cream paper, 44 px single-line height, and visible focus, invalid, disabled, busy, and dark states |
 | Connected rows | One tightly related ledger | `ui-list-group`; internal dividers, 14 px outer corners, and Soft Lift separation from other boards |
-| Object cards | Recipes, Stock items, or Meals that need their own boundary | Separate bordered cards with modest 8–12 px gaps. Do not join distinct objects into one sheet |
+| Object cards | Recipes, Stock items, or Meals that need their own boundary | Separate bordered cards with modest 8–12 px gaps. Repeated household work prefers two-line identity/quantity then choice/action rhythm; disclose rare controls instead of making every card tall |
 | Anchored compact choice | A secondary choice needed beside repeated work | `CompactPopover`; native top-layer popover, viewport clamp/flip, focus return, and a shared segmented choice inside |
 | Focused form | A form section that needs a deliberate working boundary | `ui-form-card`; do not use it for explanatory copy or every page section |
 | Section title | A meaningful body section | `ui-section-title`; sentence-case sans-serif, with weight and spacing rather than a display face |
@@ -51,6 +51,9 @@ Do not add a universal component whose variants reproduce page-local drift.
   wider viewports. Do not use contextual layout as a general compact-header option.
 - The ribbon owns identity, not route payload. Put at most one primary action in it. Back is
   leading navigation, not a second action.
+- Meal plan is the sole three-affordance ribbon exception: clay Add meal, a delivery-labelled
+  Shopping destination, and quiet overflow form one compact action group. At 320 px that group may
+  occupy a second ribbon row; other standard ribbons retain the normal 64/72 px geometry.
 - Recipe Edit is Recipe First: the recipe name is the H1 and the editing label is the eyebrow.
   A clean Save stays quiet/disabled; a dirty Save becomes the clay commit.
 - Shopping keeps AH status as passive dot-plus-text metadata in the top action group. At 320 px,
@@ -59,14 +62,22 @@ Do not add a universal component whose variants reproduce page-local drift.
 - Filters and statuses are different roles. If a user can change it, use a button with a selected
   state. Grove Fill is the shared selected treatment. If it only reports state, use passive
   dot-plus-text markup.
+- Recipe and Stock filter families stay visible in their continuous green utility bands. Status
+  filters may wrap; long or dynamic food, dish, storage, class, and review choices use labeled
+  native selects. Do not restore a horizontal filter rail or a catch-all Stock filter sheet.
 - Use connected ledgers only when the rows form one compact record set. Stock items, Meals, and
   Recipe cards are independent objects, so each keeps its own boundary and a modest gap. Never
   connect forms, notices, or unrelated actions just to reduce gaps.
-- Stock keeps quantity controls visible and reserves warning wash for real risk. Recipe
-  relationships are summarized once and expanded into a focused review instead of repeated on
-  every ordinary row.
+- Stock keeps quantity controls visible and reserves warning wash for real risk. An ordinary Stock
+  card uses words for section, class, staple, expiry, and recipe relationship, with at most one
+  leading urgency marker. Recipe relationships are summarized once and expanded into a focused
+  review instead of repeated icon or dot chains on every row.
 - Shopping uses one centered 52 rem work column. The latest unresolved AH outcome remains inline;
   successful and previous sends live in the on-demand history sheet.
+- Review AH order is triage-first: unresolved, unconfirmed, and unreviewed low-confidence choices
+  stay expanded under Needs a look; settled choices collapse under Confirmed. Selected product,
+  price, and pack count remain visible, alternate/favorite controls use Details disclosure, and the
+  product/text/skipped summary plus Send action stays sticky.
 - A notice shares material, not behavior. Do not move request state, validation, recovery, or
   announcements into `KitchenNotice`.
 - Stable headings use the system sans family. Do not restore Georgia, Times,

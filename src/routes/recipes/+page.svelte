@@ -18,7 +18,6 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
-	import { scrollRail } from '$lib/actions/scroll_rail';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
 	import AddToPlanSheet from '$lib/components/recipe-detail/AddToPlanSheet.svelte';
 	import MakeRecipeSheet from '$lib/components/recipe-detail/MakeRecipeSheet.svelte';
@@ -239,15 +238,13 @@
 	});
 
 	function setClass(value: string) {
-		const next = classFilter === value ? '' : value;
-		classFilter = next;
-		goto(recipeHref({ class: next }));
+		classFilter = value;
+		goto(recipeHref({ class: value }));
 	}
 
 	function setDish(value: string) {
-		const next = dishFilter === value ? '' : value;
-		dishFilter = next;
-		goto(recipeHref({ dish: next }));
+		dishFilter = value;
+		goto(recipeHref({ dish: value }));
 	}
 
 	function toggle(name: ToggleName) {
@@ -354,6 +351,43 @@
 		if (policy === 'special') return m.recipes_rhythm_summary_special();
 		return null;
 	}
+
+	type CardStatus = {
+		label: string;
+		tone: 'neutral' | 'success' | 'warning';
+	};
+
+	function recipeCardStatuses(recipe: Recipe): CardStatus[] {
+		const coverage = coverageLabel(recipe);
+		const rhythm = rhythmLabel(recipe.rotationPolicy);
+		const cooked = lastCookedLabel(recipe);
+		const statuses: Array<CardStatus | null> = [
+			recipe.needsReview
+				? { label: m.recipes_review_badge(), tone: 'warning' }
+				: null,
+			recipe.belowTarget
+				? { label: m.recipes_below_target_badge(), tone: 'warning' }
+				: recipe.isFreezerStaple
+					? { label: m.recipes_freezer_badge(), tone: 'neutral' }
+					: null,
+			coverage
+				? {
+						label: coverage,
+						tone: recipe.hasAllIngredients ? 'success' : 'neutral'
+					}
+				: null,
+			rhythm
+				? { label: rhythm, tone: 'neutral' }
+				: null,
+			recipe.subCount > 0
+				? { label: m.recipes_meal_badge({ count: recipe.subCount }), tone: 'neutral' }
+				: null,
+			cooked
+				? { label: cooked, tone: 'neutral' }
+				: null
+		];
+		return statuses.filter((status): status is CardStatus => status !== null);
+	}
 </script>
 
 <svelte:head>
@@ -373,97 +407,109 @@
 	</KitchenPageHeader>
 
 	<div class="ui-page-utility">
-		<div class="recipe-utility ui-page-utility-inner">
-		<div class="recipe-search-row">
-			<label class="ui-field-shell">
-				<svg
-					viewBox="0 0 16 16"
-					class="h-4 w-4"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					aria-hidden="true"
+		<div class="recipe-console ui-page-utility-inner">
+			<div class="recipe-utility">
+				<div class="recipe-search-row">
+					<label class="ui-field-shell">
+						<svg
+							viewBox="0 0 16 16"
+							class="h-4 w-4"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.5"
+							aria-hidden="true"
+						>
+							<path d="M11.25 11.25 14 14" />
+							<circle cx="7.25" cy="7.25" r="5" />
+						</svg>
+						<input
+							type="search"
+							placeholder={m.recipes_search_placeholder()}
+							aria-label={m.recipes_search_aria()}
+							bind:value={searchInput}
+							oninput={scheduleSearch}
+							onkeydown={(e) => {
+								if (e.key !== 'Enter') return;
+								if (searchTimer) clearTimeout(searchTimer);
+								searchTimer = null;
+								search();
+							}}
+						/>
+					</label>
+					<select
+						class="ui-field"
+						bind:value={sortBy}
+						onchange={search}
+						aria-label={m.recipes_sort_aria()}
+					>
+						<option value="title">{m.recipes_sort_az()}</option>
+						<option value="rating">{m.recipes_sort_rating()}</option>
+						<option value="recent">{m.recipes_sort_recent()}</option>
+						<option value="neglected">{m.recipes_sort_neglected()}</option>
+						<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
+					</select>
+				</div>
+				<button
+					class="ui-action ui-action-secondary"
+					onclick={() => {
+						newMealOpen = true;
+						newMealTitle = '';
+						newMealQuery = '';
+						newMealSlugs = [];
+						newMealError = '';
+					}}>{m.recipes_new_meal_button()}</button
 				>
-					<path d="M11.25 11.25 14 14" />
-					<circle cx="7.25" cy="7.25" r="5" />
-				</svg>
-			<input
-				type="search"
-				placeholder={m.recipes_search_placeholder()}
-				aria-label={m.recipes_search_aria()}
-				bind:value={searchInput}
-				oninput={scheduleSearch}
-				onkeydown={(e) => {
-					if (e.key !== 'Enter') return;
-					if (searchTimer) clearTimeout(searchTimer);
-					searchTimer = null;
-					search();
-				}}
-			/>
-			</label>
-			<select
-				class="ui-field"
-				bind:value={sortBy}
-				onchange={search}
-				aria-label={m.recipes_sort_aria()}
-			>
-				<option value="title">{m.recipes_sort_az()}</option>
-				<option value="rating">{m.recipes_sort_rating()}</option>
-				<option value="recent">{m.recipes_sort_recent()}</option>
-				<option value="neglected">{m.recipes_sort_neglected()}</option>
-				<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
-			</select>
-		</div>
-			<button
-				class="ui-action ui-action-secondary"
-				onclick={() => {
-					newMealOpen = true;
-					newMealTitle = '';
-					newMealQuery = '';
-					newMealSlugs = [];
-					newMealError = '';
-				}}>{m.recipes_new_meal_button()}</button
-			>
+			</div>
+
+			<div class="recipe-filter-grid">
+				<div class="recipe-status-filters" role="group" aria-label={m.recipes_filter_status_label()}>
+					<FilterChip class="recipe-filter-chip" selected={data.toggles.haveAll} tone="success" onclick={() => toggle('haveAll')}>
+						{m.recipes_filter_have_all()}
+					</FilterChip>
+					<FilterChip class="recipe-filter-chip" selected={data.toggles.freezerOnly} tone="info" onclick={() => toggle('freezerOnly')}>
+						{m.recipes_filter_freezer_staple()}
+					</FilterChip>
+					<FilterChip class="recipe-filter-chip" selected={data.toggles.belowTargetOnly} tone="warning" onclick={() => toggle('belowTargetOnly')}>
+						{m.recipes_filter_below_target()}
+					</FilterChip>
+					<FilterChip class="recipe-filter-chip" selected={data.toggles.rotationOnly} onclick={() => toggle('rotationOnly')}>
+						{m.recipes_filter_in_rotation()}
+					</FilterChip>
+				</div>
+				<label class="recipe-filter-select">
+					<span>{m.recipes_filter_food_type()}</span>
+					<select
+						class="ui-field"
+						value={classFilter}
+						onchange={(event) => setClass(event.currentTarget.value)}
+					>
+						<option value="">{m.recipes_filter_all_food_types()}</option>
+						{#each CORE_FOOD_TYPE_OPTIONS as option}
+							<option value={option.value}>{foodCategoryLabel(option.value)}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="recipe-filter-select">
+					<span>{m.recipes_filter_dish_type()}</span>
+					<select
+						class="ui-field"
+						value={dishFilter}
+						onchange={(event) => setDish(event.currentTarget.value)}
+					>
+						<option value="">{m.recipes_filter_all_dish_types()}</option>
+						{#each data.dishTypes as dishType}
+							<option value={dishType}>{foodCategoryLabel(dishType) ?? dishType}</option>
+						{/each}
+					</select>
+				</label>
+				{#if hasActiveFilters}
+					<button class="ui-action ui-action-tertiary ui-action-on-dark recipe-clear-filters" onclick={clearFilters}>
+						{m.recipes_clear_filters_button()}
+					</button>
+				{/if}
+			</div>
 		</div>
 	</div>
-
-	<!-- Chips toggle; the rail stays close to the results and scrolls on phones. -->
-	<section class="recipe-filter-shell">
-		<div class="recipe-filter-inner ui-kitchen-content">
-		<div class="ui-scroll-rail flex items-center gap-1.5 pb-0.5" use:scrollRail>
-			<FilterChip class="shrink-0" selected={data.toggles.haveAll} tone="success" onclick={() => toggle('haveAll')}>
-				{m.recipes_filter_have_all()}
-			</FilterChip>
-			<FilterChip class="shrink-0" selected={data.toggles.freezerOnly} tone="info" onclick={() => toggle('freezerOnly')}>
-				{m.recipes_filter_freezer_staple()}
-			</FilterChip>
-			<FilterChip class="shrink-0" selected={data.toggles.belowTargetOnly} tone="warning" onclick={() => toggle('belowTargetOnly')}>
-				{m.recipes_filter_below_target()}
-			</FilterChip>
-			<FilterChip class="shrink-0" selected={data.toggles.rotationOnly} onclick={() => toggle('rotationOnly')}>
-				{m.recipes_filter_in_rotation()}
-			</FilterChip>
-			<span class="h-4 w-px shrink-0 bg-base-300" aria-hidden="true"></span>
-			{#each CORE_FOOD_TYPE_OPTIONS as option}
-				<FilterChip
-					class="shrink-0"
-					selected={classFilter === option.value}
-					onclick={() => setClass(option.value)}
-				>{foodCategoryLabel(option.value)}</FilterChip>
-			{/each}
-			{#if data.dishTypes.length}
-				<span class="h-4 w-px shrink-0 bg-base-300" aria-hidden="true"></span>
-			{/if}
-			{#each data.dishTypes as dishType}
-				<FilterChip
-					class="shrink-0"
-					selected={dishFilter === dishType}
-					onclick={() => setDish(dishType)}
-				>{foodCategoryLabel(dishType) ?? dishType}</FilterChip>
-			{/each}
-		</div>
-		</div>
-	</section>
 
 	<main class="recipe-ledger ui-grove-surface ui-kitchen-content">
 	{#if ingredientFilter}
@@ -493,11 +539,9 @@
 			{#each data.recipes as recipe (recipe.id)}
 				{@const title = displayTitle(recipe)}
 				{@const category = displayCategory(recipe)}
-				{@const cookedLabel = lastCookedLabel(recipe)}
-				{@const coverage = coverageLabel(recipe)}
-				{@const rhythm = rhythmLabel(recipe.rotationPolicy)}
+				{@const statuses = recipeCardStatuses(recipe)}
 				<article
-					class="ui-recipe-card transition-colors hover:border-primary"
+					class="ui-recipe-card recipe-shelf-card transition-colors hover:border-primary"
 					animate:flip={{ duration: MOTION_CONTENT_MS }}
 					in:fade={{ duration: MOTION_MICRO_MS }}
 				>
@@ -512,35 +556,30 @@
 						</figure>
 					{/if}
 					<div class="recipe-card-copy">
-						<div class="flex flex-wrap items-center gap-1">
-							<h2 class="ui-recipe-card-title mr-auto min-w-0 line-clamp-2">{title}</h2>
+						<div class="recipe-card-heading">
 							{#if category}
-								<span class="recipe-category max-w-28 truncate">{category}</span>
+								<span class="recipe-category">{category}</span>
 							{/if}
 							{#if recipe.rating}
-								<span class="text-xs text-warning shrink-0">{stars(recipe.rating)}</span>
+								<span class="recipe-rating">{stars(recipe.rating)}</span>
 							{/if}
-								{#if recipe.subCount > 0}
-									<StatusBadge>{m.recipes_meal_badge({ count: recipe.subCount })}</StatusBadge>
-								{/if}
-								{#if recipe.needsReview}
-									<StatusBadge tone="warning">{m.recipes_review_badge()}</StatusBadge>
-								{/if}
-								{#if coverage}
-									<StatusBadge tone={recipe.hasAllIngredients ? 'success' : 'neutral'}>{coverage}</StatusBadge>
-								{/if}
-								{#if recipe.belowTarget}
-									<StatusBadge tone="warning">{m.recipes_below_target_badge()}</StatusBadge>
-								{:else if recipe.isFreezerStaple}
-									<StatusBadge>{m.recipes_freezer_badge()}</StatusBadge>
-								{/if}
-								{#if rhythm}<StatusBadge tone="neutral">{rhythm}</StatusBadge>{/if}
-							{#if cookedLabel}<span class="truncate text-xs text-base-content/40">{cookedLabel}</span>{/if}
+						</div>
+						<h2 class="ui-recipe-card-title line-clamp-2">{title}</h2>
+						<div
+							class="recipe-card-meta"
+							aria-label={statuses.map((status) => status.label).join(', ')}
+						>
+							{#each statuses.slice(0, 3) as status}
+								<StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+							{/each}
+							{#if statuses.length > 3}
+								<span class="recipe-status-more" aria-hidden="true">+{statuses.length - 3}</span>
+							{/if}
 						</div>
 					</div>
 					</a>
-					<div class="recipe-card-actions grid grid-cols-2 gap-2 border-t border-base-300/70 p-2">
-						<button type="button" class="ui-action ui-action-secondary" onclick={() => openPlan(recipe)}>{m.recipes_header_plan_button()}</button>
+					<div class="recipe-card-actions">
+						<button type="button" class="ui-action ui-action-tertiary" onclick={() => openPlan(recipe)}>{m.recipes_header_plan_button()}</button>
 						<button type="button" class="ui-action ui-action-secondary" onclick={() => openMake(recipe)}>{m.recipes_make_button()}</button>
 					</div>
 				</article>
@@ -567,34 +606,71 @@
 		gap: 0.5rem;
 	}
 
-	.recipe-filter-shell {
-		position: sticky;
-		z-index: 20;
-		top: 0;
-		border: 0;
-		background: var(--kitchen-grove);
-		backdrop-filter: none;
+	.recipe-console {
+		display: grid;
+		gap: 0.55rem;
 	}
 
-	.recipe-filter-inner {
-		padding-block: 0.55rem;
+	.recipe-filter-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: end;
+		gap: 0.4rem;
 	}
 
-	.recipe-filter-inner button {
-		min-height: 2.75rem;
+	.recipe-status-filters {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.25rem;
 	}
 
-	.recipe-filter-shell :global(.ui-filter-chip-hit[aria-pressed='false'] .ui-filter-chip-visual) {
+	.recipe-status-filters :global(.recipe-filter-chip) {
+		width: 100%;
+	}
+
+	.recipe-status-filters :global(.recipe-filter-chip .ui-filter-chip-visual) {
+		width: 100%;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.recipe-status-filters :global(.ui-filter-chip-hit[aria-pressed='false'] .ui-filter-chip-visual) {
 		border-color: rgb(255 255 255 / 24%);
 		background: rgb(255 255 255 / 8%);
 		color: var(--kitchen-ribbon-ink);
 	}
 
-	.recipe-filter-shell :global(.ui-filter-chip-hit[aria-pressed='true'] .ui-filter-chip-visual) {
+	.recipe-status-filters :global(.ui-filter-chip-hit[aria-pressed='true'] .ui-filter-chip-visual) {
 		border-color: rgb(255 255 255 / 58%);
 		background: var(--kitchen-grove);
 		color: var(--kitchen-paper);
 		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 16%);
+	}
+
+	.recipe-filter-select {
+		display: grid;
+		gap: 0.2rem;
+		min-width: 0;
+	}
+
+	.recipe-filter-select > span {
+		color: var(--kitchen-ribbon-muted);
+		font-size: 0.625rem;
+		font-weight: 750;
+		letter-spacing: 0.035em;
+	}
+
+	.recipe-filter-select .ui-field {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.recipe-clear-filters {
+		grid-column: 1 / -1;
+		justify-self: end;
 	}
 
 	.recipe-ledger {
@@ -609,7 +685,7 @@
 
 	.recipe-card-main {
 		display: block;
-		min-height: 4.25rem;
+		min-height: 5.75rem;
 	}
 
 	.recipe-card-main.has-image {
@@ -620,6 +696,7 @@
 	.recipe-card-thumb {
 		min-height: 5.75rem;
 		overflow: hidden;
+		border-inline-end: 1px solid color-mix(in oklab, var(--kitchen-grove) 12%, var(--kitchen-line));
 		background: var(--color-base-200);
 	}
 
@@ -628,17 +705,80 @@
 	}
 
 	.recipe-card-copy {
+		display: grid;
+		align-content: center;
+		gap: 0.35rem;
+		min-width: 0;
+		min-height: 5.75rem;
+		padding: 0.65rem 0.75rem;
+	}
+
+	.recipe-card-heading {
 		display: flex;
 		min-width: 0;
 		align-items: center;
-		padding: 0.8rem 0.875rem;
+		justify-content: space-between;
+		gap: 0.45rem;
 	}
 
 	.recipe-category {
+		overflow: hidden;
 		color: color-mix(in oklab, var(--kitchen-olive) 78%, var(--kitchen-muted));
-		font-size: 0.7rem;
-		font-weight: 720;
+		font-size: 0.625rem;
+		font-weight: 780;
 		line-height: 1.2;
+		letter-spacing: 0.055em;
+		text-overflow: ellipsis;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.recipe-rating {
+		flex: 0 0 auto;
+		color: var(--color-warning);
+		font-size: 0.68rem;
+		letter-spacing: -0.08em;
+	}
+
+	.recipe-card-meta {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 0.25rem;
+		overflow: hidden;
+		white-space: nowrap;
+	}
+
+	.recipe-card-meta :global([data-house-style='status-badge']) {
+		flex: 0 1 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.recipe-status-more {
+		flex: 0 0 auto;
+		color: var(--kitchen-muted);
+		font-size: 0.68rem;
+		font-weight: 750;
+	}
+
+	.recipe-card-actions {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.25rem;
+		padding: 0.25rem 0.5rem;
+		border-top: 1px solid color-mix(in oklab, var(--kitchen-grove) 10%, var(--kitchen-line));
+		background: color-mix(in oklab, var(--kitchen-grove) 3%, var(--kitchen-card));
+	}
+
+	.recipe-card-actions .ui-action {
+		padding-inline: 0.5rem;
+	}
+
+	.recipe-shelf-card {
+		border-color: color-mix(in oklab, var(--kitchen-grove) 14%, var(--kitchen-line));
+		box-shadow: 0 5px 14px rgb(58 48 32 / 9%);
 	}
 
 	@media (min-width: 48rem) {
@@ -649,6 +789,20 @@
 
 		.recipe-search-row {
 			grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.32fr);
+		}
+
+		.recipe-filter-grid {
+			grid-template-columns: minmax(22rem, 1.6fr) minmax(8rem, 0.55fr) minmax(8rem, 0.55fr) auto;
+		}
+
+		.recipe-status-filters {
+			grid-column: auto;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+
+		.recipe-clear-filters {
+			grid-column: auto;
+			align-self: end;
 		}
 
 		.recipe-grid {

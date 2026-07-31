@@ -29,6 +29,7 @@
 		onDemoteToText: () => void;
 		onToggleExpanded: () => void;
 		showFavorite?: boolean;
+		compact?: boolean;
 	};
 	let {
 		item,
@@ -42,7 +43,8 @@
 		onToggleFavorite,
 		onDemoteToText,
 		onToggleExpanded,
-		showFavorite = true
+		showFavorite = true,
+		compact = false
 	}: Props = $props();
 
 	// `dec` is always seeded by the preview, but stay defensive like the page
@@ -53,7 +55,33 @@
 	const sel = $derived(item.candidates[pick] ?? null);
 </script>
 
-<li class="rounded-2xl border border-base-300 p-3 {mode === 'exclude' ? 'opacity-50' : ''}">
+<li class="ah-preview-item {compact ? 'ah-preview-item-compact' : ''} {mode === 'exclude' ? 'opacity-50' : ''}">
+	{#if compact && !expanded}
+		<div class="ah-compact-row">
+			<div class="ah-compact-ingredient">
+				<strong>{item.term}</strong>
+				{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
+			</div>
+			<span class="ah-compact-choice">
+				{mode === 'product' && sel
+					? sel.name
+					: mode === 'exclude'
+						? m.shopping_ah_review_skipped()
+						: m.shopping_ah_review_as_text()}
+			</span>
+			{#if mode === 'product' && sel}
+				<span class="ah-compact-price">×{dec?.qty ?? 1} · {formatPrice(sel.price)}</span>
+			{/if}
+			<button
+				type="button"
+				class="ui-action ui-action-tertiary"
+				aria-expanded="false"
+				onclick={() => onToggleExpanded()}
+			>
+				{m.shopping_ah_review_details()}
+			</button>
+		</div>
+	{:else}
 	<div class="flex items-start justify-between gap-2">
 		<div class="min-w-0">
 			<span class="text-sm font-medium">{item.term}</span>
@@ -61,13 +89,25 @@
 				<span class="ml-1 text-xs text-base-content/50">{itemLabel(item)}</span>
 			{/if}
 		</div>
-		<button
-			type="button"
-			class="ui-action ui-action-tertiary shrink-0"
-			onclick={() => onToggleExclude()}
-		>
-			{mode === 'exclude' ? m.shopping_ah_undo_button() : m.shopping_ah_skip_button()}
-		</button>
+		<div class="flex shrink-0 items-center gap-1">
+			{#if compact}
+				<button
+					type="button"
+					class="ui-action ui-action-tertiary"
+					aria-expanded="true"
+					onclick={() => onToggleExpanded()}
+				>
+					{m.shopping_ah_review_hide_details()}
+				</button>
+			{/if}
+			<button
+				type="button"
+				class="ui-action ui-action-tertiary"
+				onclick={() => onToggleExclude()}
+			>
+				{mode === 'exclude' ? m.shopping_ah_undo_button() : m.shopping_ah_skip_button()}
+			</button>
+		</div>
 	</div>
 	{#if item.incompatibleQuantities}
 		<KitchenNotice tone="warning" class="mt-2 text-xs">
@@ -248,4 +288,82 @@
 			</button>
 		{/if}
 	{/if}
+	{/if}
 </li>
+
+<style>
+	.ah-preview-item {
+		min-width: 0;
+		padding: 0.7rem;
+		border: 1px solid color-mix(in oklab, var(--kitchen-olive) 14%, var(--kitchen-line));
+		border-radius: 0.8rem;
+		background: var(--kitchen-card);
+		box-shadow: 0 3px 10px rgb(35 58 46 / 6%);
+	}
+
+	.ah-preview-item-compact {
+		padding: 0.25rem 0.35rem 0.25rem 0.65rem;
+		box-shadow: none;
+	}
+
+	.ah-preview-item-compact:has(> :not(.ah-compact-row)) {
+		padding: 0.7rem;
+	}
+
+	.ah-compact-row {
+		display: grid;
+		grid-template-columns: minmax(5rem, 0.8fr) minmax(4.5rem, 1.4fr) auto auto;
+		align-items: center;
+		gap: 0.45rem;
+		min-height: 2.75rem;
+	}
+
+	.ah-compact-ingredient,
+	.ah-compact-choice {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.ah-compact-ingredient {
+		display: grid;
+	}
+
+	.ah-compact-ingredient strong {
+		overflow: hidden;
+		font-size: 0.76rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.ah-compact-ingredient span,
+	.ah-compact-choice,
+	.ah-compact-price {
+		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+		font-size: 0.68rem;
+	}
+
+	.ah-compact-price {
+		color: var(--color-base-content);
+		font-weight: 760;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+
+	.ah-compact-row :global(.ui-action) {
+		padding-inline: 0.55rem;
+		font-size: 0.68rem;
+	}
+
+	@media (max-width: 23rem) {
+		.ah-compact-row {
+			grid-template-columns: minmax(4.5rem, 0.8fr) minmax(4rem, 1fr) auto;
+			gap: 0.3rem;
+		}
+
+		.ah-compact-price {
+			display: none;
+		}
+	}
+</style>

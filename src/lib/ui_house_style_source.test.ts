@@ -122,4 +122,49 @@ describe('stable app house-style source contract', () => {
 		expect(nav).toContain('background: var(--kitchen-paper)');
 		expect(shoppingHeader).toContain('onDark');
 	});
+
+	it('keeps the refined household work surfaces compact and explicit', () => {
+		const mealPlan = readFileSync('src/routes/meal-plan/+page.svelte', 'utf8');
+		const recipes = readFileSync('src/routes/recipes/+page.svelte', 'utf8');
+		const inventory = readFileSync('src/routes/inventory/+page.svelte', 'utf8');
+		const inventoryController = readFileSync(
+			'src/lib/components/inventory/controller.svelte.ts',
+			'utf8'
+		);
+		const stockFacets = readFileSync(
+			'src/lib/components/inventory/FacetChips.svelte',
+			'utf8'
+		);
+		const ahSheet = readFileSync('src/lib/components/shopping/AhSheet.svelte', 'utf8');
+		const ahItem = readFileSync('src/lib/components/shopping/AhPreviewItem.svelte', 'utf8');
+
+		expect(mealPlan).toContain('plan-header-actions');
+		expect(mealPlan).toContain('plan-shopping-action');
+		expect(mealPlan.indexOf('meal-serving-stepper')).toBeLessThan(
+			mealPlan.indexOf('meal-details')
+		);
+		expect(mealPlan).toContain('grid-template-rows: minmax(2.75rem, auto) minmax(2.75rem, auto)');
+		expect(mealPlan).toContain('rotation-lane-heading');
+		expect(mealPlan).not.toContain('plan-actions');
+
+		expect(recipes).toContain('recipe-status-filters');
+		expect(recipes).toContain('recipe-filter-select');
+		expect(recipes).toContain('recipe-card-actions');
+		expect(recipes).not.toContain('ui-scroll-rail');
+		expect(recipes).not.toContain('scrollRail');
+
+		expect(inventory).toContain('stock-console');
+		expect(inventory).toContain('stock-filter-grid');
+		expect(inventory).not.toContain('FiltersSheet');
+		expect(inventoryController).not.toContain('filtersOpen');
+		expect(existsSync('src/lib/components/inventory/FiltersSheet.svelte')).toBe(false);
+		expect(stockFacets).not.toContain('StatusBadge');
+		expect(stockFacets).not.toMatch(/[🧊🥫🍲🥩🐟🫘🥚🥛🫙🍚]/u);
+
+		expect(ahSheet).toContain('attentionItems');
+		expect(ahSheet).toContain('confirmedItems');
+		expect(ahSheet).toContain('ah-review-footer');
+		expect(ahItem).toContain('compact?: boolean');
+		expect(ahItem).toContain('ah-compact-row');
+	});
 });

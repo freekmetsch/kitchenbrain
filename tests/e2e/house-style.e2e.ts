@@ -40,16 +40,27 @@ async function expectGroveSurfaceContinuity(page: Page, selector: string): Promi
 	expect(geometry.bottomGap ?? Number.POSITIVE_INFINITY).toBeLessThan(1);
 }
 
-async function expectGreenRibbon(page: Page, width: number): Promise<void> {
+async function expectGreenRibbon(
+	page: Page,
+	width: number,
+	maxActions = 1,
+	allowNarrowExpansion = false
+): Promise<void> {
 	const ribbon = page.locator('[data-house-style="green-ribbon"]');
 	await expect(ribbon).toBeVisible();
-	expect((await ribbon.boundingBox())?.height ?? 0).toBeCloseTo(width < 768 ? 64 : 72, 0);
+	const ribbonHeight = (await ribbon.boundingBox())?.height ?? 0;
+	if (allowNarrowExpansion && width <= 320) {
+		expect(ribbonHeight).toBeGreaterThanOrEqual(64);
+		expect(ribbonHeight).toBeLessThanOrEqual(120);
+	} else {
+		expect(ribbonHeight).toBeCloseTo(width < 768 ? 64 : 72, 0);
+	}
 	expect(await ribbon.evaluate((element) => getComputedStyle(element).backgroundImage)).toBe('none');
 	expect(
 		await ribbon.locator('h1').evaluate((element) => getComputedStyle(element).fontFamily)
 	).not.toMatch(/Georgia|Times/i);
 	expect(await ribbon.locator('.kitchen-page-header-action .ui-action').count()).toBeLessThanOrEqual(
-		1
+		maxActions
 	);
 	await expect(ribbon.locator('.kitchen-page-header-payload')).toHaveCount(0);
 	expect(await ribbon.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
@@ -91,6 +102,11 @@ test('house-style roles hold across stable routes and target viewports', async (
 		expect(await inventoryCard.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
 			'none'
 		);
+		for (const label of ['Storage', 'Food class', 'Needs review']) {
+			await expect(page.getByRole('combobox', { name: label })).toBeVisible();
+		}
+		await expect(page.getByRole('button', { name: 'Filters', exact: true })).toHaveCount(0);
+		await expect(inventoryCard.locator('.ui-status-dot')).toHaveCount(0);
 		const stockCards = page.locator('.stock-card');
 		if ((await stockCards.count()) > 1) {
 			const first = await stockCards.nth(0).boundingBox();
@@ -103,13 +119,21 @@ test('house-style roles hold across stable routes and target viewports', async (
 		}
 
 		await expectRouteFrame(page, '/meal-plan', viewport.width);
-		await expectGreenRibbon(page, viewport.width);
+		await expectGreenRibbon(page, viewport.width, 3, true);
 		await expectGroveSurfaceContinuity(page, '.plan-ledger');
+		await expect(page.getByRole('button', { name: 'Add meal', exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: /Delivery|Shopping/ })).toBeVisible();
+		await expect(page.locator('.plan-more[aria-label="More meal plan options"]')).toBeVisible();
 		const mealCards = page.locator('.plan-meal-list > li');
 		await expect(mealCards.first()).toBeVisible();
 		expect(await mealCards.first().evaluate((element) => getComputedStyle(element).borderRadius)).toBe(
 			'14px'
 		);
+		expect(
+			await mealCards.first().evaluate((element) =>
+				getComputedStyle(element).gridTemplateRows.split(' ').length
+			)
+		).toBe(2);
 
 		await expectRouteFrame(page, '/shopping', viewport.width);
 		await expectGreenRibbon(page, viewport.width);
@@ -144,6 +168,12 @@ test('house-style roles hold across stable routes and target viewports', async (
 		await expectGroveSurfaceContinuity(page, '.recipe-ledger');
 		const recipeCard = page.locator('.ui-recipe-card').first();
 		await expect(recipeCard).toBeVisible();
+		await expect(page.getByRole('group', { name: 'Recipe status filters' })).toBeVisible();
+		await expect(page.getByRole('combobox', { name: 'Food type' })).toBeVisible();
+		await expect(page.getByRole('combobox', { name: 'Dish type' })).toBeVisible();
+		expect(
+			await page.locator('.recipe-console').evaluate((element) => element.scrollWidth - element.clientWidth)
+		).toBe(0);
 		expect(await recipeCard.evaluate((element) => getComputedStyle(element).borderRadius)).toBe(
 			'14px'
 		);

@@ -1,16 +1,14 @@
 <!--
-	One stock row (V3 dense row): swipe-to-delete backdrop, aging accent bar,
-	name + unit-aware quantity control, micro facet chips, and the in-place
-	editor sheet. Rendered inside the page's <li> (the row enter/exit slide stays
-	with its {#each} block); the page owns every write and threads intent back up
-	through callbacks.
+	One text-forward stock row: swipe-to-delete backdrop, name, visible
+	unit-aware quantity control, and one metadata line. The outer card owns the
+	only optional urgency marker so ordinary rows do not accumulate dots and
+	icons.
 -->
 <script lang="ts">
-	import { swipe } from '$lib/actions/swipe';
 	import { m } from '$lib/paraglide/messages';
+	import { swipe } from '$lib/actions/swipe';
 	import FacetChips from './FacetChips.svelte';
 	import QtyControl from './QtyControl.svelte';
-	import { agingBar } from './shared';
 	import type { Item, RecipeLink, RecipeMatch } from './shared';
 
 	let {
@@ -68,13 +66,9 @@
 <div class="pointer-events-none absolute inset-0 flex items-center justify-end bg-error/90 px-5 text-error-content" aria-hidden="true">
 	<svg viewBox="0 0 16 16" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3.2h3V4.5M4.7 4.5l.4 8h5.8l.4-8M6.6 6.7v3.6M9.4 6.7v3.6" /></svg>
 </div>
-<div class="relative bg-[var(--stock-row-bg,var(--color-base-100))] px-3 py-2 {item.qtyNum === 0 ? 'opacity-65' : ''}" use:swipe={{ onSwipeLeft: () => onDelete() }}>
-	<div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-		<div class="flex min-w-0 items-center gap-2">
-			<span class="h-2 w-2 shrink-0 rounded-full {agingBar(item)}" aria-hidden="true"></span>
-			{#if item.needsReview}
-				<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" title={m.inventory_row_needs_review_title()}></span>
-			{/if}
+<div class="stock-item-row relative bg-[var(--stock-row-bg,var(--color-base-100))] px-3 py-2 {item.qtyNum === 0 ? 'opacity-65' : ''}" use:swipe={{ onSwipeLeft: () => onDelete() }}>
+	<div class="stock-item-primary grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+		<div class="flex min-w-0 items-center">
 			<button
 				type="button"
 				class="min-w-0 flex-1 truncate text-left text-sm font-medium leading-snug"
