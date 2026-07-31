@@ -5,6 +5,7 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
+	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import IngredientListEditor from '$lib/components/recipe-edit/IngredientListEditor.svelte';
 	import DirectionListEditor from '$lib/components/recipe-edit/DirectionListEditor.svelte';
@@ -162,25 +163,29 @@
 
 <svelte:window onpaste={handleImagePaste} />
 
-<div class="ui-page-shell px-4 pb-8">
-	<header class="sticky top-0 z-30 -mx-4 mb-4 flex items-center gap-2 border-b border-base-200 bg-base-100/95 px-4 py-2 backdrop-blur">
+<div class="recipe-edit-page ui-grove-page">
+	<KitchenPageHeader eyebrow={m.recipes_edit_heading()} title={data.recipe.title} layout="contextual">
+		{#snippet leading()}
 		<a
 			href="{base}/recipes/{data.recipe.slug}"
-			class="ui-action ui-action-tertiary ui-action-icon -ml-2 shrink-0"
+			class="ui-action ui-action-tertiary ui-action-on-dark ui-action-icon shrink-0"
 			aria-label={m.recipes_cancel_button()}><Icon name="chevronLeft" /></a
 		>
-		<h1 class="min-w-0 flex-1 truncate text-lg font-bold">{m.recipes_edit_heading()}</h1>
+		{/snippet}
+		{#snippet action()}
 		<button
 			type="submit"
 			form="recipe-edit-form"
 			class="ui-action ui-action-primary shrink-0"
 			disabled={submitting || !dirty}
 		>
-			{#if submitting}<Spinner size="xs" />{/if}
-			{m.recipes_edit_save_button()}
+			{#if submitting}<Spinner size="xs" />{:else}<Icon name="check" class="h-4 w-4" />{/if}
+			<span class="kitchen-page-header-action-label">{m.recipes_edit_save_button()}</span>
 		</button>
-	</header>
+		{/snippet}
+	</KitchenPageHeader>
 
+	<div class="ui-grove-surface ui-page-shell px-4 pb-8 pt-4">
 	{#if form?.error}
 		<KitchenNotice
 			bind:element={errorSummary}
@@ -295,4 +300,5 @@
 		<input type="hidden" name="contentRevision" value={data.recipe.contentRevision} />
 		<input type="hidden" name="acceptStructureDraft" value={data.reviewingStructureDraft ? '1' : '0'} />
 	</form>
+	</div>
 </div>

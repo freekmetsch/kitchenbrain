@@ -69,51 +69,27 @@
 	<title>{m.mealplan_title()}</title>
 </svelte:head>
 
-<div class="meal-plan-page">
+<div class="meal-plan-page ui-grove-page">
 	<p class="sr-only" aria-live="polite">{controller.servingsStatus}</p>
 	<KitchenPageHeader eyebrow={m.mealplan_header_context()} title={m.mealplan_heading()}>
-		{#snippet actions()}
+		{#snippet action()}
 			{#if controller.selectedWeek}
-			<details class="dropdown dropdown-end">
-				<summary
-					class="plan-more ui-action ui-action-tertiary ui-action-on-dark ui-action-icon"
-					aria-label={m.mealplan_more_options_aria()}
+				<button
+					type="button"
+					class="ui-action ui-action-primary"
+					onclick={() => controller.openAddDrawer(controller.selectedWeek!.weekStartDate)}
 				>
-					<span aria-hidden="true">⋯</span>
-				</summary>
-				<ul
-					class="menu dropdown-content z-30 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 text-base-content shadow-lg"
-				>
-					{#if data.hasPastWeeks || data.showPastWeeks}
-						<li>
-							<a
-								href={mealPlanWeekHref(
-									base,
-									controller.selectedWeek.weekStartDate,
-									!data.showPastWeeks
-								)}
-							>
-								<Icon name="clock" class="h-4 w-4" />
-								{data.showPastWeeks
-									? m.mealplan_hide_past_weeks()
-									: m.mealplan_show_past_weeks()}
-							</a>
-						</li>
-					{/if}
-					<li>
-						<a href="{base}/settings/meal-plan">
-							<Icon name="settings" class="h-4 w-4" />
-							{m.mealplan_settings_aria()}
-						</a>
-					</li>
-				</ul>
-			</details>
+					<Icon name="plus" class="h-4 w-4" />
+					{m.mealplan_add_meal()}
+				</button>
 			{/if}
 		{/snippet}
+	</KitchenPageHeader>
 
-		{#if controller.selectedWeek}
-			{@const week = controller.selectedWeek}
-			<div class="plan-header-payload">
+	{#if controller.selectedWeek}
+		{@const week = controller.selectedWeek}
+		<div class="ui-page-utility">
+			<div class="plan-header-payload ui-page-utility-inner">
 				<KitchenWeekNavigator
 					previousHref={controller.adjacentWeeks.previous
 						? mealPlanWeekHref(
@@ -151,43 +127,69 @@
 				</KitchenWeekNavigator>
 
 				<div class="plan-actions">
-			<a
-				href="{base}/shopping?week={week.weekStartDate}"
-				class="ui-action ui-action-secondary ui-action-on-dark"
-			>
-				<Icon name="cart" class="h-4 w-4" />
-				{m.mealplan_shopping_link()}
-			</a>
-			<button
-				type="button"
-				class="ui-action ui-action-tertiary ui-action-on-dark"
-				onclick={() => controller.startSuggest(week.weekStartDate)}
-				disabled={controller.suggestLoading && controller.suggestActive === week.weekStartDate}
-			>
-				{controller.suggestLoading && controller.suggestActive === week.weekStartDate
-					? m.mealplan_thinking_label()
-					: m.mealplan_suggest_button()}
-			</button>
-			<button
-				type="button"
-				class="ui-action ui-action-primary"
-				onclick={() => controller.openAddDrawer(week.weekStartDate)}
-			>
-				<Icon name="plus" class="h-4 w-4" />
-				{m.mealplan_add_meal()}
-			</button>
+					<a
+						href="{base}/shopping?week={week.weekStartDate}"
+						class="ui-action ui-action-secondary"
+					>
+						<Icon name="cart" class="h-4 w-4" />
+						{m.mealplan_shopping_link()}
+					</a>
+					<button
+						type="button"
+						class="ui-action ui-action-tertiary"
+						onclick={() => controller.startSuggest(week.weekStartDate)}
+						disabled={controller.suggestLoading && controller.suggestActive === week.weekStartDate}
+					>
+						{controller.suggestLoading && controller.suggestActive === week.weekStartDate
+							? m.mealplan_thinking_label()
+							: m.mealplan_suggest_button()}
+					</button>
+					<details class="dropdown dropdown-end">
+						<summary
+							class="plan-more ui-action ui-action-tertiary ui-action-icon"
+							aria-label={m.mealplan_more_options_aria()}
+						>
+							<span aria-hidden="true">⋯</span>
+						</summary>
+						<ul
+							class="menu dropdown-content right-0 z-30 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 text-base-content shadow-lg"
+						>
+							{#if data.hasPastWeeks || data.showPastWeeks}
+								<li>
+									<a
+										href={mealPlanWeekHref(
+											base,
+											controller.selectedWeek.weekStartDate,
+											!data.showPastWeeks
+										)}
+									>
+										<Icon name="clock" class="h-4 w-4" />
+										{data.showPastWeeks
+											? m.mealplan_hide_past_weeks()
+											: m.mealplan_show_past_weeks()}
+									</a>
+								</li>
+							{/if}
+							<li>
+								<a href="{base}/settings/meal-plan">
+									<Icon name="settings" class="h-4 w-4" />
+									{m.mealplan_settings_aria()}
+								</a>
+							</li>
+						</ul>
+					</details>
 				</div>
 			</div>
-		{/if}
-	</KitchenPageHeader>
+		</div>
+	{/if}
 
-	<main class="plan-ledger ui-kitchen-content">
+	<main class="plan-ledger ui-grove-surface ui-kitchen-content">
 		{#if controller.selectedWeek}
 			{@const week = controller.selectedWeek}
 		<div>
 			<section
 				id="week-{week.weekStartDate}"
-				class="ui-section-frame {week.weekStartDate === controller.currentWeekStart ? 'border-primary/60' : ''}"
+				class="ui-list-group {week.weekStartDate === controller.currentWeekStart ? 'plan-current-week' : ''}"
 			>
 				{#if week.meals.length > 0}
 					<ul class="divide-y divide-base-200">
@@ -392,7 +394,7 @@
 <style>
 	.meal-plan-page {
 		min-height: 100%;
-		background: var(--kitchen-paper);
+		background: var(--kitchen-grove);
 		padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 	}
 
@@ -432,7 +434,7 @@
 
 	.plan-week-copy > p {
 		margin-top: 0.18rem;
-		color: #d7e0d9;
+		color: var(--kitchen-muted);
 		font-size: 0.68rem;
 	}
 
@@ -447,18 +449,18 @@
 		display: inline-flex;
 		min-height: 1.65rem;
 		align-items: center;
-		border: 1px solid rgb(242 202 116 / 55%);
+		border: 1px solid color-mix(in oklab, var(--kitchen-honey) 62%, var(--kitchen-line));
 		border-radius: 999px;
 		padding: 0 0.5rem;
-		background: rgb(242 202 116 / 13%);
-		color: #f2ca74;
+		background: color-mix(in oklab, var(--kitchen-honey) 14%, var(--kitchen-card));
+		color: var(--kitchen-honey-ink);
 		font-size: 0.65rem;
 		font-weight: 750;
 	}
 
 	.plan-actions {
 		display: grid;
-		grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) 2.75rem;
 		gap: 0.4rem;
 	}
 
@@ -470,6 +472,10 @@
 
 	.plan-ledger {
 		padding-block: 0.75rem max(6.5rem, var(--ui-overlay-bottom));
+	}
+
+	.plan-current-week {
+		border-top-color: color-mix(in oklab, var(--kitchen-olive) 44%, var(--kitchen-line));
 	}
 
 	.meal-row {
@@ -639,7 +645,7 @@
 		{#if controller.filteredRecipes.length === 0}
 			<EmptyState mini title={m.mealplan_no_recipes_found_title()} description={m.mealplan_no_recipes_found_desc()} />
 		{:else}
-			<ul class="ui-section-frame divide-y divide-base-200">
+			<ul class="ui-list-group divide-y divide-base-200">
 				{#each controller.filteredRecipes as recipe}
 					{@const title = controller.recipeDisplayTitle(recipe)}
 					{@const cat = controller.recipeDisplayCategory(recipe)}

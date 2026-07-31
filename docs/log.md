@@ -914,3 +914,186 @@ Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.
 docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style.html,
 docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-compact-actions.html,
 docs/artifacts/archive/2026-07-29-plan-app-house-style.html
+
+## 2026-07-29 | ui + design-shotgun + html-artifact | App House Style V2
+
+Audited the shipped house style in the isolated seeded app at 375 × 812 and 1280 × 900 across
+Stock, Meal plan, Shopping, Recipes, and Settings in light and dark themes. The review found
+desktop canvas waste, over-framing, broad display-serif use, a dominant routine-page header, and
+muddy dark secondary actions.
+
+Rendered Soft Utility, Cookbook Studio, and Modern Grocer as equal-content live HTML/CSS options.
+The decision workspace compares Shopping phone, Recipes phone, Stock desktop, and a dark state,
+defaults to Soft Utility, saves explicit selections locally, and generates a forward-only
+refinement handoff. No production UI or behavior changed.
+
+Touched: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md,
+docs/artifacts/2026-07-29-design-shotgun-app-house-style-v2.html, docs/log.md
+
+## 2026-07-29 | design-shotgun + html-artifact | Soft Utility green-header refinement
+
+Recorded Soft Utility as the selected App House Style V2 direction and preserved the user's green
+header request verbatim. Refined it into five structurally distinct options: Green Ribbon, Split
+Canopy, Framed Grove, Working Header, and Layered Leaf. The board defaults to Green Ribbon and
+supports exact named carry-forwards without encouraging an undefined hybrid.
+
+Verified all five options in a real browser against equal Shopping phone, Recipes phone, Stock
+desktop, and dark Shopping evidence. The 390 px review board has no page overflow; every Stock
+prototype contains all fourteen rows; the difficult AH warning remains present in dark mode; and
+screen/theme controls, local decision persistence, reset, copy, and the forward-only planning
+handoff work without console errors. No production Svelte, CSS, behavior, data, provider, or AH
+surface changed.
+
+Touched: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md,
+docs/artifacts/2026-07-29-design-shotgun-app-house-style-v2-soft-utility-refinement.html,
+docs/log.md
+
+## 2026-07-29 | plan + ui + ux + review-work + html-artifact | Soft Utility Green Ribbon
+
+Recorded Green Ribbon as the approved App House Style V2 refinement and wrote a separate
+implementation-ready plan. Nine dependency-ordered R2 tickets cover the shared 64/72 px ribbon
+seam, Stock, Meal plan, Shopping, the Recipes family, Settings, Login, drift deletion, full
+browser verification, documentation, rollback, and ordinary beta delivery.
+
+The plan critique is GO after splitting Settings and Login into independent rollback/verification
+tickets. There are no open decisions, R3 changes, new dependencies, or deferred caller migrations.
+Production Svelte, CSS, behavior, data, auth, providers, and AH integration remain unchanged;
+implementation still requires an explicit `$run`.
+
+Touched: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md,
+docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md,
+docs/artifacts/2026-07-29-plan-app-house-style-green-ribbon.html, docs/log.md
+
+## 2026-07-30 | run + iterative ui | Soft Utility Green Ribbon
+
+Implemented the approved Green Ribbon across Stock, Meal plan, Shopping, Recipes
+index/detail/edit, Settings index/panels, and Login. The stable app now uses a solid 64/72 px
+herb identity ribbon, neutral route-utility rows, sans-serif hierarchy, low-frame repeated
+groups, content-led Recipe rows, balanced desktop work areas, and explicit dark secondary-action
+contrast. The paired action rail, decorative gradient/ring, display-serif token, generic framed
+list, raised notice edge, and Recipe category marker were retired.
+
+Three real-browser UI audit rounds covered the approved Shopping phone, Recipes phone, Stock
+desktop, dark Shopping, Settings, Meal plan, and Login evidence states. The audit closed with no
+remaining P1-P3 finding. The complete provider-free gate passed 125 unit-test files / 691 tests,
+28 primary and 28 secondary authenticated browser stories, clean Svelte diagnostics, and the
+production build. No schema, auth, provider, real AH, runtime configuration, persisted household
+data, or canonical Dutch ingredient behavior changed.
+
+Touched: docs/ui-house-style.md, src/app.css, src/lib/components/{recipe-detail,recipe-edit,settings,shopping,ui}/,
+src/lib/ui_house_style_source.test.ts, src/routes/{inventory,login,meal-plan,recipes,settings,shopping}/,
+tests/e2e/{auth,house-style}.e2e.ts,
+docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_{DESIGN_SHOTGUN_V2,GREEN_RIBBON}.md,
+docs/artifacts/2026-07-29-{design-shotgun-app-house-style-v2,design-shotgun-app-house-style-v2-soft-utility-refinement,plan-app-house-style-green-ribbon}.html
+
+## 2026-07-30 00:54 | archive-scan | 2 feature lists, 3 HTMLs archived
+
+Moved the completed App House Style V2 decision brief, implementation plan, comparison board,
+refinement board, and implementation-plan workspace into their archive directories. The
+repository has no `scripts/archive-scan.ps1`, so the validated inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md,
+docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-v2.html,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-v2-soft-utility-refinement.html,
+docs/artifacts/archive/2026-07-29-plan-app-house-style-green-ribbon.html
+
+## 2026-07-30 07:46 | run + ui | Green Ribbon vertical refinement
+
+Reduced the normal Green Ribbon from 64/72 px to 56/64 px on phone/desktop and narrowed the
+header-copy flex basis so a 320 px Recipe Edit header keeps Back, title, and Save on one row.
+Touch targets remain 44 px and long or 200%-equivalent text still grows the ribbon without
+horizontal overflow. Real-browser review covered the stable route matrix and representative
+phone, desktop, and Back+action states with no remaining P1-P3 finding.
+
+The complete provider-free gate passed 125 unit-test files / 691 tests, 29 primary authenticated
+browser stories with one deliberate connected-AH skip, clean Svelte diagnostics, and the
+production build. No route behavior, data, auth, provider, AH, schema, or runtime configuration
+changed.
+
+Touched: src/lib/components/ui/KitchenPageHeader.svelte, tests/e2e/house-style.e2e.ts,
+docs/ui-house-style.md,
+docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md
+
+## 2026-07-30 07:46 | archive-scan | 1 feature list, 0 HTMLs archived
+
+Returned the completed Green Ribbon implementation artifact to the archive after its compact
+follow-up. The repository still has no `scripts/archive-scan.ps1`, so the validated inline
+fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md
+
+## 2026-07-30 08:46 | plan + ui | Green Ribbon contextual coherence
+
+Diagnosed the compact Recipe Edit ribbon as a deterministic family-coherence regression from
+commit `8f4b1a5`: a shared 56/64 px geometry change was used to solve one Back + identity + Save
+composition. Planned a baseline restore followed by one explicit contextual layout in the shared
+Green Ribbon owner, used by Recipe detail and Recipe Edit. No HTML artifact was generated because
+the user requested immediate `$plan` into `$run`.
+
+Touched: docs/feature-lists/FEATURE_LIST_GREEN_RIBBON_CONTEXTUAL_COHERENCE.md,
+docs/known_issues/current/ISSUE_GREEN_RIBBON_RECIPE_EDIT_COHERENCE_20260730-0846.md,
+docs/log.md
+
+## 2026-07-30 09:15 | run + ui | Green Ribbon contextual coherence
+
+Reversed the global 56/64 compact geometry before implementing its replacement. Restored the
+standard 64/72 Green Ribbon family and added one explicit contextual composition in the shared
+header owner for Recipe detail/edit. At 320 px, contextual primary actions use a 44 px icon with
+the full accessible label preserved; full text returns at wider viewports. All other headers keep
+the standard layout.
+
+Real-browser verification covered standard, Back-only, action-only, and contextual headers at
+320/393/768/1280 px, English/Dutch, light/dark, 200%-equivalent text, and disabled/active/focused
+actions with no remaining P1-P3 finding. After one unrelated Cook Mode timeout and one SQLite I/O
+contention failure passed unchanged in isolation, the final clean gate passed 125 unit-test files
+/ 691 tests, 29 primary authenticated browser stories with one deliberate connected-AH skip,
+clean Svelte diagnostics, and the production build.
+
+Touched: src/lib/components/ui/KitchenPageHeader.svelte,
+src/lib/components/recipe-detail/RecipeHeader.svelte,
+src/routes/recipes/[slug]/edit/+page.svelte, src/lib/ui_house_style_source.test.ts,
+tests/e2e/house-style.e2e.ts, docs/ui-house-style.md,
+docs/feature-lists/archive/FEATURE_LIST_GREEN_RIBBON_CONTEXTUAL_COHERENCE.md,
+docs/known_issues/current/ISSUE_GREEN_RIBBON_RECIPE_EDIT_COHERENCE_20260730-0846.md,
+docs/log.md
+
+## 2026-07-30 09:15 | archive-scan | 1 feature list, 0 HTMLs archived
+
+Moved the completed Green Ribbon contextual-coherence plan into the feature-list archive. The
+repository still has no `scripts/archive-scan.ps1`, so the validated inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_GREEN_RIBBON_CONTEXTUAL_COHERENCE.md
+
+## 2026-07-31 01:29 | run + iterative ui | Deep Grove app chassis
+
+Implemented the approved autopilot decision set as one coherent Soft Utility / Deep Grove
+chassis. Header, utility band, six-pixel page reveal, and bottom navigation now share the exact
+`#344f3e` material in light and dark themes. Stable routes use 14 px warm-paper work surfaces,
+focused desktop composition, connected ledgers with Soft Lift, cream active navigation, quiet
+secondary actions, Grove selected states, dot-plus-text status, Warm Wash notices, and the
+Shopping Paper Shelf. Recipe Edit is Recipe First, and Shopping's passive AH status now sits in
+the top action group.
+
+Iterative real-browser review covered Stock, Meal plan, Shopping, Recipes index/detail/edit,
+Settings index/panels, Home, and Login at 320/393/768/1280 px, light/dark, English/Dutch, long
+content, focus, invalid, disabled, selected, and uncertain-AH states. The final UI audit has no
+remaining P1-P3 finding. The complete gate passed 125 unit-test files / 692 tests, 30 primary
+authenticated browser stories with one deliberate connected-AH skip, clean Svelte diagnostics,
+and the production build. One Cook Mode contention failure from an earlier no-retry run passed
+unchanged in isolation; the final CI-equivalent complete gate passed without using its retry.
+No route behavior, data, auth, provider, AH, schema, migration, or runtime configuration changed.
+
+Touched: docs/ui-house-style.md, src/app.css,
+src/lib/components/{NavBar,shopping,ui}/, src/lib/ui_house_style_source.test.ts,
+src/routes/{inventory,login,meal-plan,recipes,settings,shopping}/, src/routes/+page.svelte,
+tests/e2e/house-style.e2e.ts,
+docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GROVE_CHASSIS_REFINEMENT.md,
+docs/log.md
+
+## 2026-07-31 01:29 | archive-scan | 1 feature list, 0 HTMLs archived
+
+Moved the shipped Grove chassis execution artifact into the feature-list archive. The repository
+still has no `scripts/archive-scan.ps1`, so the validated inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_GROVE_CHASSIS_REFINEMENT.md

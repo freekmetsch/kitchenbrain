@@ -64,7 +64,7 @@
 			onclick={addIngredient}>{m.recipes_edit_add_ingredient_button()}</button
 		>
 	</div>
-	<div class="ui-section-frame divide-y divide-base-300/70">
+	<div class="ui-list-group divide-y divide-base-300/70">
 		{#each ingredients as ingredient, index (ingredient.clientId)}
 			<div class="p-2.5" data-ingredient-id={ingredient.clientId}>
 				<div

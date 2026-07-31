@@ -23,5 +23,6 @@
 	data-house-style="status-badge"
 	data-tone={tone}
 >
+	<i class="ui-status-dot" aria-hidden="true"></i>
 	{@render children()}
 </span>

@@ -3,6 +3,8 @@
 	import { enhance } from '$app/forms';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale, setLocale } from '$lib/paraglide/runtime';
+	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
+	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import PendingButton from '$lib/components/ui/PendingButton.svelte';
 
 	let { form } = $props<{ form: { error?: string } | null }>();
@@ -10,11 +12,13 @@
 	let submitting = $state(false);
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-base-200 p-4">
-	<div class="card w-full max-w-sm bg-base-100 shadow-xl">
-		<div class="card-body">
-			<div class="flex flex-wrap items-center justify-between gap-2">
-				<h1 class="card-title text-2xl font-bold">{m.login_title()}</h1>
+<div class="login-page ui-grove-page min-h-screen">
+	<KitchenPageHeader eyebrow={m.settingsshell_brand_label()} title={m.login_title()} />
+
+	<main class="login-main ui-grove-surface">
+		<div class="login-surface">
+			<div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+				<p class="max-w-xs text-sm leading-relaxed text-base-content/65">{m.login_subtitle()}</p>
 				<div class="ml-auto flex gap-1 text-xs" role="group" aria-label="Language">
 					<button
 						type="button"
@@ -28,12 +32,11 @@
 					>
 				</div>
 			</div>
-			<p class="text-base-content/60 text-sm mb-2">{m.login_subtitle()}</p>
 
 			{#if form?.error}
-				<div class="alert alert-error text-sm py-2">
+				<KitchenNotice tone="error" class="mb-4 text-sm" role="alert">
 					<span>{form.error}</span>
-				</div>
+				</KitchenNotice>
 			{/if}
 
 			<form
@@ -75,5 +78,30 @@
 				>
 			</form>
 		</div>
-	</div>
+	</main>
 </div>
+
+<style>
+	.login-page {
+		background: var(--kitchen-grove);
+	}
+
+	.login-main {
+		display: grid;
+		min-height: calc(100dvh - 4rem);
+		place-items: start center;
+		padding: clamp(2rem, 9vh, 5.5rem) 1rem 2rem;
+	}
+
+	.login-surface {
+		width: min(100%, 25rem);
+		border-top: 1px solid color-mix(in oklab, var(--kitchen-olive) 20%, var(--kitchen-line));
+		padding-top: 1.25rem;
+	}
+
+	@media (min-width: 48rem) {
+		.login-main {
+			min-height: calc(100dvh - 4.5rem);
+		}
+	}
+</style>

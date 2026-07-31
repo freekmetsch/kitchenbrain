@@ -504,7 +504,7 @@
 	}
 
 	.ah-sending h3 {
-		font-family: Georgia, 'Times New Roman', serif;
+		font-family: inherit;
 		font-size: 1.25rem;
 	}
 

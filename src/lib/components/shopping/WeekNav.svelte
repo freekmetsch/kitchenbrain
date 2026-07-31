@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
@@ -15,6 +16,7 @@
 		isDefaultWeek: boolean;
 		deliveryDate?: string | null;
 		ahConnected: boolean;
+		onAddItem: () => void;
 	};
 
 	let {
@@ -23,7 +25,8 @@
 		nextWeek,
 		isDefaultWeek,
 		deliveryDate = null,
-		ahConnected
+		ahConnected,
+		onAddItem
 	}: Props = $props();
 
 	function locale(): string {
@@ -52,13 +55,24 @@
 </script>
 
 <KitchenPageHeader eyebrow={m.shopping_header_context()} title={m.shopping_heading()}>
-	{#snippet actions()}
+	{#snippet action()}
 		<StatusBadge tone={ahConnected ? 'success' : 'warning'} onDark>
-			<i aria-hidden="true"></i>
 			{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
 		</StatusBadge>
+		<button
+			type="button"
+			class="ui-action ui-action-primary"
+			aria-label={m.shopping_additem_submit_aria()}
+			onclick={onAddItem}
+		>
+			<Icon name="plus" class="h-4 w-4" />
+			<span class="shopping-header-action-label">{m.shopping_additem_submit_aria()}</span>
+		</button>
 	{/snippet}
+</KitchenPageHeader>
 
+<div class="ui-page-utility">
+	<div class="market-run-state ui-page-utility-inner">
 	<div class="market-run-state">
 		<KitchenWeekNavigator
 			previousHref={`${base}/shopping?week=${prevWeek}`}
@@ -81,25 +95,18 @@
 				</div>
 			</div>
 		</KitchenWeekNavigator>
-
 	</div>
-</KitchenPageHeader>
+	</div>
+</div>
 
 <style>
-	:global(.ui-status-badge) i {
-		width: 0.4rem;
-		height: 0.4rem;
-		border-radius: 999px;
-		background: #87cf98;
-	}
-
-	:global(.ui-status-badge[data-tone='warning']) i {
-		background: #f0b34b;
-	}
-
 	.market-run-state {
 		min-width: 0;
 		width: 100%;
+	}
+
+	.ui-page-utility-inner.market-run-state {
+		display: block;
 	}
 
 	.market-week-copy {
@@ -116,13 +123,13 @@
 	}
 
 	.market-week-copy strong span {
-		color: #f5ce7a;
+		color: #f3cf8c;
 	}
 
 	.market-week-copy div {
 		overflow: hidden;
 		margin-top: 0.1rem;
-		color: #d3ded6;
+		color: var(--kitchen-ribbon-muted);
 		font-size: 0.58rem;
 		line-height: 1.3;
 		text-overflow: ellipsis;
@@ -131,13 +138,40 @@
 
 	.market-week-copy a {
 		text-decoration: underline;
-		text-decoration-color: rgb(255 255 255 / 30%);
+		text-decoration-color: color-mix(in oklab, currentColor 35%, transparent);
 		text-underline-offset: 0.15rem;
 	}
 
 	.market-week-copy b {
 		font-weight: 400;
 		opacity: 0.5;
+	}
+
+	@media (max-width: 23rem) {
+		:global(
+			.kitchen-page-header:has(.shopping-header-action-label) .kitchen-page-header-identity
+		) {
+			flex-wrap: nowrap;
+			padding-block: 0;
+		}
+
+		.shopping-header-action-label {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			clip-path: inset(50%);
+			white-space: nowrap;
+			border: 0;
+		}
+
+		:global(.kitchen-page-header-action .ui-action-primary) {
+			width: 2.75rem;
+			padding-inline: 0;
+		}
 	}
 
 </style>

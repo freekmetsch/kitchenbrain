@@ -156,7 +156,7 @@
 
 <svelte:head><title>{m.shopping_title()}</title></svelte:head>
 
-<div class="shopping-market">
+<div class="shopping-market ui-grove-page">
 	<WeekNav
 		weekStart={data.weekStart}
 		prevWeek={data.prevWeek}
@@ -164,11 +164,12 @@
 		isDefaultWeek={data.isDefaultWeek}
 		deliveryDate={data.deliveryDate}
 		ahConnected={data.ah.connected}
+		onAddItem={() => addItemForm?.openAddModal()}
 	/>
 
 	<div
 		class:single-column={data.pushHistory.length === 0}
-		class="shopping-market-layout ui-kitchen-content"
+		class="shopping-market-layout ui-grove-surface ui-kitchen-content"
 	>
 		<main class="min-w-0">
 			<ShoppingLists
@@ -317,7 +318,7 @@
 		--market-paper: var(--kitchen-paper);
 		--market-card: var(--kitchen-card);
 		min-height: 100%;
-		background: var(--market-paper);
+		background: var(--kitchen-grove);
 		color: var(--color-base-content);
 	}
 
@@ -361,6 +362,20 @@
 	.shopping-market-dock :global(.ui-action) {
 		min-width: 0;
 		padding-inline: 0.7rem;
+	}
+
+	@media (max-width: 47.99rem) {
+		.shopping-market-dock {
+			right: var(--kitchen-frame-width);
+			bottom: var(--ui-nav-offset);
+			left: var(--kitchen-frame-width);
+			max-width: none;
+			border-bottom: 0;
+			border-radius: var(--kitchen-surface-radius) var(--kitchen-surface-radius) 0 0;
+			background: var(--kitchen-card);
+			box-shadow: 0 -8px 22px rgb(35 58 46 / 13%);
+			backdrop-filter: none;
+		}
 	}
 
 	.market-ah-action span {

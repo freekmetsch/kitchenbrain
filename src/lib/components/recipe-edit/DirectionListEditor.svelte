@@ -48,7 +48,7 @@
 			onclick={addDirection}>{m.recipes_edit_add_step_button()}</button
 		>
 	</div>
-	<ol class="ui-section-frame divide-y divide-base-300/70">
+	<ol class="ui-list-group divide-y divide-base-300/70">
 		{#each directions as direction, index (direction.clientId)}
 			<li class="min-w-0 p-2.5" data-direction-id={direction.clientId}>
 				<div class="mb-1 flex items-center gap-1">

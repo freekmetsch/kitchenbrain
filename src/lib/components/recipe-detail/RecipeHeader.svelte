@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
+	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import { tick } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
@@ -94,19 +95,51 @@
 	}}
 />
 
-<header class="border-b border-base-200 bg-base-100">
-	<div class="flex items-center gap-1.5 px-3 py-2">
+<KitchenPageHeader eyebrow={m.recipes_header_context()} title={displayTitle} layout="contextual">
+	{#snippet leading()}
 		<a
 			href="{base}/recipes"
-			class="ui-action ui-action-tertiary ui-action-icon shrink-0"
+			class="ui-action ui-action-tertiary ui-action-icon ui-action-on-dark shrink-0"
 			aria-label={m.recipes_header_back_aria()}><Icon name="chevronLeft" /></a
 		>
-		<h1 class="min-w-0 flex-1 truncate text-[15px] font-semibold leading-tight">{displayTitle}</h1>
+	{/snippet}
+	{#snippet action()}
 		<button
 			type="button"
 			class="ui-action ui-action-primary shrink-0"
-			onclick={onAddToPlan}><Icon name="plus" class="h-3.5 w-3.5" /> {m.recipes_header_plan_button()}</button
+			onclick={onAddToPlan}
 		>
+			<Icon name="plus" class="h-3.5 w-3.5" />
+			<span class="kitchen-page-header-action-label">{m.recipes_header_plan_button()}</span>
+		</button>
+	{/snippet}
+</KitchenPageHeader>
+
+<div class="ui-page-utility">
+	<div class="recipe-detail-utility ui-page-utility-inner">
+		<div class="recipe-translation-state">
+			{#if viewLang === 'en' && translationLoading}
+				<div class="flex items-center gap-2 text-[11px] text-base-content/60">
+					<Spinner size="xs" />
+					<span>{m.recipes_header_translating()}</span>
+				</div>
+			{:else if viewLang === 'en' && translationMessage}
+				<div class="flex items-center gap-2 text-[11px] text-warning" role="status">
+					<span class="min-w-0 flex-1">{translationMessage}</span>
+					<button type="button" class="ui-action ui-action-tertiary shrink-0" onclick={() => onRetryTranslation(false)}>
+						{m.recipes_translation_retry_button()}
+					</button>
+				</div>
+			{:else if viewLang === 'en' && recipe.translationStatus === 'error'}
+				<div class="flex items-center gap-2 text-[11px] text-warning" role="status">
+					<span class="min-w-0 flex-1">{m.recipes_translation_failed_retry()}</span>
+					<button type="button" class="ui-action ui-action-tertiary shrink-0" onclick={() => onRetryTranslation(true)}>
+						{m.recipes_translation_retry_button()}
+					</button>
+				</div>
+			{/if}
+		</div>
+		<div class="recipe-detail-actions">
 		<button bind:this={editButton} type="button" class="ui-action ui-action-tertiary shrink-0" onclick={onEditRaw}>
 			{m.recipes_edit_heading()}
 		</button>
@@ -158,25 +191,29 @@
 				{/if}
 			</div>
 		{/if}
+		</div>
 	</div>
-	{#if viewLang === 'en' && translationLoading}
-		<div class="flex items-center gap-2 px-3 pb-2 text-[11px] text-base-content/60">
-			<Spinner size="xs" />
-			<span>{m.recipes_header_translating()}</span>
-		</div>
-	{:else if viewLang === 'en' && translationMessage}
-		<div class="flex items-center gap-2 px-3 pb-2 text-[11px] text-warning" role="status">
-			<span class="min-w-0 flex-1">{translationMessage}</span>
-			<button type="button" class="ui-action ui-action-tertiary shrink-0" onclick={() => onRetryTranslation(false)}>
-				{m.recipes_translation_retry_button()}
-			</button>
-		</div>
-	{:else if viewLang === 'en' && recipe.translationStatus === 'error'}
-		<div class="flex items-center gap-2 px-3 pb-2 text-[11px] text-warning" role="status">
-			<span class="min-w-0 flex-1">{m.recipes_translation_failed_retry()}</span>
-			<button type="button" class="ui-action ui-action-tertiary shrink-0" onclick={() => onRetryTranslation(true)}>
-				{m.recipes_translation_retry_button()}
-			</button>
-		</div>
-	{/if}
-</header>
+</div>
+
+<style>
+	.recipe-detail-utility {
+		display: flex;
+		min-height: 3.5rem;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.recipe-translation-state {
+		min-width: 0;
+		flex: 1 1 auto;
+	}
+
+	.recipe-detail-actions {
+		display: flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 0.25rem;
+		margin-left: auto;
+	}
+</style>

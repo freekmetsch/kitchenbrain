@@ -330,7 +330,7 @@
 {#if history}{@render history()}{/if}
 
 {#if visibleExcludedSources.length}
-	<details class="not-this-run ui-section-frame" bind:open={offListOpen}>
+	<details class="not-this-run ui-list-group" bind:open={offListOpen}>
 		<summary>{m.shopping_not_this_run_count({ count: visibleExcludedSources.length })}</summary>
 		<ul>
 			{#each visibleExcludedSources as source (source.sourceKey)}
@@ -375,7 +375,7 @@
 	</EmptyState>
 {:else if controller.viewMode === 'filter-empty'}
 	{#if controller.filter.kind === 'weekly'}
-		<section class="shopping-ledger-section weekly ui-section-frame">
+		<section class="shopping-ledger-section weekly ui-list-group">
 			<header class="shopping-section-header">
 				<h2 class="ui-section-title">{m.shopping_filter_weekly()} <span>· 0</span></h2>
 				<FilterChip
@@ -405,7 +405,7 @@
 			<section
 				class:weekly={group.kind === 'weekly'}
 				class:shared={group.kind === 'shared'}
-				class="shopping-ledger-section ui-section-frame"
+				class="shopping-ledger-section ui-list-group"
 				out:slide={{ duration: groupMotionMs }}
 				animate:flip={{ duration: groupMotionMs }}
 			>
@@ -724,7 +724,22 @@
 
 	.shopping-active-groups {
 		display: grid;
-		gap: 0.55rem;
+		gap: 0;
+		overflow: hidden;
+		border: 1px solid color-mix(in oklab, var(--kitchen-grove) 18%, var(--kitchen-line));
+		border-radius: var(--kitchen-surface-radius);
+		background: var(--kitchen-card);
+		box-shadow: 0 8px 20px rgb(35 58 46 / 9%);
+	}
+
+	.shopping-active-groups > .shopping-ledger-section {
+		border: 0;
+		border-radius: 0;
+		box-shadow: none;
+	}
+
+	.shopping-active-groups > .shopping-ledger-section + .shopping-ledger-section {
+		border-top: 1px solid color-mix(in oklab, var(--kitchen-grove) 14%, var(--kitchen-line));
 	}
 
 	.shopping-section-header {
@@ -776,13 +791,11 @@
 	}
 
 	.market-run-list {
-		overflow: hidden;
+		overflow: clip;
 		margin: 0;
 		padding: 0;
-		border: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 18%, var(--color-base-300));
-		border-radius: 0.85rem;
-		background: var(--color-base-100);
-		box-shadow: 0 6px 18px rgb(48 75 58 / 5%);
+		border-block: 1px solid color-mix(in oklab, var(--market-olive, #304b3a) 13%, var(--color-base-300));
+		background: color-mix(in oklab, var(--color-base-100) 76%, transparent);
 		list-style: none;
 	}
 
@@ -983,9 +996,8 @@
 	}
 
 	.market-complete h2 {
-		font-family: var(--kitchen-display);
 		font-size: 1.35rem;
-		font-weight: 500;
+		font-weight: 750;
 	}
 
 	.market-complete p {

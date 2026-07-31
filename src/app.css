@@ -47,21 +47,25 @@
 }
 
 :root {
-	/* Kitchen Ledger visual system: route pages share materials, then compose
+	/* Soft Utility visual system: route pages share materials, then compose
 	   them around their own job instead of repeating one page's layout. */
-	--kitchen-paper: #f7f3e9;
-	--kitchen-card: #fffdf7;
-	--kitchen-ink: #243128;
-	--kitchen-muted: #68736b;
-	--kitchen-line: #d9d2c4;
-	--kitchen-olive: #334638;
-	--kitchen-olive-deep: #293b30;
-	--kitchen-olive-soft: #49614f;
-	--kitchen-honey: #d3a046;
+	--kitchen-paper: #f8f5ed;
+	--kitchen-card: #fffefa;
+	--kitchen-ink: #27312b;
+	--kitchen-muted: #647069;
+	--kitchen-line: #ded8cc;
+	--kitchen-grove: #344f3e;
+	--kitchen-olive: var(--kitchen-grove);
+	--kitchen-olive-soft: #56705d;
+	--kitchen-ribbon: var(--kitchen-grove);
+	--kitchen-ribbon-ink: #fffdf7;
+	--kitchen-ribbon-muted: #dce8de;
+	--kitchen-honey: #d8aa55;
 	--kitchen-honey-ink: #69460f;
-	--kitchen-terra: #a84d2a;
-	--kitchen-berry: #98536f;
-	--kitchen-display: Georgia, 'Times New Roman', serif;
+	--kitchen-terra: #aa5233;
+	--kitchen-surface-radius: 0.875rem;
+	--kitchen-frame-width: 0.375rem;
+	--kitchen-focus-width: 52rem;
 	--ui-safe-top: env(safe-area-inset-top, 0px);
 	--ui-safe-bottom: env(safe-area-inset-bottom, 0px);
 	--ui-nav-height: 3.5rem;
@@ -80,19 +84,24 @@
 
 html[data-theme='dark'] {
 	--kitchen-paper: #1c221e;
-	--kitchen-card: #252c27;
+	--kitchen-card: #272d29;
 	--kitchen-ink: #f0eee7;
 	--kitchen-muted: #aeb9b1;
-	--kitchen-line: #3f4842;
+	--kitchen-line: #454d47;
+	--kitchen-ribbon-ink: #f8faf7;
+	--kitchen-ribbon-muted: #bfd0c3;
 	--kitchen-honey-ink: #f0c569;
 }
 
 .app-shell {
 	padding-top: var(--ui-safe-top);
+	padding-inline: var(--kitchen-frame-width);
+	background: var(--kitchen-grove);
 }
 
 .app-main {
 	scroll-padding-block: 1rem calc(var(--ui-fixed-bar-height) + 1rem);
+	background: var(--kitchen-grove);
 }
 
 /* Secondary copy still has to meet normal-text contrast. Tailwind opacity
@@ -153,7 +162,7 @@ html[data-theme='dark'] {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Shared UI vocabulary — visual atoms extracted from the /inventory specimen.
+   Shared UI vocabulary — Soft Utility roles used by stable household routes.
    Behavior lives in $lib/components/ui/*; these are the visual-only recipes.
    Full recipe sheet + intended usage: docs/ui-house-style.md
    ───────────────────────────────────────────────────────────────────────────── */
@@ -164,10 +173,51 @@ html[data-theme='dark'] {
 	padding-bottom: calc(var(--ui-fixed-bar-height) + 1.5rem);
 }
 
+.ui-grove-page {
+	display: flex;
+	min-height: 100%;
+	flex-direction: column;
+	background: var(--kitchen-grove);
+}
+
+/* The content keeps its useful route-specific measure while the warm paper
+   reaches the viewport edge. The six-pixel Grove reveal is the only frame. */
+.ui-grove-surface {
+	position: relative;
+	z-index: 0;
+	width: 100%;
+	flex: 1 0 auto;
+	isolation: isolate;
+}
+
+.ui-grove-surface::before {
+	position: absolute;
+	z-index: -1;
+	inset-block: 0;
+	left: 50%;
+	width: calc(100vw - (2 * var(--kitchen-frame-width)));
+	border-radius: var(--kitchen-surface-radius);
+	background: var(--kitchen-paper);
+	content: '';
+	transform: translateX(-50%);
+}
+
 .ui-kitchen-content {
 	max-width: 74rem;
 	margin-inline: auto;
 	padding-inline: 1rem;
+}
+
+.ui-page-utility {
+	border: 0;
+	background: var(--kitchen-grove);
+	color: var(--kitchen-ribbon-ink);
+}
+
+.ui-page-utility-inner {
+	max-width: var(--kitchen-focus-width);
+	margin-inline: auto;
+	padding: 0.5rem 1rem 0.625rem;
 }
 
 .ui-action {
@@ -218,15 +268,15 @@ html[data-theme='dark'] {
 }
 
 .ui-action-secondary {
-	border-color: color-mix(in oklab, var(--kitchen-olive) 72%, var(--kitchen-line));
-	background: var(--kitchen-card);
-	color: var(--kitchen-olive);
+	border-color: color-mix(in oklab, var(--kitchen-grove) 20%, var(--kitchen-line));
+	background: transparent;
+	color: var(--kitchen-ink);
 }
 
 .ui-action-secondary:hover:not(:disabled, [aria-disabled='true']),
 .ui-action-secondary:focus-visible {
-	border-color: var(--kitchen-olive);
-	background: color-mix(in oklab, var(--kitchen-olive) 8%, var(--kitchen-card));
+	border-color: var(--kitchen-grove);
+	background: color-mix(in oklab, var(--kitchen-grove) 7%, transparent);
 }
 
 .ui-action-tertiary {
@@ -237,6 +287,15 @@ html[data-theme='dark'] {
 .ui-action-tertiary:hover:not(:disabled, [aria-disabled='true']),
 .ui-action-tertiary:focus-visible {
 	background: color-mix(in oklab, var(--kitchen-olive) 10%, transparent);
+}
+
+html[data-theme='dark'] .ui-action-secondary:not(.ui-action-on-dark),
+html[data-theme='dark'] .ui-action-tertiary:not(.ui-action-on-dark) {
+	color: #a4c8ac;
+}
+
+html[data-theme='dark'] .ui-action-secondary:not(.ui-action-on-dark) {
+	border-color: color-mix(in oklab, #a4c8ac 42%, var(--kitchen-line));
 }
 
 .ui-action-danger {
@@ -269,14 +328,6 @@ html[data-theme='dark'] {
 	padding-inline: 0;
 }
 
-.ui-action-on-dark.ui-action-secondary {
-	border-color: rgb(255 255 255 / 28%);
-	background: rgb(255 255 255 / 8%);
-	color: white;
-}
-
-.ui-action-on-dark.ui-action-secondary:hover,
-.ui-action-on-dark.ui-action-secondary:focus-visible,
 .ui-action-on-dark.ui-action-tertiary:hover,
 .ui-action-on-dark.ui-action-tertiary:focus-visible {
 	background: rgb(255 255 255 / 16%);
@@ -290,42 +341,25 @@ html[data-theme='dark'] {
 	outline-color: white;
 }
 
-.ui-kitchen-header-rail {
-	display: grid;
-	width: 17rem;
-	max-width: 100%;
-	min-width: 0;
-	grid-template-columns: 42fr 58fr;
-	gap: 1px;
-	overflow: hidden;
-	border: 1px solid rgb(255 255 255 / 28%);
-	border-radius: 0.5rem;
-	background: rgb(255 255 255 / 28%);
+.ui-page-utility .ui-action-secondary {
+	border-color: rgb(255 255 255 / 28%);
+	background: rgb(255 255 255 / 7%);
+	color: var(--kitchen-ribbon-ink);
 }
 
-.ui-kitchen-header-rail-cell {
-	display: flex;
-	min-width: 0;
+.ui-page-utility .ui-action-tertiary {
+	color: var(--kitchen-ribbon-ink);
 }
 
-.ui-kitchen-header-rail-cell > .ui-action {
-	width: 100%;
-	min-width: 0;
-	border: 0;
-	border-radius: 0;
-}
-
-@media (max-width: 30rem) {
-	.ui-kitchen-header-rail {
-		width: 100%;
-	}
+.ui-page-utility .ui-section-label {
+	color: var(--kitchen-ribbon-muted);
 }
 
 .ui-field,
 .ui-field-shell {
 	border: 1px solid color-mix(in oklab, var(--kitchen-olive) 24%, var(--kitchen-line));
 	border-radius: 0.5rem;
-	background: color-mix(in oklab, var(--kitchen-olive) 7%, var(--kitchen-card));
+	background: var(--kitchen-card);
 	color: var(--kitchen-ink);
 	transition:
 		border-color var(--motion-micro) var(--ease-standard),
@@ -401,31 +435,26 @@ textarea.ui-field {
 	color: color-mix(in oklab, currentColor 58%, transparent);
 }
 
-.ui-field-on-dark,
-.ui-field-shell-on-dark {
-	border-color: rgb(255 255 255 / 25%);
-	background: rgb(255 255 255 / 12%);
-	color: white;
+.ui-page-utility :is(.ui-field, .ui-field-shell) {
+	border-color: rgb(255 255 255 / 24%);
+	background: var(--kitchen-paper);
+	color: var(--kitchen-grove);
 }
 
-.ui-field-on-dark:focus-visible,
-.ui-field-shell-on-dark:focus-within {
-	border-color: rgb(255 255 255 / 48%);
-	box-shadow: 0 0 0 3px rgb(255 255 255 / 10%);
+.ui-page-utility .ui-field-shell input {
+	color: var(--kitchen-grove);
 }
 
-.ui-field-on-dark {
-	padding-right: 1.9rem;
-	font-weight: 700;
-}
-
-.ui-field-on-dark option {
-	color: var(--color-base-content);
-	background: var(--color-base-100);
+.ui-page-utility .ui-field-shell input::placeholder {
+	color: rgb(52 79 62 / 58%);
 }
 
 @media (min-width: 48rem) {
 	.ui-kitchen-content {
+		padding-inline: 1.5rem;
+	}
+
+	.ui-page-utility-inner {
 		padding-inline: 1.5rem;
 	}
 }
@@ -437,77 +466,48 @@ textarea.ui-field {
 
 .ui-section-title {
 	color: var(--kitchen-ink);
-	font-family: var(--kitchen-display);
 	font-size: 1rem;
-	font-weight: 600;
+	font-weight: 750;
 	line-height: 1.2;
-	letter-spacing: -0.015em;
+	letter-spacing: -0.01em;
 	text-transform: none;
 }
 
-.ui-section-frame {
-	overflow: hidden;
-	border: 1px solid color-mix(in oklab, var(--kitchen-olive) 18%, var(--kitchen-line));
-	border-radius: 0.5rem;
+.ui-list-group {
+	overflow: clip;
+	border: 1px solid color-mix(in oklab, var(--kitchen-grove) 18%, var(--kitchen-line));
+	border-radius: var(--kitchen-surface-radius);
 	background: var(--kitchen-card);
+	box-shadow: 0 8px 20px rgb(35 58 46 / 9%);
+}
+
+.ui-list-group > :not(:first-child) {
+	border-top-color: color-mix(in oklab, var(--kitchen-olive) 10%, var(--kitchen-line));
 }
 
 .ui-recipe-card {
-	--ui-recipe-accent: var(--kitchen-muted);
 	position: relative;
 	overflow: hidden;
-	border: 1px solid color-mix(in oklab, var(--kitchen-olive) 18%, var(--kitchen-line));
-	border-radius: 0.5rem;
+	border: 1px solid color-mix(in oklab, var(--kitchen-grove) 18%, var(--kitchen-line));
+	border-radius: var(--kitchen-surface-radius);
 	background: var(--kitchen-card);
-	box-shadow: 0 2px 8px rgb(48 75 58 / 5%);
-}
-
-.ui-recipe-card::before {
-	position: absolute;
-	z-index: 1;
-	inset-block: 0;
-	left: 0;
-	width: 0.25rem;
-	background: var(--ui-recipe-accent);
-	content: '';
-	pointer-events: none;
-}
-
-.ui-recipe-card[data-category-accent='terra'] {
-	--ui-recipe-accent: var(--kitchen-terra);
-}
-
-.ui-recipe-card[data-category-accent='blue'] {
-	--ui-recipe-accent: var(--color-info);
-}
-
-.ui-recipe-card[data-category-accent='sage'] {
-	--ui-recipe-accent: var(--color-success);
-}
-
-.ui-recipe-card[data-category-accent='honey'] {
-	--ui-recipe-accent: var(--kitchen-honey);
-}
-
-.ui-recipe-card[data-category-accent='berry'] {
-	--ui-recipe-accent: var(--kitchen-berry);
+	box-shadow: 0 8px 20px rgb(35 58 46 / 9%);
 }
 
 .ui-recipe-card-title {
-	font-family: var(--kitchen-display);
-	font-size: 0.9rem;
-	font-weight: 600;
-	line-height: 1.2;
+	font-size: 0.925rem;
+	font-weight: 740;
+	line-height: 1.25;
 }
 
 .ui-kitchen-notice {
 	--ui-notice-color: var(--color-info);
 	--ui-notice-edge: color-mix(in oklab, var(--ui-notice-color) 45%, var(--kitchen-line));
 	border: 1px solid color-mix(in oklab, var(--ui-notice-color) 32%, var(--kitchen-line));
-	border-radius: 0.5rem;
+	border-radius: 0.72rem;
 	padding: 0.75rem;
 	background: color-mix(in oklab, var(--ui-notice-color) 7%, var(--kitchen-card));
-	box-shadow: 0 3px 0 var(--ui-notice-edge);
+	box-shadow: none;
 	color: var(--kitchen-ink);
 }
 
@@ -517,6 +517,8 @@ textarea.ui-field {
 
 .ui-kitchen-notice[data-tone='warning'] {
 	--ui-notice-color: var(--color-warning);
+	border-color: color-mix(in oklab, var(--color-warning) 28%, var(--kitchen-line));
+	background: color-mix(in oklab, var(--color-warning) 10%, var(--kitchen-card));
 }
 
 .ui-kitchen-notice[data-tone='error'] {
@@ -534,7 +536,8 @@ textarea.ui-field {
 
 /* Form container card (add/edit forms). */
 @utility ui-form-card {
-	@apply rounded-2xl border border-base-300/70 bg-base-100 p-3.5 shadow-sm;
+	@apply rounded-xl border border-base-300/70 bg-base-100 p-4;
+	box-shadow: 0 1px 2px rgb(31 44 35 / 4%);
 }
 
 .ui-filter-chip-hit {
@@ -587,27 +590,27 @@ textarea.ui-field {
 }
 
 .ui-filter-chip-visual-selected {
-	border-color: var(--kitchen-olive);
-	background: var(--kitchen-olive);
-	color: white;
+	border-color: var(--kitchen-grove);
+	background: var(--kitchen-grove);
+	color: var(--kitchen-paper);
 }
 
 .ui-filter-chip-hit[data-tone='success'] .ui-filter-chip-visual-selected {
-	border-color: var(--color-success);
-	background: color-mix(in oklab, var(--color-success) 20%, var(--kitchen-card));
-	color: color-mix(in oklab, var(--color-success) 72%, var(--kitchen-ink));
+	border-color: var(--kitchen-grove);
+	background: var(--kitchen-grove);
+	color: var(--kitchen-paper);
 }
 
 .ui-filter-chip-hit[data-tone='warning'] .ui-filter-chip-visual-selected {
-	border-color: var(--color-warning);
-	background: color-mix(in oklab, var(--color-warning) 20%, var(--kitchen-card));
-	color: color-mix(in oklab, var(--color-warning) 72%, var(--kitchen-ink));
+	border-color: var(--kitchen-grove);
+	background: var(--kitchen-grove);
+	color: var(--kitchen-paper);
 }
 
 .ui-filter-chip-hit[data-tone='info'] .ui-filter-chip-visual-selected {
-	border-color: var(--color-info);
-	background: color-mix(in oklab, var(--color-info) 18%, var(--kitchen-card));
-	color: color-mix(in oklab, var(--color-info) 68%, var(--kitchen-ink));
+	border-color: var(--kitchen-grove);
+	background: var(--kitchen-grove);
+	color: var(--kitchen-paper);
 }
 
 .ui-filter-chip-hit:disabled {
@@ -617,47 +620,68 @@ textarea.ui-field {
 
 .ui-status-badge {
 	display: inline-flex;
-	min-height: 1.5rem;
+	min-height: 0;
 	align-items: center;
 	gap: 0.3rem;
-	border: 1px solid color-mix(in oklab, var(--kitchen-muted) 24%, var(--kitchen-line));
-	border-radius: 0.375rem;
-	padding: 0.15rem 0.45rem;
-	background: color-mix(in oklab, var(--kitchen-muted) 8%, var(--kitchen-card));
+	border: 0;
+	border-radius: 0;
+	padding: 0.2rem 0.1rem;
+	background: transparent;
 	color: var(--kitchen-muted);
 	font-size: 0.65rem;
 	font-weight: 700;
 	line-height: 1.15;
 }
 
+.ui-status-dot {
+	width: 0.4rem;
+	height: 0.4rem;
+	flex: 0 0 auto;
+	border-radius: 999px;
+	background: currentColor;
+}
+
 .ui-status-badge[data-tone='success'] {
-	border-color: color-mix(in oklab, var(--color-success) 38%, var(--kitchen-line));
-	background: color-mix(in oklab, var(--color-success) 12%, var(--kitchen-card));
 	color: color-mix(in oklab, var(--color-success) 72%, var(--kitchen-ink));
 }
 
 .ui-status-badge[data-tone='warning'] {
-	border-color: color-mix(in oklab, var(--color-warning) 42%, var(--kitchen-line));
-	background: color-mix(in oklab, var(--color-warning) 13%, var(--kitchen-card));
 	color: color-mix(in oklab, var(--color-warning) 72%, var(--kitchen-ink));
 }
 
 .ui-status-badge[data-tone='error'] {
-	border-color: color-mix(in oklab, var(--color-error) 38%, var(--kitchen-line));
-	background: color-mix(in oklab, var(--color-error) 11%, var(--kitchen-card));
 	color: var(--color-error);
 }
 
 .ui-status-badge[data-tone='info'] {
-	border-color: color-mix(in oklab, var(--color-info) 38%, var(--kitchen-line));
-	background: color-mix(in oklab, var(--color-info) 11%, var(--kitchen-card));
 	color: color-mix(in oklab, var(--color-info) 70%, var(--kitchen-ink));
 }
 
-.ui-status-badge-on-dark {
-	border-color: rgb(255 255 255 / 20%);
-	background: rgb(255 255 255 / 8%);
+.ui-status-badge.ui-status-badge-on-dark {
 	color: #edf3ee;
+}
+
+.ui-status-badge-on-dark[data-tone='success'] .ui-status-dot {
+	background: #87cf98;
+}
+
+.ui-status-badge-on-dark[data-tone='warning'] .ui-status-dot {
+	background: #f0b34b;
+}
+
+.ui-status-badge-on-dark[data-tone='error'] .ui-status-dot {
+	background: #f38f83;
+}
+
+.ui-status-badge-on-dark[data-tone='info'] .ui-status-dot {
+	background: #8fc5ee;
+}
+
+[role='tab'][aria-selected='true'] {
+	border-color: var(--kitchen-grove);
+	background: var(--kitchen-grove);
+	color: var(--kitchen-paper);
+	box-shadow: none;
 }
 
 /* `xs` is a visual-density choice, not a smaller hit target. */
@@ -684,7 +708,7 @@ textarea.ui-field {
 @utility ui-scroll-rail {
 	@apply overflow-x-auto;
 	scroll-padding-inline: 0.75rem;
-	scrollbar-width: thin;
+	scrollbar-width: none;
 	mask-image: linear-gradient(
 		to right,
 		transparent,
@@ -692,6 +716,23 @@ textarea.ui-field {
 		black calc(100% - 0.75rem),
 		transparent
 	);
+}
+
+.ui-scroll-rail::-webkit-scrollbar {
+	display: none;
+}
+
+@media (min-width: 64rem) {
+	:is(.recipe-ledger, .stock-ledger, .plan-ledger) > * {
+		width: 100%;
+		max-width: var(--kitchen-focus-width);
+		margin-inline: auto;
+	}
+
+	.shopping-market-layout > main {
+		width: 100%;
+		max-width: var(--kitchen-focus-width);
+	}
 }
 
 /* ── z-scale (documented tokens) ───────────────────────────────────────────────

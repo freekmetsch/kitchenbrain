@@ -36,7 +36,7 @@
 
 <nav
 	aria-label={m.nav_aria_primary()}
-	class="ui-z-nav shrink-0 flex bg-base-100 border-t border-base-300"
+	class="app-nav ui-z-nav shrink-0 flex"
 	style="padding-bottom: env(safe-area-inset-bottom)"
 >
 	{#each TABS as tab (tab.path)}
@@ -44,9 +44,8 @@
 		<a
 			href="{base}{tab.path}"
 			aria-current={active ? 'page' : undefined}
-			class="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[3.5rem] no-underline transition-colors active:bg-base-200 {active
-				? 'text-primary'
-				: 'text-base-content/40 hover:text-base-content/70'}"
+			class:active={active}
+			class="app-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 no-underline transition-colors"
 		>
 			<Icon name={tab.icon} class="h-5 w-5 shrink-0" />
 			<span class="max-w-full px-0.5 text-center text-[9px] font-medium leading-tight min-[360px]:text-[10px]"
@@ -55,3 +54,36 @@
 		</a>
 	{/each}
 </nav>
+
+<style>
+	.app-nav {
+		height: calc(var(--ui-nav-height) + var(--ui-safe-bottom));
+		gap: 0.18rem;
+		border: 0;
+		padding: 0.28rem 0.18rem 0;
+		background: var(--kitchen-grove);
+	}
+
+	.app-nav-item {
+		min-width: 0;
+		min-height: 2.75rem;
+		border-radius: 0.72rem;
+		color: var(--kitchen-ribbon-muted);
+	}
+
+	.app-nav-item:hover,
+	.app-nav-item:focus-visible {
+		background: rgb(255 255 255 / 7%);
+		color: var(--kitchen-ribbon-ink);
+	}
+
+	.app-nav-item:focus-visible {
+		outline: 2px solid var(--kitchen-ribbon-ink);
+		outline-offset: -2px;
+	}
+
+	.app-nav-item.active {
+		background: var(--kitchen-paper);
+		color: var(--kitchen-grove);
+	}
+</style>

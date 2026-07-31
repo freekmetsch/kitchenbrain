@@ -118,7 +118,7 @@
 	<title>{m.settings_recipes_title()}</title>
 </svelte:head>
 
-<div class="ui-page-shell px-4 pt-4">
+<div class="settings-panel-page ui-grove-page ui-grove-surface ui-page-shell px-4 pt-4">
 	<SettingsPanelHeader title={m.settingsshell_panel_recipes()} />
 
 	<div class="flex flex-col gap-5">
