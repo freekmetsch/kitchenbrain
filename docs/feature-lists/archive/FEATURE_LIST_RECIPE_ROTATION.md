@@ -1,6 +1,9 @@
 # Recipe Rotation + Freezer Rhythm
 
-_Status: Implemented - 2026-07-31 (all five phases complete and fully verified; awaiting draft PR review and merge)_
+_Status: Shipped - 2026-07-31 (deterministic recipe rotation and freezer rhythm delivered through PR #56)_
+
+_Promotion approval: explicit `/wrap to main` on 2026-07-31. The additive migration keeps its
+columns on code rollback; populated upgrade and old-code rollback rehearsals passed before promotion._
 
 ## Problem framing
 
