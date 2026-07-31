@@ -45,6 +45,8 @@ worker. The existing tool loop, domain services, SQLite database, review cards, 
 are strong foundations. The missing product layer is orchestration: finishing recognizable
 household jobs from beginning to end while showing why a suggestion appeared and what will change.
 
+Recipe timers were retired on 2026-07-30. The Assistant must not propose, start, or manage them.
+
 ## Problem framing
 
 The baseline Assistant had 28 exposed tools and could already perform a striking amount of
@@ -59,8 +61,6 @@ a person naturally describes:
   reconciliation, and eventually an AH preview. Today those are separate turns and screens.
 - “We cooked the curry” should close the loop across the plan, cook log, freezer portions, and
   consumed stock. Today the user must remember the follow-up steps.
-- “Start a ten-minute timer” is natural while cooking, but the chat agent cannot reach the
-  persistent timer coordinator already present in the app.
 - The app contains useful signals—expiry, stale freezer stock, repeat rotation, low freezer
   targets, recipe review flags, and shopping conflicts. Those signals should improve an answer
   only when the current request makes them relevant; they should not compete for attention merely
@@ -103,14 +103,13 @@ should become more useful through explicit choices, not covert memory.
 ### In
 
 - A complete inventory of current Assistant abilities and safety behavior.
-- A globally ranked portfolio of 75 next-step product ideas.
+- A globally ranked portfolio of next-step product ideas.
 - A reusable capability/risk registry for present and future agent tools.
 - Reviewed multi-domain action bundles with exact preconditions and truthful partial/blocked
   states.
-- The shipped First slice plus the eighteen request-driven ideas still ranked **Next**:
-  BTL-018 through BTL-035.
+- The shipped First slice plus the request-driven ideas still ranked **Next**.
 - The smallest Wave 1 dependency set required to make those Next behaviors real rather than
-  decorative: BTL-001, BTL-002, BTL-007, BTL-008, BTL-012, BTL-013, and BTL-015.
+  decorative: BTL-001, BTL-002, BTL-007, BTL-008, BTL-013, and BTL-015.
 - Explicit scoped preference proposal contracts where the First slice needs them; the full
   preference center and initiative controls remain outside this run.
 - Reuse of existing domain services, push infrastructure, model seam, tool displays, and
@@ -194,7 +193,7 @@ active only where named above as direct dependencies of the promoted Next portfo
 | Stage typed recipe corrections for selective review | `propose_recipe_patch` | Revision-, user-, and time-bound; only selected rows apply. |
 | Offer 3–9 distinct current AH product forms per ingredient | `search_ah_products` + recipe proposal | Current branch adds scoped choice persistence and conflict-safe shopping precedence. |
 | Set cook-in versus serve-fresh roles by stable ingredient ID | `edit_recipe` | This is the only direct recipe-content edit exposed to chat. |
-| Generate translated recipe/cook-mode caches in background | existing recipe workflows | The chat does not control cook-mode steps or timers. |
+| Generate translated recipe/cook-mode caches in background | existing recipe workflows | The chat does not control cook-mode steps. |
 
 ### Shopping and Albert Heijn
 
@@ -229,7 +228,6 @@ active only where named above as direct dependencies of the promoted Next portfo
 | “Plan next week.” | Suggestions and individual `plan_meal` calls exist. | No compare/select/reorder week proposal or one-review apply. |
 | “Get us ready to shop.” | List derivation and AH UI push exist. | No end-to-end plan → list → conflict review → AH preview in Assistant. |
 | “We made four portions and froze two.” | Each underlying write mostly exists. | No after-cook checkout that closes every related domain. |
-| “Start the pasta timer.” | A persistent timer system exists elsewhere in the app. | No safe client-action card from Assistant or cooking steps. |
 | “What should I deal with?” | All underlying signals exist. | The Assistant should inspect them only after this request, rank the answer, and explain its evidence without creating a standing feed. |
 | “Remember we prefer blocks of Parmesan for this recipe.” | Recipe-scoped product preference is being added. | No general explicit preference proposal/management contract. |
 
@@ -331,7 +329,6 @@ rhythm, and no decorative leading stripe.
 | “We’re out of milk.” | Checks known fridge/pantry stock and the authoritative Shopping row before staging changes. | One reviewed Stock + Shopping bundle; it does not ask whether to look up or add milk. |
 | “What should we eat tonight?” | Compares time, stock coverage, age pressure, repeat distance, and freezer readiness. | One recommendation plus two comparable alternatives; no write card until the user chooses an action. |
 | “We cooked the curry.” | Reads the planned meal and linked stock, then stages cook log, portions eaten, deductions, leftovers, and Shopping reconciliation. | One after-cook Docket with exact atomicity, consequence, apply, and Undo. |
-| “Start ten minutes for pasta.” | Prepares the validated client timer action. | One timer review; the browser coordinator starts it only after the tap. |
 
 The comparison workspace is
 `docs/artifacts/2026-07-29-design-shotgun-request-driven-assistant.html`.
@@ -402,7 +399,6 @@ Selected lanes:
 | 9 | BTL-009 | Butler Brief | On opening `/`, show household cues before a person asks. This contradicts the accepted request-driven contract and must be removed. | Cross-domain | M / R2 | Exclude |
 | 10 | BTL-010 | Use-it-up rescue | Turn expiring or long-frozen ingredients into a ranked rescue meal or recipe adjustment, with the item and urgency visible. | Stock + Recipes | M / R1 | Exclude |
 | 11 | BTL-011 | AH preview and push from Assistant | Render the existing product/conflict preview in chat and require a final external-action confirmation before pushing exactly that revision. | Shopping + AH | L / R2 | First slice |
-| 12 | BTL-012 | Assistant timer controls | “Start ten minutes for pasta,” extend, rename, or cancel via a client-action card connected to the existing persistent timer coordinator. | Cooking | M / R2 | Wave 1 |
 | 13 | BTL-013 | “I bought…” reconciliation | Mark list rows bought and offer a reviewed stock intake with quantities/storage instead of making the user re-enter groceries. | Shopping + Stock | L / R2 | Wave 1 |
 | 14 | BTL-014 | Cross-domain action bundle + Undo | Replace a descriptive checklist with exact staged operations, preconditions, consequence summary, commit receipt, and all-or-none/compensating rollback. | Trust foundation | L / R3 | First slice |
 | 15 | BTL-015 | Fridge as first-class stock | Add fridge alongside freezer/pantry so milk, produce, open packs, and near-term expiry can participate in the same grounded Assistant flows. | Stock | L / R3 | Wave 1 |
@@ -422,8 +418,7 @@ Selected lanes:
 | 29 | BTL-029 | Quantity and duplicate conflict resolver | Detect incompatible units, duplicate manual/recipe sources, and suspicious totals; propose merge/keep-separate decisions before AH preview. | Shopping | L / R2 | Next |
 | 30 | BTL-030 | Missed-meal rollover | When a planning request touches a week with uncooked past meals, include explicit move, drop, or keep options and reconcile their Shopping sources. | Planning + Shopping | M / R2 | Next |
 | 31 | BTL-031 | “Cook this” handoff | Turn a meal suggestion into an opened recipe/cook mode with chosen servings, source, and any needed pre-cook actions ready. | Planning + Cooking | M / R1 | Next |
-| 32 | BTL-032 | Hands-busy voice mode | Large, minimal controls for read-next, repeat, timer, and “what now?” while cooking; no free-running microphone. | Cooking | L / R2 | Next |
-| 33 | BTL-033 | Step-aware timer suggestions | Parse timed recipe steps and offer named timers at the right step, requiring one tap to start. | Cooking | M / R1 | Next |
+| 32 | BTL-032 | Hands-busy voice mode | Large, minimal controls for read-next, repeat, and “what now?” while cooking; no free-running microphone. | Cooking | L / R2 | Next |
 | 34 | BTL-034 | Cooking rescue | Ground “too salty,” “too thin,” or “not browning” help in the active recipe, ingredients, step, and elapsed context, with food-safety cautions. | Cooking | M / R1 | Next |
 | 35 | BTL-035 | Defrost planner | When a requested plan or cook action uses freezer stock, prepare a timed “move to fridge” cue with an explicit completion check. | Freezer + Cooking | M / R2 | Next |
 | 36 | BTL-036 | Prep-ahead splitter | Turn a recipe/week into “do tonight / finish tomorrow” steps and optionally prepare reminder cards. | Cooking | M / R1 | Later |
@@ -481,7 +476,7 @@ The selected First slice is one complete **Plan → Shop** loop sharing a reusab
    without asking whether to do each safe intermediate step;
 6. stop for a separate explicit confirmation before pushing the exact preview revision to AH.
 
-Stock → Shopping, Cook → Close, fridge, and timers remain Wave 1 dependencies. The seven named
+Stock → Shopping, Cook → Close, and fridge remain Wave 1 dependencies. The named
 enablers ship only where a request-driven Next behavior requires them. BTL-009, BTL-010, BTL-016,
 BTL-017, and BTL-071 are excluded. Later and Park remain inert.
 
@@ -560,11 +555,10 @@ _Draft verified in PR #44, stacked on #43; R3 promotion blocked._
 
 _Draft verified in PR #45, stacked on #44; R3 promotion blocked._
 
-- Deliver BTL-007/012/032/033/034/035: reviewed after-cook checkout, persistent timer client
-  actions, hands-busy cook mode, step-aware timer suggestions, active-recipe rescue, and defrost
-  preparation.
-- Keep microphone use explicit, timer execution client-authoritative, food-safety uncertainty
-  visible, and notifications/routines outside scope.
+- Deliver BTL-007/032/034/035: reviewed after-cook checkout, hands-busy cook mode,
+  active-recipe rescue, and defrost preparation.
+- Keep microphone use explicit, food-safety uncertainty visible, and notifications/routines
+  outside scope.
 
 ### Phase 10 — simplify, verify, and deliver
 
@@ -771,23 +765,6 @@ The five N-series tickets are the execution authority for the current run.
 - **Dependencies:** BTL-01, BTL-02, BTL-05. Conversational Shopping control (BTL-001/BTL-03) is
   not required and remains outside this run.
 
-### BTL-07 — Bridge timer proposals to the persistent client coordinator
-
-- **Observable behavior:** a chat or cooking-step card can start, extend, rename, or cancel a
-  timer only after a visible client action, and the timer survives navigation/reload as it does
-  today.
-- **Scope in:** client-action display contract, validated timer payload, coordinator adapter,
-  status/receipt/recovery.
-- **Scope out:** server pretending it started a browser timer; long-term reminders.
-- **Targets:** timer coordinator/context; tool-display contract; ChatView/shared action card;
-  timer tests/browser story.
-- **Impact / effort / confidence:** 4 / M / medium-high.
-- **Risk:** R2 shared client state.
-- **Verification:** duplicate start, reload, navigation, notification permission unavailable,
-  extend/cancel stale ID, multiple timers, mobile focus, reduced motion.
-- **Rollback:** render timer suggestions as text-only; coordinator stays unchanged.
-- **Dependencies:** BTL-01; BTL-02 if timer actions share bundle receipts.
-
 ### BTL-08 — Close the cooking loop
 
 - **Observable behavior:** one after-cook review commits the selected plan/log/stock/freezer
@@ -804,7 +781,7 @@ The five N-series tickets are the execution authority for the current run.
 - **Verification:** fresh/freezer plan, partial stock, multiple leftover rows, no plan entry,
   stale quantities, transaction injection, cancel/retry, all downstream counts.
 - **Rollback:** disable bundled checkout and retain existing individual cook/freeze/consume flows.
-- **Dependencies:** BTL-02; BTL-05; BTL-07 optional.
+- **Dependencies:** BTL-02 and BTL-05.
 
 ### BTL-09 — Add fridge only as one complete inventory-zone migration
 
@@ -868,7 +845,7 @@ The five N-series tickets are the execution authority for the current run.
   selection evaluator; English/Dutch messages; authenticated browser fixtures.
 - **Impact / effort / confidence:** 5 / M / high.
 - **Risk:** R2 shared Assistant boundary.
-- **Verification:** provider-free requested-versus-unasked cases; plain answers and timer actions
+- **Verification:** provider-free requested-versus-unasked cases; plain answers and typed actions
   remain bespoke; sparse proposal fixtures render no invented/empty sections; no
   permission-seeking intermediate response; all proposal types retain preconditions,
   confirmation, receipt, and Undo; 320–1280 px; 200%; keyboard; long EN/NL copy; both household
@@ -935,7 +912,7 @@ Replacement evidence:
   `inventory_items.par_target_unit`; it contains no Butler table, route, setting, or durable
   suggestion state.
 - PR #44 stacks request-driven meal decisions on #43. PR #45 stacks request-driven cooking
-  assistance on #44 and keeps timer execution client-authoritative.
+  assistance on #44.
 - PRs #35/#36/#39/#40 are closed without merge. PRs #43/#44/#45 remain draft and explicitly say
   **DO NOT MERGE** until the beta R3 go/no-go.
 - Inventory verification passed 126 files / 707 unit tests and both 26-story household-account
@@ -992,7 +969,7 @@ review, external-effect, and truthful-finish cases remain green.
 
 Replacement-wave evidence keeps one consolidated proposal capability instead of adding a tool per
 idea: inventory is 27 / 24,220; meal is 27 / 24,500; cooking is 27 / 24,737. Ordinary fallback
-turns on the cooking tip receive 25 tools, while timer, rescue, defrost, and after-cook requests
+turns on the cooking tip receive 25 tools, while rescue, defrost, and after-cook requests
 receive small staged packs. The portfolio contains 25 unique bilingual/cross-domain synthetic
 cases. The live evaluator now validates every actionable tool reference while allowing explicitly
 forbidden retired-tool names as regression sentinels.
@@ -1057,14 +1034,13 @@ system prompt satisfy the desired assertive trigger contract.
 
 **Status: Draft verified in PR #45; R3 promotion blocked.**
 
-- **Ideas:** BTL-007, BTL-012, BTL-032, BTL-033, BTL-034, BTL-035.
+- **Ideas:** BTL-007, BTL-032, BTL-034, BTL-035.
 - **Risk:** R2 unless durable reminder/session schema becomes necessary, which is a stop-and-replan
   R3 gate.
-- **Verification:** after-cook all-or-none/compensated truth; timer start/extend/rename/cancel;
-  explicit voice activation; active-recipe grounding; food-safety cautions; defrost completion;
-  no global bubble or automatic notification.
-- **Rollback:** render client actions as inert suggestions and keep native cook mode/timer
-  coordinator authoritative.
+- **Verification:** after-cook all-or-none/compensated truth; explicit voice activation;
+  active-recipe grounding; food-safety cautions; defrost completion; no global bubble or automatic
+  notification.
+- **Rollback:** render client actions as inert suggestions and keep native Cook Mode authoritative.
 - **Dependencies:** BTL-N1, BTL-N3, and BTL-N4.
 
 ## Request-driven replacement record

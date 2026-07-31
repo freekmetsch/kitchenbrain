@@ -23,10 +23,6 @@ const current: CookModeRecipe = {
 			goal: 'Sweat onion — translucent',
 			body: 'Cook the onion until translucent.',
 			ingredients: ['1 onion'],
-			timer_seconds: null,
-			timer_purpose: null,
-			timer_action: null,
-			timer_location: null,
 			stream_id: 'pot',
 			merges_from: []
 		}
@@ -45,10 +41,6 @@ const bilingual: LocalizedCookModeRecipe = {
 			goal: { en: 'Cook onion — soft and golden', nl: 'Bak ui — zacht en goudbruin' },
 			body: { en: 'Cook over medium heat.', nl: 'Bak op middelhoog vuur.' },
 			ingredients: [{ en: '1 onion', nl: '1 ui' }],
-			timer_seconds: null,
-			timer_purpose: null,
-			timer_action: null,
-			timer_location: null,
 			stream_id: 'pot',
 			merges_from: []
 		}
@@ -66,10 +58,6 @@ const structured: LocalizedCookModeRecipeV4 = {
 		goal: { en: 'Cook onion — soft and golden', nl: 'Bak ui — zacht en goudbruin' },
 		body: { en: 'Cook over medium heat.', nl: 'Bak op middelhoog vuur.' },
 		ingredient_indexes: [0],
-		timer_seconds: null,
-		timer_purpose: null,
-		timer_action: null,
-		timer_location: null,
 		stream_id: 'pot',
 		merges_from: []
 	}]
@@ -93,22 +81,14 @@ const semantic: LocalizedCookModeRecipeV5 = {
 			merges_from: [],
 			ingredient_uses: [
 				{ ingredient_id: 'flour', allocation: { kind: 'fraction', numerator: 1, denominator: 2 } }
-			],
-			timer_seconds: null,
-			timer_purpose: null,
-			timer_action: null,
-			timer_location: null
+			]
 		},
 		{
 			step_id: 'step-b',
 			direction_id: 'dir-b',
 			stream_id: 'cake',
 			merges_from: ['base'],
-			ingredient_uses: [{ ingredient_id: 'flour', allocation: { kind: 'remaining' } }],
-			timer_seconds: null,
-			timer_purpose: null,
-			timer_action: null,
-			timer_location: null
+			ingredient_uses: [{ ingredient_id: 'flour', allocation: { kind: 'remaining' } }]
 		}
 	]
 };

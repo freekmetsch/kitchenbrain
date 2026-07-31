@@ -6,16 +6,7 @@
 	import { MainScrollRestoration } from '$lib/navigation/scroll_restoration';
 	import { provideChatAgent } from '$lib/chat/agent_context';
 	import { ChatAgentController } from '$lib/stores/chat-agent.svelte';
-	import {
-		CookTimerCoordinator
-	} from '$lib/timer/cook-timer-coordinator.svelte';
-	import { provideCookTimerCoordinator } from '$lib/timer/coordinator-context';
-	import {
-		createCookModeLifecycleBrowserAdapters
-	} from '$lib/components/cook-mode/lifecycle-controller.svelte';
-	import TimerWorker from '$lib/timer/worker?worker';
 	import NavBar from '$lib/components/NavBar.svelte';
-	import CookTimerBar from '$lib/components/CookTimerBar.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
 	import '../app.css';
 
@@ -38,35 +29,6 @@
 		chatAgent = username ? new ChatAgentController(username) : null;
 	});
 	onDestroy(() => chatAgent?.destroy());
-
-	function createTimerCoordinator(userId: number) {
-		return new CookTimerCoordinator({
-			browser: createCookModeLifecycleBrowserAdapters(() => new TimerWorker()),
-			storage: browser ? localStorage : null,
-			storageKey: `cook-timer-registry:${userId}:v1`
-		});
-	}
-
-	let timerCoordinator = $state<CookTimerCoordinator | null>(
-		untrack(() => (data.user ? createTimerCoordinator(data.user.id) : null))
-	);
-	let timerCoordinatorUserId = untrack(() => data.user?.id ?? null);
-	provideCookTimerCoordinator({
-		get coordinator() {
-			return timerCoordinator;
-		}
-	});
-	$effect.pre(() => {
-		const userId = data.user?.id ?? null;
-		if (userId === timerCoordinatorUserId) return;
-		timerCoordinator?.destroy();
-		timerCoordinatorUserId = userId;
-		timerCoordinator = userId == null ? null : createTimerCoordinator(userId);
-	});
-	$effect(() => {
-		if (browser) timerCoordinator?.mount();
-	});
-	onDestroy(() => timerCoordinator?.destroy());
 
 	let mainEl = $state<HTMLElement>();
 	let scrollFrame: number | null = null;
@@ -151,9 +113,6 @@
 			{@render children()}
 		</main>
 
-		{#if timerCoordinator}
-			<CookTimerBar coordinator={timerCoordinator} />
-		{/if}
 		<NavBar />
 		<Toast />
 	</div>

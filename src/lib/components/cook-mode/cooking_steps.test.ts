@@ -16,16 +16,6 @@ describe('deterministic cooking steps', () => {
 		expect(result.streams).toEqual([{ id: 'recipe', name: 'Pasta' }]);
 	});
 
-	it('extracts Dutch and English timers without generating a cooking plan', () => {
-		const result = cookingStepsFromDirections(['Bak 12 minuten.', 'Rest for 1 hour.'], {
-			language: 'en',
-			recipeTitle: 'Bread',
-			servings: null
-		});
-
-		expect(result.steps.map((step) => step.timer_seconds)).toEqual([720, 3600]);
-	});
-
 	it('links truthful source amounts when an ingredient name appears in a fallback direction', () => {
 		const result = cookingStepsFromDirections(['Bak de ui.'], {
 			language: 'nl',
@@ -58,10 +48,6 @@ describe('deterministic cooking steps', () => {
 					goal: 'Cook',
 					body: 'Cook the onion.',
 					ingredients: [],
-					timer_seconds: null,
-					timer_purpose: null,
-					timer_action: null,
-					timer_location: null,
 					stream_id: 'main',
 					merges_from: []
 				}

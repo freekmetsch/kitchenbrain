@@ -15,10 +15,6 @@ describe('counter cooking state', () => {
 			ingredients: ['200 g strawberries'],
 			ingredient_ids: ['berry'],
 			ingredient_names: ['strawberries'],
-			timer_seconds: null,
-			timer_purpose: null,
-			timer_action: null,
-			timer_location: null,
 			stream_id: 'filling',
 			merges_from: []
 		};

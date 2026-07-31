@@ -357,10 +357,6 @@ export function seedKitchenFixtures(databasePath: string): void {
 						},
 						body: { en: directionsEn[0], nl: directions[0] },
 						ingredient_indexes: [0],
-						timer_seconds: 60,
-						timer_purpose: { en: 'Simmer the stew', nl: 'Laat de stoofpot sudderen' },
-						timer_action: { en: 'Simmer', nl: 'Sudderen' },
-						timer_location: { en: 'Pot', nl: 'Pan' },
 						stream_id: 'pot',
 						merges_from: []
 					},
@@ -372,10 +368,6 @@ export function seedKitchenFixtures(databasePath: string): void {
 						},
 						body: { en: directionsEn[1], nl: directions[1] },
 						ingredient_indexes: [],
-						timer_seconds: null,
-						timer_purpose: null,
-						timer_action: null,
-						timer_location: null,
 						stream_id: 'pot',
 						merges_from: []
 					}

@@ -65,7 +65,6 @@ function isValidV2(cm: Partial<CookModeRecipe>): boolean {
 	if (!Array.isArray(cm.steps)) return false;
 	for (const step of cm.steps) {
 		if (typeof step.goal !== 'string' || violatesActionState(step.goal) != null) return false;
-		if (step.timer_seconds != null && (step.timer_action == null || step.timer_action === '')) return false;
 	}
 	return true;
 }
@@ -82,11 +81,6 @@ function isValidV3(cm: Partial<StoredCookModeRecipe>): boolean {
 		if (!validLocalizedText(step.title) || !validLocalizedText(step.goal) || !validLocalizedText(step.body)) return false;
 		if (violatesActionState(step.goal.en) != null || violatesActionState(step.goal.nl) != null) return false;
 		if (!Array.isArray(step.ingredients) || !step.ingredients.every(validLocalizedText)) return false;
-		if (step.timer_seconds != null) {
-			if (!validLocalizedText(step.timer_purpose) || !validLocalizedText(step.timer_action) || !validLocalizedText(step.timer_location)) return false;
-		} else if (step.timer_purpose != null || step.timer_action != null || step.timer_location != null) {
-			return false;
-		}
 	}
 	return true;
 }
@@ -106,9 +100,6 @@ function isValidV4(cm: any): boolean {
 		if (!validLocalizedText(step.title) || !validLocalizedText(step.goal) || !validLocalizedText(step.body)) return false;
 		if (violatesActionState(step.goal.en) != null || violatesActionState(step.goal.nl) != null) return false;
 		if (!Array.isArray(step.ingredient_indexes) || step.ingredient_indexes.some((index: unknown) => !Number.isInteger(index) || (index as number) < 0)) return false;
-		if (step.timer_seconds != null) {
-			if (!validLocalizedText(step.timer_purpose) || !validLocalizedText(step.timer_action) || !validLocalizedText(step.timer_location)) return false;
-		} else if (step.timer_purpose != null || step.timer_action != null || step.timer_location != null) return false;
 	}
 	return true;
 }
@@ -196,18 +187,6 @@ export function isValidCookModeV5(cm: any): boolean {
 			consumed.set(use.ingredient_id, result.consumed);
 			if (result.terminal) terminal.add(use.ingredient_id);
 		}
-		if (step.timer_seconds != null) {
-			if (!Number.isInteger(step.timer_seconds) || step.timer_seconds < 1) return false;
-			if (
-				!validLocalizedText(step.timer_purpose) ||
-				!validLocalizedText(step.timer_action) ||
-				!validLocalizedText(step.timer_location)
-			) return false;
-		} else if (
-			step.timer_purpose != null ||
-			step.timer_action != null ||
-			step.timer_location != null
-		) return false;
 		stepIds.add(step.step_id);
 		directionIds.add(step.direction_id);
 	}
@@ -257,7 +236,27 @@ export function localizeCookMode(
 	if (cm == null || isStaleCookMode(cm)) return null;
 	if (cm.version === 2) {
 		if (language !== 'en') return null;
-		return { ...cm, generation_id: null, servings: null };
+		return {
+			version: 2,
+			language: 'en',
+			generation_id: null,
+			servings: null,
+			mise_en_place: [...cm.mise_en_place],
+			streams: cm.streams.map((stream) => ({ id: stream.id, name: stream.name })),
+			steps: cm.steps.map((step) => ({
+				title: step.title,
+				goal: step.goal,
+				body: step.body,
+				ingredients: [...step.ingredients],
+				stream_id: step.stream_id,
+				merges_from: [...step.merges_from],
+				...(step.ingredient_indexes ? { ingredient_indexes: [...step.ingredient_indexes] } : {}),
+				...(step.ingredient_names ? { ingredient_names: [...step.ingredient_names] } : {}),
+				...(step.ingredient_ids ? { ingredient_ids: [...step.ingredient_ids] } : {}),
+				...(step.step_id ? { step_id: step.step_id } : {}),
+				...(step.direction_id ? { direction_id: step.direction_id } : {})
+			}))
+		};
 	}
 	const pick = (value: LocalizedCookModeText) => value[language];
 	if (cm.version === 5) {
@@ -325,10 +324,6 @@ export function localizeCookMode(
 					ingredient_names: step.ingredient_uses
 						.map((use) => ingredientById.get(use.ingredient_id)?.name)
 						.filter((name): name is string => name != null),
-					timer_seconds: step.timer_seconds,
-					timer_purpose: step.timer_purpose == null ? null : pick(step.timer_purpose),
-					timer_action: step.timer_action == null ? null : pick(step.timer_action),
-					timer_location: step.timer_location == null ? null : pick(step.timer_location),
 					stream_id: step.stream_id,
 					merges_from: step.merges_from
 				};
@@ -362,10 +357,6 @@ export function localizeCookMode(
 				ingredients: step.ingredient_indexes.map(ingredientLabel).filter((label): label is string => label != null),
 				ingredient_indexes: step.ingredient_indexes,
 				ingredient_names: step.ingredient_indexes.map(ingredientName).filter((name): name is string => name != null),
-				timer_seconds: step.timer_seconds,
-				timer_purpose: step.timer_purpose == null ? null : pick(step.timer_purpose),
-				timer_action: step.timer_action == null ? null : pick(step.timer_action),
-				timer_location: step.timer_location == null ? null : pick(step.timer_location),
 				stream_id: step.stream_id,
 				merges_from: step.merges_from
 			}))
@@ -383,10 +374,6 @@ export function localizeCookMode(
 			goal: pick(step.goal),
 			body: pick(step.body),
 			ingredients: step.ingredients.map(pick),
-			timer_seconds: step.timer_seconds,
-			timer_purpose: step.timer_purpose == null ? null : pick(step.timer_purpose),
-			timer_action: step.timer_action == null ? null : pick(step.timer_action),
-			timer_location: step.timer_location == null ? null : pick(step.timer_location),
 			stream_id: step.stream_id,
 			merges_from: step.merges_from
 		}))

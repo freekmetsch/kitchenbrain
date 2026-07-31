@@ -17,10 +17,6 @@ const generatedCookMode: StoredCookModeRecipe = {
 			goal: { en: 'Cook beans — hot and tender', nl: 'Bak bonen — warm en zacht' },
 			body: { en: 'Cook gently.', nl: 'Bak rustig.' },
 			ingredient_indexes: [],
-			timer_seconds: null,
-			timer_purpose: null,
-			timer_action: null,
-			timer_location: null,
 			stream_id: 'pot',
 			merges_from: []
 		}

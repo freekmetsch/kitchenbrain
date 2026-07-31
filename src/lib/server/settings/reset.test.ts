@@ -216,43 +216,6 @@ describe('resetGroup(chat_history / spending_log / ah_favorites)', () => {
 	});
 });
 
-describe('resetGroup(timer_alerts)', () => {
-	it('deletes scheduled jobs before their device subscription', () => {
-		const db = createTestDb();
-		db.insert(schema.pushSubscriptions)
-			.values({
-				id: '0191a6c2-4a70-7c1e-8203-cf07f92ff70a',
-				userId: 1,
-				endpoint: 'https://fcm.googleapis.com/fcm/send/reset-test',
-				p256dh: 'p'.repeat(87),
-				auth: 'a'.repeat(22),
-				deviceLabel: 'Test phone',
-				createdAt: NOW,
-				updatedAt: NOW,
-				lastUsedAt: NOW
-			})
-			.run();
-		db.insert(schema.timerAlertJobs)
-			.values({
-				id: '0191a6c2-56f1-7f8f-a10f-acde745716fb',
-				userId: 1,
-				subscriptionId: '0191a6c2-4a70-7c1e-8203-cf07f92ff70a',
-				deadline: new Date(NOW.getTime() + 60_000),
-				title: 'Timer',
-				body: 'Dinner is ready',
-				navigate: '/recipes/test',
-				nextAttemptAt: new Date(NOW.getTime() + 60_000),
-				createdAt: NOW,
-				updatedAt: NOW
-			})
-			.run();
-
-		expect(() => resetGroup(db, 'timer_alerts')).not.toThrow();
-		expect(db.select().from(schema.timerAlertJobs).all()).toHaveLength(0);
-		expect(db.select().from(schema.pushSubscriptions).all()).toHaveLength(0);
-	});
-});
-
 describe('countGroupRows', () => {
 	it('reflects current row counts per group', () => {
 		const db = createTestDb();

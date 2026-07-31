@@ -1,4 +1,3 @@
-import { extractTimers } from '$lib/timer_extract';
 import type { CookModeDisplayRecipe, CookModeStep } from '$lib/types';
 import type { Ingredient } from '$lib/recipe_ingredient';
 
@@ -61,7 +60,6 @@ function directionStep(
 	direction: string,
 	options: { directionId?: string; ingredients?: Ingredient[] }
 ): CookModeStep {
-	const timer = extractTimers(direction)[0] ?? null;
 	const haystack = ` ${normalizedMatch(direction)} `;
 	const linked = (options.ingredients ?? []).filter((ingredient) => {
 		const name = normalizedMatch(ingredient.name);
@@ -78,10 +76,6 @@ function directionStep(
 		),
 		ingredient_ids: linked.flatMap((ingredient) => (ingredient.id ? [ingredient.id] : [])),
 		ingredient_names: linked.map((ingredient) => ingredient.name),
-		timer_seconds: timer?.seconds ?? null,
-		timer_purpose: timer ? direction : null,
-		timer_action: null,
-		timer_location: null,
 		stream_id: 'recipe',
 		merges_from: []
 	};
@@ -144,10 +138,6 @@ export function preparationAsFirstStep(
 		ingredient_indexes: indexes,
 		ingredient_ids: indexes.map((index) => ingredients[index]?.id).filter((id): id is string => Boolean(id)),
 		ingredient_names: indexes.map((index) => ingredients[index]?.name).filter((name): name is string => Boolean(name)),
-		timer_seconds: null,
-		timer_purpose: null,
-		timer_action: null,
-		timer_location: null,
 		stream_id: 'preparation',
 		merges_from: []
 	}));

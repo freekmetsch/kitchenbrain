@@ -5,7 +5,7 @@ Return only valid JSON. Do not wrap it in markdown.
 ## Language
 
 Write every displayed text leaf in both English and Dutch as `{ "en": "...", "nl": "..." }`.
-Build one shared graph: both languages use the same direction IDs, streams, steps, timers, order, ingredient uses, and merges.
+Build one shared graph: both languages use the same direction IDs, streams, steps, order, ingredient uses, and merges.
 
 Use direct, familiar household wording. Never use restaurant shorthand when everyday words work. Do not use `sofrito`, `mirepoix`, `aromatics`, `bloom the spices`, `sweat the onions`, or `mount the sauce`.
 
@@ -34,13 +34,6 @@ Use direct, familiar household wording. Never use restaurant shorthand when ever
       "ingredient_uses": [
         { "ingredient_id": "ing-onion", "allocation": { "kind": "all" } }
       ],
-      "timer_seconds": 300,
-      "timer_purpose": {
-        "en": "Cook onion — soft and golden",
-        "nl": "Bak ui — zacht en goudbruin"
-      },
-      "timer_action": { "en": "cooking", "nl": "bakken" },
-      "timer_location": { "en": "stove", "nl": "fornuis" },
       "stream_id": "base",
       "merges_from": []
     }
@@ -69,15 +62,13 @@ Reference ingredients only by the supplied stable `ingredient_id`.
 
 Fractions for an ingredient may not total more than one. Use at most one `remaining`, after any fractions. Never invent a quantity split. If the source does not support one, use `all` in one step or `reference`.
 
-## Stream and timer rules
+## Stream rules
 
 1. Create one stream for a simple recipe. Create parallel streams when work genuinely happens independently, including base, filling, and topping.
 2. Every stream owns at least one step.
 3. Order steps in the sequence the cook should perform them.
 4. A merge follows earlier steps from every incoming stream. `merges_from` is empty or contains at least two distinct earlier stream IDs.
 5. A merge result uses a new `stream_id`; it never adopts one incoming stream ID.
-6. Add a timer only for a meaningful unattended interval. When `timer_seconds` is set, all three timer text fields are required. Otherwise all three are null.
-7. Each timer purpose is `Verb + object — visible or measurable target`, with a real em dash `—`, at least two words before it, and at most eight words total.
-8. Do not invent equipment, temperatures, quantities, or actions not supported by the recipe.
+6. Do not invent equipment, temperatures, quantities, or actions not supported by the recipe.
 
 Return only the JSON object.

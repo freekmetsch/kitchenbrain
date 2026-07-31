@@ -8,34 +8,20 @@
 		step: CookModeStep;
 		index: number;
 		current: boolean;
-		timerActive: boolean;
-		timerDone: boolean;
-		timerRemaining?: number | null;
-		timerAlertLabel?: string | null;
-		timerAlertReady?: boolean;
 		palette: BeatPalette;
 		streamName?: string | null;
 		mergeNames?: string[];
 		onSelect: () => void;
-		onStartTimer: () => void;
-		onResetTimer: () => void;
 	};
 
 	let {
 		step,
 		index,
 		current,
-		timerActive,
-		timerDone,
-		timerRemaining = null,
-		timerAlertLabel = null,
-		timerAlertReady = false,
 		palette,
 		streamName = null,
 		mergeNames = [],
-		onSelect,
-		onStartTimer,
-		onResetTimer
+		onSelect
 	}: Props = $props();
 </script>
 
@@ -75,17 +61,6 @@
 				{/each}
 			</div>
 		{/if}
-		<InstructionLines
-			text={step.body || step.goal || step.title}
-			timerSeconds={step.timer_seconds}
-			timerPurpose={step.timer_purpose}
-			timerActive={timerActive}
-			timerDone={timerDone}
-			timerRemaining={timerRemaining}
-			{timerAlertLabel}
-			{timerAlertReady}
-			onStartTimer={onStartTimer}
-			onResetTimer={onResetTimer}
-		/>
+		<InstructionLines text={step.body || step.goal || step.title} />
 	</div>
 </li>

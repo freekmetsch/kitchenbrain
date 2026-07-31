@@ -119,7 +119,6 @@
 
 	let benchSheetController = $state<BenchSheetController>({
 		resetSession: () => {},
-		hasActiveTimer: false,
 		hasProgress: false
 	});
 	let cookingServings = $derived(data.occasionServings ?? recipe.servings ?? 4);
@@ -259,17 +258,7 @@
 		}
 	}
 
-	// Plan §F8: T2a.2 active-timer guard. Editing the raw recipe in the
-	// middle of a cook would silently cancel any running timer (route nav
-	// unmounts <BenchSheet>). Confirm before navigating; if the cook
-	// genuinely wants to leave they can say yes.
 	function openEditRaw() {
-		if (
-			benchSheetController.hasActiveTimer &&
-			!confirm(m.recipes_confirm_leave_timer())
-		) {
-			return;
-		}
 		void goto(`${base}/recipes/${recipe.slug}/edit`);
 	}
 

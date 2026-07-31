@@ -61,25 +61,12 @@ describe('recipe edit UI identity', () => {
 });
 
 describe('recipe edit cooking-view continuity', () => {
-	it('refreshes only when ingredient identity, step identity, or timers change', () => {
+	it('refreshes only when ingredient or step identity changes', () => {
 		const current = {
 			ingredientIds: ['onion'],
-			directionIds: ['step-1'],
-			directions: ['Bake for 20 minutes.']
+			directionIds: ['step-1']
 		};
 
-		expect(
-			recipeEditChangesCookingStructure(current, {
-				...current,
-				directions: ['Bake gently for 20 minutes.']
-			})
-		).toBe(false);
-		expect(
-			recipeEditChangesCookingStructure(current, {
-				...current,
-				directions: ['Bake for 30 minutes.']
-			})
-		).toBe(true);
 		expect(
 			recipeEditChangesCookingStructure(current, {
 				...current,

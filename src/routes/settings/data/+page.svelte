@@ -89,7 +89,6 @@
 			case 'spending_log': return m.settings_data_group_spending_log();
 			case 'shopping_data': return m.settings_data_group_shopping_data();
 			case 'ah_favorites': return m.settings_data_group_ah_favorites();
-			case 'timer_alerts': return m.settings_data_group_timer_alerts();
 		}
 	}
 
@@ -102,7 +101,6 @@
 			case 'spending_log': return m.settings_data_group_spending_log_desc();
 			case 'shopping_data': return m.settings_data_group_shopping_data_desc();
 			case 'ah_favorites': return m.settings_data_group_ah_favorites_desc();
-			case 'timer_alerts': return m.settings_data_group_timer_alerts_desc();
 		}
 	}
 
