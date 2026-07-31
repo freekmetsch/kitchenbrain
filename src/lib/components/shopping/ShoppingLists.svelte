@@ -21,16 +21,15 @@
 		createShoppingListController,
 		type LegacyShoppingItem,
 		type RecurringShoppingItem,
-		type ShoppingFocusIntent
+		type ShoppingFocusIntent,
+		type ShoppingNeed,
+		type SourceMutationStatus
 	} from './list-controller.svelte';
 	import type { ShoppingListItem, ShoppingListSource } from './types';
-	import ShoppingSourceQuickControls, {
-		type ShoppingNeed
-	} from './ShoppingSourceQuickControls.svelte';
+	import ShoppingSourceQuickControls from './ShoppingSourceQuickControls.svelte';
 	import InlineWeeklyItemsEditor from './InlineWeeklyItemsEditor.svelte';
 	import LegacyShoppingReview from './LegacyShoppingReview.svelte';
 
-	type SourceMutationStatus = 'saved' | 'stale' | 'failed';
 	type RecurringInput = { name: string; amount: string | null; unit: string | null };
 
 	type Props = {
@@ -96,9 +95,6 @@
 	}: Props = $props();
 
 	let weeklyEditMode = $state(false);
-	let offListOpen = $state(false);
-	let pendingSourceKeys = $state<string[]>([]);
-	let pendingRecipeIds = $state<number[]>([]);
 	const reducedMotion =
 		typeof window !== 'undefined' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -112,12 +108,6 @@
 			case 'meal': return section.mealName ?? m.shopping_section_other();
 			case 'other': return m.shopping_section_other();
 		}
-	}
-
-	function needFor(source: ShoppingListSource): ShoppingNeed {
-		if (source.staple) return 'stocked';
-		if (source.optional) return 'optional';
-		return 'required';
 	}
 
 	function revealInsideAppMain(target: HTMLElement, appMain: HTMLElement) {
@@ -162,73 +152,11 @@
 		target?.focus();
 	}
 
-	function setSourcePending(sourceKey: string, value: boolean) {
-		pendingSourceKeys = value
-			? [...new Set([...pendingSourceKeys, sourceKey])]
-			: pendingSourceKeys.filter((key) => key !== sourceKey);
-	}
-
-	function setRecipePending(recipeId: number | null, value: boolean) {
-		if (recipeId == null) return;
-		pendingRecipeIds = value
-			? [...new Set([...pendingRecipeIds, recipeId])]
-			: pendingRecipeIds.filter((id) => id !== recipeId);
-	}
-
-	function waitForListMotion(): Promise<void> {
-		if (groupMotionMs === 0) return Promise.resolve();
-		return new Promise((resolve) => setTimeout(resolve, groupMotionMs));
-	}
-
-	async function changeTerm(source: ShoppingListSource, term: string): Promise<boolean> {
-		if (term === source.term || pendingSourceKeys.includes(source.sourceKey)) return true;
-		setSourcePending(source.sourceKey, true);
-		const result = await onChangeSourceTerm(source, term);
-		setSourcePending(source.sourceKey, false);
-		if (result === 'stale') toast.error(m.shopping_choice_stale());
-		else if (result === 'failed') toast.error(m.shopping_mutation_failed());
-		else toast.success(m.shopping_choice_saved());
-		await focusSourceKey(source.sourceKey);
-		return result === 'saved';
-	}
-
-	async function changeNeed(
-		source: ShoppingListSource,
-		need: ShoppingNeed,
-		offerUndo = true
-	): Promise<boolean> {
-		const previous = needFor(source);
-		if (need === previous || pendingSourceKeys.includes(source.sourceKey)) return true;
-		setSourcePending(source.sourceKey, true);
-		setRecipePending(source.recipeId, true);
-		const result = await onChangeSourceNeed(source, need);
-		setSourcePending(source.sourceKey, false);
-		setRecipePending(source.recipeId, false);
-		if (result === 'stale') {
-			toast.error(m.shopping_choice_stale());
-			await focusSourceKey(source.sourceKey);
-			return false;
-		}
-		if (result === 'failed') {
-			toast.error(m.shopping_mutation_failed());
-			await focusSourceKey(source.sourceKey);
-			return false;
-		}
-
-		if (need !== 'required') offListOpen = true;
-		const destination =
-			need === 'required' ? m.shopping_filter_all() : m.shopping_not_this_run();
-		controller.shoppingStatus = m.shopping_choice_moved({ name: source.name, destination });
-		await focusSourceKey(source.sourceKey);
-		if (offerUndo) {
-			toast.undo(controller.shoppingStatus, () => {
-				const current = sources.find((candidate) => candidate.sourceKey === source.sourceKey);
-				if (current) void changeNeed(current, previous, false);
-			});
-		} else {
-			toast.success(m.shopping_choice_saved());
-		}
-		return true;
+	async function waitForListMotion(): Promise<void> {
+		await tick();
+		if (groupMotionMs === 0) return;
+		await new Promise<void>((resolve) => setTimeout(resolve, groupMotionMs));
+		await tick();
 	}
 
 	const controller = createShoppingListController({
@@ -241,15 +169,26 @@
 		onToggleBought: (item) => onToggleBought(item),
 		onDeleteManual: (source) => onDeleteManual(source),
 		onRestoreManual: (source) => onRestoreManual(source),
+		onChangeSourceTerm: (source, term) => onChangeSourceTerm(source, term),
+		onChangeSourceNeed: (source, need) => onChangeSourceNeed(source, need),
 		focus: focusShoppingKey,
+		focusSource: focusSourceKey,
 		waitForMotion: waitForListMotion,
 		notifyUndo: (message, action) => toast.undo(message, () => void action()),
 		notifyError: (message) => toast.error(message),
+		notifySuccess: (message) => toast.success(message),
 		messages: {
 			bought: (name, count) => m.shopping_bought_status({ name, count }),
 			notBought: (name, count) => m.shopping_not_bought_status({ name, count }),
 			removed: (name) => m.shopping_toast_removed({ name }),
-			restoreFailed: () => m.shopping_toast_restore_failed()
+			restoreFailed: () => m.shopping_toast_restore_failed(),
+			choiceSaved: () => m.shopping_choice_saved(),
+			choiceStale: () => m.shopping_choice_stale(),
+			choiceFailed: () => m.shopping_mutation_failed(),
+			choiceMoved: (name, destination) =>
+				m.shopping_choice_moved({ name, destination }),
+			filterAll: () => m.shopping_filter_all(),
+			notThisRun: () => m.shopping_not_this_run()
 		}
 	});
 
@@ -297,10 +236,10 @@
 	<ShoppingSourceQuickControls
 		{source}
 		disabled={!editable}
-		pending={pendingSourceKeys.includes(source.sourceKey)}
-		needBlocked={source.recipeId != null && pendingRecipeIds.includes(source.recipeId)}
-		onNeed={changeNeed}
-		onTerm={changeTerm}
+		pending={controller.sourcePending(source.sourceKey)}
+		needBlocked={controller.recipePending(source.recipeId)}
+		onNeed={(source, need) => controller.changeNeed(source, need)}
+		onTerm={(source, term) => controller.changeTerm(source, term)}
 	/>
 {/snippet}
 
@@ -329,7 +268,7 @@
 </div>
 
 {#if visibleExcludedSources.length}
-	<details class="not-this-run ui-list-group" bind:open={offListOpen}>
+	<details class="not-this-run ui-list-group" bind:open={controller.offListOpen}>
 		<summary>{m.shopping_not_this_run_count({ count: visibleExcludedSources.length })}</summary>
 		<ul>
 			{#each visibleExcludedSources as source (source.sourceKey)}
