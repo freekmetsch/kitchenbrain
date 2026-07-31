@@ -86,15 +86,25 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 		},
 		onDeleteManual: async () => true,
 		onRestoreManual: async () => true,
+		onChangeSourceTerm: async () => 'saved',
+		onChangeSourceNeed: async () => 'saved',
 		focus,
+		focusSource: async () => {},
 		waitForMotion,
 		notifyUndo: undo,
 		notifyError: error,
+		notifySuccess: () => {},
 		messages: {
 			bought: (name, count) => `bought:${name}:${count}`,
 			notBought: (name, count) => `not-bought:${name}:${count}`,
 			removed: (name) => `removed:${name}`,
-			restoreFailed: () => 'restore-failed'
+			restoreFailed: () => 'restore-failed',
+			choiceSaved: () => 'saved',
+			choiceStale: () => 'stale',
+			choiceFailed: () => 'failed',
+			choiceMoved: (name, destination) => `${name}:${destination}`,
+			filterAll: () => 'all',
+			notThisRun: () => 'not-this-run'
 		}
 	};
 	const controller = createShoppingListController(dependencies);
@@ -251,6 +261,216 @@ describe('shopping list controller', () => {
 		test.controller.itemActionOpen = false;
 		test.controller.handleActionClose();
 		expect(test.controller.selectedItem).toBeNull();
+	});
+
+	it('keeps a term choice busy until regrouping settles, then focuses the surviving source', async () => {
+		const original = source(1, 'recipe', {
+			term: 'tomatoes',
+			approvedTerms: ['tomatoes', 'cherry tomatoes']
+		});
+		const test = harness([item('tomatoes', 1, [original])]);
+		let finishMutation!: (status: 'saved') => void;
+		const mutation = new Promise<'saved'>((resolve) => {
+			finishMutation = resolve;
+		});
+		let finishMotion!: () => void;
+		const motion = new Promise<void>((resolve) => {
+			finishMotion = resolve;
+		});
+		const changeTerm = vi.fn(() => mutation);
+		const focusSource = vi.fn<(sourceKey: string) => Promise<void>>(async () => {});
+		const notifySuccess = vi.fn<(message: string) => void>();
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onChangeSourceTerm: changeTerm,
+			focusSource,
+			waitForMotion: () => motion,
+			notifySuccess
+		});
+
+		const changing = controller.changeTerm(original, 'cherry tomatoes');
+		await Promise.resolve();
+
+		expect(changeTerm).toHaveBeenCalledWith(original, 'cherry tomatoes');
+		expect(controller.sourcePending(original.sourceKey)).toBe(true);
+		finishMutation('saved');
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(controller.sourcePending(original.sourceKey)).toBe(true);
+		expect(focusSource).not.toHaveBeenCalled();
+
+		finishMotion();
+		await expect(changing).resolves.toBe(true);
+		expect(controller.sourcePending(original.sourceKey)).toBe(false);
+		expect(notifySuccess).toHaveBeenCalledWith('saved');
+		expect(focusSource).toHaveBeenCalledWith(original.sourceKey);
+	});
+
+	it('releases a stale term choice immediately and restores source focus', async () => {
+		const original = source(1, 'recipe', {
+			term: 'tomatoes',
+			approvedTerms: ['tomatoes', 'cherry tomatoes']
+		});
+		const test = harness([item('tomatoes', 1, [original])]);
+		const focusSource = vi.fn<(sourceKey: string) => Promise<void>>(async () => {});
+		const notifyError = vi.fn<(message: string) => void>();
+		const waitForMotion = vi.fn<() => Promise<void>>(async () => {});
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onChangeSourceTerm: async () => 'stale' as const,
+			focusSource,
+			waitForMotion,
+			notifyError
+		});
+
+		await expect(controller.changeTerm(original, 'cherry tomatoes')).resolves.toBe(false);
+
+		expect(controller.sourcePending(original.sourceKey)).toBe(false);
+		expect(waitForMotion).not.toHaveBeenCalled();
+		expect(notifyError).toHaveBeenCalledWith('stale');
+		expect(focusSource).toHaveBeenCalledWith(original.sourceKey);
+	});
+
+	it('normalizes a rejected term choice to failure and releases the source lock', async () => {
+		const original = source(1, 'recipe', {
+			term: 'tomatoes',
+			approvedTerms: ['tomatoes', 'cherry tomatoes']
+		});
+		const test = harness([item('tomatoes', 1, [original])]);
+		const focusSource = vi.fn<(sourceKey: string) => Promise<void>>(async () => {});
+		const notifyError = vi.fn<(message: string) => void>();
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onChangeSourceTerm: async () => {
+				throw new Error('network escaped its adapter');
+			},
+			focusSource,
+			notifyError
+		});
+
+		await expect(controller.changeTerm(original, 'cherry tomatoes')).resolves.toBe(false);
+
+		expect(controller.sourcePending(original.sourceKey)).toBe(false);
+		expect(notifyError).toHaveBeenCalledWith('failed');
+		expect(focusSource).toHaveBeenCalledWith(original.sourceKey);
+	});
+
+	it('locks a recipe need choice through its move, then focuses and offers undo', async () => {
+		const original = source(1, 'recipe', { recipeId: 10, name: 'tomatoes' });
+		const sibling = source(2, 'recipe', { recipeId: 10, name: 'basil' });
+		const test = harness([item('tomatoes', 1, [original])]);
+		test.setSources([original, sibling]);
+		let finishMutation!: (status: 'saved') => void;
+		const mutation = new Promise<'saved'>((resolve) => {
+			finishMutation = resolve;
+		});
+		let finishMotion!: () => void;
+		const motion = new Promise<void>((resolve) => {
+			finishMotion = resolve;
+		});
+		const changeNeed = vi.fn(() => mutation);
+		const focusSource = vi.fn<(sourceKey: string) => Promise<void>>(async () => {});
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onChangeSourceNeed: changeNeed,
+			focusSource,
+			waitForMotion: () => motion
+		});
+
+		const changing = controller.changeNeed(original, 'optional');
+		await Promise.resolve();
+
+		expect(changeNeed).toHaveBeenCalledWith(original, 'optional');
+		expect(controller.sourcePending(original.sourceKey)).toBe(true);
+		expect(controller.recipePending(original.recipeId)).toBe(true);
+		finishMutation('saved');
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(controller.offListOpen).toBe(true);
+		expect(controller.shoppingStatus).toBe('tomatoes:not-this-run');
+		expect(controller.sourcePending(original.sourceKey)).toBe(true);
+		expect(focusSource).not.toHaveBeenCalled();
+		expect(test.undo).not.toHaveBeenCalled();
+
+		finishMotion();
+		await expect(changing).resolves.toBe(true);
+		expect(controller.sourcePending(original.sourceKey)).toBe(false);
+		expect(controller.recipePending(original.recipeId)).toBe(false);
+		expect(focusSource).toHaveBeenCalledWith(original.sourceKey);
+		expect(test.undo).toHaveBeenCalledTimes(1);
+	});
+
+	it('undoes a moved source with the refreshed source revision', async () => {
+		const original = source(1, 'recipe', {
+			recipeId: 10,
+			revision: 1,
+			name: 'tomatoes'
+		});
+		const refreshed = { ...original, revision: 2, optional: true };
+		const test = harness([item('tomatoes', 1, [original])]);
+		test.setSources([original]);
+		const changeNeed = vi.fn(async () => {
+			if (changeNeed.mock.calls.length === 1) test.setSources([refreshed]);
+			return 'saved' as const;
+		});
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onChangeSourceNeed: changeNeed
+		});
+
+		await expect(controller.changeNeed(original, 'optional')).resolves.toBe(true);
+		await test.undo.mock.calls[0][1]();
+
+		expect(changeNeed).toHaveBeenNthCalledWith(1, original, 'optional');
+		expect(changeNeed).toHaveBeenNthCalledWith(2, refreshed, 'required');
+		expect(test.undo).toHaveBeenCalledTimes(1);
+	});
+
+	it('suppresses no-op term and need choices', async () => {
+		const original = source(1, 'recipe', {
+			term: 'tomatoes',
+			approvedTerms: ['tomatoes', 'cherry tomatoes']
+		});
+		const test = harness([item('tomatoes', 1, [original])]);
+		const changeTerm = vi.fn(test.dependencies.onChangeSourceTerm);
+		const changeNeed = vi.fn(test.dependencies.onChangeSourceNeed);
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onChangeSourceTerm: changeTerm,
+			onChangeSourceNeed: changeNeed
+		});
+
+		await expect(controller.changeTerm(original, original.term)).resolves.toBe(true);
+		await expect(controller.changeNeed(original, 'required')).resolves.toBe(true);
+
+		expect(changeTerm).not.toHaveBeenCalled();
+		expect(changeNeed).not.toHaveBeenCalled();
+		expect(test.undo).not.toHaveBeenCalled();
+		expect(test.error).not.toHaveBeenCalled();
+	});
+
+	it('clears source and recipe locks when a need choice rejects', async () => {
+		const original = source(1, 'recipe', { recipeId: 10, name: 'tomatoes' });
+		const test = harness([item('tomatoes', 1, [original])]);
+		const focusSource = vi.fn<(sourceKey: string) => Promise<void>>(async () => {});
+		const waitForMotion = vi.fn<() => Promise<void>>(async () => {});
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onChangeSourceNeed: async () => {
+				throw new Error('network escaped its adapter');
+			},
+			focusSource,
+			waitForMotion
+		});
+
+		await expect(controller.changeNeed(original, 'optional')).resolves.toBe(false);
+
+		expect(controller.sourcePending(original.sourceKey)).toBe(false);
+		expect(controller.recipePending(original.recipeId)).toBe(false);
+		expect(waitForMotion).not.toHaveBeenCalled();
+		expect(test.error).toHaveBeenCalledWith('failed');
+		expect(focusSource).toHaveBeenCalledWith(original.sourceKey);
+		expect(test.undo).not.toHaveBeenCalled();
 	});
 
 	it('coordinates empty, filtered-empty, active, covered-only, and complete modes', () => {
