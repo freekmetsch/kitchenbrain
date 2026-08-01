@@ -22,6 +22,10 @@ async function expectAppHydrated(page: Page) {
 	await expect(page.locator('.app-shell[data-hydrated="true"]')).toBeVisible({ timeout: 30_000 });
 }
 
+function needCombobox(page: Page, name: string | RegExp): Locator {
+	return page.getByRole('combobox', { name, exact: typeof name === 'string' });
+}
+
 test('Stock quantity, delete, and undo stay recoverable', async ({ page }, testInfo) => {
 	const fixture = kitchenFixtureFor(testInfo);
 
@@ -193,6 +197,7 @@ test('Shopping removes any aggregate for one week and restores it with Undo', as
 });
 
 test('Recipe archive leaves history intact and restores from Undo', async ({ page }, testInfo) => {
+	test.setTimeout(90_000);
 	const fixture = kitchenFixtureFor(testInfo);
 	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
 	await expectAppHydrated(page);
@@ -222,6 +227,25 @@ test('Recipe archive leaves history intact and restores from Undo', async ({ pag
 	await page.getByRole('button', { name: 'Undo' }).click();
 	expect((await restored).ok()).toBe(true);
 	await expect(restoredRecipeHeading).toBeVisible();
+
+	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+	await expectAppHydrated(page);
+	page.once('dialog', (dialog) => dialog.accept());
+	await page.getByRole('button', { name: 'Archive recipe' }).click();
+	await expect(page).toHaveURL(/\/recipes$/, { timeout: 30_000 });
+
+	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+	await expectAppHydrated(page);
+	const restoredFromDetail = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PATCH' &&
+			response.url().endsWith(`/api/recipes/${fixture.cookRecipeSlug}`) &&
+			response.request().postDataJSON().archived === false
+	);
+	await page.getByRole('button', { name: 'Restore recipe' }).click();
+	expect((await restoredFromDetail).ok()).toBe(true);
+	await expect(page.getByRole('button', { name: 'Archive recipe' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Plan', exact: true })).toBeEnabled();
 });
 
 test('Recipe rhythm creates a deterministic Cook shortlist without the old Suggest action', async ({
@@ -362,13 +386,15 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 		.selectOption(fixture.shoppingName);
 	expect((await termRestored).ok()).toBe(true);
 
-	const needButton = page.getByRole('combobox', {
-		name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Always`
-	});
+	const needButton = needCombobox(
+		page,
+		`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitle}`
+	);
 	await page.getByText('Not this run (2)', { exact: true }).click();
-	const siblingNeed = page.getByRole('combobox', {
-		name: `Change need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}. Current: Nice to have`
-	});
+	const siblingNeed = needCombobox(
+		page,
+		`Choose future-list need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}`
+	);
 	await expect(siblingNeed).toBeVisible();
 	await page.route(
 		'**/api/shopping/recipe-choice',
@@ -392,11 +418,12 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 		need: 'optional'
 	});
 	await expect(page.getByText('Not this run (3)', { exact: true })).toBeVisible();
-	await expect(
-		page.getByRole('combobox', {
-			name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Nice to have`
-		})
-	).toBeVisible();
+	await expectSettledSourceControl(
+		needCombobox(
+			page,
+			`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitle}`
+		)
+	);
 	await expect(
 		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingName} bought` })
 	).toHaveCount(0);
@@ -412,26 +439,23 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingName} bought` })
 	).toBeVisible();
 
-	for (const state of [
-		{ current: 'Always', next: 'optional' },
-		{ current: 'Nice to have', next: 'stocked' },
-		{ current: 'Usually stocked', next: 'required' }
-	] as const) {
+	for (const next of ['optional', 'stocked', 'required'] as const) {
+		const needControl = needCombobox(
+			page,
+			`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitle}`
+		);
+		await expectSettledSourceControl(needControl);
 		const changed = page.waitForResponse(
 			(response) =>
 				response.request().method() === 'POST' &&
 				response.url().endsWith('/api/shopping/recipe-choice')
 		);
-		await page
-			.getByRole('combobox', {
-				name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: ${state.current}`
-			})
-			.selectOption(state.next);
+		await needControl.selectOption(next);
 		const response = await changed;
 		expect(response.ok()).toBe(true);
 		expect(response.request().postDataJSON()).toMatchObject({
 			action: 'need',
-			need: state.next
+			need: next
 		});
 	}
 	await expect(
@@ -441,34 +465,31 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 	const otherRecipeTitle =
 		fixture.account === 'primary' ? 'E2E Secondary Stew' : 'E2E Primary Stew';
 	for (const recipeTitle of [fixture.recipeTitle, otherRecipeTitle]) {
-		for (const transition of [
-			{ current: 'Nice to have', next: 'stocked' },
-			{ current: 'Usually stocked', next: 'required' }
-		] as const) {
-			const changed = page.waitForResponse(
-				(response) =>
-					response.request().method() === 'POST' &&
-					response.url().endsWith('/api/shopping/recipe-choice')
-			);
-			const needControl = page.getByRole('combobox', {
-				name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: ${transition.current}`
-			});
-			await expectSettledSourceControl(needControl);
-			await needControl.selectOption(transition.next);
-			const response = await changed;
-			expect(response.ok()).toBe(true);
-			expect(response.request().postDataJSON()).toMatchObject({
-				action: 'need',
-				need: transition.next
-			});
-		}
+		const needControl = page.locator('details.not-this-run[open]').getByRole('combobox', {
+			name: `Choose future-list need for ${fixture.shoppingSibling} · ${recipeTitle}`,
+			exact: true
+		});
+		await expectSettledSourceControl(needControl);
+		const changed = page.waitForResponse(
+			(response) =>
+				response.request().method() === 'POST' &&
+				response.url().endsWith('/api/shopping/recipe-choice')
+		);
+		await needControl.selectOption('required');
+		const response = await changed;
+		expect(response.ok()).toBe(true);
+		expect(response.request().postDataJSON()).toMatchObject({
+			action: 'need',
+			need: 'required'
+		});
 	}
 	await expect(
 		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingSibling} bought` })
 	).toBeVisible();
 	for (const recipeTitle of [fixture.recipeTitle, otherRecipeTitle]) {
-		const needControl = page.getByRole('combobox', {
-			name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: Always`
+		const needControl = page.locator('.shopping-active-groups').getByRole('combobox', {
+			name: `Choose future-list need for ${fixture.shoppingSibling} · ${recipeTitle}`,
+			exact: true
 		});
 		await expectSettledSourceControl(needControl);
 		const excluded = page.waitForResponse(

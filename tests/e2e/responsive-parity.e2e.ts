@@ -46,6 +46,10 @@ function nextWeek(weekStart: string): string {
 	return date.toISOString().slice(0, 10);
 }
 
+function needCombobox(page: Page, name: string | RegExp) {
+	return page.getByRole('combobox', { name, exact: typeof name === 'string' });
+}
+
 test('Shopping keeps source order, focus, and singleton reflow local', async ({ page }, testInfo) => {
 	test.setTimeout(180_000);
 	const fixture = kitchenFixtureFor(testInfo);
@@ -739,9 +743,10 @@ for (const viewport of VIEWPORTS) {
 		await historySheet.getByRole('button', { name: 'Close' }).click();
 
 		await expect(page.getByRole('button', { name: /^Shopping rules/ })).toHaveCount(0);
-		const needPill = page.getByRole('combobox', {
-			name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Always`
-		});
+		const needPill = needCombobox(
+			page,
+			`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitle}`
+		);
 		const buyPill = page.getByRole('combobox', {
 			name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
 		});
@@ -777,18 +782,20 @@ for (const viewport of VIEWPORTS) {
 		await page.getByText('Not this run (2)', { exact: true }).click();
 		await expect(
 			page.getByRole('combobox', {
-				name: new RegExp(`^Change need for ${fixture.shoppingSibling}`)
+				name: `Choose future-list need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}`,
+				exact: true
 			})
-		).toHaveCount(2);
+		).toHaveCount(1);
 		await expect(
 			page.getByRole('combobox', {
 				name: new RegExp(`^Choose what to buy for ${fixture.shoppingSibling}`)
 			})
 		).toHaveCount(0);
 		await expect(
-			page.getByRole('combobox', {
-				name: `Change need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}. Current: Nice to have`
-			})
+			needCombobox(
+				page,
+				`Choose future-list need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}`
+			)
 		).toBeVisible();
 		await filterRail.getByRole('radio', { name: fixture.recipeTitle, exact: true }).click();
 		await expect(page.getByText('Not this run (1)', { exact: true })).toBeVisible();
@@ -960,9 +967,10 @@ test('Shopping keeps source controls compact at 320, 768, and 200% text', async 
 		.getByRole('link', { name: 'Connect it in Settings' });
 	await expect(connectAh).toBeVisible();
 	expect((await connectAh.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-	const needPill = page.getByRole('combobox', {
-		name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Always`
-	});
+	const needPill = needCombobox(
+		page,
+		`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitle}`
+	);
 	const buyPill = page.getByRole('combobox', {
 		name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
 	});
@@ -1003,9 +1011,10 @@ test('Shopping source controls remain legible in Dutch dark mode', async ({ page
 	});
 
 	await expect(page.getByRole('heading', { name: 'Boodschappen', level: 1 })).toBeVisible();
-	const needPill = page.getByRole('combobox', {
-		name: `Wijzig behoefte voor ${fixture.shoppingName} · ${fixture.recipeTitle}. Huidig: Altijd nodig`
-	});
+	const needPill = needCombobox(
+		page,
+		`Kies behoefte voor toekomstige lijsten voor ${fixture.shoppingName} · ${fixture.recipeTitle}`
+	);
 	const buyPill = page.getByRole('combobox', {
 		name: `Kies wat je deze ronde koopt voor ${fixture.shoppingName} · ${fixture.recipeTitle}`
 	});

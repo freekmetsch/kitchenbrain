@@ -74,10 +74,10 @@
 	async function removeMeal(meal: RecipePlanOccurrence): Promise<void> {
 		if (removing || meal.status === 'cooked') return;
 		removing = true;
-		plannedServingsRegistry.discard(meal.id);
 		try {
 			const response = await fetch(`${base}/api/meal-plan/${meal.id}`, { method: 'DELETE' });
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			plannedServingsRegistry.discard(meal.id);
 			toast.undo(m.mealplan_toast_removed({ dinner: meal.dinner }), () => void restoreMeal(meal));
 			await goto(`${base}/recipes/${slug}`);
 		} catch {

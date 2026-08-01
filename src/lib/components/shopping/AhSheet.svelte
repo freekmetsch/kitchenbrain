@@ -87,10 +87,14 @@
 
 	$effect(() => {
 		const revision = listRevision;
+		const pushing = ahPushing;
 		if (revision === observedListRevision) return;
+		// Marked-bought push results do not advance this prop. A revision seen
+		// during a push is therefore a separate portion edit and must be handled
+		// once the in-flight push settles.
+		if (pushing) return;
 		observedListRevision = revision;
 		const hadOpenPreview = ahOpen && (ahLoading || ahItems != null);
-		if (ahPushing) return;
 		ahOpen = false;
 		ahLoading = false;
 		resetAhPreview();

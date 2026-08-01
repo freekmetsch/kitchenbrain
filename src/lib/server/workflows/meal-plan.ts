@@ -26,6 +26,7 @@ import {
 } from '$lib/server/domains/recipes';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
+import { validatePlannedServingsChange } from '$lib/server/workflows/planned-servings';
 import type { BenchSheetRating } from '$lib/types';
 import { addDays, isoWeekNumber, todayIso, weekStartFor } from '$lib/week';
 import { rotationShortlistForWeek } from '$lib/server/workflows/meal-rotation';
@@ -200,25 +201,8 @@ export function createMealPlanService(
 			source?: 'fresh' | 'freezer'
 		) {
 			return db.transaction((tx) => {
-				const meal = getMealPlanMeal(tx, id);
-				if (!meal) {
-					return { ok: false as const, code: 'not_found' as const, error: 'Meal not found' };
-				}
-				const currentWeekStart = weekStartFor(todayIso(), getWeekStartDay(tx));
-				if (meal.weekStartDate < currentWeekStart) {
-					return {
-						ok: false as const,
-						code: 'past_week' as const,
-						error: 'Past meal portions cannot be changed'
-					};
-				}
-				if (meal.status === 'cooked') {
-					return {
-						ok: false as const,
-						code: 'already_cooked' as const,
-						error: 'Cooked meal portions cannot be changed'
-					};
-				}
+				const editable = validatePlannedServingsChange(tx, id);
+				if (!editable.ok) return editable;
 				const result = updateMealPlanMetadata(tx, id, {
 					servings,
 					...(source === undefined ? {} : { source })

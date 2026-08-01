@@ -323,11 +323,14 @@ export class MealPlanController {
 	}
 
 	private removeMealFromState(id: number): void {
+		this.servingsRegistry.discard(id);
+		this.setServingPending(id, false);
 		for (const week of this.weeks) {
 			const index = week.meals.findIndex((meal) => meal.id === id);
 			if (index !== -1) {
 				week.meals.splice(index, 1);
 				this.weeks = [...this.weeks];
+				this.syncServingSubscriptions();
 				return;
 			}
 		}
@@ -516,6 +519,7 @@ export class MealPlanController {
 				}),
 			() => {
 				this.weeks = before;
+				this.syncServingSubscriptions();
 			},
 			m.mealplan_toast_could_not_remove()
 		);
@@ -713,7 +717,6 @@ export class MealPlanController {
 
 	removeMeal = async (meal: MealPlanMeal): Promise<void> => {
 		if (this.pendingDeletes[meal.id]) return;
-		this.servingsRegistry.discard(meal.id);
 		const before = cloneWeeks(this.weeks);
 		this.pendingDeletes = { ...this.pendingDeletes, [meal.id]: true };
 		this.removeMealFromState(meal.id);
@@ -724,6 +727,7 @@ export class MealPlanController {
 				}),
 			() => {
 				this.weeks = before;
+				this.syncServingSubscriptions();
 			},
 			m.mealplan_toast_could_not_remove()
 		);

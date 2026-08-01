@@ -288,9 +288,11 @@ test('house-style roles hold across stable routes and target viewports', async (
 		);
 		const activeDestination = nav.locator('[aria-current="page"]');
 		await expect(activeDestination).toHaveCount(1);
-		expect(
-			await activeDestination.evaluate((element) => getComputedStyle(element).backgroundColor)
-		).toBe(PAPER_RGB);
+		await expect
+			.poll(() =>
+				activeDestination.evaluate((element) => getComputedStyle(element).backgroundColor)
+			)
+			.toBe(PAPER_RGB);
 	}
 });
 

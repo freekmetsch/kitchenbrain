@@ -14,6 +14,10 @@ import {
 	type MealPlanMeal
 } from '$lib/server/domains/meal-plan/queries';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import {
+	plannedServingsSchema,
+	validatePlannedServingsChange
+} from '$lib/server/workflows/planned-servings';
 import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
 import { isoWeekNumber, weekStartFor } from '$lib/week';
 
@@ -34,7 +38,7 @@ const AddMealOperationSchema = z
 		dinner: z.string().trim().min(1).max(256),
 		recipeSlug: z.string().trim().min(1).max(256).nullable(),
 		plannedDate: z.string().date().nullable(),
-		servings: z.number().int().positive().max(99).nullable(),
+		servings: plannedServingsSchema.nullable(),
 		source: z.enum(['fresh', 'freezer']),
 		note: z.string().trim().max(1000).nullable(),
 		reason: z.string().trim().min(1).max(500)
@@ -47,7 +51,7 @@ const UpdateMealChangesSchema = z
 		dinner: z.string().trim().min(1).max(256).optional(),
 		recipeSlug: z.string().trim().min(1).max(256).nullable().optional(),
 		plannedDate: z.string().date().nullable().optional(),
-		servings: z.number().int().positive().max(99).nullable().optional(),
+		servings: plannedServingsSchema.optional(),
 		source: z.enum(['fresh', 'freezer']).optional(),
 		note: z.string().trim().max(1000).nullable().optional()
 	})
@@ -191,6 +195,10 @@ export function stageMealPlanProposal(
 
 		const meal = getMealPlanMeal(db, operation.mealId);
 		if (!meal) throw new Error(`Meal ${operation.mealId} not found`);
+		if (operation.kind === 'update' && operation.changes.servings !== undefined) {
+			const editable = validatePlannedServingsChange(db, operation.mealId);
+			if (!editable.ok) throw new Error(editable.error);
+		}
 		affectedWeeks.add(meal.weekStartDate);
 		if (operation.kind === 'remove') {
 			return {
@@ -356,6 +364,10 @@ export function applyMealPlanProposal(
 				if (operation.kind === 'update') {
 					const before = getMealPlanMeal(tx, operation.mealId);
 					if (!before) throw new Error(`Meal ${operation.mealId} no longer exists`);
+					if (operation.changes.servings !== undefined) {
+						const editable = validatePlannedServingsChange(tx, operation.mealId);
+						if (!editable.ok) throw new Error(editable.error);
+					}
 					const nextWeek = operation.changes.weekStartDate
 						? weekStartFor(operation.changes.weekStartDate, getWeekStartDay(tx))
 						: undefined;

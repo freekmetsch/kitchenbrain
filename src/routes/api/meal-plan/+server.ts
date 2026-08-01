@@ -4,12 +4,13 @@ import { z } from 'zod';
 import { readJsonBody } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
 import { mealPlanService } from '$lib/server/workflows/meal-plan';
+import { plannedServingsSchema } from '$lib/server/workflows/planned-servings';
 
 const CreateSchema = z.object({
 	weekStartDate: isoDateSchema,
 	dinner: z.string().min(1).max(500),
 	recipeSlug: z.string().nullable().optional(),
-	servings: z.number().int().positive().max(99).nullable().optional(),
+	servings: plannedServingsSchema.nullable().optional(),
 	plannedDate: isoDateSchema.nullable().optional(),
 	source: z.enum(['fresh', 'freezer']).optional(),
 	note: z.string().max(2_000).nullable().optional()

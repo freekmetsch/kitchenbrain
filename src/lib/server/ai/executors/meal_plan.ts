@@ -3,6 +3,7 @@ import { isoDateSchema } from '$lib/date_schema';
 import { todayIso } from '$lib/week';
 import { createMealPlanService } from '$lib/server/workflows/meal-plan';
 import { getMealSuggestionContext } from '$lib/server/workflows/meal-plan-suggestions';
+import { plannedServingsSchema } from '$lib/server/workflows/planned-servings';
 import { stageMealPlanProposal } from '$lib/server/ai/meal_plan_proposal';
 import type { ExecutorFn } from './shared';
 
@@ -13,7 +14,7 @@ const MealPlanProposalOperationSchema = z.discriminatedUnion('kind', [
 			dinner: z.string(),
 			recipe_slug: z.string().nullable(),
 			planned_date: isoDateSchema.nullable(),
-			servings: z.number().int().positive().max(99).nullable(),
+			servings: plannedServingsSchema.nullable(),
 			source: z.enum(['fresh', 'freezer']),
 			note: z.string().nullable(),
 			reason: z.string()
@@ -29,7 +30,7 @@ const MealPlanProposalOperationSchema = z.discriminatedUnion('kind', [
 					dinner: z.string().optional(),
 					recipe_slug: z.string().nullable().optional(),
 					planned_date: isoDateSchema.nullable().optional(),
-					servings: z.number().int().positive().max(99).nullable().optional(),
+					servings: plannedServingsSchema.optional(),
 					source: z.enum(['fresh', 'freezer']).optional(),
 					note: z.string().nullable().optional()
 				})
@@ -77,7 +78,7 @@ export const mealPlanExecutors: Record<string, ExecutorFn> = {
 				week_start_date: isoDateSchema,
 				dinner: z.string(),
 				recipe_slug: z.string().optional(),
-				servings: z.number().int().positive().max(99).optional(),
+				servings: plannedServingsSchema.optional(),
 				source: z.enum(['fresh', 'freezer']).optional(),
 				note: z.string().optional()
 			})

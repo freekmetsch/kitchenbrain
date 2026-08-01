@@ -28,12 +28,6 @@
 		return 'required';
 	}
 
-	function needLabel(value: ShoppingNeed): string {
-		if (value === 'stocked') return m.shopping_need_usually_stocked();
-		if (value === 'optional') return m.shopping_need_nice_to_have();
-		return m.shopping_need_every_time();
-	}
-
 	function sourceContext(): string {
 		return [
 			[source.amount, source.unit].filter(Boolean).join(' '),
@@ -79,10 +73,7 @@
 			data-source-key={source.sourceKey}
 			value={need()}
 			disabled={disabled || pending || needBlocked}
-			aria-label={m.shopping_need_cycle_aria({
-				name: controlName(),
-				current: needLabel(need())
-			})}
+			aria-label={m.shopping_future_lists_aria({ name: controlName() })}
 			onchange={(event) => void chooseNeed(event)}
 		>
 			<option value="required">{m.shopping_future_required()}</option>
