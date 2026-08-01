@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import type { IconName } from '$lib/components/ui/icons/paths';
+	import { onMediaQuery } from '$lib/components/ui/media-query';
 
 	export type HeaderActionMenuItem = {
 		id: string;
@@ -45,17 +46,10 @@
 	let selectingFromSheet = $state(false);
 	let pendingSheetItem = $state<HeaderActionMenuItem>();
 
-	onMount(() => {
-		const query = window.matchMedia('(max-width: 47.99rem)');
-		const sync = () => {
-			const next = query.matches;
-			if (ready && next !== compact) open = false;
-			compact = next;
-			ready = true;
-		};
-		sync();
-		query.addEventListener('change', sync);
-		return () => query.removeEventListener('change', sync);
+	onMediaQuery('(max-width: 47.99rem)', (matches) => {
+		if (ready && matches !== compact) open = false;
+		compact = matches;
+		ready = true;
 	});
 
 	function desktopItems(): HTMLElement[] {
@@ -212,6 +206,7 @@
 		aria-label={triggerLabel}
 		aria-haspopup={compact ? 'dialog' : 'menu'}
 		aria-expanded={open}
+		aria-controls={`${id}-${compact ? 'sheet' : 'menu'}`}
 		data-ready={ready ? 'true' : 'false'}
 		onkeydown={handleTriggerKeydown}
 		onclick={(event) => {
@@ -225,6 +220,7 @@
 	{#if open && !compact}
 		<ul
 			bind:this={desktopPanel}
+			id={`${id}-menu`}
 			role="menu"
 			class="header-action-popover"
 			onkeydown={handleDesktopKeydown}
@@ -238,6 +234,7 @@
 	{#if compact}
 		<BottomSheet
 			bind:open
+			id={`${id}-sheet`}
 			title={sheetTitle}
 			initialFocus="[data-header-menu-item='sheet']"
 			restoreFocus={!selectingFromSheet}

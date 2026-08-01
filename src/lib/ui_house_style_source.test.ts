@@ -63,7 +63,11 @@ describe('stable app house-style source contract', () => {
 			'src/lib/components/ui/HeaderActionMenu.svelte',
 			'utf8'
 		);
+		const mediaQuery = readFileSync('src/lib/components/ui/media-query.ts', 'utf8');
 		const mealPlan = readFileSync('src/routes/meal-plan/+page.svelte', 'utf8');
+		const inventory = readFileSync('src/routes/inventory/+page.svelte', 'utf8');
+		const recipes = readFileSync('src/routes/recipes/+page.svelte', 'utf8');
+		const shopping = readFileSync('src/routes/shopping/+page.svelte', 'utf8');
 		const recipeDetail = readFileSync(
 			'src/lib/components/recipe-detail/RecipeHeader.svelte',
 			'utf8'
@@ -84,15 +88,21 @@ describe('stable app house-style source contract', () => {
 		expect(header).not.toContain('::after');
 		expect(combinedFilter).toContain('<BottomSheet');
 		expect(combinedFilter).toContain("closeAt = '64rem'");
-		expect(combinedFilter).toContain('if (query.matches) open = false');
+		expect(combinedFilter).toContain('onMediaQuery(() => `(min-width: ${closeAt})`');
 		expect(combinedFilter).not.toContain('combined-filter-panel');
-		expect(headerMenu).toContain("matchMedia('(max-width: 47.99rem)')");
+		expect(mediaQuery).toContain("typeof queryText === 'function' ? queryText() : queryText");
+		expect(headerMenu).toContain("onMediaQuery('(max-width: 47.99rem)'");
 		expect(headerMenu).toContain("aria-haspopup={compact ? 'dialog' : 'menu'}");
+		expect(headerMenu).toContain("aria-controls={`${id}-${compact ? 'sheet' : 'menu'}`}");
 		expect(headerMenu).toContain("role={desktop ? 'none' : undefined}");
 		expect(headerMenu).toContain("tabindex={desktop ? -1 : undefined}");
 		expect(headerMenu).toContain("event.key === 'Tab'");
 		expect(mealPlan).toContain('<HeaderActionMenu');
+		expect(mealPlan).toContain('wrapperClass="ui-action-segment"');
 		expect(mealPlan).not.toContain('<details class="dropdown dropdown-end">');
+		expect(inventory.match(/aria-expanded=\{controller\.showAddForm\}/g)).toHaveLength(2);
+		expect(recipes.match(/aria-expanded=\{scrapeOpen\}/g)).toHaveLength(2);
+		expect(shopping).toContain('aria-expanded={addItemOpen}');
 		expect(recipeDetail).toContain('layout="contextual"');
 		expect(recipeDetail).toContain('variant="command"');
 		expect(recipeDetail).toContain('<CombinedFilterMenu');

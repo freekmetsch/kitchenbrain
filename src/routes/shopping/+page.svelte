@@ -264,7 +264,7 @@
 	</div>
 
 	<div class="shopping-market-dock" aria-label={m.shopping_heading()}>
-		<button type="button" class="market-add-action ui-action ui-action-secondary" onclick={() => addItemForm?.openAddModal()}>
+		<button type="button" class="market-add-action ui-action ui-action-secondary" aria-haspopup="dialog" aria-expanded={addItemOpen} onclick={() => addItemForm?.openAddModal()}>
 			<Icon name="plus" />
 			{m.shopping_additem_submit_aria()}
 		</button>

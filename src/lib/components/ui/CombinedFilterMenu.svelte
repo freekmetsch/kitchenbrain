@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onMount, type Snippet } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
+	import { onMediaQuery } from '$lib/components/ui/media-query';
 
 	let {
 		id,
@@ -26,14 +27,8 @@
 
 	let trigger = $state<HTMLButtonElement>();
 
-	onMount(() => {
-		const query = window.matchMedia(`(min-width: ${closeAt})`);
-		const closeWhenHidden = () => {
-			if (query.matches) open = false;
-		};
-		closeWhenHidden();
-		query.addEventListener('change', closeWhenHidden);
-		return () => query.removeEventListener('change', closeWhenHidden);
+	onMediaQuery(() => `(min-width: ${closeAt})`, (matches) => {
+		if (matches) open = false;
 	});
 </script>
 

@@ -134,6 +134,7 @@
 						triggerLabel={m.mealplan_more_options_aria()}
 						sheetTitle={m.mealplan_more_options_aria()}
 						triggerClass="plan-more ui-action ui-action-tertiary ui-action-on-dark ui-action-icon"
+						wrapperClass="ui-action-segment"
 						iconOnly
 						items={planHeaderMenuItems(headerWeek.weekStartDate)}
 					/>

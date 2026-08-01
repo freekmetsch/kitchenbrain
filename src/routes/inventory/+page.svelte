@@ -357,7 +357,7 @@
 				{:else if controller.items.length === 0}
 					<EmptyState iconName="jar" title={m.inventory_empty_title()}>
 						{#snippet action()}
-							<button type="button" class="ui-action ui-action-primary" onclick={() => (controller.showAddForm = true)}>
+							<button type="button" class="ui-action ui-action-primary" aria-haspopup="dialog" aria-expanded={controller.showAddForm} onclick={() => (controller.showAddForm = true)}>
 								{m.inventory_empty_add_first_button()}
 							</button>
 						{/snippet}

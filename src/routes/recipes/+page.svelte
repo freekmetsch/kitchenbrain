@@ -568,7 +568,7 @@
 				{#if hasActiveFilters}
 					<button class="ui-action ui-action-secondary" onclick={clearFilters}>{m.recipes_clear_filters_button()}</button>
 				{:else}
-					<button class="ui-action ui-action-primary" onclick={() => (scrapeOpen = true)}>{m.recipes_import_recipe_button()}</button>
+					<button class="ui-action ui-action-primary" aria-haspopup="dialog" aria-expanded={scrapeOpen} onclick={() => (scrapeOpen = true)}>{m.recipes_import_recipe_button()}</button>
 				{/if}
 			{/snippet}
 		</EmptyState>
