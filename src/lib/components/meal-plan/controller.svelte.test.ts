@@ -59,6 +59,39 @@ describe('MealPlanController', () => {
 		expect(controller.pendingAdds).toEqual({});
 	});
 
+	it('settles temporary serving edits when an optimistic add rolls back', async () => {
+		let resolveRequest!: (response: Response) => void;
+		const fetcher = vi.fn(
+			() =>
+				new Promise<Response>((resolve) => {
+					resolveRequest = resolve;
+				})
+		);
+		const registry = new PlannedServingsRegistry({
+			write: vi.fn<(mealId: number, servings: number) => Promise<PlannedServingMeal>>()
+		});
+		const controller = new MealPlanController(data('2026-07-01'), {
+			fetcher,
+			servingsRegistry: registry
+		});
+
+		const adding = controller.addMealOptimistic({
+			weekStartDate: '2026-07-01',
+			dinner: 'Lasagne',
+			servings: 4
+		});
+		const temporary = controller.weeks[0].meals[0];
+		const servingChange = controller.changeServings(temporary, 1);
+		expect(registry.snapshot(temporary.id)).toMatchObject({ pending: true, desired: 5 });
+
+		resolveRequest(new Response(null, { status: 500 }));
+
+		await expect(adding).resolves.toBe(false);
+		await expect(servingChange).resolves.toBeUndefined();
+		expect(registry.snapshot(temporary.id)).toBeNull();
+		expect(controller.pendingServings[temporary.id]).toBeUndefined();
+	});
+
 	it('coalesces rapid duplicate adds while the first request is pending', async () => {
 		let resolveRequest!: (response: Response) => void;
 		const fetcher = vi.fn(
@@ -188,7 +221,11 @@ describe('MealPlanController', () => {
 				{ status: 200, headers: { 'Content-Type': 'application/json' } }
 			);
 		});
-		const controller = new MealPlanController(initial, { fetcher });
+		const registry = new PlannedServingsRegistry({
+			write: vi.fn<(mealId: number, servings: number) => Promise<PlannedServingMeal>>()
+		});
+		const discard = vi.spyOn(registry, 'discard');
+		const controller = new MealPlanController(initial, { fetcher, servingsRegistry: registry });
 
 		await controller.planRotationCandidate(weekStartDate, candidate);
 
@@ -199,6 +236,7 @@ describe('MealPlanController', () => {
 		toast.current?.action?.run();
 		await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
 		await vi.waitFor(() => expect(controller.weeks[0].meals).toEqual([]));
+		expect(discard).toHaveBeenCalledWith(7);
 		expect(controller.rotationShortlists[weekStartDate].due).toEqual([candidate]);
 		toast.dismiss();
 	});

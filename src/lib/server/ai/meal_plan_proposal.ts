@@ -14,6 +14,7 @@ import {
 	type MealPlanMeal
 } from '$lib/server/domains/meal-plan/queries';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
+import { validatePlannedServingsChange } from '$lib/server/workflows/planned-servings';
 import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
 import { isoWeekNumber, weekStartFor } from '$lib/week';
 
@@ -47,7 +48,7 @@ const UpdateMealChangesSchema = z
 		dinner: z.string().trim().min(1).max(256).optional(),
 		recipeSlug: z.string().trim().min(1).max(256).nullable().optional(),
 		plannedDate: z.string().date().nullable().optional(),
-		servings: z.number().int().positive().max(99).nullable().optional(),
+		servings: z.number().int().positive().max(99).optional(),
 		source: z.enum(['fresh', 'freezer']).optional(),
 		note: z.string().trim().max(1000).nullable().optional()
 	})
@@ -356,6 +357,10 @@ export function applyMealPlanProposal(
 				if (operation.kind === 'update') {
 					const before = getMealPlanMeal(tx, operation.mealId);
 					if (!before) throw new Error(`Meal ${operation.mealId} no longer exists`);
+					if (operation.changes.servings !== undefined) {
+						const editable = validatePlannedServingsChange(tx, operation.mealId);
+						if (!editable.ok) throw new Error(editable.error);
+					}
 					const nextWeek = operation.changes.weekStartDate
 						? weekStartFor(operation.changes.weekStartDate, getWeekStartDay(tx))
 						: undefined;

@@ -29,7 +29,7 @@ const MealPlanProposalOperationSchema = z.discriminatedUnion('kind', [
 					dinner: z.string().optional(),
 					recipe_slug: z.string().nullable().optional(),
 					planned_date: isoDateSchema.nullable().optional(),
-					servings: z.number().int().positive().max(99).nullable().optional(),
+					servings: z.number().int().positive().max(99).optional(),
 					source: z.enum(['fresh', 'freezer']).optional(),
 					note: z.string().nullable().optional()
 				})

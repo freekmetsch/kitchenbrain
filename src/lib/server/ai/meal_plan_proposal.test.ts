@@ -228,6 +228,86 @@ describe('meal-plan action bundle', () => {
 		]);
 	});
 
+	it.each([
+		{ label: 'past', weekStartDate: '2000-01-05', cooked: false, message: /past meal portions/i },
+		{ label: 'cooked', weekStartDate: '2099-01-07', cooked: true, message: /cooked meal portions/i }
+	])('rejects $label serving edits from an AI proposal', ({ weekStartDate, cooked, message }) => {
+		const db = createTestDb();
+		const mealPlan = createMealPlanService(db);
+		const existing = mealPlan.create({
+			weekStartDate,
+			dinner: 'Protected soup',
+			servings: 4,
+			sourcePolicy: 'reject'
+		});
+		if (!existing.ok) throw new Error(existing.error);
+		if (cooked && !mealPlan.cook(existing.meal.id, '2099-01-08').ok) {
+			throw new Error('fixture meal could not be cooked');
+		}
+		const proposal = stageMealPlanProposal(db, {
+			userId: 1,
+			weekStartDate: existing.meal.weekStartDate,
+			title: 'Portions aanpassen',
+			recommendation: {},
+			operations: [
+				{
+					kind: 'update',
+					mealId: existing.meal.id,
+					changes: { servings: 6 },
+					reason: 'De porties lijken niet te passen.'
+				}
+			]
+		});
+
+		expect(() =>
+			applyMealPlanProposal(db, {
+				token: proposal.token,
+				userId: 1,
+				operationIds: [proposal.operations[0].id]
+			})
+		).toThrow(message);
+		expect(db.select().from(schema.mealPlanMeals).get()).toMatchObject({
+			id: existing.meal.id,
+			servings: 4,
+			status: cooked ? 'cooked' : 'planned'
+		});
+		expect(
+			getMealPlanProposalStatus({
+				token: proposal.token,
+				userId: 1,
+				weekStartDate: proposal.weekStartDate
+			})
+		).toEqual({ status: 'active' });
+	});
+
+	it('rejects null servings in an AI update operation', () => {
+		const db = createTestDb();
+		const existing = createMealPlanService(db).create({
+			weekStartDate: '2099-01-07',
+			dinner: 'Soup',
+			servings: 4,
+			sourcePolicy: 'reject'
+		});
+		if (!existing.ok) throw new Error(existing.error);
+
+		expect(() =>
+			stageMealPlanProposal(db, {
+				userId: 1,
+				weekStartDate: existing.meal.weekStartDate,
+				title: 'Porties wissen',
+				recommendation: {},
+				operations: [
+					{
+						kind: 'update',
+						mealId: existing.meal.id,
+						changes: { servings: null },
+						reason: 'Geen porties bekend.'
+					}
+				]
+			} as never)
+		).toThrow();
+	});
+
 	it('undoes the whole committed bundle only while its written state is still current', () => {
 		const db = createTestDb();
 		seedRecipe(db, 'pasta', 'Pasta');

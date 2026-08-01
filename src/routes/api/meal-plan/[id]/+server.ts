@@ -11,7 +11,7 @@ const UpdateSchema = z.object({
 	cookedDate: isoDateSchema.nullable().optional(),
 	plannedDate: isoDateSchema.nullable().optional(),
 	source: z.enum(['fresh', 'freezer']).optional(),
-	servings: z.number().int().positive().max(99).nullable().optional()
+	servings: z.number().int().positive().max(99).optional()
 });
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
@@ -26,7 +26,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		body.status === undefined &&
 		body.cookedDate === undefined
 	) {
-		if (body.servings != null) {
+		if (body.servings !== undefined) {
 			if (body.plannedDate !== undefined) {
 				throw error(400, 'Serving changes cannot be combined with a planned-date change');
 			}
@@ -36,9 +36,8 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 			}
 			return json(result.meal);
 		}
-		const updates: Partial<{ plannedDate: string | null; source: 'fresh' | 'freezer'; servings: number | null }> = {};
+		const updates: Partial<{ plannedDate: string | null; source: 'fresh' | 'freezer' }> = {};
 		if (body.plannedDate !== undefined) updates.plannedDate = body.plannedDate;
-		if (body.servings !== undefined) updates.servings = body.servings;
 		if (body.source !== undefined) updates.source = body.source;
 		const result = mealPlanService.updateMetadata(id, updates);
 		if (!result.ok) {

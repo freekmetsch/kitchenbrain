@@ -336,6 +336,9 @@
 	slug={recipe.slug}
 	title={displayTitle}
 	archived={recipe.archivedAt != null}
+	onArchivedChange={(archived) => {
+		recipe = { ...recipe, archivedAt: archived ? new Date() : null };
+	}}
 />
 
 {#if recipe.needsReview}

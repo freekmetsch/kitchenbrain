@@ -7,11 +7,13 @@
 	let {
 		slug,
 		title,
-		archived
+		archived,
+		onArchivedChange
 	}: {
 		slug: string;
 		title: string;
 		archived: boolean;
+		onArchivedChange?: (archived: boolean) => void;
 	} = $props();
 
 	let pending = $state(false);
@@ -26,6 +28,7 @@
 				body: JSON.stringify({ archived: next })
 			});
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			onArchivedChange?.(next);
 			if (refresh) await invalidateAll();
 			return true;
 		} catch {

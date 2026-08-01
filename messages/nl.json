@@ -1055,7 +1055,7 @@
 	"shopping_need_every_time": "Altijd nodig",
 	"shopping_need_nice_to_have": "Lekker erbij",
 	"shopping_need_usually_stocked": "Meestal in huis",
-	"shopping_need_cycle_aria": "Wijzig behoefte voor {name}. Huidig: {current}",
+	"shopping_future_lists_aria": "Kies behoefte voor toekomstige lijsten voor {name}",
 	"shopping_future_lists_label": "Toekomstige lijsten wijzigen",
 	"shopping_future_required": "Verplicht ingrediënt — elke keer",
 	"shopping_future_optional": "Optioneel ingrediënt — wanneer nodig",

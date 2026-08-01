@@ -1055,7 +1055,7 @@
 	"shopping_need_every_time": "Always",
 	"shopping_need_nice_to_have": "Nice to have",
 	"shopping_need_usually_stocked": "Usually stocked",
-	"shopping_need_cycle_aria": "Change need for {name}. Current: {current}",
+	"shopping_future_lists_aria": "Choose future-list need for {name}",
 	"shopping_future_lists_label": "Change future lists",
 	"shopping_future_required": "Required ingredient — every time",
 	"shopping_future_optional": "Optional ingredient — when needed",
