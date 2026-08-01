@@ -119,6 +119,7 @@ test('Meal Plan serving edits and remove undo stay recoverable', async ({ page }
 });
 
 test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({ page }, testInfo) => {
+	test.setTimeout(90_000);
 	const fixture = kitchenFixtureFor(testInfo);
 	await page.goto(`/shopping?week=${fixture.weekStart}`);
 	await page.waitForLoadState('networkidle');
@@ -204,7 +205,7 @@ test('Recipe archive leaves history intact and restores from Undo', async ({ pag
 	page.once('dialog', (dialog) => dialog.accept());
 	await page.getByRole('button', { name: 'Archive recipe' }).click();
 	expect((await archived).ok()).toBe(true);
-	await expect(page).toHaveURL(/\/recipes$/);
+	await expect(page).toHaveURL(/\/recipes$/, { timeout: 30_000 });
 	const restoredRecipeHeading = page.getByRole('heading', {
 		name: fixture.cookRecipeTitle,
 		level: 2,
@@ -292,6 +293,7 @@ test('Recipe rhythm creates a deterministic Cook shortlist without the old Sugge
 test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 	page
 }, testInfo) => {
+	test.setTimeout(120_000);
 	const fixture = kitchenFixtureFor(testInfo);
 
 	await page.goto('/shopping');
@@ -576,10 +578,11 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 test('Recipes can be planned, marked made, and frozen without providers', async ({
 	page
 }, testInfo) => {
+	test.setTimeout(90_000);
 	const fixture = kitchenFixtureFor(testInfo);
 
 	await page.goto('/recipes');
-	await page.waitForLoadState('networkidle');
+	await expectAppHydrated(page);
 	await expect(page.getByRole('heading', { name: 'Recipes', level: 1 })).toBeVisible();
 
 	const recipeCard = page.getByRole('article').filter({
@@ -629,7 +632,7 @@ test('Recipes can be planned, marked made, and frozen without providers', async 
 	await expect(freezeDialog).toBeHidden();
 
 	await page.goto('/inventory');
-	await page.waitForLoadState('networkidle');
+	await expectAppHydrated(page);
 	await expect(page.getByRole('button', { name: `Edit ${fixture.recipeTitle}` })).toBeVisible();
 });
 

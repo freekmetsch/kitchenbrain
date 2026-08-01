@@ -1,6 +1,6 @@
 # Portion and Removal Journey
 
-_Status: Implemented locally — staging and production delivery pending (2026-08-01)_
+_Status: Ready for production delivery — all local gates passed (2026-08-01)_
 
 _Overall risk: R3 — additive SQLite migrations and real household records_
 _Stage gate: required before either schema branch reaches production_
@@ -37,10 +37,12 @@ explicit future shopping defaults, and reversible recipe archive/restore.
 - Planned meals can be removed with Undo, and cookbook recipes can be archived and restored without
   breaking historical references. Additive migrations and settings round trips cover both records.
 
-Verification passed Svelte diagnostics, a clean production build, all 694 Vitest tests in the
-implementation workspace, the 14 architecture guards under a relaxed timeout on the overloaded
-clean runner, and the five changed authenticated browser journeys. The full browser matrix and the
-R3 stage rehearsal remain delivery gates rather than implementation gaps.
+Verification passed Svelte diagnostics, a clean production build, all 696 Vitest tests, the full
+primary authenticated browser matrix, and the full secondary-account matrix with the deliberate
+connected-AH skip. The one load-sensitive secondary hydration timeout passed on its focused rerun.
+The R3 migration rehearsal upgrades a pre-0028 database with representative recipe, planned-meal,
+shopping, revision, bought, and prior-AH-push data; it preserves those records, reports no foreign-key
+errors, and proves older installations can still apply their earlier journal before upgrading.
 
 ## Problem Framing
 

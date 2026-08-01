@@ -1406,16 +1406,20 @@ defaults, and recipe archive/restore. Additive migrations preserve historical re
 settings export/import/reset now round-trip the new records. The Dutch-only AH lookup boundary is
 unchanged; serving edits invalidate an open review but never rewrite an already-sent basket.
 
-Svelte diagnostics, a clean production build, 694 Vitest tests, the 14 architecture guards, and the
-five changed authenticated browser journeys passed. A complete browser-matrix attempt was limited
-by concurrent machine load, so the full primary/secondary matrix and R3 migration stage rehearsal
-remain production delivery gates. No household data, provider request, or AH operation was used.
+Svelte diagnostics, a clean production build, all 696 Vitest tests, and the complete primary
+authenticated browser matrix passed. The complete secondary-account matrix passed 38 stories with
+the deliberate connected-AH skip; its only load-sensitive hydration timeout passed on a focused
+rerun after the readiness threshold was aligned with the other hydrated controls. The R3 migration
+rehearsal upgraded a pre-0028 database while preserving representative recipe, meal-plan, shopping,
+revision, bought, and prior-AH-push records with no foreign-key errors. No household data, provider
+request, or AH operation was used.
 
 Touched: src/lib/planned_servings_registry.ts, src/lib/components/BenchSheet.svelte,
 src/lib/components/meal-plan/controller.svelte.ts, src/lib/components/shopping/ShoppingMealPortions.svelte,
 src/lib/server/workflows/meal-plan.ts, src/lib/server/workflows/reconcile-shopping.ts,
 src/lib/server/domains/recipes/commands.ts, drizzle/0028_nostalgic_mystique.sql,
 drizzle/0029_deep_ogun.sql, tests/e2e/kitchen-flows.e2e.ts,
+src/lib/server/db/portion_removal_migration.test.ts,
 docs/feature-lists/FEATURE_LIST_PORTION_AND_REMOVAL_JOURNEY.md,
 docs/known_issues/solved/ISSUE_RECIPE_MEAL_PLAN_SHOPPING_CONTROL_FRICTION_20260801-1425.md,
 docs/log.md

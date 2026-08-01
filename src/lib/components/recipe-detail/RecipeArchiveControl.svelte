@@ -16,7 +16,7 @@
 
 	let pending = $state(false);
 
-	async function setArchived(next: boolean): Promise<boolean> {
+	async function setArchived(next: boolean, refresh = true): Promise<boolean> {
 		if (pending) return false;
 		pending = true;
 		try {
@@ -26,7 +26,7 @@
 				body: JSON.stringify({ archived: next })
 			});
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
-			await invalidateAll();
+			if (refresh) await invalidateAll();
 			return true;
 		} catch {
 			toast.error(next ? m.recipes_archive_failed() : m.recipes_restore_failed());
@@ -38,7 +38,7 @@
 
 	async function archive(): Promise<void> {
 		if (!confirm(m.recipes_archive_confirm({ title }))) return;
-		if (!(await setArchived(true))) return;
+		if (!(await setArchived(true, false))) return;
 		toast.undo(m.recipes_archived_toast({ title }), () => void setArchived(false));
 		await goto(`${base}/recipes`);
 	}

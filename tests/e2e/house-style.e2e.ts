@@ -225,7 +225,9 @@ test('house-style roles hold across stable routes and target viewports', async (
 				.getByTestId('recipes-command-header')
 				.locator('.recipe-command-mobile')
 				.getByRole('button', { name: /^Filters/ });
-			await expect(recipeFilterTrigger).toHaveAttribute('data-ready', 'true');
+			await expect(recipeFilterTrigger).toHaveAttribute('data-ready', 'true', {
+				timeout: 30_000
+			});
 			await recipeFilterTrigger.press('Enter');
 			const recipeFilters = page.getByRole('dialog', { name: 'Recipe filters' });
 			await expect(recipeFilters).toBeVisible();
@@ -451,6 +453,7 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 	const allFilter = shoppingFilters.getByRole('radio', { name: 'All', exact: true });
 	const weeklyFilter = shoppingFilters.getByRole('radio', { name: 'Weekly items', exact: true });
 	const indicator = shoppingFilters.locator('.ui-segmented-indicator');
+	await shoppingFilters.scrollIntoViewIfNeeded();
 	await expect(indicator).toHaveClass(/visible/);
 	const indicatorStart = await indicator.boundingBox();
 	await allFilter.focus();
@@ -464,7 +467,7 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 	await page.evaluate(() => {
 		document.cookie = 'PARAGLIDE_LOCALE=nl; path=/';
 	});
-	await page.reload();
+	await page.goto('/shopping');
 	await page.evaluate(() => {
 		document.documentElement.setAttribute('data-theme', 'dark');
 	});
@@ -474,7 +477,7 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
 		)
 	).toBe(0);
-	const darkField = page.locator('.ui-field').first();
+	const darkField = page.locator('.ui-field:visible').first();
 	await expect(darkField).toBeVisible();
 	await darkField.focus();
 	expect(await darkField.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe('none');
@@ -495,7 +498,7 @@ test('Green Ribbon menus become drawers on phone and keyboard popovers on deskto
 			name: 'More meal plan options',
 			exact: true
 		});
-		await expect(mealPlanMore).toHaveAttribute('data-ready', 'true');
+		await expect(mealPlanMore).toHaveAttribute('data-ready', 'true', { timeout: 30_000 });
 		await mealPlanMore.click();
 		if (viewport.compact) {
 			const sheet = page.getByRole('dialog', { name: 'More meal plan options' });
