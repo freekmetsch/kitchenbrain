@@ -45,8 +45,10 @@ describe('portion review contracts', () => {
 		const executor = source('src/lib/server/ai/executors/meal_plan.ts');
 
 		expect(client).toContain('signal: AbortSignal.timeout(PLANNED_SERVINGS_WRITE_TIMEOUT_MS)');
-		expect(route).toContain('servings: z.number().int().positive().max(99).optional()');
+		expect(route).toContain('servings: plannedServingsSchema.optional()');
+		expect(proposal).toContain('validatePlannedServingsChange(db, operation.mealId)');
 		expect(proposal).toContain('validatePlannedServingsChange(tx, operation.mealId)');
-		expect(executor).toContain('servings: z.number().int().positive().max(99).optional()');
+		expect(proposal).toContain('servings: plannedServingsSchema.optional()');
+		expect(executor).toContain('servings: plannedServingsSchema.optional()');
 	});
 });

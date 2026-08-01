@@ -1,7 +1,10 @@
+import { z } from 'zod';
 import type { DbOrTx } from '$lib/server/db/types';
 import { getMealPlanMeal } from '$lib/server/domains/meal-plan/queries';
 import { getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import { todayIso, weekStartFor } from '$lib/week';
+
+export const plannedServingsSchema = z.number().int().positive().max(99);
 
 export function validatePlannedServingsChange(db: DbOrTx, id: number) {
 	const meal = getMealPlanMeal(db, id);

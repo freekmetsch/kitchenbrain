@@ -5,13 +5,14 @@ import { todayIso } from '$lib/week';
 import { readJsonBody, readPositiveIntParam } from '$lib/server/api_body';
 import { isoDateSchema } from '$lib/date_schema';
 import { mealPlanService } from '$lib/server/workflows/meal-plan';
+import { plannedServingsSchema } from '$lib/server/workflows/planned-servings';
 
 const UpdateSchema = z.object({
 	status: z.enum(['planned', 'cooked']).nullable().optional(),
 	cookedDate: isoDateSchema.nullable().optional(),
 	plannedDate: isoDateSchema.nullable().optional(),
 	source: z.enum(['fresh', 'freezer']).optional(),
-	servings: z.number().int().positive().max(99).optional()
+	servings: plannedServingsSchema.optional()
 });
 
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
