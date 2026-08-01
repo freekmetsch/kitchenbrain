@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Keukenbrein header structure study</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f3e9;
+      --card: #fffdf7;
+      --ink: #243128;
+      --muted: #68736b;
+      --line: #d9d2c4;
+      --olive: #334638;
+      --olive-deep: #293b30;
+      --olive-soft: #49614f;
+      --honey: #d3a046;
+      --terra: #a84d2a;
+      --wash: #eee9de;
+      --focus: #1b6ed1;
+      --shadow: 0 14px 38px rgb(43 49 43 / 11%);
+      --display: Georgia, 'Times New Roman', serif;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--paper); scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: var(--paper); }
+    button, input, textarea { font: inherit; }
+    button, label { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .workspace-intro {
+      padding: clamp(1.35rem, 4vw, 3.6rem) max(1rem, calc((100vw - 76rem) / 2));
+      color: white;
+      background:
+        radial-gradient(circle at 82% -20%, rgb(255 255 255 / 12%), transparent 26rem),
+        linear-gradient(125deg, var(--olive-deep), var(--olive));
+    }
+    .kicker {
+      margin: 0 0 .45rem;
+      color: #f2ca74;
+      font-size: .72rem;
+      font-weight: 850;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 16ch;
+      margin-bottom: .7rem;
+      font: 600 clamp(2rem, 5vw, 4.7rem)/.95 var(--display);
+      letter-spacing: -.045em;
+    }
+    .intro-copy {
+      max-width: 66ch;
+      margin-bottom: 1.2rem;
+      color: rgb(255 255 255 / 79%);
+      font-size: clamp(.92rem, 1.6vw, 1.08rem);
+      line-height: 1.55;
+    }
+    .intro-meta { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .intro-meta span, .intro-meta a {
+      min-height: 2.25rem;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid rgb(255 255 255 / 20%);
+      border-radius: 999px;
+      padding: .35rem .7rem;
+      color: white;
+      background: rgb(255 255 255 / 7%);
+      font-size: .78rem;
+      text-decoration: none;
+    }
+
+    .switchboard {
+      position: sticky;
+      z-index: 30;
+      top: 0;
+      border-bottom: 1px solid var(--line);
+      padding: .7rem max(1rem, calc((100vw - 76rem) / 2));
+      background: rgb(247 243 233 / 94%);
+      box-shadow: 0 6px 20px rgb(43 49 43 / 6%);
+      backdrop-filter: blur(14px);
+    }
+    .switchboard-inner { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem 1rem; }
+    .switch-group { min-width: 0; }
+    .switch-label {
+      display: block;
+      margin: 0 0 .22rem;
+      color: var(--muted);
+      font-size: .64rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .switches { display: flex; flex-wrap: wrap; gap: .25rem; }
+    .switches button {
+      min-height: 2.75rem;
+      border: 1px solid var(--line);
+      border-radius: .6rem;
+      padding: .42rem .72rem;
+      color: var(--ink);
+      background: var(--card);
+      cursor: pointer;
+      font-size: .78rem;
+      font-weight: 720;
+    }
+    .switches button[aria-pressed="true"] {
+      border-color: var(--olive);
+      color: white;
+      background: var(--olive);
+    }
+    .switch-help { margin-left: auto; color: var(--muted); font-size: .75rem; }
+
+    .workspace {
+      max-width: 92rem;
+      margin: 0 auto;
+      padding: clamp(1.25rem, 3vw, 2.5rem) 1rem 5rem;
+    }
+    .spread-intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(18rem, .45fr);
+      gap: 1.5rem;
+      max-width: 76rem;
+      margin: 0 auto 1.5rem;
+      padding-bottom: 1.4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .spread-intro h2 {
+      margin-bottom: .35rem;
+      font: 600 clamp(1.55rem, 3vw, 2.35rem)/1 var(--display);
+    }
+    .spread-intro p { margin-bottom: 0; color: var(--muted); line-height: 1.55; }
+    .recommendation {
+      border-left: 3px solid var(--honey);
+      padding-left: .9rem;
+      color: var(--ink) !important;
+      font-size: .88rem;
+    }
+
+    .spread { display: grid; gap: 1.2rem; }
+    .variant {
+      display: grid;
+      grid-template-columns: minmax(14.5rem, 18rem) minmax(0, 1fr);
+      gap: 1rem;
+      border-top: 1px solid var(--line);
+      padding-top: 1.2rem;
+    }
+    .variant:first-child { border-top: 0; padding-top: 0; }
+    .variant-copy { align-self: start; padding: .35rem .25rem .5rem 0; }
+    .variant-number {
+      width: 2rem;
+      height: 2rem;
+      display: grid;
+      place-items: center;
+      margin-bottom: .7rem;
+      border: 1px solid var(--olive);
+      border-radius: 999px;
+      color: var(--olive);
+      font: 700 1rem/1 var(--display);
+    }
+    .variant[data-recommended="true"] .variant-number { border-color: var(--honey); background: var(--honey); color: #332613; }
+    .variant h3 { margin-bottom: .3rem; font: 600 1.55rem/1.05 var(--display); }
+    .thesis { margin-bottom: .8rem; color: var(--muted); font-size: .86rem; line-height: 1.5; }
+    .variant dl { margin: 0; font-size: .76rem; line-height: 1.45; }
+    .variant dt { float: left; clear: left; margin-right: .35rem; font-weight: 800; }
+    .variant dd { margin: 0 0 .32rem; color: var(--muted); }
+    .pick-direction {
+      min-height: 2.75rem;
+      margin-top: .8rem;
+      border: 1px solid var(--olive);
+      border-radius: .65rem;
+      padding: .45rem .75rem;
+      color: var(--olive);
+      background: transparent;
+      cursor: pointer;
+      font-size: .78rem;
+      font-weight: 800;
+    }
+    .variant.is-selected .pick-direction { color: white; background: var(--olive); }
+    .variant.is-selected .specimen-stage { box-shadow: 0 0 0 3px rgb(51 70 56 / 22%), var(--shadow); }
+
+    .specimen-scroll { min-width: 0; overflow-x: auto; padding: .25rem .25rem 1rem; }
+    .specimen-stage {
+      width: 100%;
+      min-width: 52rem;
+      overflow: hidden;
+      border: 1px solid #cbc5b9;
+      border-radius: 1rem;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      transition: box-shadow 160ms ease;
+    }
+    .specimen-stage.phone { width: 393px; min-width: 393px; margin-inline: auto; }
+    .specimen-stage.desktop { width: 100%; min-width: 52rem; }
+    .viewport-label {
+      display: flex;
+      height: 1.75rem;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #d8d2c6;
+      padding: 0 .65rem;
+      color: #78756e;
+      background: #ebe7df;
+      font-size: .62rem;
+      font-weight: 720;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .screen { height: 25rem; overflow: hidden; background: var(--paper); color: #26312a; }
+    .screen button, .screen input { pointer-events: none; }
+
+    /* Shared specimen atoms */
+    .mock-eyebrow { margin: 0; color: #f2ca74; font-size: .52rem; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
+    .mock-title { margin: .04rem 0 0; font: 600 1.18rem/.98 var(--display); letter-spacing: -.02em; }
+    .mock-actions { display: flex; align-items: center; gap: .35rem; }
+    .mock-action {
+      min-height: 2.45rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .25rem;
+      border: 1px solid rgb(255 255 255 / 26%);
+      border-radius: .58rem;
+      padding: 0 .68rem;
+      color: inherit;
+      background: rgb(255 255 255 / 8%);
+      font-size: .66rem;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+    .mock-action.primary { border-color: var(--terra); color: white; background: var(--terra); }
+    .mock-action.paper { border-color: var(--line); color: var(--ink); background: var(--card); }
+    .mock-action.icon { width: 2.45rem; padding: 0; }
+    .mock-toolrow { display: flex; min-width: 0; align-items: center; gap: .45rem; }
+    .mock-search {
+      min-width: 0;
+      min-height: 2.55rem;
+      display: flex;
+      flex: 1;
+      align-items: center;
+      gap: .42rem;
+      border: 1px solid var(--line);
+      border-radius: .62rem;
+      padding: 0 .68rem;
+      color: #6e756f;
+      background: var(--card);
+      font-size: .68rem;
+    }
+    .mock-search::before { content: '⌕'; color: var(--olive); font-size: 1.1rem; line-height: 1; }
+    .mock-select, .mock-stat, .mock-meta {
+      min-height: 2.55rem;
+      display: inline-flex;
+      align-items: center;
+      gap: .38rem;
+      border: 1px solid var(--line);
+      border-radius: .62rem;
+      padding: 0 .68rem;
+      color: var(--ink);
+      background: var(--card);
+      font-size: .66rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .mock-stat strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+    .mock-stat.attention { border-color: #dfb35f; color: #68430b; background: #f7e6bc; }
+    .mock-meta { color: var(--muted); font-weight: 650; }
+    .crumb { display: inline-flex; align-items: center; gap: .35rem; min-width: 0; }
+    .crumb .back { font-size: 1rem; }
+    .mock-title.long-title { font-size: .96rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .status-note { color: #8a580f; font-size: .64rem; font-weight: 700; }
+
+    .body-preview { padding: .7rem .8rem 2rem; }
+    .filter-line { display: flex; gap: .32rem; overflow: hidden; margin-bottom: .65rem; }
+    .chip { min-height: 2rem; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 0 .58rem; color: var(--muted); background: transparent; font-size: .58rem; white-space: nowrap; }
+    .content-rule { margin: 0 0 .55rem; border: 0; border-top: 1px solid var(--line); }
+    .sample-heading { margin: 0 0 .45rem; font: 600 1.05rem/1 var(--display); }
+    .stock-row { max-width: 30rem; min-height: 3.7rem; border: 1px solid #e0b66e; border-left: 4px solid #e0b66e; border-radius: .65rem; padding: .62rem .7rem; background: #fff6e5; }
+    .stock-row strong, .recipe-card strong { display: block; font-size: .67rem; }
+    .stock-row span, .recipe-card span { color: var(--muted); font-size: .58rem; }
+    .recipe-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .42rem; }
+    .recipe-card { min-height: 5.5rem; overflow: hidden; border: 1px solid var(--line); border-radius: .72rem; background: var(--card); }
+    .recipe-image { height: 3.1rem; display: grid; place-items: center; color: #7c786f; background: #f1eee8; font-size: 1.35rem; }
+    .recipe-card strong { padding: .42rem .45rem 0; }
+    .recipe-card span { display: block; padding: .12rem .45rem .45rem; }
+    .detail-photo { height: 3.25rem; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: .65rem; color: var(--muted); background: var(--card); font-size: .65rem; }
+    .detail-tabs { display: flex; gap: .3rem; margin-top: .55rem; }
+    .detail-tab { min-height: 2rem; display: inline-flex; align-items: center; border-radius: .55rem; padding: 0 .58rem; background: var(--wash); font-size: .6rem; }
+    .detail-tab.active { border: 1px solid var(--line); background: var(--card); box-shadow: 0 2px 5px rgb(43 49 43 / 8%); }
+    .cook-card { margin-top: .55rem; border: 1px solid var(--line); border-left: 5px solid #ee9809; border-radius: .72rem; padding: .7rem; background: var(--card); }
+    .cook-card small { color: #9a5305; font-size: .56rem; font-weight: 800; text-transform: uppercase; }
+    .cook-card p { margin: .32rem 0 0; font: 600 .9rem/1.2 var(--display); }
+
+    .phone .body-preview { padding-inline: .7rem; }
+    .phone .recipe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .phone .recipe-grid .recipe-card:nth-child(3) { display: none; }
+
+    /* A — Green Ribbon */
+    .v-a .a-ribbon { display: flex; min-height: 3.7rem; align-items: center; justify-content: space-between; gap: 1rem; padding: .52rem 1rem; color: white; background: linear-gradient(120deg, var(--olive-deep), var(--olive-soft)); }
+    .v-a .a-utility { min-height: 3.6rem; display: flex; align-items: center; padding: .5rem 1rem; border-bottom: 1px solid var(--line); background: var(--paper); }
+    .v-a .a-utility .mock-toolrow { width: 100%; }
+    .v-a .mock-stat { background: transparent; }
+    .phone.v-a .a-ribbon { min-height: 3.35rem; padding: .4rem .72rem; }
+    .phone.v-a .a-utility { min-height: 3.35rem; padding: .4rem .72rem; }
+    .phone.v-a .mock-action { min-height: 2.4rem; padding-inline: .52rem; }
+    .phone.v-a .mock-stat { flex: 1; padding-inline: .5rem; }
+    .phone.v-a .mock-stat strong { font-size: .88rem; }
+
+    /* B — Paper Ledger */
+    .v-b .b-ledger { position: relative; border-bottom: 1px solid var(--line); padding: .6rem 1rem .55rem 1.25rem; background: var(--card); }
+    .v-b .b-ledger::before { position: absolute; inset: .6rem auto .55rem .55rem; width: 3px; border-radius: 99px; background: var(--olive); content: ''; }
+    .v-b .b-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .v-b .mock-eyebrow { color: var(--honey-ink, #7b530e); }
+    .v-b .b-tools { margin-top: .45rem; }
+    .v-b .mock-action { color: var(--olive); border-color: color-mix(in srgb, var(--olive) 35%, white); background: #f1f3ed; }
+    .v-b .mock-action.primary { color: white; border-color: var(--terra); background: var(--terra); }
+    .phone.v-b .b-ledger { padding: .5rem .7rem .48rem 1rem; }
+    .phone.v-b .b-ledger::before { left: .42rem; }
+    .phone.v-b .b-tools { margin-top: .38rem; }
+
+    /* C — Split Block */
+    .v-c .c-split { display: grid; grid-template-columns: minmax(12rem, .34fr) minmax(0, 1fr); min-height: 6rem; border-bottom: 1px solid var(--line); background: var(--card); }
+    .v-c .c-identity { display: flex; align-items: center; padding: .7rem 1rem; color: white; background: linear-gradient(130deg, var(--olive-deep), var(--olive)); }
+    .v-c .c-command { display: grid; grid-template-rows: auto auto; align-content: center; gap: .42rem; padding: .55rem .8rem; }
+    .v-c .c-command .mock-actions { justify-content: flex-end; }
+    .v-c .c-command .mock-action:not(.primary) { color: var(--olive); border-color: var(--line); background: var(--paper); }
+    .phone.v-c .c-split { display: block; min-height: 0; }
+    .phone.v-c .c-identity { min-height: 3.15rem; padding: .4rem .72rem; }
+    .phone.v-c .c-command { min-height: 3.75rem; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto; align-items: center; padding: .4rem .72rem; }
+    .phone.v-c .c-command .mock-actions { order: 2; }
+    .phone.v-c .c-command .mock-toolrow { order: 1; overflow: hidden; }
+    .phone.v-c .c-command .mock-toolrow .mock-stat:nth-child(2),
+    .phone.v-c .c-command .mock-toolrow .mock-meta:nth-child(n+2) { display: none; }
+
+    /* D — Command Line */
+    .v-d .d-console { display: grid; grid-template-columns: auto minmax(15rem, 1fr) auto; align-items: center; gap: .75rem; min-height: 4.5rem; padding: .55rem 1rem; color: white; background: linear-gradient(118deg, #25372c, #405848); }
+    .v-d .d-console .mock-toolrow { justify-self: stretch; }
+    .v-d .mock-search, .v-d .mock-select, .v-d .mock-stat, .v-d .mock-meta { border-color: rgb(255 255 255 / 20%); color: white; background: rgb(255 255 255 / 9%); }
+    .v-d .mock-search::before { color: #f2ca74; }
+    .phone.v-d .d-console { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: .32rem .5rem; min-height: 6.25rem; padding: .42rem .7rem .5rem; }
+    .phone.v-d .d-console .mock-toolrow { grid-column: 1 / -1; grid-row: 2; overflow: hidden; }
+    .phone.v-d .d-console .mock-actions { grid-column: 2; grid-row: 1; }
+    .phone.v-d .d-console .mock-title { font-size: 1.02rem; }
+
+    /* E — Floating Workbench */
+    .v-e { background: linear-gradient(to bottom, var(--olive) 2.25rem, var(--paper) 2.25rem); }
+    .v-e .e-pad { padding: .85rem 1rem 0; }
+    .v-e .e-workbench { border: 1px solid color-mix(in srgb, var(--olive) 15%, var(--line)); border-radius: .8rem; padding: .58rem .7rem .5rem; background: var(--card); box-shadow: 0 8px 24px rgb(41 59 48 / 16%); }
+    .v-e .e-top { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+    .v-e .mock-eyebrow { color: #98670f; }
+    .v-e .e-tools { margin-top: .42rem; padding-top: .42rem; border-top: 1px solid var(--line); }
+    .v-e .mock-action { color: var(--olive); border-color: var(--line); background: var(--paper); }
+    .v-e .mock-action.primary { color: white; border-color: var(--terra); background: var(--terra); }
+    .phone.v-e .e-pad { padding: .65rem .65rem 0; }
+
+    .decision-zone {
+      max-width: 76rem;
+      margin: 3.5rem auto 0;
+      border-top: 4px solid var(--olive);
+      padding-top: 1.2rem;
+    }
+    .decision-zone h2 { margin-bottom: .35rem; font: 600 clamp(1.65rem, 3vw, 2.5rem)/1 var(--display); }
+    .decision-lede { max-width: 68ch; color: var(--muted); line-height: 1.55; }
+    fieldset { margin: 0; border: 0; border-top: 1px solid var(--line); padding: 1.2rem 0; }
+    legend { width: 100%; margin-bottom: .7rem; padding: 0; font: 600 1.14rem/1.2 var(--display); }
+    .options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .55rem; }
+    .option { position: relative; min-height: 100%; border: 1px solid var(--line); border-radius: .75rem; padding: .75rem; background: var(--card); cursor: pointer; }
+    .option:has(input:checked) { border-color: var(--olive); box-shadow: inset 0 0 0 1px var(--olive); }
+    .option input { position: absolute; top: .82rem; right: .82rem; width: 1.1rem; height: 1.1rem; accent-color: var(--olive); }
+    .option strong { display: block; padding-right: 1.5rem; font-size: .84rem; }
+    .option small { display: block; margin-top: .28rem; color: var(--muted); font-size: .72rem; line-height: 1.4; }
+    .option em { display: inline-block; margin-top: .38rem; color: #80550c; font-size: .66rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
+    .decision-note { margin-top: .65rem; }
+    .decision-note label { display: block; margin-bottom: .25rem; color: var(--muted); font-size: .72rem; font-weight: 750; }
+    textarea { width: 100%; min-height: 5.5rem; resize: vertical; border: 1px solid var(--line); border-radius: .65rem; padding: .7rem; color: var(--ink); background: var(--card); line-height: 1.5; }
+    .handoff { border-top: 1px solid var(--line); padding-top: 1.2rem; }
+    .handoff h3 { margin-bottom: .25rem; font: 600 1.35rem/1.1 var(--display); }
+    .handoff p { color: var(--muted); font-size: .78rem; }
+    #handoff-text { min-height: 18rem; font: .72rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .button-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .6rem; }
+    .workspace-button {
+      min-height: 2.75rem;
+      border: 1px solid var(--olive);
+      border-radius: .65rem;
+      padding: .45rem .8rem;
+      color: white;
+      background: var(--olive);
+      cursor: pointer;
+      font-size: .78rem;
+      font-weight: 800;
+    }
+    .workspace-button.secondary { color: var(--olive); background: transparent; }
+    .save-status { color: var(--muted); font-size: .72rem; }
+    .save-status.warning { color: #9b4b20; }
+
+    @media (max-width: 70rem) {
+      .variant { grid-template-columns: 1fr; }
+      .variant-copy { max-width: 52rem; }
+      .specimen-scroll { padding-inline: 0; }
+    }
+    @media (max-width: 48rem) {
+      .spread-intro { grid-template-columns: 1fr; }
+      .switch-help { width: 100%; margin-left: 0; }
+      .options { grid-template-columns: 1fr; }
+      .workspace { padding-inline: .7rem; }
+      .specimen-stage.desktop { min-width: 48rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="workspace-intro">
+    <p class="kicker">Keukenbrein · structure before polish</p>
+    <h1>One calmer header family</h1>
+    <p class="intro-copy">
+      Five complete ways to reorganise the same Stock, Recipes, and recipe-detail UX. Compare every
+      direction at the same surface, width, and stress state. No production route has changed.
+    </p>
+    <div class="intro-meta">
+      <span>5 structural directions</span>
+      <span>3 equivalent surfaces</span>
+      <span>Phone + desktop</span>
+      <a href="../feature-lists/FEATURE_LIST_STOCK_RECIPE_HEADER_DESIGN_SHOTGUN.md">Authoritative brief</a>
+    </div>
+  </header>
+
+  <nav class="switchboard" aria-label="Comparison controls">
+    <div class="switchboard-inner">
+      <div class="switch-group">
+        <span class="switch-label">Surface</span>
+        <div class="switches" data-switch="surface">
+          <button type="button" data-value="stock" aria-pressed="true">Stock</button>
+          <button type="button" data-value="recipes" aria-pressed="false">Recipes</button>
+          <button type="button" data-value="detail" aria-pressed="false">Recipe detail</button>
+        </div>
+      </div>
+      <div class="switch-group">
+        <span class="switch-label">Viewport</span>
+        <div class="switches" data-switch="viewport">
+          <button type="button" data-value="phone" aria-pressed="true">393 px phone</button>
+          <button type="button" data-value="desktop" aria-pressed="false">Desktop</button>
+        </div>
+      </div>
+      <div class="switch-group">
+        <span class="switch-label">Stress state</span>
+        <div class="switches" data-switch="state">
+          <button type="button" data-value="normal" aria-pressed="true">Normal</button>
+          <button type="button" data-value="long" aria-pressed="false">Long Dutch</button>
+          <button type="button" data-value="attention" aria-pressed="false">Attention</button>
+        </div>
+      </div>
+      <span class="switch-help">All five previews change together for a fair comparison.</span>
+    </div>
+  </nav>
+
+  <main class="workspace">
+    <section class="spread-intro" aria-labelledby="spread-title">
+      <div>
+        <h2 id="spread-title">The spread</h2>
+        <p>Each specimen retains the same actions and information. Only grouping, material, density, and emphasis change.</p>
+      </div>
+      <p class="recommendation"><strong>Recommendation:</strong> start with A, Green Ribbon. It creates the clearest shared grammar while reducing the green field to one identity row.</p>
+    </section>
+
+    <section class="spread" id="variant-spread" aria-live="polite"></section>
+
+    <section class="decision-zone" aria-labelledby="decision-title">
+      <h2 id="decision-title">Make the handoff yours</h2>
+      <p class="decision-lede">The recommended choices are already selected, so an untouched workspace produces a valid next step. Override them, add exact notes, then copy the generated handoff.</p>
+
+      <fieldset data-decision="direction">
+        <legend>1. Which structure should anchor the redesign?</legend>
+        <div class="options">
+          <label class="option"><input type="radio" name="direction" value="a" checked /><strong>A · Green Ribbon</strong><small>Narrow olive identity row plus a separate paper utility shelf.</small><em>Recommended</em></label>
+          <label class="option"><input type="radio" name="direction" value="b" /><strong>B · Paper Ledger</strong><small>Paper-first header with an olive rule and route marker.</small></label>
+          <label class="option"><input type="radio" name="direction" value="c" /><strong>C · Split Block</strong><small>Bounded olive identity block beside a neutral command block.</small></label>
+          <label class="option"><input type="radio" name="direction" value="d" /><strong>D · Command Line</strong><small>One dense olive console on desktop; two dark rows on phone.</small></label>
+          <label class="option"><input type="radio" name="direction" value="e" /><strong>E · Floating Workbench</strong><small>Raised paper control surface over a shallow olive backplane.</small></label>
+        </div>
+        <div class="decision-note"><label for="note-direction">Notes on this structure or elements to borrow verbatim</label><textarea id="note-direction" data-note="direction" placeholder="For example: Use A, but borrow B's thin divider and C's desktop width."></textarea></div>
+      </fieldset>
+
+      <fieldset data-decision="green">
+        <legend>2. How much green should remain?</legend>
+        <div class="options">
+          <label class="option"><input type="radio" name="green" value="ribbon" checked /><strong>Narrow ribbon</strong><small>Keep a full-width route landmark, but only around identity and actions.</small><em>Recommended</em></label>
+          <label class="option"><input type="radio" name="green" value="marker" /><strong>Bounded marker</strong><small>Use olive only as a rule, tab, or left identity block.</small></label>
+          <label class="option"><input type="radio" name="green" value="console" /><strong>Dark console</strong><small>Keep tools in the olive field for maximum operational density.</small></label>
+        </div>
+        <div class="decision-note"><label for="note-green">Notes on color presence verbatim</label><textarea id="note-green" data-note="green" placeholder="What should feel branded, and what should recede into paper?"></textarea></div>
+      </fieldset>
+
+      <fieldset data-decision="actions">
+        <legend>3. What should happen to actions during the structural pass?</legend>
+        <div class="options">
+          <label class="option"><input type="radio" name="actions" value="visible" checked /><strong>Keep current actions visible</strong><small>Choose hierarchy first; polish menus and overflow after the structure is stable.</small><em>Recommended</em></label>
+          <label class="option"><input type="radio" name="actions" value="overflow" /><strong>One primary + overflow</strong><small>Reduce visible controls now, but take on menu decisions in the same pass.</small></label>
+          <label class="option"><input type="radio" name="actions" value="hybrid" /><strong>Route-specific hybrid</strong><small>Keep visible actions on index pages and use Plan + More on recipe detail.</small></label>
+        </div>
+        <div class="decision-note"><label for="note-actions">Notes on action treatment verbatim</label><textarea id="note-actions" data-note="actions" placeholder="Name any action that must stay visible or can wait for menu polish."></textarea></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>4. Anything the next pass must preserve or test?</legend>
+        <div class="decision-note"><label for="note-followup">Follow-up request, constraint, or concern verbatim</label><textarea id="note-followup" data-note="followup" placeholder="Add exact mobile, desktop, language, or route feedback here."></textarea></div>
+      </fieldset>
+
+      <section class="handoff" aria-labelledby="handoff-title">
+        <h3 id="handoff-title">Generated forward handoff</h3>
+        <p>Paste this into the next task. It points to the Markdown source, not this disposable HTML workspace.</p>
+        <textarea id="handoff-text" readonly aria-label="Generated handoff prompt"></textarea>
+        <div class="button-row">
+          <button type="button" class="workspace-button" id="copy-handoff">Copy handoff</button>
+          <button type="button" class="workspace-button secondary" id="reset-workspace">Reset recommendations</button>
+          <span class="save-status" id="save-status" role="status">Selections save in this browser.</span>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+      const source = 'docs/feature-lists/FEATURE_LIST_STOCK_RECIPE_HEADER_DESIGN_SHOTGUN.md';
+      const storageKey = `${location.pathname}::stock-recipe-header-shotgun::v1`;
+      const defaults = {
+        view: { surface: 'stock', viewport: 'phone', state: 'normal' },
+        direction: 'a',
+        green: 'ribbon',
+        actions: 'visible',
+        notes: { direction: '', green: '', actions: '', followup: '' }
+      };
+      let model = JSON.parse(JSON.stringify(defaults));
+      let storageAvailable = true;
+
+      const directionMeta = {
+        a: { name: 'Green Ribbon', thesis: 'A narrow olive identity ribbon sits above a separate warm-paper utility shelf.', strength: 'Clearest shared grammar with a much smaller green footprint.', tradeoff: 'Still uses a full-width color band.', optimizes: 'Recognition, calm hierarchy, and low-risk migration.' },
+        b: { name: 'Paper Ledger', thesis: 'The header uses the page paper, a narrow olive rule, and a small route marker.', strength: 'Calmest option and the easiest fit for recipe detail.', tradeoff: 'The route landmark is less immediate.', optimizes: 'Reading flow and low visual weight.' },
+        c: { name: 'Split Block', thesis: 'A bounded olive identity block sits beside a neutral command block on desktop.', strength: 'Strong signature without painting the whole viewport.', tradeoff: 'Most breakpoint-specific layout rules.', optimizes: 'Desktop balance and role separation.' },
+        d: { name: 'Command Line', thesis: 'Identity, actions, and route utility share one compact olive console.', strength: 'Densest option; content begins earliest.', tradeoff: 'Controls compete with identity and green remains intense.', optimizes: 'Frequent expert use and minimum height.' },
+        e: { name: 'Floating Workbench', thesis: 'A raised paper control surface overlaps a shallow olive backplane.', strength: 'Bounded, welcoming, and visually distinct.', tradeoff: 'Adds elevation and a more decorative container.', optimizes: 'Soft transition and one focused work area.' }
+      };
+
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          model = {
+            ...defaults,
+            ...parsed,
+            view: { ...defaults.view, ...(parsed.view || {}) },
+            notes: { ...defaults.notes, ...(parsed.notes || {}) }
+          };
+        }
+        localStorage.setItem(`${storageKey}::probe`, '1');
+        localStorage.removeItem(`${storageKey}::probe`);
+      } catch (error) {
+        storageAvailable = false;
+      }
+
+      function content() {
+        const long = model.view.state === 'long';
+        const attention = model.view.state === 'attention';
+        const common = {
+          stock: {
+            eyebrow: long ? 'Huishouden' : 'Household', title: long ? 'Voorraad' : 'Stock',
+            actions: long ? ['Activiteit', 'Toevoegen'] : ['History', 'Add'],
+            stats: attention ? [['14', long ? 'bereide maaltijden' : 'ready meals', false], ['6', long ? 'onder streefaantal' : 'below target', true]] : [['14', long ? 'bereide maaltijden' : 'ready meals', false], ['', long ? 'Streefaantallen op peil' : 'Targets covered', false]]
+          },
+          recipes: {
+            eyebrow: long ? 'Kookboek' : 'Cookbook', title: long ? 'Recepten' : 'Recipes',
+            actions: long ? ['Nieuwe maaltijd', 'Recept importeren'] : ['+ Meal', 'Import'],
+            search: long ? 'Zoeken op naam of ingrediënt…' : 'Search by name or ingredient…',
+            sort: long ? 'Alfabetisch' : 'A–Z',
+            notice: attention ? (long ? '3 filters actief' : '3 filters active') : ''
+          },
+          detail: {
+            eyebrow: long ? 'Recept' : 'Recipe',
+            title: long ? 'Geroosterde pompoenrisotto met salie en hazelnoten' : 'E2E Primary Stew',
+            actions: long ? ['Plannen', 'Recept bewerken'] : ['+ Plan', 'Edit recipe'],
+            meta: long ? ['4 porties', '30 min', '0 porties in vriezer'] : ['4 servings', '30 min', '0 portions in freezer'],
+            notice: attention ? (long ? 'Vertaling mislukt · Opnieuw proberen' : 'Translation failed · Retry') : ''
+          }
+        };
+        return common[model.view.surface];
+      }
+
+      function identity(d, light = false) {
+        const detail = model.view.surface === 'detail';
+        return `<div class="${detail ? 'crumb' : ''}">${detail ? '<span class="back">‹</span>' : ''}<div><p class="mock-eyebrow">${d.eyebrow}</p><h4 class="mock-title ${model.view.state === 'long' && detail ? 'long-title' : ''}">${d.title}</h4></div></div>`;
+      }
+
+      function actions(d, paper = false) {
+        const labels = d.actions;
+        return `<div class="mock-actions"><button class="mock-action ${paper ? 'paper' : ''}">${labels[0]}</button><button class="mock-action primary">${labels[1]}</button>${model.view.surface === 'detail' ? '<button class="mock-action icon ' + (paper ? 'paper' : '') + '" aria-label="More">⋯</button>' : ''}</div>`;
+      }
+
+      function tools(d) {
+        if (model.view.surface === 'stock') {
+          return `<div class="mock-toolrow">${d.stats.map((s) => `<span class="mock-stat ${s[2] ? 'attention' : ''}">${s[0] ? `<strong>${s[0]}</strong>` : '<span>✓</span>'}<span>${s[1]}</span></span>`).join('')}</div>`;
+        }
+        if (model.view.surface === 'recipes') {
+          return `<div class="mock-toolrow"><span class="mock-search">${d.search}</span><span class="mock-select">${d.sort}⌄</span>${d.notice ? `<span class="status-note">${d.notice}</span>` : ''}</div>`;
+        }
+        return `<div class="mock-toolrow">${d.meta.map((m) => `<span class="mock-meta">${m}</span>`).join('')}${d.notice ? `<span class="status-note">${d.notice}</span>` : ''}</div>`;
+      }
+
+      function bodyPreview() {
+        if (model.view.surface === 'stock') {
+          return `<div class="body-preview"><div class="filter-line"><span class="chip">Meals</span><span class="chip">Ingredients</span><span class="chip">All stock</span><span class="chip">Filters</span></div><hr class="content-rule"><h5 class="sample-heading">Use next</h5><div class="stock-row"><strong>E2E Primary freezer meal</strong><span>Low stock · 2 portions · Recipe needed</span></div></div>`;
+        }
+        if (model.view.surface === 'recipes') {
+          return `<div class="body-preview"><div class="filter-line"><span class="chip">Have all</span><span class="chip">Freezer staple</span><span class="chip">Below target</span><span class="chip">Meat</span><span class="chip">Fish</span></div><div class="recipe-grid"><div class="recipe-card"><div class="recipe-image">♨</div><strong>Primary Cook Mode</strong><span>Plan · Make</span></div><div class="recipe-card"><div class="recipe-image">♨</div><strong>Primary Stew</strong><span>Plan · Make</span></div><div class="recipe-card"><div class="recipe-image">♨</div><strong>Secondary Stew</strong><span>Plan · Make</span></div></div></div>`;
+        }
+        return `<div class="body-preview"><div class="detail-photo">▧ &nbsp; Add photo</div><div class="detail-tabs"><span class="detail-tab active">Cooking view</span><span class="detail-tab">Original recipe</span><span class="detail-tab">NL · EN</span></div><div class="cook-card"><small>1 · Pot</small><p>Simmer until ready.</p></div></div>`;
+      }
+
+      function preview(letter, d) {
+        if (letter === 'a') return `<div class="a-ribbon">${identity(d)}${actions(d)}</div><div class="a-utility">${tools(d)}</div>${bodyPreview()}`;
+        if (letter === 'b') return `<div class="b-ledger"><div class="b-top">${identity(d, true)}${actions(d, true)}</div><div class="b-tools">${tools(d)}</div></div>${bodyPreview()}`;
+        if (letter === 'c') return `<div class="c-split"><div class="c-identity">${identity(d)}</div><div class="c-command">${actions(d, true)}${tools(d)}</div></div>${bodyPreview()}`;
+        if (letter === 'd') return `<div class="d-console">${identity(d)}${tools(d)}${actions(d)}</div>${bodyPreview()}`;
+        return `<div class="e-pad"><div class="e-workbench"><div class="e-top">${identity(d, true)}${actions(d, true)}</div><div class="e-tools">${tools(d)}</div></div></div>${bodyPreview()}`;
+      }
+
+      function renderSpread() {
+        const d = content();
+        const routeLabel = model.view.surface === 'stock' ? '/inventory' : model.view.surface === 'recipes' ? '/recipes' : '/recipes/[slug]';
+        const spread = document.getElementById('variant-spread');
+        spread.innerHTML = Object.entries(directionMeta).map(([letter, meta], index) => `
+          <article class="variant ${model.direction === letter ? 'is-selected' : ''}" data-variant="${letter}" data-recommended="${letter === 'a'}">
+            <div class="variant-copy">
+              <span class="variant-number">${String.fromCharCode(65 + index)}</span>
+              <h3>${meta.name}</h3>
+              <p class="thesis">${meta.thesis}</p>
+              <dl><dt>Strength</dt><dd>${meta.strength}</dd><dt>Trade-off</dt><dd>${meta.tradeoff}</dd><dt>Optimizes</dt><dd>${meta.optimizes}</dd></dl>
+              <button type="button" class="pick-direction" data-pick="${letter}">${model.direction === letter ? 'Selected direction' : `Choose ${String.fromCharCode(65 + index)}`}</button>
+            </div>
+            <div class="specimen-scroll">
+              <div class="specimen-stage ${model.view.viewport} v-${letter}">
+                <div class="viewport-label"><span>${routeLabel}</span><span>${model.view.viewport === 'phone' ? '393 × 852 crop' : '1280 × 900 crop'} · ${model.view.state}</span></div>
+                <div class="screen">${preview(letter, d)}</div>
+              </div>
+            </div>
+          </article>`).join('');
+        spread.querySelectorAll('[data-pick]').forEach((button) => button.addEventListener('click', () => {
+          model.direction = button.dataset.pick;
+          const radio = document.querySelector(`input[name="direction"][value="${model.direction}"]`);
+          if (radio) radio.checked = true;
+          persist();
+          renderSpread();
+          updateHandoff();
+        }));
+      }
+
+      function syncControls() {
+        document.querySelectorAll('[data-switch]').forEach((group) => {
+          const key = group.dataset.switch;
+          group.querySelectorAll('button').forEach((button) => {
+            button.setAttribute('aria-pressed', String(model.view[key] === button.dataset.value));
+          });
+        });
+        ['direction', 'green', 'actions'].forEach((name) => {
+          const radio = document.querySelector(`input[name="${name}"][value="${model[name]}"]`);
+          if (radio) radio.checked = true;
+        });
+        document.querySelectorAll('[data-note]').forEach((field) => { field.value = model.notes[field.dataset.note] || ''; });
+      }
+
+      function persist() {
+        if (!storageAvailable) return;
+        try { localStorage.setItem(storageKey, JSON.stringify(model)); }
+        catch (error) {
+          storageAvailable = false;
+          const status = document.getElementById('save-status');
+          status.textContent = 'Changes are kept for this session only; browser storage is unavailable.';
+          status.classList.add('warning');
+        }
+      }
+
+      function noteBlock(key, label) {
+        const value = model.notes[key];
+        return `${label} (verbatim):\n${value ? value : '[No additional note supplied]'}`;
+      }
+
+      function updateHandoff() {
+        const selected = directionMeta[model.direction];
+        const greenNames = { ribbon: 'Narrow ribbon', marker: 'Bounded marker', console: 'Dark console' };
+        const actionNames = { visible: 'Keep current actions visible', overflow: 'One primary + overflow', hybrid: 'Route-specific hybrid' };
+        const greenConsequences = {
+          ribbon: 'A clear route landmark remains, but contextual controls move onto quiet paper.',
+          marker: 'Visual weight drops further, with weaker full-width route recognition.',
+          console: 'The shortest operational layout keeps the strongest dark-green presence.'
+        };
+        const actionConsequences = {
+          visible: 'The structural pass does not invent or polish new menus; discoverability stays unchanged.',
+          overflow: 'The same pass must define responsive menu ownership, labels, keyboard behavior, and overflow states.',
+          hybrid: 'Index and detail routes intentionally use different visible-action rules within one header family.'
+        };
+        const prompt = `Load ${source} in full and continue the Stock and Recipe Header Design Shotgun workflow from the recorded selection below. Do not use the HTML artifact as a source. Preserve all current UX and route behavior. Do not modify production routes unless Freek's selection is clear enough to authorize the implementation or a focused refinement has been requested.\n\n` +
+`DECISION 1 — Overall structure\nQuestion/source: Choose the anchor direction from “Five complete directions” and “Selection needed”.\nOptions: A Green Ribbon; B Paper Ledger; C Split Block; D Command Line; E Floating Workbench.\nSelected: ${model.direction.toUpperCase()} · ${selected.name}.\nRecommendation: A · Green Ribbon.\nRationale: A separates route identity from contextual utility, materially reduces the olive footprint, reuses the shared header seam, and gives Stock, Recipes, and recipe detail one grammar.\nAssumptions/evidence: The current 393 px and 1280 px screens show useful controls grouped into visually dominant slabs; olive route identity remains desirable; current actions should remain discoverable.\nUncertainty: A preference for an almost colorless app would favor B; maximum operational density would favor D.\nPractical consequence of selection: ${selected.strength} Trade-off: ${selected.tradeoff}\n${noteBlock('direction', 'User note under Decision 1')}\n\n` +
+`DECISION 2 — Green presence\nQuestion/source: Choose how much green remains around the header.\nOptions: Narrow ribbon; Bounded marker; Dark console.\nSelected: ${greenNames[model.green]}.\nRecommendation: Narrow ribbon.\nRationale: It preserves route recognition while restricting color to identity and route actions.\nAssumptions/evidence: The user dislikes the current header's visual dominance, not the existing olive identity itself.\nUncertainty: A desire for a nearly neutral app would change this to Bounded marker.\nPractical consequence: ${greenConsequences[model.green]}\n${noteBlock('green', 'User note under Decision 2')}\n\n` +
+`DECISION 3 — Action organization during structure work\nQuestion/source: Decide whether menu/overflow polish belongs in the same pass.\nOptions: Keep current actions visible; One primary + overflow; Route-specific hybrid.\nSelected: ${actionNames[model.actions]}.\nRecommendation: Keep current actions visible.\nRationale: The user explicitly wants the structure right before polishing menus, and all current actions are useful and understood.\nAssumptions/evidence: Header density can be reduced through hierarchy and material before changing discoverability.\nUncertainty: A selected direction may expose a hard 320 px fit constraint that requires an interim overflow rule.\nPractical consequence: ${actionConsequences[model.actions]}\n${noteBlock('actions', 'User note under Decision 3')}\n\n` +
+`FOLLOW-UP REQUIREMENTS\n${noteBlock('followup', 'User note under Decision 4')}\n\n` +
+`BOUNDARIES AND NEXT WORK\nKeep Search, Sort, Stock quick views, History, Add, New meal, Import, Back, Plan, Edit, translation recovery, and conditional recipe overflow available. Filter chips and downstream content are outside this structural pass. Maintain 44 px targets, long Dutch, long titles, attention/translation/conditional-overflow states, keyboard and touch, dark theme, safe areas, and 200% equivalent reflow. This is R2 presentation work only: no schema, auth, persisted-data, provider, Albert Heijn, shopping-derivation, or deployment change. If the selection mixes incompatible directions, render one focused refinement spread before production implementation. Otherwise create an implementation plan or implement only if Freek explicitly requested that next step.`;
+        document.getElementById('handoff-text').value = prompt;
+      }
+
+      document.querySelectorAll('[data-switch]').forEach((group) => {
+        group.addEventListener('click', (event) => {
+          const button = event.target.closest('button[data-value]');
+          if (!button) return;
+          model.view[group.dataset.switch] = button.dataset.value;
+          syncControls();
+          persist();
+          renderSpread();
+        });
+      });
+
+      document.querySelectorAll('input[type="radio"]').forEach((input) => {
+        input.addEventListener('change', () => {
+          model[input.name] = input.value;
+          persist();
+          if (input.name === 'direction') renderSpread();
+          updateHandoff();
+        });
+      });
+
+      document.querySelectorAll('[data-note]').forEach((field) => {
+        field.addEventListener('input', () => {
+          model.notes[field.dataset.note] = field.value;
+          persist();
+          updateHandoff();
+        });
+      });
+
+      document.getElementById('copy-handoff').addEventListener('click', async () => {
+        const field = document.getElementById('handoff-text');
+        const status = document.getElementById('save-status');
+        try {
+          await navigator.clipboard.writeText(field.value);
+          status.textContent = 'Handoff copied.';
+          status.classList.remove('warning');
+        } catch (error) {
+          field.focus();
+          field.select();
+          status.textContent = 'Clipboard access failed. The handoff is selected; copy it manually.';
+          status.classList.add('warning');
+        }
+      });
+
+      document.getElementById('reset-workspace').addEventListener('click', () => {
+        model = JSON.parse(JSON.stringify(defaults));
+        try { localStorage.removeItem(storageKey); } catch (error) {}
+        syncControls();
+        renderSpread();
+        updateHandoff();
+        const status = document.getElementById('save-status');
+        status.textContent = storageAvailable ? 'Recommendations restored and saved.' : 'Recommendations restored for this session.';
+        status.classList.toggle('warning', !storageAvailable);
+      });
+
+      syncControls();
+      renderSpread();
+      updateHandoff();
+      if (!storageAvailable) {
+        const status = document.getElementById('save-status');
+        status.textContent = 'Changes are kept for this session only; browser storage is unavailable.';
+        status.classList.add('warning');
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -958,14 +958,6 @@ export class InventoryController {
 		this.scope = 'meals';
 	}
 
-	quickViewStatus(): string {
-		return this.quickView === 'ready'
-			? m.inventory_quick_view_ready_status({ count: this.visibleMealResultCount })
-			: m.inventory_quick_view_below_target_status({
-					count: this.visibleMealResultCount
-				});
-	}
-
 	clearSearch(): void {
 		this.searchQuery = '';
 		this.searchInput?.focus();

@@ -1,3 +1,4 @@
+
 <!--
 	Inventory — a meals-first Stock Radar. The full-width olive outcome band and
 	responsive Use next / Still plenty ledger are shared across breakpoints;
@@ -24,13 +25,40 @@
 	} from '$lib/components/inventory/shared';
 	import { FOOD_CLASS_ROOTS } from '$lib/food_class';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import CombinedFilterMenu from '$lib/components/ui/CombinedFilterMenu.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	const controller = new InventoryController(() => data);
 	const SCOPES: InventoryScope[] = ['meals', 'ingredients', 'all'];
+	let stockFilterMenuOpen = $state(false);
+	let stockFilterCount = $derived(
+		Number(controller.scope !== 'meals') +
+			Number(controller.quickView !== null) +
+			Number(controller.sectionFilter !== 'all') +
+			Number(controller.classFilter !== null) +
+			Number(controller.reviewOnly)
+	);
+	let stockFilterSummary = $derived(
+		[
+			controller.scopeLabel(controller.scope),
+			controller.quickView === 'ready'
+				? m.inventory_radar_meals_label()
+				: controller.quickView === 'below_target'
+					? m.inventory_radar_below_target_label()
+					: null,
+			controller.sectionFilter === 'freezer'
+				? m.inventory_section_freezer()
+				: controller.sectionFilter === 'pantry'
+					? m.inventory_section_pantry()
+					: null,
+			controller.classFilter ? foodClassText(controller.classFilter) : null,
+			controller.reviewOnly ? m.inventory_filters_review_label() : null
+		]
+			.filter(Boolean)
+			.join(' · ')
+	);
 
 	onMount(() => controller.mount());
 
@@ -84,187 +112,134 @@
 	</li>
 {/snippet}
 
+{#snippet stockSearch()}
+	<label class="ui-field-shell stock-command-search">
+		<span class="sr-only">{m.inventory_search_label()}</span>
+		<svg viewBox="0 0 16 16" class="pointer-events-none h-4 w-4 opacity-70" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+			<path d="M11.25 11.25 14 14" />
+			<circle cx="7.25" cy="7.25" r="5" />
+		</svg>
+		<input
+			bind:this={controller.searchInput}
+			type="search"
+			placeholder={m.inventory_search_placeholder()}
+			bind:value={controller.searchQuery}
+			onkeydown={(event) => {
+				if (event.key === 'Escape' && controller.searchQuery) {
+					event.preventDefault();
+					controller.clearSearch();
+				}
+			}}
+		/>
+		{#if controller.searchQuery}
+			<button type="button" aria-label={m.inventory_search_clear()} onclick={() => controller.clearSearch()}>
+				<Icon name="x" class="h-3.5 w-3.5" />
+			</button>
+		{:else}
+			<kbd>/</kbd>
+		{/if}
+	</label>
+{/snippet}
+
+{#snippet stockQuickViews(menuSurface = false)}
+	<div class="stock-command-group stock-quick-group" class:menu-surface={menuSurface} aria-label={m.inventory_quick_filters_label()}>
+		{#if controller.readyMealCount > 0}
+			<button type="button" class:active={controller.quickView === 'ready'} aria-pressed={controller.quickView === 'ready'} aria-label={m.inventory_radar_ready_aria({ count: controller.readyMealCount })} onclick={() => controller.toggleQuickView('ready')}>
+				<strong>{controller.readyMealCount}</strong><span>{m.inventory_radar_meals_label()}</span>
+			</button>
+		{:else}
+			<span class="stock-command-zero"><Icon name="check" class="h-3.5 w-3.5" />{m.inventory_radar_ready_zero()}</span>
+		{/if}
+		{#if controller.belowTargetCount > 0}
+			<button type="button" class="attention" class:active={controller.quickView === 'below_target'} aria-pressed={controller.quickView === 'below_target'} aria-label={m.inventory_radar_below_target_aria({ count: controller.belowTargetCount })} onclick={() => controller.toggleQuickView('below_target')}>
+				<strong>{controller.belowTargetCount}</strong><span>{m.inventory_radar_below_target_label()}</span>
+			</button>
+		{:else}
+			<span class="stock-command-zero"><Icon name="check" class="h-3.5 w-3.5" />{m.inventory_radar_below_target_zero()}</span>
+		{/if}
+	</div>
+{/snippet}
+
+{#snippet stockScopes(menuSurface = false)}
+	<div class="stock-command-group stock-scope-group" class:menu-surface={menuSurface} aria-label={m.inventory_scope_label()}>
+		{#each SCOPES as scope}
+			<button type="button" class:active={controller.scope === scope} aria-pressed={controller.scope === scope} onclick={() => controller.setScope(scope)}>
+				{controller.scopeLabel(scope)}
+			</button>
+		{/each}
+	</div>
+{/snippet}
+
+{#snippet stockFilterSelects(menuSurface = false)}
+	<div class="stock-filter-selects" class:menu-surface={menuSurface}>
+		<label>
+			<span class:sr-only={!menuSurface}>{m.inventory_filters_section_label()}</span>
+			<select class="ui-field" value={controller.sectionFilter} onchange={(event) => setSectionFilter(event.currentTarget.value)} aria-label={m.inventory_filters_section_label()}>
+				<option value="all">{m.inventory_facet_all()}</option>
+				<option value="freezer">{m.inventory_section_freezer()}</option>
+				<option value="pantry">{m.inventory_section_pantry()}</option>
+			</select>
+		</label>
+		<label>
+			<span class:sr-only={!menuSurface}>{m.inventory_filters_class_label()}</span>
+			<select class="ui-field" value={controller.classFilter ?? ''} onchange={(event) => setClassFilter(event.currentTarget.value)} aria-label={m.inventory_filters_class_label()}>
+				<option value="">{m.inventory_facet_all()}</option>
+				{#each FOOD_CLASS_ROOTS as foodClass (foodClass)}
+					<option value={foodClass}>{foodClassText(foodClass)}</option>
+				{/each}
+			</select>
+		</label>
+		<label>
+			<span class:sr-only={!menuSurface}>{m.inventory_filters_review_label()}</span>
+			<select class="ui-field" value={controller.reviewOnly ? 'review' : 'all'} onchange={(event) => setReviewFilter(event.currentTarget.value)} aria-label={m.inventory_filters_review_label()}>
+				<option value="all">{m.inventory_facet_all()}</option>
+				<option value="review" disabled={controller.needsReviewCount === 0}>{m.inventory_filters_review_count({ count: controller.needsReviewCount })}</option>
+			</select>
+		</label>
+		{#if controller.hasActiveFilters}
+			<button type="button" class="stock-clear-filters" onclick={() => controller.clearFilters()}>{m.inventory_clear_filters_button()}</button>
+		{/if}
+	</div>
+{/snippet}
+
 <!-- ── Responsive Radar Band ───────────────────────────────────────────────── -->
 <div class="stock-radar ui-grove-page">
-	<KitchenPageHeader eyebrow={m.inventory_header_context()} title={m.inventory_heading()}>
-		{#snippet action()}
-			<button
-				type="button"
-				class="ui-action ui-action-primary"
-				aria-expanded={controller.showAddForm}
-				onclick={() => (controller.showAddForm = true)}
-			>
-				<Icon name="plus" class="h-3.5 w-3.5" />
-				{m.inventory_add_button()}
+	<KitchenPageHeader eyebrow={m.inventory_header_context()} title={m.inventory_heading()} variant="command">
+		{#snippet actions()}
+			<button type="button" class="ui-action ui-action-tertiary ui-action-on-dark" aria-label={m.inventory_activity_aria()} onclick={() => controller.openActivity()}>
+				<Icon name="clock" class="h-4 w-4" />{m.inventory_activity_aria()}
+			</button>
+			<button type="button" class="ui-action ui-action-primary" aria-expanded={controller.showAddForm} onclick={() => (controller.showAddForm = true)}>
+				<Icon name="plus" class="h-3.5 w-3.5" />{m.inventory_add_button()}
 			</button>
 		{/snippet}
-	</KitchenPageHeader>
 
-	<div class="ui-page-utility">
-		<div class="stock-console ui-page-utility-inner">
-			<div class="stock-overview">
-				<div class="stock-stats" aria-label={m.inventory_heading()}>
-					{#if controller.readyMealCount > 0}
-						<button
-							type="button"
-							class="stock-stat stock-stat-action"
-							class:active={controller.quickView === 'ready'}
-							aria-pressed={controller.quickView === 'ready'}
-							aria-label={m.inventory_radar_ready_aria({ count: controller.readyMealCount })}
-							onclick={() => controller.toggleQuickView('ready')}
-						>
-							<strong>{controller.readyMealCount}</strong>
-							<span>{m.inventory_radar_meals_label()}</span>
-						</button>
-					{:else}
-						<div class="stock-stat stock-stat-zero">
-							<strong>0</strong>
-							<span>{m.inventory_radar_ready_zero()}</span>
-						</div>
-					{/if}
-					{#if controller.belowTargetCount > 0}
-						<button
-							type="button"
-							class="stock-stat stock-stat-action attention"
-							class:active={controller.quickView === 'below_target'}
-							aria-pressed={controller.quickView === 'below_target'}
-							aria-label={m.inventory_radar_below_target_aria({ count: controller.belowTargetCount })}
-							onclick={() => controller.toggleQuickView('below_target')}
-						>
-							<strong>{controller.belowTargetCount}</strong>
-							<span>{m.inventory_radar_below_target_label()}</span>
-						</button>
-					{:else}
-						<div class="stock-stat stock-stat-zero">
-							<strong>0</strong>
-							<span>{m.inventory_radar_below_target_zero()}</span>
-						</div>
-					{/if}
-				</div>
-				<button
-					type="button"
-					class="stock-activity ui-action ui-action-tertiary ui-action-on-dark ui-action-icon"
-					aria-label={m.inventory_activity_aria()}
-					onclick={() => controller.openActivity()}
-				>
-					<Icon name="clock" class="h-4 w-4" />
-				</button>
+		<div class="stock-command-toolbar" data-testid="inventory-command-header">
+			{@render stockSearch()}
+			<div class="stock-command-desktop">
+				{@render stockQuickViews()}
+				{@render stockScopes()}
+				{@render stockFilterSelects()}
 			</div>
-
-			<div class="stock-tools">
-				<label class="ui-field-shell">
-					<span class="sr-only">{m.inventory_search_label()}</span>
-					<svg
-						viewBox="0 0 16 16"
-						class="pointer-events-none h-4 w-4 opacity-55"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						aria-hidden="true"
-					>
-						<path d="M11.25 11.25 14 14" />
-						<circle cx="7.25" cy="7.25" r="5" />
-					</svg>
-					<input
-						bind:this={controller.searchInput}
-						type="search"
-						placeholder={m.inventory_search_placeholder()}
-						bind:value={controller.searchQuery}
-						onkeydown={(event) => {
-							if (event.key === 'Escape' && controller.searchQuery) {
-								event.preventDefault();
-								controller.clearSearch();
-							}
-						}}
-					/>
-					{#if controller.searchQuery}
-						<button
-							type="button"
-							aria-label={m.inventory_search_clear()}
-							onclick={() => controller.clearSearch()}
-						>
-							<Icon name="x" class="h-3.5 w-3.5" />
-						</button>
-					{:else}
-						<kbd>/</kbd>
-					{/if}
-				</label>
-
-				<div class="stock-controls">
-					<div class="stock-scope-tabs">
-						<SegmentedControl
-							options={SCOPES.map((value) => ({ value, label: controller.scopeLabel(value) }))}
-							bind:value={controller.scope}
-							onchange={(value) => controller.setScope(value)}
-							cols={3}
-							ariaLabel={m.inventory_heading()}
-						/>
-					</div>
-					<div class="stock-filter-grid">
-						<label>
-							<span>{m.inventory_filters_section_label()}</span>
-							<select
-								class="ui-field"
-								value={controller.sectionFilter}
-								onchange={(event) => setSectionFilter(event.currentTarget.value)}
-							>
-								<option value="all">{m.inventory_facet_all()}</option>
-								<option value="freezer">{m.inventory_section_freezer()}</option>
-								<option value="pantry">{m.inventory_section_pantry()}</option>
-							</select>
-						</label>
-						<label>
-							<span>{m.inventory_filters_class_label()}</span>
-							<select
-								class="ui-field"
-								value={controller.classFilter ?? ''}
-								onchange={(event) => setClassFilter(event.currentTarget.value)}
-							>
-								<option value="">{m.inventory_facet_all()}</option>
-								{#each FOOD_CLASS_ROOTS as foodClass (foodClass)}
-									<option value={foodClass}>{foodClassText(foodClass)}</option>
-								{/each}
-							</select>
-						</label>
-						<label>
-							<span>{m.inventory_filters_review_label()}</span>
-							<select
-								class="ui-field"
-								value={controller.reviewOnly ? 'review' : 'all'}
-								onchange={(event) => setReviewFilter(event.currentTarget.value)}
-							>
-								<option value="all">{m.inventory_facet_all()}</option>
-								<option value="review" disabled={controller.needsReviewCount === 0}>
-									{m.inventory_filters_review_count({ count: controller.needsReviewCount })}
-								</option>
-							</select>
-						</label>
-						{#if controller.hasActiveFilters}
-							<button
-								type="button"
-								class="ui-action ui-action-tertiary ui-action-on-dark stock-clear-filters"
-								onclick={() => controller.clearFilters()}
-							>
-								{m.inventory_clear_filters_button()}
-							</button>
-						{/if}
-					</div>
-				</div>
+			<div class="stock-command-mobile">
+				<CombinedFilterMenu
+					id="inventory-combined-filters"
+					bind:open={stockFilterMenuOpen}
+					label={m.inventory_scope_filters()}
+					summary={stockFilterSummary}
+					activeCount={stockFilterCount}
+					panelLabel={m.inventory_filters_title()}
+					doneLabel={m.inventory_filters_done()}
+				>
+					<section class="stock-menu-section"><h2>{m.inventory_quick_filters_label()}</h2>{@render stockQuickViews(true)}</section>
+					<section class="stock-menu-section"><h2>{m.inventory_scope_label()}</h2>{@render stockScopes(true)}</section>
+					{@render stockFilterSelects(true)}
+				</CombinedFilterMenu>
 			</div>
 		</div>
-	</div>
+	</KitchenPageHeader>
 
 	<main class="stock-ledger ui-grove-surface ui-kitchen-content">
-		{#if controller.quickView}
-			<div class="stock-quick-view" aria-live="polite">
-				<span>{controller.quickViewStatus()}</span>
-				<button type="button" class="ui-action ui-action-tertiary" onclick={() => (controller.quickView = null)}>
-					{m.inventory_quick_view_clear()}
-					<Icon name="x" class="h-3.5 w-3.5" />
-				</button>
-			</div>
-		{/if}
-
 		{#if controller.scope === 'meals' && (controller.visibleMealItems.length > 0 || controller.relationshipReviewOnly)}
 			<div class="stock-coverage" aria-label={m.inventory_recipe_coverage_label()}>
 				<strong>{m.inventory_recipe_coverage_label()}</strong>
@@ -477,202 +452,194 @@
 		color: var(--color-base-content);
 	}
 
-	.stock-stats {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.5rem;
-	}
 
-	.stock-overview {
+	.stock-command-toolbar {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 2.75rem;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.stock-stat {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		align-items: center;
 		gap: 0.45rem;
+	}
+
+	.stock-command-search {
 		min-height: 2.75rem;
-		padding: 0.4rem 0.65rem;
-		border: 1px solid color-mix(in oklab, var(--stock-olive) 12%, var(--kitchen-line));
-		border-radius: 0.625rem;
-		background: color-mix(in oklab, var(--stock-olive) 5%, var(--stock-card));
-		color: var(--kitchen-ink);
+		border-color: rgb(255 255 255 / 24%);
+		background: rgb(255 255 255 / 9%);
+		color: var(--kitchen-ribbon-ink);
 	}
 
-	.stock-stat-action {
-		grid-template-columns: auto minmax(0, 1fr);
-		width: 100%;
-		text-align: left;
-		cursor: pointer;
-		transition:
-			transform 140ms ease,
-			border-color 140ms ease,
-			background 140ms ease;
-	}
-
-	.stock-stat-action:hover {
-		border-color: color-mix(in oklab, var(--stock-olive) 35%, var(--kitchen-line));
-		background: color-mix(in oklab, var(--stock-olive) 9%, var(--stock-card));
-	}
-
-	.stock-stat-action:focus-visible {
-		outline: 2px solid var(--stock-olive);
-		outline-offset: 2px;
-	}
-
-	.stock-stat-action.active {
-		border-color: var(--stock-olive);
-		background: color-mix(in oklab, var(--stock-olive) 12%, var(--stock-card));
-		color: var(--stock-olive);
-	}
-
-	.stock-stat.attention {
-		border-color: color-mix(in oklab, var(--stock-honey) 42%, var(--kitchen-line));
-		background: color-mix(in oklab, var(--stock-honey) 16%, var(--stock-card));
-		color: var(--stock-honey-ink);
-	}
-
-	.stock-stat.attention:hover {
-		border-color: color-mix(in oklab, var(--stock-honey) 70%, var(--kitchen-line));
-		background: color-mix(in oklab, var(--stock-honey) 22%, var(--stock-card));
-	}
-
-	.stock-stat.attention.active {
-		border-color: var(--stock-honey);
-		background: color-mix(in oklab, var(--stock-honey) 26%, var(--stock-card));
-		color: var(--stock-honey-ink);
-	}
-
-	.stock-stat-zero {
-		color: var(--kitchen-muted);
-	}
-
-	.stock-stat strong {
-		font-size: 1.15rem;
-		line-height: 1;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.stock-stat span {
-		font-size: 0.675rem;
-		font-weight: 650;
-		line-height: 1.2;
-	}
-
-	.stock-activity {
-		color: var(--stock-olive);
-	}
-
-	.stock-ledger {
-		padding-block: 0.9rem max(6.5rem, var(--ui-overlay-bottom));
-	}
-
-	.stock-console {
-		display: grid;
-		gap: 0.65rem;
-	}
-
-	.stock-tools {
-		display: grid;
-		gap: 0.55rem;
-	}
-
-	.stock-tools :global(.ui-field-shell button),
-	.stock-tools :global(.ui-field-shell kbd) {
+	.stock-command-search button,
+	.stock-command-search kbd {
 		display: inline-flex;
-		min-width: 2.25rem;
-		min-height: 2.25rem;
+		min-width: 2rem;
+		min-height: 2rem;
 		align-items: center;
 		justify-content: center;
-		border-radius: 0.6rem;
-		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+		border-radius: 0.55rem;
+		color: var(--kitchen-ribbon-muted);
 	}
 
-	.stock-tools :global(.ui-field-shell kbd) {
+	.stock-command-search kbd {
 		width: auto;
 		min-width: 0;
 		font-size: 0.68rem;
 	}
 
-	.stock-controls {
-		display: grid;
-		gap: 0.45rem;
+	.stock-command-desktop {
+		display: none;
 	}
 
-	.stock-scope-tabs {
+	.stock-command-mobile {
 		min-width: 0;
 	}
 
-	.stock-scope-tabs :global([data-house-style='segmented-control']) {
-		height: 100%;
-	}
-
-	.stock-scope-tabs :global([role='radio']) {
-		min-height: 2.75rem;
-	}
-
-	.stock-filter-grid {
+	.stock-command-group {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		align-items: end;
+		min-width: 0;
+		grid-auto-flow: column;
+		grid-auto-columns: minmax(0, 1fr);
+		gap: 0;
+	}
+
+	.stock-command-group > button,
+	.stock-command-zero {
+		display: inline-flex;
+		min-width: 0;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem;
+		border: 1px solid rgb(255 255 255 / 22%);
+		border-radius: 0;
+		padding: 0.35rem 0.55rem;
+		background: rgb(255 255 255 / 8%);
+		color: var(--kitchen-ribbon-ink);
+		font-size: 0.66rem;
+		font-weight: 750;
+		line-height: 1.05;
+		text-align: center;
+		white-space: nowrap;
+	}
+
+	.stock-command-group > :first-child {
+		border-radius: 0.625rem 0 0 0.625rem;
+	}
+
+	.stock-command-group > :last-child {
+		border-radius: 0 0.625rem 0.625rem 0;
+	}
+
+	.stock-command-group > :not(:first-child) {
+		margin-left: -1px;
+	}
+
+	.stock-command-group > button.active {
+		position: relative;
+		z-index: 1;
+		border-color: var(--kitchen-ribbon-ink);
+		background: var(--kitchen-paper);
+		color: var(--stock-olive);
+	}
+
+	.stock-quick-group strong {
+		font-size: 0.84rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.stock-quick-group .attention:not(.active) {
+		border-color: transparent;
+		background: var(--stock-honey);
+		color: #332613;
+	}
+
+	.stock-command-zero {
+		color: var(--kitchen-ribbon-muted);
+	}
+
+	.stock-menu-section {
+		display: grid;
 		gap: 0.4rem;
 	}
 
-	.stock-filter-grid label {
-		display: grid;
-		min-width: 0;
-		gap: 0.18rem;
+	.stock-menu-section h2,
+	.stock-filter-selects label > span {
+		font-size: 0.625rem;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: color-mix(in oklab, var(--color-base-content) 66%, transparent);
 	}
 
-	.stock-filter-grid label > span {
-		padding-inline: 0.1rem;
-		color: color-mix(in oklab, white 76%, transparent);
-		font-size: 0.65rem;
-		font-weight: 700;
-		letter-spacing: 0.02em;
+	.stock-command-group.menu-surface > button,
+	.stock-command-group.menu-surface .stock-command-zero {
+		border-color: var(--kitchen-line);
+		background: var(--kitchen-paper);
+		color: color-mix(in oklab, var(--color-base-content) 78%, transparent);
+		white-space: normal;
 	}
 
-	.stock-filter-grid .ui-field {
-		width: 100%;
-		min-width: 0;
-		min-height: 2.75rem;
-		border-color: color-mix(in oklab, white 24%, transparent);
-		background: color-mix(in oklab, white 9%, transparent);
+	.stock-command-group.menu-surface > button.active {
+		border-color: var(--stock-olive);
+		background: var(--stock-olive);
 		color: white;
 	}
 
-	.stock-filter-grid .ui-field option {
+	.stock-command-group.menu-surface .attention:not(.active) {
+		border-color: color-mix(in oklab, var(--stock-honey) 64%, var(--kitchen-line));
+		background: color-mix(in oklab, var(--stock-honey) 22%, var(--kitchen-card));
+		color: var(--stock-honey-ink);
+	}
+
+	.stock-filter-selects {
+		display: grid;
+		min-width: 0;
+		grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+		gap: 0.35rem;
+	}
+
+	.stock-filter-selects label {
+		display: grid;
+		min-width: 0;
+		gap: 0.25rem;
+	}
+
+	.stock-filter-selects .ui-field {
+		width: 100%;
+		min-width: 0;
+		min-height: 2.75rem;
+		border-color: rgb(255 255 255 / 24%);
+		background: rgb(255 255 255 / 9%);
+		color: var(--kitchen-ribbon-ink);
+	}
+
+	.stock-filter-selects .ui-field option {
 		background: var(--stock-card);
 		color: var(--kitchen-ink);
 	}
 
+	.stock-filter-selects.menu-surface {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.stock-filter-selects.menu-surface .ui-field {
+		border-color: var(--kitchen-line);
+		background: var(--kitchen-paper);
+		color: var(--color-base-content);
+	}
+
 	.stock-clear-filters {
-		grid-column: 1 / -1;
-		justify-self: end;
+		min-height: 2.75rem;
+		border: 1px solid currentColor;
+		border-radius: 0.625rem;
+		padding-inline: 0.6rem;
+		color: var(--kitchen-ribbon-ink);
+		font-size: 0.68rem;
+		font-weight: 750;
 	}
 
-	.stock-quick-view {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		margin-top: 0.65rem;
-		padding: 0.45rem 0.5rem 0.45rem 0.8rem;
-		border: 1px solid color-mix(in oklab, var(--stock-olive) 22%, var(--color-base-300));
-		border-radius: 0.8rem;
-		background: color-mix(in oklab, var(--stock-olive-soft) 60%, var(--stock-card));
-		color: var(--stock-olive);
-		font-size: 0.76rem;
-		font-weight: 700;
+	.stock-filter-selects.menu-surface .stock-clear-filters {
+		color: var(--kitchen-terra);
 	}
 
-	.stock-quick-view button {
-		padding-inline: 0.7rem;
-		font-size: 0.72rem;
+	.stock-ledger {
+		padding-block: 0.9rem max(6.5rem, var(--ui-overlay-bottom));
 	}
 
 	.stock-coverage {
@@ -792,29 +759,23 @@
 		--stock-honey-ink: #f0c569;
 	}
 
-	@media (min-width: 48rem) {
-		.stock-stats {
-			max-width: 34rem;
-		}
 
-		.stock-tools {
-			grid-template-columns: minmax(14rem, 0.75fr) minmax(0, 1.65fr);
+	@media (min-width: 64rem) {
+		.stock-command-toolbar {
+			grid-template-columns: minmax(12rem, 0.62fr) minmax(0, 2.75fr);
 			align-items: center;
 		}
 
-		.stock-controls {
-			grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 1.2fr);
-			align-items: end;
+		.stock-command-mobile {
+			display: none;
 		}
 
-		.stock-filter-grid {
-			grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
-		}
-
-		.stock-clear-filters {
-			grid-column: auto;
-			align-self: end;
-			justify-self: stretch;
+		.stock-command-desktop {
+			display: grid;
+			min-width: 0;
+			grid-template-columns: minmax(13rem, 0.95fr) minmax(13rem, 0.9fr) minmax(17rem, 1.15fr);
+			align-items: stretch;
+			gap: 0.4rem;
 		}
 	}
 

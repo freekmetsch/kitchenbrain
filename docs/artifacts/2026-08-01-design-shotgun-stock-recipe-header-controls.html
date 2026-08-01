@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Keukenbrein header controls — ten directions</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f3e9;
+      --card: #fffdf7;
+      --ink: #243128;
+      --muted: #68736b;
+      --line: #d9d2c4;
+      --olive: #334638;
+      --olive-deep: #293b30;
+      --olive-soft: #49614f;
+      --honey: #d3a046;
+      --terra: #a84d2a;
+      --focus: #1769c2;
+      --display: Georgia, 'Times New Roman', serif;
+      --shadow: 0 12px 30px rgb(31 43 35 / 12%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--paper); scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: var(--paper); }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .intro {
+      padding: clamp(1.5rem, 4vw, 3.5rem) max(1rem, calc((100vw - 80rem) / 2));
+      color: white;
+      background:
+        radial-gradient(circle at 86% 0, rgb(255 255 255 / 10%), transparent 14rem),
+        linear-gradient(135deg, var(--olive-deep), var(--olive-soft));
+    }
+    .eyebrow {
+      margin: 0 0 .45rem;
+      color: #f2ca74;
+      font-size: .69rem;
+      font-weight: 850;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 18ch; margin-bottom: .7rem; font: 600 clamp(2rem, 5vw, 4.5rem)/.96 var(--display); letter-spacing: -.04em; }
+    .intro-copy { max-width: 70ch; margin-bottom: 1rem; color: rgb(255 255 255 / 78%); line-height: 1.55; }
+    .fixed-invariant { display: flex; flex-wrap: wrap; gap: .42rem; }
+    .fixed-invariant span, .fixed-invariant a {
+      min-height: 2.2rem;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid rgb(255 255 255 / 22%);
+      border-radius: 999px;
+      padding: .35rem .7rem;
+      color: white;
+      background: rgb(255 255 255 / 8%);
+      font-size: .75rem;
+      text-decoration: none;
+    }
+
+    .controls {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      border-bottom: 1px solid var(--line);
+      padding: .65rem max(1rem, calc((100vw - 80rem) / 2));
+      background: rgb(247 243 233 / 95%);
+      box-shadow: 0 5px 18px rgb(41 59 48 / 7%);
+      backdrop-filter: blur(12px);
+    }
+    .control-grid { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem 1rem; }
+    .control-label { display: block; margin-bottom: .22rem; color: var(--muted); font-size: .61rem; font-weight: 820; letter-spacing: .08em; text-transform: uppercase; }
+    .switches { display: flex; flex-wrap: wrap; gap: .22rem; }
+    .switches button {
+      min-height: 2.75rem;
+      border: 1px solid var(--line);
+      border-radius: .58rem;
+      padding: .4rem .7rem;
+      color: var(--ink);
+      background: var(--card);
+      font-size: .75rem;
+      font-weight: 740;
+    }
+    .switches button[aria-pressed="true"] { border-color: var(--olive); color: white; background: var(--olive); }
+    .control-help { margin-left: auto; color: var(--muted); font-size: .73rem; }
+
+    .workspace { max-width: 96rem; margin: 0 auto; padding: clamp(1.2rem, 3vw, 2.5rem) 1rem 5rem; }
+    .brief {
+      max-width: 80rem;
+      margin: 0 auto 1.4rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(18rem, .42fr);
+      gap: 1.5rem;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1.2rem;
+    }
+    .brief h2 { margin-bottom: .35rem; font: 600 clamp(1.5rem, 3vw, 2.4rem)/1 var(--display); }
+    .brief p { margin-bottom: 0; color: var(--muted); line-height: 1.5; }
+    .bet { border-left: 3px solid var(--honey); padding-left: .8rem; color: var(--ink) !important; font-size: .84rem; }
+
+    .axis-map { max-width: 80rem; margin: 0 auto 1.6rem; overflow-x: auto; }
+    .axis-map table { width: 100%; min-width: 44rem; border-collapse: collapse; font-size: .71rem; }
+    .axis-map th, .axis-map td { border-block: 1px solid var(--line); padding: .48rem .55rem; text-align: left; }
+    .axis-map th { color: var(--muted); font-size: .61rem; letter-spacing: .06em; text-transform: uppercase; }
+
+    .spread { display: grid; gap: 1.3rem; }
+    .variant {
+      display: grid;
+      grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr);
+      gap: 1rem;
+      border-top: 1px solid var(--line);
+      padding-top: 1.2rem;
+    }
+    .variant:first-child { border-top: 0; }
+    .variant-copy { align-self: start; padding-top: .25rem; }
+    .variant-letter {
+      width: 2rem;
+      height: 2rem;
+      display: grid;
+      place-items: center;
+      margin-bottom: .62rem;
+      border: 1px solid var(--olive);
+      border-radius: 999px;
+      color: var(--olive);
+      font: 700 1rem/1 var(--display);
+    }
+    .variant[data-recommended="true"] .variant-letter { border-color: var(--honey); color: #332613; background: var(--honey); }
+    .variant h3 { margin-bottom: .28rem; font: 600 1.45rem/1.05 var(--display); }
+    .thesis { margin-bottom: .65rem; color: var(--muted); font-size: .82rem; line-height: 1.48; }
+    .variant dl { margin: 0; font-size: .72rem; line-height: 1.42; }
+    .variant dt { float: left; clear: left; margin-right: .3rem; font-weight: 820; }
+    .variant dd { margin: 0 0 .28rem; color: var(--muted); }
+    .pick {
+      min-height: 2.75rem;
+      margin-top: .7rem;
+      border: 1px solid var(--olive);
+      border-radius: .62rem;
+      padding: .4rem .7rem;
+      color: var(--olive);
+      background: transparent;
+      font-size: .74rem;
+      font-weight: 820;
+    }
+    .variant.selected .pick { color: white; background: var(--olive); }
+    .variant.selected .stage { box-shadow: 0 0 0 3px rgb(51 70 56 / 24%), var(--shadow); }
+
+    .stage-scroll { min-width: 0; overflow-x: auto; padding: .2rem .2rem .8rem; }
+    .stage {
+      width: 100%;
+      min-width: 52rem;
+      overflow: hidden;
+      border: 1px solid #cfc8bc;
+      border-radius: .9rem;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+    .stage.phone { width: 393px; min-width: 393px; margin-inline: auto; }
+    .stage-label { height: 1.65rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #d6d0c5; padding: 0 .6rem; color: #77736b; background: #ebe7df; font-size: .59rem; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+    .screen { height: 27rem; overflow: hidden; background: var(--paper); }
+
+    /* The brand skin is intentionally identical in all ten directions. */
+    .green {
+      position: relative;
+      overflow: hidden;
+      color: white;
+      background:
+        radial-gradient(circle at 88% 0, rgb(255 255 255 / 10%), transparent 11rem),
+        linear-gradient(135deg, var(--olive-deep), var(--olive-soft));
+    }
+    .green::after { position: absolute; right: -3rem; bottom: -5rem; width: 10rem; height: 10rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: 999px; content: ''; pointer-events: none; }
+    .identity { min-width: 0; position: relative; z-index: 1; }
+    .identity small { display: block; color: #f2ca74; font-size: .5rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .identity strong { display: block; overflow: hidden; margin-top: .03rem; font: 600 1.13rem/.98 var(--display); letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
+    .identity.with-back { display: flex; align-items: center; gap: .45rem; }
+    .back-mark { width: 2.45rem; height: 2.45rem; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid rgb(255 255 255 / 22%); border-radius: .58rem; background: rgb(255 255 255 / 7%); font-size: 1.15rem; }
+
+    .actions { position: relative; z-index: 1; display: flex; min-width: 0; align-items: stretch; gap: .35rem; }
+    .action {
+      min-width: 0;
+      min-height: 2.75rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .28rem;
+      border: 1px solid rgb(255 255 255 / 24%);
+      border-radius: .66rem;
+      padding: 0 .7rem;
+      color: white;
+      background: rgb(255 255 255 / 8%);
+      font-size: .65rem;
+      font-weight: 780;
+      line-height: 1.1;
+      text-align: center;
+    }
+    .action.primary { border-color: transparent; background: var(--terra); box-shadow: 0 5px 14px rgb(20 28 23 / 20%); }
+    .action-icon { font-size: .83rem; }
+
+    .payload { position: relative; z-index: 1; min-width: 0; }
+    .stats { display: flex; min-width: 0; gap: .38rem; }
+    .stat {
+      min-height: 2.65rem;
+      display: flex;
+      min-width: 0;
+      flex: 1;
+      align-items: center;
+      gap: .4rem;
+      border: 1px solid rgb(255 255 255 / 21%);
+      border-radius: .68rem;
+      padding: 0 .62rem;
+      color: white;
+      background: rgb(255 255 255 / 7%);
+      font-size: .59rem;
+      font-weight: 700;
+    }
+    .stat b { font-size: 1rem; font-variant-numeric: tabular-nums; }
+    .stat.active { color: #332613; border-color: var(--honey); background: var(--honey); }
+    .dark-search { min-height: 2.7rem; display: flex; min-width: 0; flex: 1; align-items: center; gap: .38rem; border: 1px solid rgb(255 255 255 / 25%); border-radius: .68rem; padding: 0 .68rem; color: rgb(255 255 255 / 76%); background: rgb(255 255 255 / 11%); font-size: .62rem; }
+    .sort { min-height: 2.7rem; display: flex; align-items: center; border: 1px solid rgb(255 255 255 / 25%); border-radius: .68rem; padding: 0 .65rem; background: rgb(255 255 255 / 11%); font-size: .62rem; font-weight: 760; white-space: nowrap; }
+    .meta { display: flex; flex-wrap: wrap; gap: .28rem; }
+    .meta span { min-height: 2.2rem; display: inline-flex; align-items: center; border: 1px solid rgb(255 255 255 / 20%); border-radius: 999px; padding: 0 .58rem; background: rgb(255 255 255 / 7%); font-size: .58rem; }
+    .recovery { color: #ffdd90; font-size: .59rem; font-weight: 760; }
+
+    .work-surface { border-bottom: 1px solid var(--line); padding: .58rem .75rem; background: var(--paper); }
+    .search-paper { min-height: 2.55rem; display: flex; align-items: center; gap: .4rem; border: 1px solid var(--line); border-radius: .66rem; padding: 0 .68rem; color: var(--muted); background: var(--card); font-size: .62rem; }
+    .filter-label { color: var(--muted); font-size: .52rem; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+    .filter-row { display: flex; min-width: 0; align-items: center; gap: .3rem; }
+    .filter-btn {
+      min-height: 2.45rem;
+      display: inline-flex;
+      min-width: 0;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: .63rem;
+      padding: 0 .58rem;
+      color: var(--muted);
+      background: var(--card);
+      font-size: .58rem;
+      font-weight: 690;
+      white-space: nowrap;
+    }
+    .filter-btn.active, .filter-btn[aria-pressed="true"] { border-color: var(--olive); color: var(--olive); background: #e4ebe3; box-shadow: inset 0 0 0 1px rgb(51 70 56 / 10%); }
+    .filter-btn.round { border-radius: 999px; }
+    .filter-btn.joined { margin-left: -1px; border-radius: 0; }
+    .filter-btn.joined:first-of-type { margin-left: 0; border-radius: .6rem 0 0 .6rem; }
+    .filter-btn.joined:last-of-type { border-radius: 0 .6rem .6rem 0; }
+    .filter-btn.tile { min-height: 3.2rem; flex-direction: column; gap: .12rem; }
+    .filter-btn.tab { border-bottom-color: var(--olive); border-radius: .6rem .6rem 0 0; }
+    .count { min-width: 1.05rem; height: 1.05rem; display: inline-grid; place-items: center; border-radius: 999px; color: white; background: var(--olive); font-size: .48rem; }
+
+    .content-preview { padding: .72rem .78rem 2rem; }
+    .content-preview h4 { margin: 0 0 .45rem; font: 600 1rem/1 var(--display); }
+    .stock-item { max-width: 28rem; border: 1px solid #dfb269; border-left: 4px solid #dfb269; border-radius: .65rem; padding: .65rem; background: #fff4df; }
+    .stock-item b, .recipe-card b { display: block; font-size: .65rem; }
+    .stock-item span, .recipe-card span { color: var(--muted); font-size: .55rem; }
+    .recipe-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+    .recipe-card { min-height: 5.25rem; overflow: hidden; border: 1px solid var(--line); border-radius: .68rem; background: var(--card); }
+    .recipe-card i { height: 2.9rem; display: grid; place-items: center; color: #77736c; background: #f0ede7; font-style: normal; font-size: 1.2rem; }
+    .recipe-card b { padding: .4rem .4rem 0; }
+    .recipe-card span { display: block; padding: .1rem .4rem .4rem; }
+    .detail-block { border: 1px solid var(--line); border-left: 5px solid #ed9705; border-radius: .7rem; padding: .7rem; background: var(--card); }
+    .detail-block small { color: #925006; font-size: .53rem; font-weight: 800; text-transform: uppercase; }
+    .detail-block p { margin: .3rem 0 0; font: 600 .88rem/1.2 var(--display); }
+    .phone .recipe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .phone .recipe-card:nth-child(3) { display: none; }
+
+    /* A: Proportional Workrail */
+    .v-a .green { padding: .5rem .72rem .58rem; }
+    .v-a .topline { display: flex; align-items: center; justify-content: space-between; gap: .7rem; }
+    .v-a .actions { margin-top: .4rem; }
+    .v-a .actions .action:not(.primary) { flex: .72; }
+    .v-a .actions .primary { flex: 1.28; }
+    .v-a .payload { margin-top: .38rem; }
+    .v-a .lanes { display: grid; gap: .36rem; }
+    .v-a .lane { display: grid; grid-template-columns: 3.8rem minmax(0, 1fr); align-items: center; gap: .35rem; }
+    .v-a .filter-row { overflow-x: auto; }
+    .desktop.v-a .green { display: grid; grid-template-columns: minmax(10rem, .32fr) minmax(18rem, .52fr) minmax(12rem, .34fr); align-items: center; gap: .7rem; padding: .65rem 1rem; }
+    .desktop.v-a .topline { display: block; }
+    .desktop.v-a .actions, .desktop.v-a .payload { margin-top: 0; }
+
+    /* B: Joined Command Bar */
+    .v-b .green { padding: .55rem .72rem; }
+    .v-b .headrow { display: flex; align-items: center; justify-content: space-between; gap: .65rem; }
+    .v-b .actions { gap: 0; }
+    .v-b .actions .action { border-radius: 0; margin-left: -1px; }
+    .v-b .actions .action:first-child { margin-left: 0; border-radius: .65rem 0 0 .65rem; }
+    .v-b .actions .action:last-child { border-radius: 0 .65rem .65rem 0; }
+    .v-b .payload { margin-top: .45rem; }
+    .v-b .joined-groups { display: grid; gap: .38rem; }
+    .v-b .group-line { display: flex; align-items: center; gap: .4rem; }
+    .desktop.v-b .green { display: grid; grid-template-columns: auto minmax(14rem, 1fr) auto; align-items: center; gap: .8rem; padding: .65rem 1rem; }
+    .desktop.v-b .payload { margin-top: 0; }
+
+    /* C: Utility + Commit */
+    .v-c .green { padding: .52rem .72rem .58rem; }
+    .v-c .headrow { display: flex; align-items: center; gap: .55rem; }
+    .v-c .identity { flex: 1; }
+    .v-c .actions .primary { min-width: 6.4rem; }
+    .v-c .payload { margin-top: .42rem; }
+    .v-c .fieldset { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .42rem; margin-top: .35rem; }
+    .v-c .fieldset:first-child { margin-top: 0; }
+    .desktop.v-c .green { padding: .7rem 1rem; }
+    .desktop.v-c .headrow { align-items: flex-start; }
+    .desktop.v-c .payload { max-width: 36rem; margin-left: auto; }
+
+    /* D: Action Tiles */
+    .v-d .green { padding: .5rem .72rem .58rem; }
+    .v-d .headrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .5rem; }
+    .v-d .actions .action { min-width: 4.45rem; min-height: 3.15rem; flex-direction: column; gap: .08rem; padding-inline: .45rem; }
+    .v-d .payload { margin-top: .4rem; }
+    .v-d .tile-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .3rem; }
+    .phone.v-d .tile-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .desktop.v-d .green { display: grid; grid-template-columns: auto auto minmax(15rem, .7fr); align-items: center; gap: .8rem; padding: .65rem 1rem; }
+    .desktop.v-d .payload { margin-top: 0; }
+
+    /* E: Two-Level Ledger */
+    .v-e .green { padding: .42rem .72rem .55rem; }
+    .v-e .utilityline { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding-bottom: .35rem; border-bottom: 1px solid rgb(255 255 255 / 13%); }
+    .v-e .utilityline .action { min-height: 2.35rem; }
+    .v-e .taskline { display: flex; align-items: center; gap: .5rem; padding-top: .35rem; }
+    .v-e .taskline .identity { flex: 1; }
+    .v-e .payload { margin-top: .36rem; }
+    .v-e .ledger-filter { display: grid; gap: .2rem; }
+    .v-e .ledger-row { min-height: 2.55rem; display: grid; grid-template-columns: 6rem minmax(0, 1fr) auto; align-items: center; gap: .4rem; border-bottom: 1px solid var(--line); }
+    .desktop.v-e .green { display: grid; grid-template-columns: minmax(9rem, .28fr) minmax(15rem, .6fr) minmax(13rem, .4fr); gap: .8rem; padding: .6rem 1rem; }
+    .desktop.v-e .utilityline { grid-column: 3; grid-row: 1; border-bottom: 0; padding: 0; }
+    .desktop.v-e .taskline { grid-column: 1; grid-row: 1; padding: 0; }
+    .desktop.v-e .payload { grid-column: 2; grid-row: 1; margin: 0; }
+
+    /* F: Task and Context Lanes */
+    .v-f .green { display: grid; gap: .45rem; padding: .52rem .72rem .58rem; }
+    .v-f .task-lane, .v-f .context-lane { display: flex; min-width: 0; align-items: center; gap: .5rem; }
+    .v-f .task-lane .identity { flex: 1; }
+    .v-f .context-lane { padding-top: .4rem; border-top: 1px solid rgb(255 255 255 / 13%); }
+    .v-f .context-lane .payload { flex: 1; }
+    .v-f .context-filters { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .4rem; align-items: start; }
+    .desktop.v-f .green { grid-template-columns: minmax(13rem, .45fr) minmax(20rem, 1fr); gap: .9rem; padding: .7rem 1rem; }
+    .desktop.v-f .context-lane { padding: 0; border-top: 0; }
+
+    /* G: Compact Button Matrix */
+    .v-g .green { padding: .5rem .72rem .58rem; }
+    .v-g .identity { margin-bottom: .4rem; }
+    .v-g .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .v-g .actions.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .v-g .payload { margin-top: .4rem; }
+    .v-g .filter-matrix { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3rem; }
+    .phone.v-g .filter-matrix { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .desktop.v-g .green { display: grid; grid-template-columns: minmax(10rem, .28fr) minmax(18rem, .7fr) minmax(14rem, .45fr); align-items: center; gap: .8rem; padding: .7rem 1rem; }
+    .desktop.v-g .identity, .desktop.v-g .payload { margin: 0; }
+
+    /* H: Inline Action Sentence */
+    .v-h .green { padding: .52rem .72rem .58rem; }
+    .v-h .headrow { display: flex; align-items: center; gap: .65rem; }
+    .v-h .identity { flex: 0 0 auto; }
+    .v-h .sentence { min-width: 0; flex: 1; color: rgb(255 255 255 / 74%); font-size: .62rem; line-height: 1.35; }
+    .v-h .actions { margin-top: .42rem; }
+    .v-h .payload { margin-top: .4rem; }
+    .v-h .filter-sentence { display: grid; gap: .4rem; color: var(--muted); font-size: .62rem; line-height: 2.55rem; }
+    .v-h .filter-sentence .filter-btn { margin-inline: .12rem; vertical-align: middle; }
+    .desktop.v-h .green { display: grid; grid-template-columns: auto minmax(12rem, 1fr) auto; align-items: center; gap: .85rem; padding: .7rem 1rem; }
+    .desktop.v-h .actions, .desktop.v-h .payload { margin-top: 0; }
+    .desktop.v-h .payload { grid-column: 2; }
+
+    /* I: Right-Side Button Dock */
+    .v-i .green { padding: .52rem .72rem .58rem; }
+    .v-i .mainhead { min-width: 0; }
+    .v-i .actions { margin-top: .42rem; }
+    .v-i .payload { margin-top: .4rem; }
+    .v-i .dock-filters { display: grid; gap: .35rem; }
+    .desktop.v-i .green { display: grid; grid-template-columns: minmax(0, 1fr) 12rem; min-height: 6.3rem; padding: 0 0 0 1rem; }
+    .desktop.v-i .mainhead { display: grid; grid-template-columns: minmax(9rem, .35fr) minmax(18rem, 1fr); align-items: center; gap: .8rem; padding-right: .8rem; }
+    .desktop.v-i .payload { margin: 0; }
+    .desktop.v-i .actions { display: grid; grid-template-columns: 1fr; align-content: center; margin: 0; border-left: 1px solid rgb(255 255 255 / 14%); padding: .55rem; background: rgb(18 31 23 / 13%); }
+
+    /* J: Lower-Edge Tabs + Actions */
+    .v-j .green { padding: .52rem .72rem 0; }
+    .v-j .headrow { display: flex; align-items: center; gap: .7rem; }
+    .v-j .identity { flex: 1; }
+    .v-j .payload { margin-top: .4rem; }
+    .v-j .actions { margin-top: .4rem; transform: translateY(1px); }
+    .v-j .actions .action { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+    .v-j .seam-filters { display: flex; align-items: end; gap: .28rem; overflow-x: auto; padding-top: .1rem; }
+    .desktop.v-j .green { display: grid; grid-template-columns: minmax(10rem, .3fr) minmax(18rem, .7fr) auto; align-items: end; gap: .8rem; padding: .65rem 1rem 0; }
+    .desktop.v-j .headrow { padding-bottom: .65rem; }
+    .desktop.v-j .payload { margin: 0 0 .65rem; }
+    .desktop.v-j .actions { margin: 0; }
+
+    .decision-zone { max-width: 80rem; margin: 3.5rem auto 0; border-top: 4px solid var(--olive); padding-top: 1.2rem; }
+    .decision-zone h2 { margin-bottom: .35rem; font: 600 clamp(1.6rem, 3vw, 2.5rem)/1 var(--display); }
+    .decision-lede { max-width: 70ch; color: var(--muted); line-height: 1.5; }
+    fieldset { margin: 0; border: 0; border-top: 1px solid var(--line); padding: 1.1rem 0; }
+    legend { width: 100%; margin-bottom: .65rem; padding: 0; font: 600 1.1rem/1.2 var(--display); }
+    .options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+    .option { position: relative; min-height: 100%; border: 1px solid var(--line); border-radius: .7rem; padding: .7rem; background: var(--card); cursor: pointer; }
+    .option:has(input:checked) { border-color: var(--olive); box-shadow: inset 0 0 0 1px var(--olive); }
+    .option input { position: absolute; top: .72rem; right: .72rem; width: 1.05rem; height: 1.05rem; accent-color: var(--olive); }
+    .option strong { display: block; padding-right: 1.4rem; font-size: .8rem; }
+    .option small { display: block; margin-top: .24rem; color: var(--muted); font-size: .68rem; line-height: 1.38; }
+    .option em { display: inline-block; margin-top: .32rem; color: #80550c; font-size: .61rem; font-style: normal; font-weight: 830; text-transform: uppercase; }
+    .note { margin-top: .6rem; }
+    .note label { display: block; margin-bottom: .24rem; color: var(--muted); font-size: .69rem; font-weight: 750; }
+    textarea { width: 100%; min-height: 5rem; resize: vertical; border: 1px solid var(--line); border-radius: .62rem; padding: .65rem; color: var(--ink); background: var(--card); line-height: 1.5; }
+    .handoff { border-top: 1px solid var(--line); padding-top: 1.1rem; }
+    .handoff h3 { margin-bottom: .25rem; font: 600 1.3rem/1.1 var(--display); }
+    .handoff p { color: var(--muted); font-size: .75rem; }
+    #handoff { min-height: 18rem; font: .69rem/1.52 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .button-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .55rem; }
+    .workspace-button { min-height: 2.75rem; border: 1px solid var(--olive); border-radius: .62rem; padding: .4rem .78rem; color: white; background: var(--olive); font-size: .74rem; font-weight: 820; }
+    .workspace-button.secondary { color: var(--olive); background: transparent; }
+    .save-status { color: var(--muted); font-size: .69rem; }
+    .save-status.warning { color: #9a4b20; }
+
+    @media (max-width: 72rem) {
+      .variant { grid-template-columns: 1fr; }
+      .variant-copy { max-width: 54rem; }
+    }
+    @media (max-width: 48rem) {
+      .brief { grid-template-columns: 1fr; }
+      .control-help { width: 100%; margin-left: 0; }
+      .options { grid-template-columns: 1fr; }
+      .workspace { padding-inline: .7rem; }
+      .stage.desktop { min-width: 48rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="intro">
+    <p class="eyebrow">Keukenbrein · focused refinement spread</p>
+    <h1>Ten ways to compose the controls</h1>
+    <p class="intro-copy">The green aesthetic does not move. Every specimen uses the same brand skin and keeps every current page action visible. Only button placement, grouping, hierarchy, geometry, filter structure, density, and responsive behavior vary.</p>
+    <div class="fixed-invariant">
+      <span>Green aesthetic fixed</span><span>All actions visible</span><span>Only 3 requested pages</span><span>Meal Plan + Groceries untouched</span>
+      <a href="../feature-lists/FEATURE_LIST_STOCK_RECIPE_HEADER_CONTROLS_DESIGN_SHOTGUN.md">Authoritative brief</a>
+    </div>
+  </header>
+
+  <nav class="controls" aria-label="Comparison controls">
+    <div class="control-grid">
+      <div><span class="control-label">Surface</span><div class="switches" data-switch="surface"><button type="button" data-value="stock" aria-pressed="true">Stock</button><button type="button" data-value="recipes" aria-pressed="false">Recipes</button><button type="button" data-value="detail" aria-pressed="false">Recipe detail</button></div></div>
+      <div><span class="control-label">Viewport</span><div class="switches" data-switch="viewport"><button type="button" data-value="phone" aria-pressed="true">393 px phone</button><button type="button" data-value="desktop" aria-pressed="false">Desktop</button></div></div>
+      <div><span class="control-label">Copy</span><div class="switches" data-switch="copy"><button type="button" data-value="english" aria-pressed="true">English</button><button type="button" data-value="dutch" aria-pressed="false">Long Dutch</button></div></div>
+      <div><span class="control-label">State</span><div class="switches" data-switch="state"><button type="button" data-value="resting" aria-pressed="true">Resting</button><button type="button" data-value="active" aria-pressed="false">Active / recovery</button></div></div>
+      <span class="control-help">All ten previews change together. Filter buttons inside previews are clickable.</span>
+    </div>
+  </nav>
+
+  <main class="workspace">
+    <section class="brief">
+      <div><h2>Same kitchen, different control logic</h2><p>Compare complete compositions rather than isolated button styles. The content beneath each header is intentionally plain so the header-to-work transition stays visible.</p></div>
+      <p class="bet"><strong>Starting bet:</strong> A, Proportional Workrail. It gives the primary action room, keeps every label visible, and turns filters into two legible lanes. Treat that as a recommendation, not a decision.</p>
+    </section>
+
+    <section class="axis-map" aria-label="Variation axes">
+      <table>
+        <thead><tr><th>Axis</th><th>Range shown</th><th>Fixed boundary</th></tr></thead>
+        <tbody>
+          <tr><td>Action placement</td><td>Lower rail · title row · utility/task rows · side dock · lower seam</td><td>Every current page action stays visible</td></tr>
+          <tr><td>Grouping</td><td>Individual · joined · semantic lanes · tiles · matrix · sentence</td><td>Add / Import / Plan stay primary</td></tr>
+          <tr><td>Filters</td><td>Grouped lanes · segments · labelled sets · tiles · ledger · matrix · tabs</td><td>Existing state and outcomes remain available</td></tr>
+          <tr><td>Responsive rule</td><td>Compress · stack · wrap · grid · dock-to-rail</td><td>Same green skin, readable labels, usable targets</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="spread" id="spread" aria-live="polite"></section>
+
+    <section class="decision-zone" aria-labelledby="decision-title">
+      <h2 id="decision-title">Choose whole or mix axes</h2>
+      <p class="decision-lede">The default records A as the starting bet. You can select another complete direction or borrow one direction's layout, another's hierarchy, and a third's filter behavior.</p>
+
+      <fieldset>
+        <legend>1. Which complete composition is closest?</legend>
+        <div class="options" id="direction-options"></div>
+        <div class="note"><label for="note-direction">Direction or mix-and-match notes verbatim</label><textarea id="note-direction" data-note="direction" placeholder="For example: I's desktop dock, C's hierarchy, and G's filter matrix."></textarea></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>2. Which filter organization feels best?</legend>
+        <div class="options">
+          <label class="option"><input type="radio" name="filters" value="lanes" checked><strong>Grouped lanes</strong><small>Quick household outcomes first; scope or food categories second.</small><em>Recommended</em></label>
+          <label class="option"><input type="radio" name="filters" value="segments"><strong>Joined segments</strong><small>Compact related buttons with shared outer boundaries.</small></label>
+          <label class="option"><input type="radio" name="filters" value="matrix"><strong>Visible matrix</strong><small>No horizontal scrolling; every available filter occupies a cell.</small></label>
+          <label class="option"><input type="radio" name="filters" value="labelled"><strong>Labelled sets</strong><small>Independent buttons grouped by plain-language field labels.</small></label>
+          <label class="option"><input type="radio" name="filters" value="tabs"><strong>Attached tabs</strong><small>Scope and view controls sit on the seam between header and content.</small></label>
+        </div>
+        <div class="note"><label for="note-filters">Filter notes verbatim</label><textarea id="note-filters" data-note="filters" placeholder="What should stay visible, scroll, wrap, or open a sheet?"></textarea></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>3. Which action hierarchy should lead?</legend>
+        <div class="options">
+          <label class="option"><input type="radio" name="hierarchy" value="proportional" checked><strong>Proportional rail</strong><small>All actions remain labelled; the primary action receives more width.</small><em>Recommended</em></label>
+          <label class="option"><input type="radio" name="hierarchy" value="commit"><strong>Utility + commit</strong><small>Secondary utilities form one group; primary stands independently.</small></label>
+          <label class="option"><input type="radio" name="hierarchy" value="tiles"><strong>Equal tiles</strong><small>Material and position communicate priority instead of width.</small></label>
+          <label class="option"><input type="radio" name="hierarchy" value="ledger"><strong>Utility/task levels</strong><small>Maintenance and navigation live above the primary household task.</small></label>
+          <label class="option"><input type="radio" name="hierarchy" value="dock"><strong>Desktop dock</strong><small>A bounded right column becomes a full-width action rail on phone.</small></label>
+        </div>
+        <div class="note"><label for="note-hierarchy">Action hierarchy notes verbatim</label><textarea id="note-hierarchy" data-note="hierarchy" placeholder="Name any button pairing or ordering that feels especially right or wrong."></textarea></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>4. Follow-up constraints</legend>
+        <div class="note"><label for="note-followup">Anything the next refinement or implementation must preserve verbatim</label><textarea id="note-followup" data-note="followup" placeholder="Mobile, desktop, long-copy, filter, or per-route feedback."></textarea></div>
+      </fieldset>
+
+      <section class="handoff">
+        <h3>Generated forward handoff</h3>
+        <p>Paste this into the next task. It points to the Markdown source and reproduces your notes without asking another agent to read this HTML.</p>
+        <textarea id="handoff" readonly aria-label="Generated handoff prompt"></textarea>
+        <div class="button-row"><button type="button" class="workspace-button" id="copy">Copy handoff</button><button type="button" class="workspace-button secondary" id="reset">Reset recommendations</button><span class="save-status" id="save-status" role="status">Selections save in this browser.</span></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+      const source = 'docs/feature-lists/FEATURE_LIST_STOCK_RECIPE_HEADER_CONTROLS_DESIGN_SHOTGUN.md';
+      const key = `${location.pathname}::header-controls-shotgun::v2`;
+      const defaults = { view: { surface: 'stock', viewport: 'phone', copy: 'english', state: 'resting' }, direction: 'a', filters: 'lanes', hierarchy: 'proportional', notes: { direction: '', filters: '', hierarchy: '', followup: '' } };
+      let model = JSON.parse(JSON.stringify(defaults));
+      let storageAvailable = true;
+      const variants = {
+        a: { name: 'Proportional Workrail', thesis: 'Identity first, then a width-weighted action rail and two labelled filter lanes.', strength: 'Clear primary action and reliable narrow-screen fit.', tradeoff: 'The action rail is intentionally explicit.', optimizes: 'Repeated phone use and long labels.' },
+        b: { name: 'Joined Command Bar', thesis: 'Actions and related filters become contiguous segmented groups.', strength: 'Compact and visually ordered.', tradeoff: 'Buttons can resemble mutually exclusive tabs.', optimizes: 'Density and alignment.' },
+        c: { name: 'Utility + Commit', thesis: 'Secondary utilities group together while the main action stands alone.', strength: 'Strongest do-versus-manage distinction.', tradeoff: 'Asymmetric composition.', optimizes: 'Decision clarity.' },
+        d: { name: 'Action Tiles', thesis: 'Compact icon-label tiles create equal, scannable touch targets.', strength: 'Excellent touch recognition.', tradeoff: 'Equal geometry weakens hierarchy.', optimizes: 'Thumb accuracy.' },
+        e: { name: 'Two-Level Ledger', thesis: 'A utility row sits above a stronger task row; filters become labelled ledger rows.', strength: 'Clear semantic separation.', tradeoff: 'Uses more vertical space.', optimizes: 'Three or more action roles.' },
+        f: { name: 'Task and Context Lanes', thesis: 'Task and contextual controls occupy distinct lanes that reflow predictably.', strength: 'Handles variable state well.', tradeoff: 'More breakpoint logic.', optimizes: 'Recovery and status states.' },
+        g: { name: 'Compact Button Matrix', thesis: 'Actions and filters use visible grids instead of horizontal rails.', strength: 'No hidden off-screen controls.', tradeoff: 'Growing sets add rows.', optimizes: 'Complete visibility.' },
+        h: { name: 'Inline Action Sentence', thesis: 'Short context copy introduces each related button group.', strength: 'Information precedes decisions.', tradeoff: 'Translation length matters more.', optimizes: 'Comprehension.' },
+        i: { name: 'Right-Side Button Dock', thesis: 'Desktop actions occupy a bounded side dock that becomes a phone rail.', strength: 'Best desktop balance.', tradeoff: 'Strongest breakpoint transformation.', optimizes: 'Wide-screen composition.' },
+        j: { name: 'Lower-Edge Tabs + Actions', thesis: 'Actions anchor the lower green edge while filters continue into paper as tabs.', strength: 'Smooth header-to-work transition.', tradeoff: 'Actions and tabs need careful distinction.', optimizes: 'Continuity.' }
+      };
+
+      try {
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          model = { ...defaults, ...parsed, view: { ...defaults.view, ...(parsed.view || {}) }, notes: { ...defaults.notes, ...(parsed.notes || {}) } };
+        }
+        localStorage.setItem(`${key}::probe`, '1'); localStorage.removeItem(`${key}::probe`);
+      } catch (error) { storageAvailable = false; }
+
+      function data() {
+        const nl = model.view.copy === 'dutch';
+        const active = model.view.state === 'active';
+        if (model.view.surface === 'stock') return {
+          eyebrow: nl ? 'Huishouden' : 'Household', title: nl ? 'Voorraad' : 'Stock', back: false,
+          primary: nl ? 'Toevoegen' : 'Add', secondary: [nl ? 'Activiteit' : 'Activity'],
+          payload: 'stats', stats: [[14, nl ? 'bereide maaltijden' : 'ready meals', false], [active ? 6 : '', active ? (nl ? 'onder streefaantal' : 'below target') : (nl ? 'Streefaantallen op peil' : 'Targets covered'), active]],
+          search: nl ? 'Zoek in voorraad…' : 'Search stock…',
+          quick: nl ? ['Maaltijden', 'Ingrediënten', 'Alle voorraad', 'Filters'] : ['Meals', 'Ingredients', 'All stock', 'Filters'],
+          categories: nl ? ['Vriezer', 'Voorraadkast', 'Te controleren'] : ['Freezer', 'Pantry', 'Needs review']
+        };
+        if (model.view.surface === 'recipes') return {
+          eyebrow: nl ? 'Kookboek' : 'Cookbook', title: nl ? 'Recepten' : 'Recipes', back: false,
+          primary: nl ? 'Importeren' : 'Import', secondary: [nl ? 'Nieuwe maaltijd' : '+ Meal'],
+          payload: 'search', search: nl ? 'Zoeken op naam of ingrediënt…' : 'Search by name or ingredient…', sort: nl ? 'Alfabetisch' : 'A–Z',
+          quick: nl ? ['Alles in huis', 'Vriezerbasis', 'Onder doel'] : ['Have all', 'Freezer staple', 'Below target'],
+          categories: nl ? ['Vlees', 'Vis', 'Groente', 'Soep', 'Pasta'] : ['Meat', 'Fish', 'Veggie', 'Soup', 'Pasta']
+        };
+        return {
+          eyebrow: nl ? 'Recept' : 'Recipe', title: nl ? 'Geroosterde pompoenrisotto met salie en hazelnoten' : 'E2E Primary Stew', back: true,
+          primary: nl ? 'Plannen' : 'Plan', secondary: [nl ? 'Bewerken' : 'Edit', ...(active ? [nl ? 'Meer' : 'More'] : [])],
+          payload: 'meta', meta: nl ? ['4 porties', '30 min', '0 in vriezer'] : ['4 servings', '30 min', '0 in freezer'], recovery: active ? (nl ? 'Vertaling mislukt · Opnieuw proberen' : 'Translation failed · Retry') : '',
+          quick: nl ? ['Kookweergave', 'Origineel recept'] : ['Cooking view', 'Original recipe'], categories: ['NL', 'EN']
+        };
+      }
+
+      function identity(d) {
+        return `<div class="identity ${d.back ? 'with-back' : ''}">${d.back ? '<span class="back-mark">‹</span>' : ''}<span><small>${d.eyebrow}</small><strong>${d.title}</strong></span></div>`;
+      }
+      function actionButtons(d, cls = '') {
+        const secondary = d.secondary.map((label, i) => `<button type="button" class="action secondary"><span class="action-icon">${i === 0 ? (d.back ? '✎' : '◌') : '•••'}</span>${label}</button>`).join('');
+        return `<div class="actions ${d.secondary.length > 1 ? 'three' : ''} ${cls}">${secondary}<button type="button" class="action primary"><span class="action-icon">＋</span>${d.primary}</button></div>`;
+      }
+      function payload(d) {
+        if (d.payload === 'stats') return `<div class="payload stats">${d.stats.map(s => `<button type="button" class="stat ${s[2] ? 'active' : ''}">${s[0] !== '' ? `<b>${s[0]}</b>` : '<b>✓</b>'}<span>${s[1]}</span></button>`).join('')}</div>`;
+        if (d.payload === 'search') return `<div class="payload" style="display:flex;gap:.35rem"><span class="dark-search">⌕ ${d.search}</span><span class="sort">${d.sort}⌄</span></div>`;
+        return `<div class="payload"><div class="meta">${d.meta.map(m => `<span>${m}</span>`).join('')}</div>${d.recovery ? `<div class="recovery">${d.recovery}</div>` : ''}</div>`;
+      }
+      function filterButton(label, index, extra = '') {
+        const selected = model.view.state === 'active' && index === 0;
+        return `<button type="button" class="filter-btn ${extra} ${selected ? 'active' : ''}" aria-pressed="${selected}" data-demo-filter>${label}${selected ? ' <span class="count">1</span>' : ''}</button>`;
+      }
+      function basicSearch(d) { return model.view.surface === 'stock' ? `<div class="search-paper">⌕ ${d.search}</div>` : ''; }
+      function filters(d, letter) {
+        const q = d.quick, c = d.categories;
+        if (letter === 'a') return `<div class="work-surface"><div class="lanes">${basicSearch(d)}<div class="lane"><span class="filter-label">${model.view.surface === 'detail' ? 'View' : 'Quick'}</span><div class="filter-row">${q.map((x,i)=>filterButton(x,i,'round')).join('')}</div></div><div class="lane"><span class="filter-label">${model.view.surface === 'detail' ? 'Language' : 'Browse'}</span><div class="filter-row">${c.map((x,i)=>filterButton(x,i)).join('')}</div></div></div></div>`;
+        if (letter === 'b') return `<div class="work-surface joined-groups">${basicSearch(d)}<div class="group-line"><span class="filter-label">${model.view.surface === 'detail' ? 'View' : 'Filters'}</span><div class="filter-row">${q.map((x,i)=>filterButton(x,i,'joined')).join('')}</div></div><div class="group-line"><span class="filter-label">${model.view.surface === 'detail' ? 'Language' : 'Type'}</span><div class="filter-row">${c.map((x,i)=>filterButton(x,i,'joined')).join('')}</div></div></div>`;
+        if (letter === 'c') return `<div class="work-surface">${basicSearch(d)}<div class="fieldset"><span class="filter-label">${model.view.surface === 'detail' ? 'Recipe view' : 'Household state'}</span><div class="filter-row">${q.map((x,i)=>filterButton(x,i,'round')).join('')}</div></div><div class="fieldset"><span class="filter-label">${model.view.surface === 'detail' ? 'Language' : 'Food type'}</span><div class="filter-row">${c.map((x,i)=>filterButton(x,i,'round')).join('')}</div></div></div>`;
+        if (letter === 'd') return `<div class="work-surface">${basicSearch(d)}<div class="tile-filters">${[...q,...c].slice(0,6).map((x,i)=>filterButton(x,i,'tile')).join('')}</div></div>`;
+        if (letter === 'e') return `<div class="work-surface ledger-filter">${basicSearch(d)}<div class="ledger-row"><span class="filter-label">${model.view.surface === 'detail' ? 'View' : 'Quick filters'}</span><div class="filter-row">${q.slice(0,2).map((x,i)=>filterButton(x,i,'round')).join('')}</div><span class="count">${q.length}</span></div><div class="ledger-row"><span class="filter-label">${model.view.surface === 'detail' ? 'Language' : 'Browse by type'}</span><div class="filter-row">${c.slice(0,3).map((x,i)=>filterButton(x,i,'round')).join('')}</div><span class="count">${c.length}</span></div></div>`;
+        if (letter === 'f') return `<div class="work-surface context-filters">${basicSearch(d)}<span class="filter-label">${model.view.surface === 'detail' ? 'Reading context' : 'Working context'}</span><div><div class="filter-row">${q.map((x,i)=>filterButton(x,i)).join('')}</div><div class="filter-row" style="margin-top:.3rem">${c.map((x,i)=>filterButton(x,i)).join('')}</div></div></div>`;
+        if (letter === 'g') return `<div class="work-surface">${basicSearch(d)}<div class="filter-matrix">${[...q,...c].map((x,i)=>filterButton(x,i)).join('')}</div></div>`;
+        if (letter === 'h') return `<div class="work-surface filter-sentence">${basicSearch(d)}<div>Show ${q.map((x,i)=>filterButton(x,i,'round')).join(' or ')}</div><div>Then narrow by ${c.map((x,i)=>filterButton(x,i,'round')).join(' ')}</div></div>`;
+        if (letter === 'i') return `<div class="work-surface dock-filters">${basicSearch(d)}<div><span class="filter-label">${model.view.surface === 'detail' ? 'View and language' : 'Filter the work'}</span><div class="filter-row" style="margin-top:.25rem">${[...q,...c].map((x,i)=>filterButton(x,i,'round')).join('')}</div></div></div>`;
+        return `<div class="work-surface seam-filters">${basicSearch(d)}${q.map((x,i)=>filterButton(x,i,'tab')).join('')}${c.map((x,i)=>filterButton(x,i,'tab')).join('')}</div>`;
+      }
+      function contentPreview() {
+        if (model.view.surface === 'stock') return `<div class="content-preview"><h4>Use next</h4><div class="stock-item"><b>E2E Primary freezer meal</b><span>Low stock · 2 portions · Recipe needed</span></div></div>`;
+        if (model.view.surface === 'recipes') return `<div class="content-preview"><div class="recipe-grid"><div class="recipe-card"><i>♨</i><b>Primary Cook Mode</b><span>Plan · Make</span></div><div class="recipe-card"><i>♨</i><b>Primary Stew</b><span>Plan · Make</span></div><div class="recipe-card"><i>♨</i><b>Secondary Stew</b><span>Plan · Make</span></div></div></div>`;
+        return `<div class="content-preview"><div class="detail-block"><small>1 · Pot</small><p>Simmer until ready.</p></div></div>`;
+      }
+      function header(letter, d) {
+        if (letter === 'a') return `<div class="green"><div class="topline">${identity(d)}</div>${actionButtons(d)}${payload(d)}</div>`;
+        if (letter === 'b') return `<div class="green"><div class="headrow">${identity(d)}${actionButtons(d)}</div>${payload(d)}</div>`;
+        if (letter === 'c') return `<div class="green"><div class="headrow">${identity(d)}${actionButtons(d)}</div>${payload(d)}</div>`;
+        if (letter === 'd') return `<div class="green"><div class="headrow">${identity(d)}${actionButtons(d)}</div>${payload(d)}</div>`;
+        if (letter === 'e') {
+          const secondaryOnly = `<div class="actions">${d.secondary.map((x,i)=>`<button class="action"><span>${i ? '•••' : '◌'}</span>${x}</button>`).join('')}</div>`;
+          const primaryOnly = `<button class="action primary"><span>＋</span>${d.primary}</button>`;
+          return `<div class="green"><div class="utilityline"><span class="identity"><small>${d.eyebrow}</small></span>${secondaryOnly}</div><div class="taskline">${identity(d)}${primaryOnly}</div>${payload(d)}</div>`;
+        }
+        if (letter === 'f') return `<div class="green"><div class="task-lane">${identity(d)}${actionButtons(d)}</div><div class="context-lane">${payload(d)}</div></div>`;
+        if (letter === 'g') return `<div class="green">${identity(d)}${actionButtons(d)}${payload(d)}</div>`;
+        if (letter === 'h') return `<div class="green"><div class="headrow">${identity(d)}<span class="sentence">${model.view.surface === 'stock' ? 'Review what is ready, then maintain the freezer.' : model.view.surface === 'recipes' ? 'Find what to cook, then add to the cookbook.' : 'Choose how you want to use this recipe.'}</span></div>${actionButtons(d)}${payload(d)}</div>`;
+        if (letter === 'i') return `<div class="green"><div class="mainhead">${identity(d)}${payload(d)}</div>${actionButtons(d)}</div>`;
+        return `<div class="green"><div class="headrow">${identity(d)}</div>${payload(d)}${actionButtons(d)}</div>`;
+      }
+
+      function render() {
+        const d = data();
+        const route = model.view.surface === 'stock' ? '/inventory' : model.view.surface === 'recipes' ? '/recipes' : '/recipes/[slug]';
+        const spread = document.getElementById('spread');
+        spread.innerHTML = Object.entries(variants).map(([letter, v], index) => `<article class="variant ${model.direction === letter ? 'selected' : ''}" data-recommended="${letter === 'a'}"><div class="variant-copy"><span class="variant-letter">${letter.toUpperCase()}</span><h3>${v.name}</h3><p class="thesis">${v.thesis}</p><dl><dt>Strength</dt><dd>${v.strength}</dd><dt>Trade-off</dt><dd>${v.tradeoff}</dd><dt>Optimizes</dt><dd>${v.optimizes}</dd></dl><button type="button" class="pick" data-pick="${letter}">${model.direction === letter ? 'Selected direction' : `Choose ${letter.toUpperCase()}`}</button></div><div class="stage-scroll"><div class="stage ${model.view.viewport} v-${letter}"><div class="stage-label"><span>${route}</span><span>${model.view.viewport} · ${model.view.copy} · ${model.view.state}</span></div><div class="screen">${header(letter,d)}${filters(d,letter)}${contentPreview()}</div></div></div></article>`).join('');
+        spread.querySelectorAll('[data-pick]').forEach(btn => btn.addEventListener('click', () => { model.direction = btn.dataset.pick; const radio = document.querySelector(`input[name="direction"][value="${model.direction}"]`); if (radio) radio.checked = true; persist(); render(); updateHandoff(); }));
+        spread.querySelectorAll('[data-demo-filter]').forEach(btn => btn.addEventListener('click', () => { const on = btn.getAttribute('aria-pressed') !== 'true'; btn.setAttribute('aria-pressed', String(on)); btn.classList.toggle('active', on); }));
+      }
+
+      function buildDirectionOptions() {
+        document.getElementById('direction-options').innerHTML = Object.entries(variants).map(([letter,v]) => `<label class="option"><input type="radio" name="direction" value="${letter}" ${letter === 'a' ? 'checked' : ''}><strong>${letter.toUpperCase()} · ${v.name}</strong><small>${v.thesis}</small>${letter === 'a' ? '<em>Recommended</em>' : ''}</label>`).join('');
+      }
+      function sync() {
+        document.querySelectorAll('[data-switch]').forEach(group => { const name = group.dataset.switch; group.querySelectorAll('button').forEach(btn => btn.setAttribute('aria-pressed', String(model.view[name] === btn.dataset.value))); });
+        ['direction','filters','hierarchy'].forEach(name => { const radio = document.querySelector(`input[name="${name}"][value="${model[name]}"]`); if (radio) radio.checked = true; });
+        document.querySelectorAll('[data-note]').forEach(field => field.value = model.notes[field.dataset.note] || '');
+      }
+      function persist() {
+        if (!storageAvailable) return;
+        try { localStorage.setItem(key, JSON.stringify(model)); } catch (error) { storageAvailable = false; const status = document.getElementById('save-status'); status.textContent = 'Changes are kept for this session only; browser storage is unavailable.'; status.classList.add('warning'); }
+      }
+      function notes(name, label) { return `${label} (verbatim):\n${model.notes[name] || '[No additional note supplied]'}`; }
+      function updateHandoff() {
+        const v = variants[model.direction];
+        const filterNames = { lanes: 'Grouped lanes', segments: 'Joined segments', matrix: 'Visible matrix', labelled: 'Labelled sets', tabs: 'Attached tabs' };
+        const hierarchyNames = { proportional: 'Proportional rail', commit: 'Utility + commit', tiles: 'Equal tiles', ledger: 'Utility/task levels', dock: 'Desktop dock' };
+        const prompt = `Load ${source} in full and continue the focused Stock and Recipe Header Controls Design Shotgun from the recorded selection below. Do not use the HTML artifact as a source. The earlier palette-varying header artifact is superseded.\n\nFIXED BOUNDARIES\nThe existing Keukenbrein green header aesthetic is immutable: preserve the olive gradient, honey eyebrow, serif identity, warm paper transition, terra primary action, and translucent on-green secondary controls. Keep every current page action visible on mobile. Scope is only /inventory, /recipes, and /recipes/[slug]. Meal Plan and Groceries are reference surfaces and must not change. Preserve all current handlers, URL-backed filters, state, labels, recovery, focus, and tap targets.\n\nDECISION 1 — Complete composition\nQuestion/source: “Ten complete directions” and “Recommendation without pre-empting selection”.\nOptions: A Proportional Workrail; B Joined Command Bar; C Utility + Commit; D Action Tiles; E Two-Level Ledger; F Task and Context Lanes; G Compact Button Matrix; H Inline Action Sentence; I Right-Side Button Dock; J Lower-Edge Tabs + Actions.\nSelected: ${model.direction.toUpperCase()} · ${v.name}.\nRecommendation: A · Proportional Workrail.\nRationale: it keeps every action labelled, gives Add/Import/Plan clear primary weight, fits long phone labels, and separates quick filters from browsing filters.\nAssumptions/evidence: Freek likes the existing Meal Plan/Groceries setup and the current UX; the problem is composition inside the three named headers, not brand aesthetics or capability.\nUncertainty: desktop balance may favor I; filter visibility may favor G; action semantics may favor C.\nPractical consequence: ${v.strength} Trade-off: ${v.tradeoff}\n${notes('direction','User note under Decision 1')}\n\nDECISION 2 — Filter organization\nOptions: Grouped lanes; Joined segments; Visible matrix; Labelled sets; Attached tabs.\nSelected: ${filterNames[model.filters]}.\nRecommendation: Grouped lanes.\nRationale: quick household outcomes and categorical browsing are different decisions and should not look like one undifferentiated chip rail.\nAssumptions/evidence: Recipes currently mixes Have all/Freezer staple/Below target with food class and dish type; Stock mixes scope tabs with a separate Filters sheet.\nUncertainty: the final number of visible dish types may make a matrix or labelled sets more robust.\nPractical consequence: selected controls remain recognizable while repeated filter use gains a stable mental model.\n${notes('filters','User note under Decision 2')}\n\nDECISION 3 — Action hierarchy\nOptions: Proportional rail; Utility + commit; Equal tiles; Utility/task levels; Desktop dock.\nSelected: ${hierarchyNames[model.hierarchy]}.\nRecommendation: Proportional rail.\nRationale: Add, Import, and Plan stay unmistakably primary without hiding Activity, New meal, Edit, or conditional More.\nAssumptions/evidence: Freek selected “keep every current action visible” and wants menu polish later.\nUncertainty: recipe detail may need its own width ratio when Edit and More both appear with a long title.\nPractical consequence: the redesign changes composition and visual hierarchy, not discoverability.\n${notes('hierarchy','User note under Decision 3')}\n\nFOLLOW-UP\n${notes('followup','User note under Decision 4')}\n\nNEXT STEP\nIf the notes clearly select compatible axes, create one focused refinement or implementation plan. If the combination creates an unresolved responsive conflict, render one final composite only. Do not modify production routes unless Freek explicitly requests implementation. This remains R2 presentation work with no schema, auth, data, provider, Albert Heijn, shopping-derivation, Meal Plan, Groceries, or deployment change.`;
+        document.getElementById('handoff').value = prompt;
+      }
+
+      buildDirectionOptions();
+      document.querySelectorAll('[data-switch]').forEach(group => group.addEventListener('click', event => { const btn = event.target.closest('button[data-value]'); if (!btn) return; model.view[group.dataset.switch] = btn.dataset.value; sync(); persist(); render(); }));
+      document.addEventListener('change', event => { const input = event.target.closest('input[type="radio"]'); if (!input) return; model[input.name] = input.value; persist(); if (input.name === 'direction') render(); updateHandoff(); });
+      document.querySelectorAll('[data-note]').forEach(field => field.addEventListener('input', () => { model.notes[field.dataset.note] = field.value; persist(); updateHandoff(); }));
+      document.getElementById('copy').addEventListener('click', async () => { const field = document.getElementById('handoff'); const status = document.getElementById('save-status'); try { await navigator.clipboard.writeText(field.value); status.textContent = 'Handoff copied.'; status.classList.remove('warning'); } catch (error) { field.focus(); field.select(); status.textContent = 'Clipboard access failed. The handoff is selected; copy it manually.'; status.classList.add('warning'); } });
+      document.getElementById('reset').addEventListener('click', () => { model = JSON.parse(JSON.stringify(defaults)); try { localStorage.removeItem(key); } catch (error) {} sync(); render(); updateHandoff(); const status = document.getElementById('save-status'); status.textContent = storageAvailable ? 'Recommendations restored and saved.' : 'Recommendations restored for this session.'; status.classList.toggle('warning', !storageAvailable); });
+
+      sync(); render(); updateHandoff();
+      if (!storageAvailable) { const status = document.getElementById('save-status'); status.textContent = 'Changes are kept for this session only; browser storage is unavailable.'; status.classList.add('warning'); }
+    })();
+  </script>
+</body>
+</html>

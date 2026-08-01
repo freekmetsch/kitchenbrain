@@ -8,7 +8,7 @@
 	} from '$lib/food_categories';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
-	import FilterChip from '$lib/components/ui/FilterChip.svelte';
+	import CombinedFilterMenu from '$lib/components/ui/CombinedFilterMenu.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import SmartImage from '$lib/components/ui/SmartImage.svelte';
@@ -100,6 +100,7 @@
 	let classFilter = $state(untrack(() => data.classFilter));
 	let dishFilter = $state(untrack(() => data.dishFilter));
 	let ingredientFilter = $state(untrack(() => data.ingredientFilter));
+	let filterMenuOpen = $state(false);
 
 	// Filters round-trip through the URL (goto/load). Browser back/forward
 	// re-runs load and updates `data` without touching these locals, so without
@@ -261,6 +262,27 @@
 	const hasActiveFilters = $derived(
 		Boolean(data.query || ingredientFilter || classFilter || dishFilter || anyToggle)
 	);
+	const activeFilterCount = $derived(
+		Number(data.toggles.haveAll) +
+			Number(data.toggles.freezerOnly) +
+			Number(data.toggles.belowTargetOnly) +
+			Number(data.toggles.rotationOnly) +
+			Number(Boolean(classFilter)) +
+			Number(Boolean(dishFilter)) +
+			Number(Boolean(ingredientFilter))
+	);
+	const filterSummary = $derived.by(() => {
+		const labels = [
+			data.toggles.haveAll ? m.recipes_filter_have_all() : null,
+			data.toggles.freezerOnly ? m.recipes_filter_freezer_staple() : null,
+			data.toggles.belowTargetOnly ? m.recipes_filter_below_target() : null,
+			data.toggles.rotationOnly ? m.recipes_filter_in_rotation() : null,
+			classFilter ? (foodCategoryLabel(classFilter) ?? classFilter) : null,
+			dishFilter ? (foodCategoryLabel(dishFilter) ?? dishFilter) : null,
+			ingredientFilter ? `${m.recipes_using_ingredient_prefix()} ${ingredientFilter}` : null
+		].filter((label): label is string => Boolean(label));
+		return labels.length > 0 ? labels.join(' · ') : m.recipes_filters_none();
+	});
 
 	function clearIngredientFilter() {
 		ingredientFilter = '';
@@ -394,131 +416,147 @@
 	<title>{m.recipes_title()}</title>
 </svelte:head>
 
+{#snippet recipeSearch()}
+	<label class="ui-field-shell recipe-command-search">
+		<svg viewBox="0 0 16 16" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+			<path d="M11.25 11.25 14 14" />
+			<circle cx="7.25" cy="7.25" r="5" />
+		</svg>
+		<input
+			type="search"
+			placeholder={m.recipes_search_placeholder()}
+			aria-label={m.recipes_search_aria()}
+			bind:value={searchInput}
+			oninput={scheduleSearch}
+			onkeydown={(event) => {
+				if (event.key !== 'Enter') return;
+				if (searchTimer) clearTimeout(searchTimer);
+				searchTimer = null;
+				search();
+			}}
+		/>
+	</label>
+{/snippet}
+
+{#snippet recipeQuickFilters(menuSurface = false)}
+	<div class="recipe-command-group recipe-quick-filters" class:menu-surface={menuSurface} role="group" aria-label={m.recipes_filter_status_label()}>
+		<button type="button" class:active={data.toggles.haveAll} aria-pressed={data.toggles.haveAll} title={m.recipes_filter_have_all()} onclick={() => toggle('haveAll')}>
+			{m.recipes_filter_have_all()}
+		</button>
+		<button type="button" class:active={data.toggles.freezerOnly} aria-pressed={data.toggles.freezerOnly} title={m.recipes_filter_freezer_staple()} onclick={() => toggle('freezerOnly')}>
+			{m.recipes_filter_freezer_staple()}
+		</button>
+		<button type="button" class:active={data.toggles.belowTargetOnly} aria-pressed={data.toggles.belowTargetOnly} title={m.recipes_filter_below_target()} onclick={() => toggle('belowTargetOnly')}>
+			{m.recipes_filter_below_target()}
+		</button>
+		<button type="button" class:active={data.toggles.rotationOnly} aria-pressed={data.toggles.rotationOnly} title={m.recipes_filter_in_rotation()} onclick={() => toggle('rotationOnly')}>
+			{m.recipes_filter_in_rotation()}
+		</button>
+	</div>
+{/snippet}
+
+{#snippet recipeTypeSelects(menuSurface = false)}
+	<div class="recipe-type-selects" class:menu-surface={menuSurface}>
+		<label>
+			<span class:sr-only={!menuSurface}>{m.recipes_filter_food_type()}</span>
+			<select class="ui-field" value={classFilter} onchange={(event) => setClass(event.currentTarget.value)} aria-label={m.recipes_filter_food_type()}>
+				<option value="">{m.recipes_filter_all_food_types()}</option>
+				{#each CORE_FOOD_TYPE_OPTIONS as option}
+					<option value={option.value}>{foodCategoryLabel(option.value)}</option>
+				{/each}
+			</select>
+		</label>
+		<label>
+			<span class:sr-only={!menuSurface}>{m.recipes_filter_dish_type()}</span>
+			<select class="ui-field" value={dishFilter} onchange={(event) => setDish(event.currentTarget.value)} aria-label={m.recipes_filter_dish_type()}>
+				<option value="">{m.recipes_filter_all_dish_types()}</option>
+				{#each data.dishTypes as dishType}
+					<option value={dishType}>{foodCategoryLabel(dishType) ?? dishType}</option>
+				{/each}
+			</select>
+		</label>
+	</div>
+{/snippet}
+
 <div class="recipe-page ui-grove-page">
-	<KitchenPageHeader eyebrow={m.recipes_header_context()} title={m.recipes_heading()}>
-		{#snippet action()}
+	<KitchenPageHeader eyebrow={m.recipes_header_context()} title={m.recipes_heading()} variant="command">
+		{#snippet actions()}
 			<button
-				class="ui-action ui-action-primary"
+				type="button"
+				class="ui-action ui-action-tertiary ui-action-on-dark"
 				onclick={() => {
-					scrapeOpen = true;
-				}}>{m.recipes_import_button()}</button
-			>
+					newMealOpen = true;
+					newMealTitle = '';
+					newMealQuery = '';
+					newMealSlugs = [];
+					newMealError = '';
+				}}
+			>{m.recipes_new_meal_button()}</button>
+			<button type="button" class="ui-action ui-action-primary" onclick={() => (scrapeOpen = true)}>
+				{m.recipes_import_button()}
+			</button>
 		{/snippet}
-	</KitchenPageHeader>
 
-	<div class="ui-page-utility">
-		<div class="recipe-console ui-page-utility-inner">
-			<div class="recipe-utility">
-				<div class="recipe-search-row">
-					<label class="ui-field-shell">
-						<svg
-							viewBox="0 0 16 16"
-							class="h-4 w-4"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.5"
-							aria-hidden="true"
-						>
-							<path d="M11.25 11.25 14 14" />
-							<circle cx="7.25" cy="7.25" r="5" />
-						</svg>
-						<input
-							type="search"
-							placeholder={m.recipes_search_placeholder()}
-							aria-label={m.recipes_search_aria()}
-							bind:value={searchInput}
-							oninput={scheduleSearch}
-							onkeydown={(e) => {
-								if (e.key !== 'Enter') return;
-								if (searchTimer) clearTimeout(searchTimer);
-								searchTimer = null;
-								search();
-							}}
-						/>
-					</label>
-					<select
-						class="ui-field"
-						bind:value={sortBy}
-						onchange={search}
-						aria-label={m.recipes_sort_aria()}
-					>
-						<option value="title">{m.recipes_sort_az()}</option>
-						<option value="rating">{m.recipes_sort_rating()}</option>
-						<option value="recent">{m.recipes_sort_recent()}</option>
-						<option value="neglected">{m.recipes_sort_neglected()}</option>
-						<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
-					</select>
-				</div>
-				<button
-					class="ui-action ui-action-secondary"
-					onclick={() => {
-						newMealOpen = true;
-						newMealTitle = '';
-						newMealQuery = '';
-						newMealSlugs = [];
-						newMealError = '';
-					}}>{m.recipes_new_meal_button()}</button
-				>
-			</div>
-
-			<div class="recipe-filter-grid">
-				<div class="recipe-status-filters" role="group" aria-label={m.recipes_filter_status_label()}>
-					<FilterChip class="recipe-filter-chip" selected={data.toggles.haveAll} tone="success" onclick={() => toggle('haveAll')}>
-						{m.recipes_filter_have_all()}
-					</FilterChip>
-					<FilterChip class="recipe-filter-chip" selected={data.toggles.freezerOnly} tone="info" onclick={() => toggle('freezerOnly')}>
-						{m.recipes_filter_freezer_staple()}
-					</FilterChip>
-					<FilterChip class="recipe-filter-chip" selected={data.toggles.belowTargetOnly} tone="warning" onclick={() => toggle('belowTargetOnly')}>
-						{m.recipes_filter_below_target()}
-					</FilterChip>
-					<FilterChip class="recipe-filter-chip" selected={data.toggles.rotationOnly} onclick={() => toggle('rotationOnly')}>
-						{m.recipes_filter_in_rotation()}
-					</FilterChip>
-				</div>
-				<label class="recipe-filter-select">
-					<span>{m.recipes_filter_food_type()}</span>
-					<select
-						class="ui-field"
-						value={classFilter}
-						onchange={(event) => setClass(event.currentTarget.value)}
-					>
-						<option value="">{m.recipes_filter_all_food_types()}</option>
-						{#each CORE_FOOD_TYPE_OPTIONS as option}
-							<option value={option.value}>{foodCategoryLabel(option.value)}</option>
-						{/each}
-					</select>
-				</label>
-				<label class="recipe-filter-select">
-					<span>{m.recipes_filter_dish_type()}</span>
-					<select
-						class="ui-field"
-						value={dishFilter}
-						onchange={(event) => setDish(event.currentTarget.value)}
-					>
-						<option value="">{m.recipes_filter_all_dish_types()}</option>
-						{#each data.dishTypes as dishType}
-							<option value={dishType}>{foodCategoryLabel(dishType) ?? dishType}</option>
-						{/each}
-					</select>
-				</label>
-				{#if hasActiveFilters}
-					<button class="ui-action ui-action-tertiary ui-action-on-dark recipe-clear-filters" onclick={clearFilters}>
+		<div class="recipe-command-toolbar" data-testid="recipes-command-header">
+			{@render recipeSearch()}
+			<div class="recipe-command-desktop">
+				{@render recipeQuickFilters()}
+				{@render recipeTypeSelects()}
+				{#if ingredientFilter}
+					<button type="button" class="recipe-inline-filter" title={ingredientFilter} onclick={clearIngredientFilter}>
+						<span>{m.recipes_using_ingredient_prefix()} <strong>{ingredientFilter}</strong></span>
+						<Icon name="x" class="h-3.5 w-3.5" />
+					</button>
+				{:else if hasActiveFilters}
+					<button type="button" class="recipe-clear-filters" onclick={clearFilters}>
 						{m.recipes_clear_filters_button()}
 					</button>
 				{/if}
+				<select class="ui-field recipe-sort" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
+					<option value="title">{m.recipes_sort_az()}</option>
+					<option value="rating">{m.recipes_sort_rating()}</option>
+					<option value="recent">{m.recipes_sort_recent()}</option>
+					<option value="neglected">{m.recipes_sort_neglected()}</option>
+					<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
+				</select>
+			</div>
+			<div class="recipe-command-mobile">
+				<CombinedFilterMenu
+					id="recipe-combined-filters"
+					bind:open={filterMenuOpen}
+					label={m.recipes_filters_button()}
+					summary={filterSummary}
+					activeCount={activeFilterCount}
+					panelLabel={m.recipes_filters_panel()}
+					doneLabel={m.recipes_filters_done()}
+				>
+					<section class="recipe-menu-section">
+						<h2>{m.recipes_filter_status_label()}</h2>
+						{@render recipeQuickFilters(true)}
+					</section>
+					{@render recipeTypeSelects(true)}
+					{#if ingredientFilter}
+						<button type="button" class="recipe-menu-ingredient" onclick={clearIngredientFilter}>
+							<span>{m.recipes_using_ingredient_prefix()} <strong>{ingredientFilter}</strong></span>
+							<Icon name="x" class="h-3.5 w-3.5" />
+						</button>
+					{/if}
+					{#if hasActiveFilters}
+						<button type="button" class="recipe-menu-clear" onclick={clearFilters}>{m.recipes_clear_filters_button()}</button>
+					{/if}
+				</CombinedFilterMenu>
+				<select class="ui-field recipe-sort" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
+					<option value="title">{m.recipes_sort_az()}</option>
+					<option value="rating">{m.recipes_sort_rating()}</option>
+					<option value="recent">{m.recipes_sort_recent()}</option>
+					<option value="neglected">{m.recipes_sort_neglected()}</option>
+					<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
+				</select>
 			</div>
 		</div>
-	</div>
+	</KitchenPageHeader>
 
 	<main class="recipe-ledger ui-grove-surface ui-kitchen-content">
-	{#if ingredientFilter}
-		<div class="mb-3 flex items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-3 py-2 text-sm">
-			<span class="min-w-0 flex-1 truncate">{m.recipes_using_ingredient_prefix()} <strong>{ingredientFilter}</strong></span>
-			<button class="ui-action ui-action-tertiary" onclick={clearIngredientFilter}>{m.recipes_clear_button()}</button>
-		</div>
-	{/if}
-
 	<!-- Grid -->
 	{#if data.recipes.length === 0}
 		<EmptyState
@@ -595,84 +633,210 @@
 		background: var(--kitchen-grove);
 	}
 
-	.recipe-search-row {
+	.recipe-command-toolbar {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(7.75rem, 0.38fr);
-		gap: 0.5rem;
+		gap: 0.45rem;
 	}
 
-	.recipe-utility {
-		display: grid;
-		gap: 0.5rem;
+	.recipe-command-search {
+		min-height: 2.75rem;
+		border-color: rgb(255 255 255 / 24%);
+		background: rgb(255 255 255 / 9%);
+		color: var(--kitchen-ribbon-ink);
 	}
 
-	.recipe-console {
-		display: grid;
-		gap: 0.55rem;
+	.recipe-command-desktop {
+		display: none;
 	}
 
-	.recipe-filter-grid {
+	.recipe-command-mobile {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		align-items: end;
+		min-width: 0;
+		grid-template-columns: minmax(0, 1fr) minmax(7.25rem, 0.46fr);
 		gap: 0.4rem;
 	}
 
-	.recipe-status-filters {
-		grid-column: 1 / -1;
+	.recipe-sort {
+		width: 100%;
+		min-width: 0;
+		min-height: 2.75rem;
+		border-color: rgb(255 255 255 / 24%);
+		background: rgb(255 255 255 / 9%);
+		color: var(--kitchen-ribbon-ink);
+	}
+
+	.recipe-sort option,
+	.recipe-type-selects:not(.menu-surface) .ui-field option {
+		background: var(--kitchen-card);
+		color: var(--kitchen-ink);
+	}
+
+	.recipe-command-group {
 		display: grid;
+		min-width: 0;
+		grid-auto-flow: column;
+		grid-auto-columns: minmax(0, 1fr);
+		gap: 0;
+	}
+
+	.recipe-command-group > button {
+		min-width: 0;
+		min-height: 2.75rem;
+		overflow: hidden;
+		border: 1px solid rgb(255 255 255 / 22%);
+		border-radius: 0;
+		padding: 0.35rem 0.5rem;
+		background: rgb(255 255 255 / 8%);
+		color: var(--kitchen-ribbon-ink);
+		font-size: 0.66rem;
+		font-weight: 750;
+		line-height: 1.05;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.recipe-command-group > :first-child {
+		border-radius: 0.625rem 0 0 0.625rem;
+	}
+
+	.recipe-command-group > :last-child {
+		border-radius: 0 0.625rem 0.625rem 0;
+	}
+
+	.recipe-command-group > :not(:first-child) {
+		margin-left: -1px;
+	}
+
+	.recipe-command-group > button.active {
+		position: relative;
+		z-index: 1;
+		border-color: var(--kitchen-ribbon-ink);
+		background: var(--kitchen-paper);
+		color: var(--kitchen-olive);
+	}
+
+	.recipe-menu-section {
+		display: grid;
+		gap: 0.4rem;
+	}
+
+	.recipe-menu-section h2,
+	.recipe-type-selects label > span {
+		color: color-mix(in oklab, var(--color-base-content) 66%, transparent);
+		font-size: 0.625rem;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.recipe-command-group.menu-surface {
+		grid-auto-flow: row;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.35rem;
+	}
+
+	.recipe-command-group.menu-surface > button {
+		border-color: var(--kitchen-line);
+		border-radius: 0.625rem;
+		background: var(--kitchen-paper);
+		color: color-mix(in oklab, var(--color-base-content) 78%, transparent);
+		white-space: normal;
+	}
+
+	.recipe-command-group.menu-surface > :not(:first-child) {
+		margin-left: 0;
+	}
+
+	.recipe-command-group.menu-surface > button.active {
+		border-color: var(--kitchen-olive);
+		background: var(--kitchen-olive);
+		color: white;
+	}
+
+	.recipe-type-selects {
+		display: grid;
+		min-width: 0;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.35rem;
+	}
+
+	.recipe-type-selects label {
+		display: grid;
+		min-width: 0;
 		gap: 0.25rem;
 	}
 
-	.recipe-status-filters :global(.recipe-filter-chip) {
+	.recipe-type-selects .ui-field {
 		width: 100%;
+		min-width: 0;
+		min-height: 2.75rem;
+		border-color: rgb(255 255 255 / 24%);
+		background: rgb(255 255 255 / 9%);
+		color: var(--kitchen-ribbon-ink);
 	}
 
-	.recipe-status-filters :global(.recipe-filter-chip .ui-filter-chip-visual) {
+	.recipe-type-selects.menu-surface {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.recipe-type-selects.menu-surface .ui-field {
+		border-color: var(--kitchen-line);
+		background: var(--kitchen-paper);
+		color: var(--color-base-content);
+	}
+
+	.recipe-inline-filter,
+	.recipe-clear-filters {
+		display: inline-flex;
+		min-width: 0;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem;
+		overflow: hidden;
+		border: 1px solid rgb(255 255 255 / 25%);
+		border-radius: 0.625rem;
+		padding-inline: 0.6rem;
+		color: var(--kitchen-ribbon-ink);
+		font-size: 0.67rem;
+		font-weight: 750;
+		white-space: nowrap;
+	}
+
+	.recipe-inline-filter span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.recipe-menu-ingredient,
+	.recipe-menu-clear {
+		display: flex;
 		width: 100%;
-		max-width: 100%;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		border: 1px solid var(--kitchen-line);
+		border-radius: 0.625rem;
+		padding: 0.5rem 0.65rem;
+		background: var(--kitchen-paper);
+		color: var(--color-base-content);
+		font-size: 0.72rem;
+		font-weight: 700;
+		text-align: left;
+	}
+
+	.recipe-menu-ingredient span {
+		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.recipe-status-filters :global(.ui-filter-chip-hit[aria-pressed='false'] .ui-filter-chip-visual) {
-		border-color: rgb(255 255 255 / 24%);
-		background: rgb(255 255 255 / 8%);
-		color: var(--kitchen-ribbon-ink);
+	.recipe-menu-clear {
+		justify-content: center;
+		color: var(--kitchen-terra);
 	}
-
-	.recipe-status-filters :global(.ui-filter-chip-hit[aria-pressed='true'] .ui-filter-chip-visual) {
-		border-color: rgb(255 255 255 / 58%);
-		background: var(--kitchen-grove);
-		color: var(--kitchen-paper);
-		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 16%);
-	}
-
-	.recipe-filter-select {
-		display: grid;
-		gap: 0.2rem;
-		min-width: 0;
-	}
-
-	.recipe-filter-select > span {
-		color: var(--kitchen-ribbon-muted);
-		font-size: 0.625rem;
-		font-weight: 750;
-		letter-spacing: 0.035em;
-	}
-
-	.recipe-filter-select .ui-field {
-		width: 100%;
-		min-width: 0;
-	}
-
-	.recipe-clear-filters {
-		grid-column: 1 / -1;
-		justify-self: end;
-	}
-
 	.recipe-ledger {
 		padding-block: 0.9rem max(6.5rem, var(--ui-overlay-bottom));
 	}
@@ -782,31 +946,21 @@
 	}
 
 	@media (min-width: 48rem) {
-		.recipe-utility {
-			grid-template-columns: minmax(0, 1fr) auto;
-			align-items: center;
-		}
-
-		.recipe-search-row {
-			grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.32fr);
-		}
-
-		.recipe-filter-grid {
-			grid-template-columns: minmax(22rem, 1.6fr) minmax(8rem, 0.55fr) minmax(8rem, 0.55fr) auto;
-		}
-
-		.recipe-status-filters {
-			grid-column: auto;
-			grid-template-columns: repeat(4, minmax(0, 1fr));
-		}
-
-		.recipe-clear-filters {
-			grid-column: auto;
-			align-self: end;
-		}
-
 		.recipe-grid {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (min-width: 64rem) {
+		.recipe-command-mobile {
+			display: none;
+		}
+
+		.recipe-command-desktop {
+			display: grid;
+			grid-template-columns: minmax(19rem, 1.55fr) minmax(14rem, 0.9fr) minmax(7.5rem, 0.45fr) minmax(8rem, 0.42fr);
+			align-items: stretch;
+			gap: 0.4rem;
 		}
 	}
 
@@ -814,7 +968,6 @@
 		.recipe-grid {
 			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
-
 	}
 </style>
 
@@ -902,7 +1055,6 @@
 			</div>
 	</div>
 </BottomSheet>
-
 <BottomSheet bind:open={scrapeOpen} title={m.recipes_import_sheet_title()}>
 			<input
 				type="url"
