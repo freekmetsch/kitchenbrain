@@ -1,0 +1,1171 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Shopping one-list refinement — implementation plan</title>
+	<link rel="icon" href="data:," />
+	<style>
+		:root {
+			color-scheme: light;
+			--canvas: #e9e4d8;
+			--paper: #f7f3e9;
+			--card: #fffdf7;
+			--ink: #28291f;
+			--muted: #68695f;
+			--line: #d6d0c3;
+			--olive: #304b3a;
+			--olive-deep: #243b2d;
+			--olive-soft: #4a6652;
+			--sage: #dce6dc;
+			--honey: #e0ae48;
+			--terra: #b94d28;
+			--warning: #fff2cf;
+			--danger: #8a2f22;
+			--shadow: 0 18px 55px rgba(42, 46, 36, 0.11);
+		}
+
+		* { box-sizing: border-box; }
+		html { scroll-behavior: smooth; background: var(--canvas); }
+		body {
+			margin: 0;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 92% 0, rgba(224, 174, 72, 0.16), transparent 25rem),
+				linear-gradient(180deg, #f4f0e7 0, var(--canvas) 46rem);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			line-height: 1.5;
+		}
+
+		button, select, textarea { font: inherit; }
+		button, select { min-height: 44px; }
+		button { cursor: pointer; }
+		a { color: inherit; }
+		h1, h2, h3, h4, p { margin-top: 0; }
+		h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; }
+		.wrap { width: min(1240px, calc(100% - 30px)); margin: 0 auto; }
+
+		.plan-hero {
+			position: relative;
+			overflow: hidden;
+			color: #fff;
+			background:
+				radial-gradient(circle at 88% 0, rgba(255,255,255,0.11), transparent 19rem),
+				linear-gradient(130deg, var(--olive-deep), var(--olive-soft));
+			border-bottom: 5px solid var(--honey);
+		}
+		.plan-hero::after {
+			position: absolute;
+			right: -6rem;
+			bottom: -8rem;
+			width: 18rem;
+			height: 18rem;
+			border: 1px solid rgba(255,255,255,0.09);
+			border-radius: 50%;
+			content: "";
+		}
+		.hero-inner {
+			position: relative;
+			z-index: 1;
+			display: grid;
+			grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.65fr);
+			gap: 28px;
+			align-items: end;
+			min-height: 238px;
+			padding: 36px 0 32px;
+		}
+		.eyebrow {
+			margin-bottom: 9px;
+			color: #f4cd72;
+			font-size: 11px;
+			font-weight: 900;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+		}
+		h1 {
+			max-width: 760px;
+			margin-bottom: 14px;
+			font-size: clamp(35px, 5vw, 65px);
+			font-weight: 600;
+			line-height: 0.98;
+			letter-spacing: -0.045em;
+		}
+		.hero-copy {
+			max-width: 760px;
+			margin: 0;
+			color: rgba(255,255,255,0.78);
+			font-size: clamp(15px, 1.6vw, 18px);
+		}
+		.hero-status {
+			display: grid;
+			gap: 8px;
+			padding: 16px;
+			border: 1px solid rgba(255,255,255,0.17);
+			border-radius: 18px;
+			background: rgba(255,255,255,0.08);
+			backdrop-filter: blur(8px);
+		}
+		.hero-status strong { font-family: Georgia, serif; font-size: 22px; font-weight: 600; }
+		.hero-status span { color: rgba(255,255,255,0.72); font-size: 12px; }
+		.status-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 5px; }
+		.status-chips b {
+			display: inline-flex;
+			min-height: 28px;
+			align-items: center;
+			padding: 4px 9px;
+			border-radius: 999px;
+			color: #fff;
+			background: rgba(255,255,255,0.12);
+			font-size: 10px;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+		}
+
+		.plan-nav {
+			position: sticky;
+			top: 0;
+			z-index: 30;
+			border-bottom: 1px solid var(--line);
+			background: rgba(247,243,233,0.93);
+			backdrop-filter: blur(12px);
+		}
+		.plan-nav .wrap {
+			display: flex;
+			overflow-x: auto;
+			gap: 4px;
+			padding-block: 6px;
+			scrollbar-width: thin;
+		}
+		.plan-nav a {
+			display: inline-flex;
+			min-height: 40px;
+			align-items: center;
+			padding: 0 11px;
+			border-radius: 9px;
+			color: var(--muted);
+			font-size: 12px;
+			font-weight: 760;
+			text-decoration: none;
+			white-space: nowrap;
+		}
+		.plan-nav a:hover, .plan-nav a:focus-visible { color: #fff; background: var(--olive); }
+
+		main { padding: 22px 0 72px; }
+		.panel {
+			margin-top: 18px;
+			overflow: hidden;
+			border: 1px solid rgba(64,69,54,0.15);
+			border-radius: 22px;
+			background: rgba(255,253,247,0.84);
+			box-shadow: 0 9px 31px rgba(46,48,39,0.05);
+		}
+		.panel-head {
+			display: flex;
+			align-items: end;
+			justify-content: space-between;
+			gap: 22px;
+			padding: 23px 24px 17px;
+			border-bottom: 1px solid var(--line);
+		}
+		.panel-head h2 {
+			margin: 4px 0 6px;
+			font-size: clamp(26px, 3vw, 36px);
+			line-height: 1;
+			letter-spacing: -0.025em;
+		}
+		.panel-head p { max-width: 790px; margin-bottom: 0; color: var(--muted); }
+		.locked {
+			flex: 0 0 auto;
+			display: inline-flex;
+			min-height: 32px;
+			align-items: center;
+			padding: 5px 10px;
+			border-radius: 999px;
+			color: var(--olive-deep);
+			background: var(--sage);
+			font-size: 10px;
+			font-weight: 900;
+			letter-spacing: 0.07em;
+			text-transform: uppercase;
+		}
+		.kicker { color: var(--terra); font-size: 10px; font-weight: 900; letter-spacing: 0.11em; text-transform: uppercase; }
+
+		.contract-grid {
+			display: grid;
+			grid-template-columns: 1.15fr 0.85fr;
+			gap: 1px;
+			background: var(--line);
+		}
+		.contract-card { padding: 23px; background: var(--card); }
+		.contract-card h3 { margin-bottom: 14px; font-size: 22px; }
+		.contract-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+		.contract-list li {
+			display: grid;
+			grid-template-columns: 25px 1fr;
+			gap: 9px;
+			align-items: start;
+			color: var(--muted);
+			font-size: 13px;
+		}
+		.contract-list b {
+			display: grid;
+			width: 25px;
+			height: 25px;
+			place-items: center;
+			border-radius: 8px;
+			color: #fff;
+			background: var(--olive);
+			font-size: 11px;
+		}
+		.decision-note {
+			padding: 16px;
+			border-left: 4px solid var(--honey);
+			border-radius: 0 14px 14px 0;
+			background: var(--warning);
+			color: #5c4b22;
+			font-size: 13px;
+		}
+		.decision-note strong { display: block; margin-bottom: 4px; color: #3e351e; }
+
+		.prototype-grid {
+			display: grid;
+			grid-template-columns: 370px minmax(0, 1fr);
+			gap: 24px;
+			padding: 24px;
+			background: var(--paper);
+		}
+		.phone {
+			width: 100%;
+			max-width: 370px;
+			overflow: hidden;
+			border: 8px solid #20241f;
+			border-radius: 31px;
+			background: var(--paper);
+			box-shadow: var(--shadow);
+		}
+		.phone-status {
+			display: flex;
+			height: 30px;
+			align-items: center;
+			justify-content: space-between;
+			padding: 0 14px;
+			color: #fff;
+			background: var(--olive-deep);
+			font-size: 10px;
+			font-weight: 800;
+		}
+		.shop-header {
+			padding: 10px 12px 11px;
+			color: #fff;
+			background: linear-gradient(135deg, var(--olive-deep), var(--olive-soft));
+		}
+		.shop-title-row, .shop-week, .shop-progress, .list-head, .demo-actions {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+		}
+		.shop-title-row h3 { margin: 0; font: 600 19px/1 Georgia, serif; }
+		.ah-chip {
+			display: inline-flex;
+			min-height: 27px;
+			align-items: center;
+			padding: 0 9px;
+			border: 1px solid rgba(255,255,255,0.2);
+			border-radius: 999px;
+			background: rgba(255,255,255,0.08);
+			font-size: 9px;
+			font-weight: 800;
+		}
+		.shop-week { margin-top: 9px; }
+		.week-button {
+			flex: 0 0 44px;
+			width: 44px;
+			height: 44px;
+			border: 1px solid rgba(255,255,255,0.2);
+			border-radius: 10px;
+			color: #fff;
+			background: rgba(255,255,255,0.08);
+		}
+		.week-copy { min-width: 0; flex: 1; font-size: 10px; }
+		.week-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.week-copy span { display: block; margin-top: 2px; color: rgba(255,255,255,0.68); font-size: 8px; }
+		.shop-progress { margin-top: 7px; font-size: 9px; }
+		.shop-progress strong { color: #f5cf75; }
+		.demo-controls { padding: 8px 10px; border-bottom: 1px solid var(--line); background: #f7f2e7; }
+		.filter-rail { display: flex; overflow-x: auto; gap: 5px; padding-bottom: 6px; scrollbar-width: none; }
+		.filter-chip {
+			flex: 0 0 auto;
+			min-height: 44px;
+			border: 1px solid #c5c1b4;
+			border-radius: 999px;
+			padding: 0 11px;
+			color: var(--olive);
+			background: var(--card);
+			font-size: 10px;
+			font-weight: 800;
+		}
+		.filter-chip[aria-pressed="true"] { color: #fff; border-color: var(--olive); background: var(--olive); }
+		.demo-actions select, .manage-button {
+			height: 44px;
+			border: 1px solid #c5c1b4;
+			border-radius: 10px;
+			padding: 0 9px;
+			color: var(--ink);
+			background: var(--card);
+			font-size: 10px;
+			font-weight: 760;
+		}
+		.manage-button { white-space: nowrap; }
+		.demo-list-wrap { min-height: 392px; padding: 9px 10px 75px; background: var(--paper); }
+		.list-head { margin-bottom: 6px; color: var(--muted); font-size: 9px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+		.demo-list { overflow: hidden; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--card); list-style: none; }
+		.demo-section + .demo-section { margin-top: 8px; }
+		.section-head {
+			display: flex;
+			min-height: 32px;
+			align-items: center;
+			justify-content: space-between;
+			padding: 0 10px;
+			color: #fff;
+			background: var(--olive);
+			font-size: 9px;
+			font-weight: 850;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+		.demo-row {
+			display: grid;
+			grid-template-columns: 44px minmax(0, 1fr) 44px;
+			align-items: center;
+			min-height: 50px;
+			border-bottom: 1px solid #e5dfd2;
+		}
+		.demo-row:last-child { border-bottom: 0; }
+		.demo-row.warning { min-height: 76px; background: var(--warning); }
+		.check-button, .row-action {
+			display: grid;
+			width: 44px;
+			height: 44px;
+			place-items: center;
+			border: 0;
+			color: var(--olive);
+			background: transparent;
+		}
+		.check-button span {
+			display: grid;
+			width: 21px;
+			height: 21px;
+			place-items: center;
+			border: 1.5px solid #797d71;
+			border-radius: 50%;
+			font-size: 11px;
+		}
+		.check-button.bought span { color: #fff; border-color: var(--olive); background: var(--olive); }
+		.row-copy { min-width: 0; padding: 5px 2px; }
+		.row-copy > div { display: flex; min-width: 0; align-items: baseline; gap: 5px; }
+		.row-copy strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+		.row-copy em { color: var(--muted); font-size: 9px; font-style: normal; white-space: nowrap; }
+		.row-copy small { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; }
+		.source-lines { margin: 3px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--honey); list-style: none; }
+		.source-lines li { color: #5c4b22; font-size: 8px; }
+		.demo-dock {
+			position: absolute;
+			right: 16px;
+			bottom: 12px;
+			left: 16px;
+			display: grid;
+			grid-template-columns: 0.8fr 1.2fr;
+			gap: 6px;
+			padding: 6px;
+			border: 1px solid var(--line);
+			border-radius: 13px;
+			background: rgba(255,253,247,0.96);
+			box-shadow: 0 10px 22px rgba(41,47,38,0.2);
+		}
+		.phone-body { position: relative; }
+		.demo-dock button {
+			border: 0;
+			border-radius: 9px;
+			font-size: 10px;
+			font-weight: 850;
+		}
+		.demo-dock button:last-child { color: #fff; background: var(--terra); }
+		.demo-status { min-height: 20px; margin: 7px 10px 0; color: var(--muted); font-size: 9px; }
+
+		.prototype-notes { display: grid; align-content: start; gap: 13px; }
+		.prototype-notes h3 { margin: 0; font-size: 26px; }
+		.prototype-notes > p { color: var(--muted); }
+		.callout {
+			padding: 15px 16px;
+			border: 1px solid var(--line);
+			border-radius: 15px;
+			background: var(--card);
+		}
+		.callout strong { display: block; margin-bottom: 5px; color: var(--olive); font-size: 12px; }
+		.callout p { margin: 0; color: var(--muted); font-size: 12px; }
+		.callout.warning { border-color: #e7ca86; background: var(--warning); }
+		.callout.warning strong { color: #72551c; }
+		.rule-menu {
+			display: grid;
+			gap: 4px;
+			padding: 10px;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			background: var(--paper);
+		}
+		.rule-menu span {
+			display: flex;
+			min-height: 44px;
+			align-items: center;
+			padding: 0 11px;
+			border-radius: 9px;
+			background: var(--card);
+			font-size: 11px;
+			font-weight: 800;
+		}
+
+		.flow {
+			display: grid;
+			grid-template-columns: minmax(160px, 0.7fr) 34px minmax(220px, 1fr) 34px minmax(180px, 0.8fr);
+			align-items: stretch;
+			gap: 8px;
+			padding: 24px;
+			background: var(--paper);
+		}
+		.flow-node {
+			padding: 17px;
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			background: var(--card);
+		}
+		.flow-node.primary { color: #fff; border-color: var(--olive); background: var(--olive); }
+		.flow-node h3 { margin-bottom: 7px; font-size: 18px; }
+		.flow-node p, .flow-node li { color: var(--muted); font-size: 11px; }
+		.flow-node.primary p, .flow-node.primary li { color: rgba(255,255,255,0.75); }
+		.flow-node ul { margin: 0; padding-left: 17px; }
+		.flow-arrow { display: grid; place-items: center; color: var(--terra); font-size: 25px; font-weight: 900; }
+		.consumer-stack { display: grid; gap: 8px; }
+		.consumer {
+			padding: 11px 12px;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			background: var(--card);
+		}
+		.consumer strong { display: block; font-size: 11px; }
+		.consumer span { color: var(--muted); font-size: 10px; }
+		.invariant {
+			margin: 0 24px 24px;
+			padding: 13px 15px;
+			border-radius: 13px;
+			color: #fff;
+			background: var(--terra);
+			font-size: 12px;
+			font-weight: 760;
+		}
+
+		.option-table-wrap, .matrix-wrap { overflow-x: auto; }
+		table { width: 100%; min-width: 760px; border-collapse: collapse; background: var(--card); }
+		th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+		th { color: var(--olive); background: #eef1e9; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; }
+		td { color: var(--muted); font-size: 12px; }
+		td strong { color: var(--ink); }
+		tr:last-child td { border-bottom: 0; }
+		.selected-row td { background: #f4f7ef; }
+
+		.phase-strip {
+			display: grid;
+			grid-template-columns: repeat(5, 1fr);
+			gap: 1px;
+			background: var(--line);
+		}
+		.phase {
+			min-height: 154px;
+			padding: 17px;
+			background: var(--card);
+		}
+		.phase b { color: var(--terra); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+		.phase h3 { margin: 7px 0; font-size: 17px; }
+		.phase p { margin: 0; color: var(--muted); font-size: 11px; }
+
+		.ticket-controls {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 7px;
+			padding: 16px 20px;
+			border-bottom: 1px solid var(--line);
+			background: var(--paper);
+		}
+		.ticket-filter {
+			min-height: 38px;
+			border: 1px solid var(--line);
+			border-radius: 999px;
+			padding: 0 12px;
+			color: var(--olive);
+			background: var(--card);
+			font-size: 10px;
+			font-weight: 850;
+		}
+		.ticket-filter[aria-pressed="true"] { color: #fff; border-color: var(--olive); background: var(--olive); }
+		.ticket-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 12px;
+			padding: 20px;
+			background: var(--paper);
+		}
+		.ticket {
+			display: grid;
+			grid-template-rows: auto auto 1fr auto;
+			padding: 18px;
+			border: 1px solid var(--line);
+			border-radius: 17px;
+			background: var(--card);
+		}
+		.ticket.hidden { display: none; }
+		.ticket-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+		.ticket-id { color: var(--terra); font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+		.risk {
+			display: inline-flex;
+			min-height: 25px;
+			align-items: center;
+			padding: 0 8px;
+			border-radius: 999px;
+			color: var(--olive);
+			background: var(--sage);
+			font-size: 9px;
+			font-weight: 900;
+		}
+		.ticket h3 { margin: 8px 0 7px; font-size: 20px; }
+		.ticket > p { color: var(--muted); font-size: 12px; }
+		.ticket ul { margin: 0; padding-left: 17px; color: var(--muted); font-size: 11px; }
+		.ticket footer { margin-top: 13px; padding-top: 11px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+
+		.risk-table td:first-child { color: var(--ink); font-weight: 760; }
+		.matrix td:not(:first-child), .matrix th:not(:first-child) { text-align: center; }
+		.yes { color: var(--olive); font-weight: 900; }
+		.gate-box {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 8px;
+			padding: 18px 20px;
+			border-top: 1px solid var(--line);
+			background: var(--paper);
+		}
+		.gate {
+			padding: 12px;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			background: var(--card);
+			font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+			font-size: 11px;
+			text-align: center;
+		}
+
+		.handoff {
+			display: grid;
+			grid-template-columns: 0.8fr 1.2fr;
+			gap: 1px;
+			background: var(--line);
+		}
+		.handoff > div { padding: 23px; background: var(--card); }
+		.handoff h3 { margin-bottom: 9px; font-size: 22px; }
+		.handoff p, .handoff li { color: var(--muted); font-size: 12px; }
+		.handoff textarea {
+			width: 100%;
+			min-height: 290px;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 13px;
+			padding: 13px;
+			color: var(--ink);
+			background: var(--paper);
+			font: 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+		}
+		.copy-button {
+			margin-top: 9px;
+			border: 0;
+			border-radius: 10px;
+			padding: 0 15px;
+			color: #fff;
+			background: var(--olive);
+			font-size: 11px;
+			font-weight: 850;
+		}
+		.copy-status { display: inline-block; min-height: 18px; margin-left: 9px; color: var(--olive); font-size: 10px; }
+		.source-note {
+			margin-top: 13px;
+			padding: 11px 12px;
+			border-radius: 11px;
+			background: var(--sage);
+			font-size: 11px;
+		}
+		code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+		@media (max-width: 920px) {
+			.hero-inner, .contract-grid, .prototype-grid, .handoff { grid-template-columns: 1fr; }
+			.hero-inner { min-height: 0; padding-block: 30px; }
+			.hero-status { max-width: 560px; }
+			.prototype-grid { justify-items: center; }
+			.prototype-notes { width: 100%; }
+			.flow { grid-template-columns: 1fr; }
+			.flow-arrow { min-height: 26px; transform: rotate(90deg); }
+			.phase-strip { grid-template-columns: 1fr 1fr; }
+			.ticket-grid { grid-template-columns: 1fr; }
+			.gate-box { grid-template-columns: 1fr 1fr; }
+		}
+		@media (max-width: 560px) {
+			.wrap { width: min(100% - 18px, 1240px); }
+			h1 { font-size: 39px; }
+			.panel { border-radius: 16px; }
+			.panel-head { align-items: start; padding: 18px 16px 14px; }
+			.locked { display: none; }
+			.contract-card, .prototype-grid, .flow, .handoff > div { padding: 16px; }
+			.phase-strip, .gate-box { grid-template-columns: 1fr; }
+			.ticket-grid { padding: 12px; }
+			.phone { max-width: 350px; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			html { scroll-behavior: auto; }
+		}
+	</style>
+</head>
+<body>
+	<header class="plan-hero">
+		<div class="wrap hero-inner">
+			<div>
+				<p class="eyebrow">Plan ready · Shopping</p>
+				<h1>One list for the household. One optional route through the store.</h1>
+				<p class="hero-copy">
+					A1 Quiet Ledger is the default. Store Route is a conservative, display-only
+					ordering. The olive utility band stays.
+				</p>
+			</div>
+			<div class="hero-status">
+				<strong>Ready for <code>$run</code></strong>
+				<span>No schema. No saved categories. No production code changed by this plan.</span>
+				<div class="status-chips">
+					<b>R2 code-only</b>
+					<b>8 tickets</b>
+					<b>0 open questions</b>
+				</div>
+			</div>
+		</div>
+	</header>
+
+	<nav class="plan-nav" aria-label="Plan sections">
+		<div class="wrap">
+			<a href="#contract">Contract</a>
+			<a href="#prototype">Selected surface</a>
+			<a href="#architecture">Architecture</a>
+			<a href="#options">Options</a>
+			<a href="#phases">Phases</a>
+			<a href="#tickets">Tickets</a>
+			<a href="#risks">Risks</a>
+			<a href="#verification">Verification</a>
+			<a href="#handoff">Handoff</a>
+		</div>
+	</nav>
+
+	<main class="wrap">
+		<section class="panel" id="contract">
+			<div class="panel-head">
+				<div>
+					<span class="kicker">Approved product contract</span>
+					<h2>Quiet by default, route-aware when requested</h2>
+					<p>The mode switch disappears. Acquisition stays primary; maintenance remains reachable and source-owned.</p>
+				</div>
+				<span class="locked">Decision locked</span>
+			</div>
+			<div class="contract-grid">
+				<div class="contract-card">
+					<h3>The non-negotiables</h3>
+					<ol class="contract-list">
+						<li><b>1</b><span><strong>Shopping</strong> is the only page identity; no Weekly shop, Household run, Market run, or Run.</span></li>
+						<li><b>2</b><span>One normalized Dutch term equals one checkable row and one bought state.</span></li>
+						<li><b>3</b><span>Meal and Weekly filters narrow the same active, covered, and completed projections.</span></li>
+						<li><b>4</b><span>List order is the default; A–Z and Store Route live in one sort control.</span></li>
+						<li><b>5</b><span>Recipe context appears only when shared, incompatible, or deliberately opened.</span></li>
+						<li><b>6</b><span>Every recipe/manual/weekly/legacy owner keeps an honest maintenance path.</span></li>
+						<li><b>7</b><span>Green remains useful context: week, delivery, progress, meal plan, and AH state.</span></li>
+						<li><b>8</b><span>AH and the AI tool continue reading the canonical Dutch projection, never Store Route categories.</span></li>
+					</ol>
+				</div>
+				<div class="contract-card">
+					<h3>Accepted trade-off</h3>
+					<div class="decision-note">
+						<strong>Store Route prefers “Other” over false confidence.</strong>
+						It uses exact Dutch rules and unanimous purchase-form hints. It is helpful
+						navigation, not a persisted category source or promise of a perfect aisle.
+					</div>
+					<div class="decision-note" style="margin-top:12px;border-left-color:var(--terra);">
+						<strong>Meal selection remains visually quiet.</strong>
+						That is intentional: the household opens Shopping to acquire items, not to
+						audit recipe policy.
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="panel" id="prototype">
+			<div class="panel-head">
+				<div>
+					<span class="kicker">Selected surface</span>
+					<h2>A1 with the requested green header and A3 ordering</h2>
+					<p>Try the filters and sort. This is an explanatory mockup; the Markdown plan remains authoritative.</p>
+				</div>
+				<span class="locked">Interactive proof</span>
+			</div>
+			<div class="prototype-grid">
+				<div class="phone" aria-label="Shopping one-list plan mockup">
+					<div class="phone-status"><span>9:41</span><span>5G 100%</span></div>
+					<div class="phone-body">
+						<header class="shop-header">
+							<div class="shop-title-row">
+								<h3>Shopping</h3>
+								<span class="ah-chip">AH connected</span>
+							</div>
+							<div class="shop-week">
+								<button class="week-button" type="button" aria-label="Previous week">‹</button>
+								<div class="week-copy">
+									<strong>Wed 22 Jul – Tue 28 Jul</strong>
+									<span>Delivery Tue 21 Jul · Meal plan</span>
+								</div>
+								<button class="week-button" type="button" aria-label="Next week">›</button>
+							</div>
+							<div class="shop-progress"><strong>6 to buy</strong><span>2 in basket</span></div>
+						</header>
+						<div class="demo-controls">
+							<div class="filter-rail" aria-label="Filter shopping items">
+								<button class="filter-chip" type="button" data-filter="all" aria-pressed="true">All · 6</button>
+								<button class="filter-chip" type="button" data-filter="Curry" aria-pressed="false">Curry · 4</button>
+								<button class="filter-chip" type="button" data-filter="Soup" aria-pressed="false">Soup · 2</button>
+								<button class="filter-chip" type="button" data-filter="weekly" aria-pressed="false">Weekly · 1</button>
+							</div>
+							<div class="demo-actions">
+								<select id="demo-sort" aria-label="Sort shopping items">
+									<option value="list">List order</option>
+									<option value="az">A–Z</option>
+									<option value="store">Store route</option>
+								</select>
+								<button class="manage-button" type="button" id="manage-demo">Manage weekly items</button>
+							</div>
+						</div>
+						<p class="demo-status" id="demo-status" aria-live="polite">Showing all items in List order.</p>
+						<div class="demo-list-wrap">
+							<div class="list-head"><span>To buy</span><span id="demo-count">6 items</span></div>
+							<div id="demo-list"></div>
+						</div>
+						<div class="demo-dock">
+							<button type="button">Add item</button>
+							<button type="button">Review in AH · 6</button>
+						</div>
+					</div>
+				</div>
+				<div class="prototype-notes">
+					<h3>What this resolves</h3>
+					<p>The selected composition keeps the acquisition task stable while making every other view a lens—not another interaction model.</p>
+					<div class="callout">
+						<strong>Green is retained, copy is reduced</strong>
+						<p>One Shopping heading. AH, week, delivery, meal plan, and progress remain supporting context.</p>
+					</div>
+					<div class="callout">
+						<strong>One item, many owners</strong>
+						<p>Shared items stay one row. The row stores every source, recipe, meal, entry ID, and revision behind it.</p>
+					</div>
+					<div class="callout warning">
+						<strong>Incompatible does not mean combinable</strong>
+						<p>One Tomatoes row can show “4 · Rice bowl” and “500 g · Soup.” AH must require an explicit pack-count confirmation.</p>
+					</div>
+					<div class="rule-menu" aria-label="Example item action menu">
+						<span>Edit shopping rule</span>
+						<span>Manage weekly items</span>
+						<span>Remove this week</span>
+					</div>
+					<div class="callout">
+						<strong>Excluded rules do not disappear</strong>
+						<p>Optional and usually-stocked recipe sources remain in a secondary Manage shopping rules surface backed by all recipe sources.</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="panel" id="architecture">
+			<div class="panel-head">
+				<div>
+					<span class="kicker">Architecture</span>
+					<h2>Repair the canonical row before changing the view</h2>
+					<p>There is one item identity model. Filters and Store Route are copied display projections; AH and AI continue consuming the server projection.</p>
+				</div>
+				<span class="locked">No parallel identity</span>
+			</div>
+			<div class="flow">
+				<div class="flow-node">
+					<h3>Source entries</h3>
+					<ul>
+						<li>recipe</li>
+						<li>manual</li>
+						<li>weekly</li>
+						<li>legacy review</li>
+					</ul>
+				</div>
+				<div class="flow-arrow" aria-hidden="true">→</div>
+				<div class="flow-node primary">
+					<h3>getShoppingWeekView</h3>
+					<p>One normalized selected Dutch term = one row.</p>
+					<ul>
+						<li>all sources and entry IDs</li>
+						<li>compatible sum or warning</li>
+						<li>one bought state</li>
+					</ul>
+				</div>
+				<div class="flow-arrow" aria-hidden="true">→</div>
+				<div class="consumer-stack">
+					<div class="consumer"><strong>Quiet Ledger</strong><span>meal filter · A–Z · Store Route</span></div>
+					<div class="consumer"><strong>AH preview/push</strong><span>unfiltered Dutch term · all IDs/revisions</span></div>
+					<div class="consumer"><strong>AI shopping tool</strong><span>one canonical row · warning flag</span></div>
+				</div>
+			</div>
+			<p class="invariant">Store Route classification is client-safe display data only. It never enters recipe, inventory, shopping-entry, AH, or AI writes.</p>
+		</section>
+
+		<section class="panel" id="options">
+			<div class="panel-head">
+				<div>
+					<span class="kicker">Technical convergence</span>
+					<h2>Why the route stays code-only</h2>
+					<p>The integrated physical-store option must not create a new maintenance job or depend on AH.</p>
+				</div>
+			</div>
+			<div class="option-table-wrap">
+				<table>
+					<thead><tr><th>Option</th><th>Outcome</th><th>Strength</th><th>Cost / reason</th></tr></thead>
+					<tbody>
+						<tr><td><strong>A1 only</strong></td><td>Partial</td><td>Fastest and simplest</td><td>Omits the explicitly requested physical-store route</td></tr>
+						<tr class="selected-row"><td><strong>A1 + conservative Store Route</strong></td><td><strong>Selected</strong></td><td>Offline, reversible, no schema</td><td>Unknowns group under Other</td></tr>
+						<tr><td>Persisted categories</td><td>Rejected</td><td>Correctable and customizable</td><td>R3 migration plus recurring household maintenance</td></tr>
+						<tr><td>AH category lookup</td><td>Rejected</td><td>Potentially rich catalog data</td><td>Physical shopping would depend on one connected digital store</td></tr>
+						<tr><td>Inventory section / food class</td><td>Rejected</td><td>Existing fields</td><td>Storage and food taxonomy are not store position</td></tr>
+						<tr><td>AI category inference</td><td>Rejected</td><td>Broad vocabulary</td><td>Metered, networked, nondeterministic, and still needs ownership</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<section class="panel" id="phases">
+			<div class="panel-head">
+				<div>
+					<span class="kicker">Execution sequence</span>
+					<h2>Five checkpoints, each independently verifiable</h2>
+					<p>Consumer safety precedes composition; dead-mode deletion happens only after every recovery path has a new home.</p>
+				</div>
+			</div>
+			<div class="phase-strip">
+				<div class="phase"><b>Phase 1</b><h3>Canonical row</h3><p>Deduplicate incompatible terms and lock AH/AI behavior.</p></div>
+				<div class="phase"><b>Phase 2</b><h3>View projection</h3><p>One predicate, stable sorts, conservative Store Route.</p></div>
+				<div class="phase"><b>Phase 3</b><h3>Quiet Ledger</h3><p>Green header, filter rail, one list, compact rows.</p></div>
+				<div class="phase"><b>Phase 4</b><h3>Maintenance</h3><p>Rule chooser, all-rule access, weekly manager, legacy.</p></div>
+				<div class="phase"><b>Phase 5</b><h3>Release</h3><p>Delete dead modes, verify every state, run all gates.</p></div>
+			</div>
+		</section>
+
+		<section class="panel" id="tickets">
+			<div class="panel-head">
+				<div>
+					<span class="kicker">Execution tickets</span>
+					<h2>Eight observable slices</h2>
+					<p>Filter the cards by phase. Every ticket has an explicit rollback and avoids schema work.</p>
+				</div>
+				<span class="locked">SHOP-1 → SHOP-8</span>
+			</div>
+			<div class="ticket-controls" aria-label="Filter tickets">
+				<button class="ticket-filter" type="button" data-ticket-filter="all" aria-pressed="true">All</button>
+				<button class="ticket-filter" type="button" data-ticket-filter="model" aria-pressed="false">Model</button>
+				<button class="ticket-filter" type="button" data-ticket-filter="surface" aria-pressed="false">Surface</button>
+				<button class="ticket-filter" type="button" data-ticket-filter="maintenance" aria-pressed="false">Maintenance</button>
+				<button class="ticket-filter" type="button" data-ticket-filter="release" aria-pressed="false">Release</button>
+			</div>
+			<div class="ticket-grid">
+				<article class="ticket" data-phase="model">
+					<div class="ticket-top"><span class="ticket-id">SHOP-1</span><span class="risk">R2 · L</span></div>
+					<h3>Canonical aggregation + AH/AI</h3>
+					<p>One Dutch term becomes one row/ref while every source and incompatible amount remains honest.</p>
+					<ul><li>Server projection first</li><li>Explicit AH pack confirmation</li><li>Preview/push/AI contract tests</li></ul>
+					<footer>Rollback the projection and all consumer changes together.</footer>
+				</article>
+				<article class="ticket" data-phase="model">
+					<div class="ticket-top"><span class="ticket-id">SHOP-2</span><span class="risk">R2 · L</span></div>
+					<h3>Filters, sorts, Store Route</h3>
+					<p>One source-derived predicate and one conservative client-safe classifier.</p>
+					<ul><li>All / meal / Weekly</li><li>List / A–Z / Store route</li><li>Exact rules + Other fallback</li></ul>
+					<footer>Rollback to canonical List order.</footer>
+				</article>
+				<article class="ticket" data-phase="surface">
+					<div class="ticket-top"><span class="ticket-id">SHOP-3</span><span class="risk">R1 · S</span></div>
+					<h3>Green Shopping band</h3>
+					<p>One identity; week, delivery, meal plan, progress, and AH remain.</p>
+					<ul><li>Keep olive gradient</li><li>Remove repeated Run copy</li><li>Remove duplicate desktop context card</li></ul>
+					<footer>Header-only code revert.</footer>
+				</article>
+				<article class="ticket" data-phase="surface">
+					<div class="ticket-top"><span class="ticket-id">SHOP-4</span><span class="risk">R2 · L</span></div>
+					<h3>Quiet Ledger surface</h3>
+					<p>Remove peer tabs and render one compact, filterable, sortable list.</p>
+					<ul><li>44 px hit areas</li><li>Scoped done/covered states</li><li>Visible-order focus and undo</li></ul>
+					<footer>Restore prior list composition while retaining safe SHOP-1.</footer>
+				</article>
+				<article class="ticket" data-phase="maintenance">
+					<div class="ticket-top"><span class="ticket-id">SHOP-5</span><span class="risk">R2 · M</span></div>
+					<h3>Rule and manual source routing</h3>
+					<p>Exact commands preserve source ownership, including excluded recipe rules.</p>
+					<ul><li>Single-source direct edit</li><li>Shared-source chooser</li><li>Manage shopping rules + manual undo</li></ul>
+					<footer>Temporarily restore old source panel if needed.</footer>
+				</article>
+				<article class="ticket" data-phase="maintenance">
+					<div class="ticket-top"><span class="ticket-id">SHOP-6</span><span class="risk">R2 · M</span></div>
+					<h3>Weekly-item manager</h3>
+					<p>One BottomSheet owns list, add, edit, skip, and stop states.</p>
+					<ul><li>No stacked dialogs</li><li>Pending/error locks</li><li>Focus entry and return</li></ul>
+					<footer>Restore existing recurring component in one non-nested surface.</footer>
+				</article>
+				<article class="ticket" data-phase="maintenance">
+					<div class="ticket-top"><span class="ticket-id">SHOP-7</span><span class="risk">R2 · M</span></div>
+					<h3>Legacy, notices, dead-mode deletion</h3>
+					<p>Every exception keeps a home; old tabs, panels, CSS, comments, and keys do not.</p>
+					<ul><li>Legacy attach/manual/dismiss</li><li>Freezer/meal/AH notices</li><li>No Run / meals / Every week / Change remnants</li></ul>
+					<footer>Restore only the affected disclosure; no data rollback.</footer>
+				</article>
+				<article class="ticket" data-phase="release">
+					<div class="ticket-top"><span class="ticket-id">SHOP-8</span><span class="risk">R2 · M</span></div>
+					<h3>Cross-state release gate</h3>
+					<p>English/Dutch, 375/768/1280, narrow reflow, high zoom, recovery, and repository gates.</p>
+					<ul><li>Zero overflow/console errors</li><li>All AH recovery states</li><li>Check, tests, build, diff check</li></ul>
+					<footer>Revert by ticket or the complete code-only change set.</footer>
+				</article>
+			</div>
+		</section>
+
+		<section class="panel" id="risks">
+			<div class="panel-head">
+				<div>
+					<span class="kicker">Failure-mode review</span>
+					<h2>The dangerous seams are visible</h2>
+					<p>Independent review initially returned REVISE; these contracts are now first-class tickets and gates.</p>
+				</div>
+				<span class="locked">No P0 / P1 gap</span>
+			</div>
+			<div class="option-table-wrap">
+				<table class="risk-table">
+					<thead><tr><th>Failure</th><th>Trigger</th><th>Mitigation</th><th>Residual</th></tr></thead>
+					<tbody>
+						<tr><td>Duplicate incompatible item</td><td>Client-only merge over old server clusters</td><td>Repair server projection in SHOP-1</td><td>Low</td></tr>
+						<tr><td>Silent AH under-buy</td><td>Null aggregate defaults to one pack</td><td>Source details + explicit pack confirmation</td><td>Low</td></tr>
+						<tr><td>Filtered AH send</td><td>Visible array replaces canonical pending</td><td>AhSheet remains wired to unfiltered pending</td><td>Low</td></tr>
+						<tr><td>Wrong recipe edited</td><td>Shared row bypasses source ownership</td><td>Ingredient + recipe chooser and revisions</td><td>Low</td></tr>
+						<tr><td>Excluded rule stranded</td><td>Meals tab removed</td><td>All-recipe Manage shopping rules surface</td><td>Low</td></tr>
+						<tr><td>Wrong store section</td><td>Loose substring or mixed form</td><td>Exact rules, fixed precedence, Other fallback</td><td>Low–medium</td></tr>
+						<tr><td>Dialog focus trap</td><td>Recurring sheets stack</td><td>One BottomSheet owner with internal states</td><td>Low</td></tr>
+						<tr><td>Compact means untappable</td><td>Row and hit box shrink together</td><td>44 px controls independent of text density</td><td>Low</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<section class="panel" id="verification">
+			<div class="panel-head">
+				<div>
+					<span class="kicker">Release evidence</span>
+					<h2>State, language, and viewport matrix</h2>
+					<p>All browser checks also require zero horizontal overflow, zero console errors, and no final row hidden by the dock.</p>
+				</div>
+			</div>
+			<div class="matrix-wrap">
+				<table class="matrix">
+					<thead><tr><th>State</th><th>375</th><th>768</th><th>1280</th><th>320 / 200%</th></tr></thead>
+					<tbody>
+						<tr><td>Populated A1 default</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+						<tr><td>Meal / Weekly filters</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+						<tr><td>Store Route + Other</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+						<tr><td>Long / shared / incompatible</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+						<tr><td>Covered / completed / restore</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+						<tr><td>Empty / no meals</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+						<tr><td>Recurring / rule maintenance</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+						<tr><td>AH disconnected / stale / partial / uncertain</td><td class="yes">Yes</td><td>Targeted</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+						<tr><td>English / Dutch / keyboard / reduced motion</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+					</tbody>
+				</table>
+			</div>
+			<div class="gate-box">
+				<div class="gate">npm run check</div>
+				<div class="gate">npm run test:unit</div>
+				<div class="gate">npm run build</div>
+				<div class="gate">git diff --check</div>
+			</div>
+		</section>
+
+		<section class="panel" id="handoff">
+			<div class="panel-head">
+				<div>
+					<span class="kicker">Forward-only handoff</span>
+					<h2>The next step is implementation</h2>
+					<p>No product decision remains open. Load the Markdown source, then execute through <code>$run</code>.</p>
+				</div>
+				<span class="locked">0 open questions</span>
+			</div>
+			<div class="handoff">
+				<div>
+					<h3>Resume pack</h3>
+					<ul>
+						<li><strong>First file:</strong> <code>src/lib/server/shopping_view.ts</code></li>
+						<li><strong>First test:</strong> one incompatible term, one row, all sources, no fabricated quantity.</li>
+						<li><strong>Then:</strong> AH preview/push, AI output, pure view projection, UI, maintenance, release.</li>
+						<li><strong>Risk:</strong> R2 code-only; rollback is a code revert.</li>
+						<li><strong>Schema:</strong> none.</li>
+					</ul>
+					<p class="source-note">
+						Authoritative source:<br />
+						<code>docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md</code>
+					</p>
+				</div>
+				<div>
+					<label for="handoff-text"><strong>Generated implementation prompt</strong></label>
+					<textarea id="handoff-text" readonly>Continue the Shopping one-list refinement workflow.
+
+Load the authoritative plan:
+docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md
+
+Approved outcome:
+- A1 Quiet Ledger is the default.
+- Store Route is an optional, conservative, display-only sort/grouping.
+- Preserve the olive-green Shopping utility band.
+- Remove Weekly shop / Household run / Market run / Run and the Run / meals / Every week switch.
+- One normalized Dutch shopping term must become one row, including incompatible quantities.
+- Preserve every source, entry ID, recipe rule, recurring action, legacy review, AH invariant, and AI consumer contract.
+- Keep AhSheet wired to the unfiltered canonical pending list.
+- No schema, saved categories, AH-derived categories, or ongoing category maintenance.
+
+Execution:
+- Run SHOP-1 through SHOP-8 in order.
+- Start in src/lib/server/shopping_view.ts and its incompatible-quantity test.
+- Do not begin UI composition until AH preview/push and AI consumer tests pass.
+- Verify every state in English and Dutch at 375, 768, and 1280 px plus 320 reflow and 200% zoom.
+- Run npm run check, npm run test:unit, npm run build, and git diff --check.
+
+Next action: use $run. Do not re-plan or reopen the accepted design unless repository evidence creates a new blocker.</textarea>
+					<button class="copy-button" type="button" id="copy-handoff">Copy handoff</button>
+					<span class="copy-status" id="copy-status" aria-live="polite"></span>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+		(() => {
+			const items = [
+				{ id: 1, name: "Kipfilet", amount: "400 g", meals: ["Curry"], weekly: false, section: "Fresh", context: "" },
+				{ id: 2, name: "Kikkererwten", amount: "2 cans", meals: ["Curry"], weekly: false, section: "Pantry", context: "" },
+				{ id: 3, name: "Rijst", amount: "500 g", meals: ["Curry", "Rice bowl"], weekly: false, section: "Pantry", context: "Shared by 2 meals" },
+				{ id: 4, name: "Tomaten", amount: "", meals: ["Soup", "Rice bowl"], weekly: false, section: "Fresh", context: "Amounts do not combine", warning: true,
+					sources: ["4 · Rice bowl", "500 g · Soup"] },
+				{ id: 5, name: "Yoghurt", amount: "500 ml", meals: ["Curry"], weekly: false, section: "Chilled", context: "" },
+				{ id: 6, name: "Brood", amount: "1 loaf", meals: [], weekly: true, section: "Bakery", context: "Weekly item" }
+			];
+			const sectionOrder = ["Fresh", "Bakery", "Chilled", "Pantry", "Frozen", "Household", "Other"];
+			let activeFilter = "all";
+			let sort = "list";
+			const list = document.getElementById("demo-list");
+			const count = document.getElementById("demo-count");
+			const status = document.getElementById("demo-status");
+
+			function matches(item) {
+				if (activeFilter === "all") return true;
+				if (activeFilter === "weekly") return item.weekly;
+				return item.meals.includes(activeFilter);
+			}
+			function projected() {
+				const rows = items.filter(matches).map((item, index) => ({ ...item, index }));
+				if (sort === "az") rows.sort((a, b) => a.name.localeCompare(b.name, "nl-NL") || a.index - b.index);
+				if (sort === "store") rows.sort((a, b) => sectionOrder.indexOf(a.section) - sectionOrder.indexOf(b.section) || a.index - b.index);
+				return rows;
+			}
+			function rowHtml(item) {
+				const sourceLines = item.sources
+					? `<ul class="source-lines">${item.sources.map((source) => `<li>${source}</li>`).join("")}</ul>`
+					: "";
+				return `<li class="demo-row${item.warning ? " warning" : ""}">
+					<button class="check-button" type="button" aria-label="Mark ${item.name} as bought"><span>✓</span></button>
+					<div class="row-copy"><div><strong>${item.name}</strong><em>${item.amount}</em></div>${item.context ? `<small>${item.context}</small>` : ""}${sourceLines}</div>
+					<button class="row-action" type="button" aria-label="Actions for ${item.name}" data-action-name="${item.name}">•••</button>
+				</li>`;
+			}
+			function render() {
+				const rows = projected();
+				count.textContent = `${rows.length} ${rows.length === 1 ? "item" : "items"}`;
+				if (sort === "store") {
+					list.innerHTML = sectionOrder.map((section) => {
+						const group = rows.filter((item) => item.section === section);
+						if (!group.length) return "";
+						return `<section class="demo-section"><div class="section-head"><span>${section}</span><span>${group.length}</span></div><ul class="demo-list">${group.map(rowHtml).join("")}</ul></section>`;
+					}).join("");
+				} else {
+					list.innerHTML = `<ul class="demo-list">${rows.map(rowHtml).join("")}</ul>`;
+				}
+				const label = activeFilter === "all" ? "all items" : activeFilter === "weekly" ? "weekly items" : `${activeFilter} items`;
+				const sortLabel = sort === "list" ? "List order" : sort === "az" ? "A–Z" : "Store route";
+				status.textContent = `Showing ${label} in ${sortLabel}.`;
+				list.querySelectorAll("[data-action-name]").forEach((button) => {
+					button.addEventListener("click", () => {
+						status.textContent = `Actions for ${button.dataset.actionName}: Edit shopping rule is source-owned.`;
+					});
+				});
+				list.querySelectorAll(".check-button").forEach((button) => {
+					button.addEventListener("click", () => {
+						button.classList.toggle("bought");
+						status.textContent = button.classList.contains("bought") ? "Item moved to In basket." : "Item restored to To buy.";
+					});
+				});
+			}
+			document.querySelectorAll(".filter-chip").forEach((button) => {
+				button.addEventListener("click", () => {
+					activeFilter = button.dataset.filter;
+					document.querySelectorAll(".filter-chip").forEach((candidate) =>
+						candidate.setAttribute("aria-pressed", String(candidate === button)));
+					render();
+				});
+			});
+			document.getElementById("demo-sort").addEventListener("change", (event) => {
+				sort = event.target.value;
+				render();
+			});
+			document.getElementById("manage-demo").addEventListener("click", () => {
+				status.textContent = "Manage weekly items opens one focused, non-stacked surface.";
+			});
+			render();
+
+			document.querySelectorAll(".ticket-filter").forEach((button) => {
+				button.addEventListener("click", () => {
+					const selected = button.dataset.ticketFilter;
+					document.querySelectorAll(".ticket-filter").forEach((candidate) =>
+						candidate.setAttribute("aria-pressed", String(candidate === button)));
+					document.querySelectorAll(".ticket").forEach((ticket) => {
+						ticket.classList.toggle("hidden", selected !== "all" && ticket.dataset.phase !== selected);
+					});
+				});
+			});
+
+			const copyButton = document.getElementById("copy-handoff");
+			const copyStatus = document.getElementById("copy-status");
+			copyButton.addEventListener("click", async () => {
+				const text = document.getElementById("handoff-text").value;
+				try {
+					await navigator.clipboard.writeText(text);
+					copyStatus.textContent = "Copied.";
+				} catch {
+					document.getElementById("handoff-text").select();
+					copyStatus.textContent = "Selected. Copy with Ctrl+C.";
+				}
+			});
+		})();
+	</script>
+</body>
+</html>

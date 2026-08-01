@@ -1,5 +1,18 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { kitchenFixtureFor } from './fixtures';
+
+async function expectSettledSourceControl(control: Locator) {
+	await expect
+		.poll(() =>
+			control.evaluateAll((elements) => ({
+				count: elements.length,
+				enabled: elements.filter(
+					(element) => element instanceof HTMLButtonElement && !element.disabled
+				).length
+			}))
+		)
+		.toEqual({ count: 1, enabled: 1 });
+}
 
 test('Stock quantity, delete, and undo stay recoverable', async ({ page }, testInfo) => {
 	const fixture = kitchenFixtureFor(testInfo);
@@ -322,11 +335,11 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 					response.request().method() === 'POST' &&
 					response.url().endsWith('/api/shopping/recipe-choice')
 			);
-			await page
-				.getByRole('button', {
-					name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: ${transition.current}`
-				})
-				.click();
+			const needControl = page.getByRole('button', {
+				name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: ${transition.current}`
+			});
+			await expectSettledSourceControl(needControl);
+			await needControl.click();
 			const response = await changed;
 			expect(response.ok()).toBe(true);
 			expect(response.request().postDataJSON()).toMatchObject({
@@ -339,21 +352,16 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingSibling} bought` })
 	).toBeVisible();
 	for (const recipeTitle of [fixture.recipeTitle, otherRecipeTitle]) {
-		await expect(
-			page.getByRole('button', {
-				name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: Always`
-			})
-		).toBeVisible();
+		const needControl = page.getByRole('button', {
+			name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: Always`
+		});
+		await expectSettledSourceControl(needControl);
 		const excluded = page.waitForResponse(
 			(response) =>
 				response.request().method() === 'POST' &&
 				response.url().endsWith('/api/shopping/recipe-choice')
 		);
-		await page
-			.getByRole('button', {
-				name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: Always`
-			})
-			.click();
+		await needControl.click();
 		expect((await excluded).ok()).toBe(true);
 	}
 	await expect(

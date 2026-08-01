@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Joined Command Bar — responsive refinement</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f3e9;
+      --card: #fffdf7;
+      --ink: #243128;
+      --muted: #68736b;
+      --line: #d9d2c4;
+      --olive: #334638;
+      --olive-deep: #293b30;
+      --olive-soft: #49614f;
+      --honey: #d3a046;
+      --terra: #a84d2a;
+      --display: Georgia, 'Times New Roman', serif;
+      --focus: #1d70c9;
+      --shadow: 0 12px 30px rgb(31 43 35 / 12%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--paper); scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: var(--paper); }
+    button, select, textarea { font: inherit; }
+    button, select { cursor: pointer; }
+    button:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+    .intro {
+      padding: clamp(1.45rem, 4vw, 3.4rem) max(1rem, calc((100vw - 80rem) / 2));
+      color: white;
+      background:
+        radial-gradient(circle at 86% 0, rgb(255 255 255 / 10%), transparent 14rem),
+        linear-gradient(135deg, var(--olive-deep), var(--olive-soft));
+    }
+    .intro-kicker { margin: 0 0 .4rem; color: #f2ca74; font-size: .69rem; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 18ch; margin-bottom: .68rem; font: 600 clamp(2rem, 5vw, 4.4rem)/.96 var(--display); letter-spacing: -.04em; }
+    .intro-copy { max-width: 70ch; margin-bottom: 1rem; color: rgb(255 255 255 / 78%); line-height: 1.55; }
+    .invariants { display: flex; flex-wrap: wrap; gap: .42rem; }
+    .invariants span, .invariants a { min-height: 2.2rem; display: inline-flex; align-items: center; border: 1px solid rgb(255 255 255 / 22%); border-radius: 999px; padding: .35rem .68rem; color: white; background: rgb(255 255 255 / 8%); font-size: .73rem; text-decoration: none; }
+
+    .switchboard { position: sticky; z-index: 30; top: 0; border-bottom: 1px solid var(--line); padding: .65rem max(1rem, calc((100vw - 80rem) / 2)); background: rgb(247 243 233 / 95%); box-shadow: 0 5px 18px rgb(41 59 48 / 7%); backdrop-filter: blur(12px); }
+    .switchboard-inner { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem 1rem; }
+    .switch-label { display: block; margin-bottom: .22rem; color: var(--muted); font-size: .61rem; font-weight: 820; letter-spacing: .08em; text-transform: uppercase; }
+    .switches { display: flex; flex-wrap: wrap; gap: .22rem; }
+    .switches button { min-height: 2.75rem; border: 1px solid var(--line); border-radius: .58rem; padding: .4rem .7rem; color: var(--ink); background: var(--card); font-size: .75rem; font-weight: 740; }
+    .switches button[aria-pressed="true"] { border-color: var(--olive); color: white; background: var(--olive); }
+    .switch-help { margin-left: auto; color: var(--muted); font-size: .71rem; }
+
+    .workspace { max-width: 96rem; margin: 0 auto; padding: clamp(1.2rem, 3vw, 2.4rem) 1rem 5rem; }
+    .brief { max-width: 80rem; margin: 0 auto 1.5rem; display: grid; grid-template-columns: minmax(0,1fr) minmax(18rem,.42fr); gap: 1.4rem; border-bottom: 1px solid var(--line); padding-bottom: 1.2rem; }
+    .brief h2 { margin-bottom: .35rem; font: 600 clamp(1.5rem,3vw,2.35rem)/1 var(--display); }
+    .brief p { margin-bottom: 0; color: var(--muted); line-height: 1.5; }
+    .recommendation { border-left: 3px solid var(--honey); padding-left: .8rem; color: var(--ink) !important; font-size: .83rem; }
+
+    .spread { display: grid; gap: 1.3rem; }
+    .variant { display: grid; grid-template-columns: minmax(15rem,18rem) minmax(0,1fr); gap: 1rem; border-top: 1px solid var(--line); padding-top: 1.2rem; }
+    .variant:first-child { border-top: 0; }
+    .variant-copy { align-self: start; padding-top: .25rem; }
+    .letter { width: 2rem; height: 2rem; display: grid; place-items: center; margin-bottom: .62rem; border: 1px solid var(--olive); border-radius: 999px; color: var(--olive); font: 700 1rem/1 var(--display); }
+    .variant[data-recommended="true"] .letter { border-color: var(--honey); color: #332613; background: var(--honey); }
+    .variant h3 { margin-bottom: .28rem; font: 600 1.45rem/1.05 var(--display); }
+    .thesis { margin-bottom: .65rem; color: var(--muted); font-size: .81rem; line-height: 1.48; }
+    .variant dl { margin: 0; font-size: .72rem; line-height: 1.42; }
+    .variant dt { float: left; clear: left; margin-right: .3rem; font-weight: 820; }
+    .variant dd { margin: 0 0 .28rem; color: var(--muted); }
+    .choose { min-height: 2.75rem; margin-top: .7rem; border: 1px solid var(--olive); border-radius: .62rem; padding: .4rem .7rem; color: var(--olive); background: transparent; font-size: .74rem; font-weight: 820; }
+    .variant.selected .choose { color: white; background: var(--olive); }
+    .variant.selected .stage { box-shadow: 0 0 0 3px rgb(51 70 56 / 24%), var(--shadow); }
+
+    .stage-scroll { min-width: 0; overflow-x: auto; padding: .2rem .2rem .8rem; }
+    .stage { width: 100%; min-width: 52rem; overflow: hidden; border: 1px solid #cfc8bc; border-radius: .9rem; background: var(--paper); box-shadow: var(--shadow); }
+    .stage.phone { width: 393px; min-width: 393px; margin-inline: auto; }
+    .stage-label { height: 1.65rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #d6d0c5; padding: 0 .6rem; color: #77736b; background: #ebe7df; font-size: .59rem; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+    .screen { position: relative; height: 28rem; overflow: hidden; background: var(--paper); }
+
+    /* Fixed selected brand and command-bar skin. */
+    .green {
+      position: relative;
+      overflow: hidden;
+      padding: .55rem .72rem .62rem;
+      color: white;
+      background:
+        radial-gradient(circle at 88% 0, rgb(255 255 255 / 10%), transparent 11rem),
+        linear-gradient(135deg, var(--olive-deep), var(--olive-soft));
+    }
+    .green::after { position: absolute; right: -3rem; bottom: -5rem; width: 10rem; height: 10rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: 999px; content: ''; pointer-events: none; }
+    .headbar { position: relative; z-index: 1; display: grid; min-width: 0; gap: .48rem; }
+    .identity { min-width: 0; }
+    .identity-inner { display: flex; min-width: 0; align-items: center; gap: .42rem; }
+    .back { width: 2.75rem; height: 2.75rem; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid rgb(255 255 255 / 23%); border-radius: .62rem; background: rgb(255 255 255 / 7%); font-size: 1.15rem; }
+    .title-copy { min-width: 0; }
+    .title-copy small { display: block; color: #f2ca74; font-size: .5rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .title-copy strong { display: -webkit-box; overflow: hidden; margin-top: .03rem; font: 600 1.12rem/1.03 var(--display); letter-spacing: -.02em; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .joined-actions { display: flex; min-width: 0; align-items: stretch; }
+    .action { min-width: 0; min-height: 2.75rem; display: inline-flex; align-items: center; justify-content: center; gap: .26rem; margin-left: -1px; border: 1px solid rgb(255 255 255 / 24%); border-radius: 0; padding: 0 .64rem; color: white; background: rgb(255 255 255 / 8%); font-size: .63rem; font-weight: 780; line-height: 1.1; text-align: center; }
+    .action:first-child { margin-left: 0; border-radius: .66rem 0 0 .66rem; }
+    .action:last-child { border-radius: 0 .66rem .66rem 0; }
+    .action.primary { border-color: transparent; background: var(--terra); box-shadow: 0 5px 14px rgb(20 28 23 / 20%); }
+    .action span { font-size: .78rem; }
+
+    .desktop-toolbar { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(9rem,1.45fr) minmax(10rem,1fr) minmax(10rem,1fr) minmax(5.4rem,.48fr); gap: .36rem; margin-top: .5rem; }
+    .tool-field { min-width: 0; min-height: 2.65rem; display: flex; align-items: center; gap: .34rem; border: 1px solid rgb(255 255 255 / 24%); border-radius: .65rem; padding: 0 .62rem; color: rgb(255 255 255 / 79%); background: rgb(255 255 255 / 9%); font-size: .59rem; }
+    .tool-field strong { color: white; font-weight: 790; }
+    .joined-filter { display: flex; min-width: 0; }
+    .joined-filter button { min-width: 0; min-height: 2.65rem; flex: 1; overflow: hidden; margin-left: -1px; border: 1px solid rgb(255 255 255 / 24%); border-radius: 0; padding: 0 .42rem; color: rgb(255 255 255 / 80%); background: rgb(255 255 255 / 7%); font-size: .55rem; font-weight: 720; text-overflow: ellipsis; white-space: nowrap; }
+    .joined-filter button:first-child { margin-left: 0; border-radius: .65rem 0 0 .65rem; }
+    .joined-filter button:last-child { border-radius: 0 .65rem .65rem 0; }
+    .joined-filter button.active { color: #302510; border-color: var(--honey); background: var(--honey); }
+    .toolbar-label { display: block; overflow: hidden; color: #f2ca74; font-size: .48rem; font-weight: 820; letter-spacing: .06em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+    .tool-stack { min-width: 0; }
+    .tool-stack .joined-filter { margin-top: .12rem; }
+
+    .mobile-tools { position: relative; z-index: 3; display: grid; gap: .36rem; margin-top: .46rem; }
+    .mobile-search { min-height: 2.65rem; display: flex; min-width: 0; align-items: center; gap: .34rem; border: 1px solid rgb(255 255 255 / 24%); border-radius: .65rem; padding: 0 .62rem; color: rgb(255 255 255 / 78%); background: rgb(255 255 255 / 9%); font-size: .6rem; }
+    .select-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .34rem; }
+    .mobile-select, .menu-trigger, .summary-trigger { min-width: 0; min-height: 2.75rem; border: 1px solid rgb(255 255 255 / 24%); border-radius: .65rem; padding: 0 1.7rem 0 .62rem; color: white; background-color: rgb(255 255 255 / 10%); font-size: .61rem; font-weight: 730; }
+    .mobile-select option { color: var(--ink); background: var(--card); }
+    .menu-trigger, .summary-trigger { position: relative; width: 100%; padding-right: .7rem; text-align: left; }
+    .menu-trigger::after, .summary-trigger::after { position: absolute; right: .62rem; content: '⌄'; }
+    .menu-trigger .active-summary, .summary-trigger .active-summary { display: block; margin-top: .1rem; color: #f2ca74; font-size: .5rem; font-weight: 650; }
+    .menu-popover { position: absolute; z-index: 9; right: .72rem; left: .72rem; margin-top: .18rem; border: 1px solid var(--line); border-radius: .72rem; padding: .5rem; color: var(--ink); background: var(--card); box-shadow: 0 14px 30px rgb(24 34 27 / 24%); }
+    .menu-popover[hidden] { display: none; }
+    .menu-section + .menu-section { margin-top: .48rem; padding-top: .48rem; border-top: 1px solid var(--line); }
+    .menu-section strong { display: block; margin-bottom: .26rem; color: var(--muted); font-size: .53rem; letter-spacing: .06em; text-transform: uppercase; }
+    .menu-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .26rem; }
+    .menu-options button { min-height: 2.6rem; border: 1px solid var(--line); border-radius: .58rem; padding: .35rem; color: var(--ink); background: var(--paper); font-size: .58rem; text-align: left; }
+    .menu-options button.active { border-color: var(--olive); color: var(--olive); background: #e4ebe3; }
+    .menu-actions { display: flex; justify-content: flex-end; gap: .3rem; margin-top: .48rem; }
+    .menu-actions button { min-height: 2.5rem; border: 1px solid var(--line); border-radius: .55rem; padding: 0 .65rem; color: var(--ink); background: var(--paper); font-size: .58rem; font-weight: 760; }
+    .menu-actions .done { color: white; border-color: var(--olive); background: var(--olive); }
+
+    .paper-seam { border-bottom: 1px solid var(--line); padding: .52rem .72rem; background: var(--paper); }
+    .active-strip { display: flex; align-items: center; gap: .3rem; overflow: hidden; color: var(--muted); font-size: .58rem; }
+    .active-chip { min-height: 2rem; display: inline-flex; align-items: center; border: 1px solid var(--olive); border-radius: 999px; padding: 0 .55rem; color: var(--olive); background: #e4ebe3; white-space: nowrap; }
+    .content { padding: .72rem .78rem 2rem; }
+    .content h4 { margin: 0 0 .45rem; font: 600 1rem/1 var(--display); }
+    .stock-item { max-width: 28rem; border: 1px solid #dfb269; border-left: 4px solid #dfb269; border-radius: .65rem; padding: .65rem; background: #fff4df; }
+    .stock-item b, .recipe-card b { display: block; font-size: .65rem; }
+    .stock-item span, .recipe-card span { color: var(--muted); font-size: .55rem; }
+    .recipe-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .4rem; }
+    .recipe-card { min-height: 5.25rem; overflow: hidden; border: 1px solid var(--line); border-radius: .68rem; background: var(--card); }
+    .recipe-card i { height: 2.9rem; display: grid; place-items: center; color: #77736c; background: #f0ede7; font-style: normal; font-size: 1.2rem; }
+    .recipe-card b { padding: .4rem .4rem 0; }
+    .recipe-card span { display: block; padding: .1rem .4rem .4rem; }
+    .detail-block { border: 1px solid var(--line); border-left: 5px solid #ed9705; border-radius: .7rem; padding: .7rem; background: var(--card); }
+    .detail-block small { color: #925006; font-size: .53rem; font-weight: 800; text-transform: uppercase; }
+    .detail-block p { margin: .3rem 0 0; font: 600 .88rem/1.2 var(--display); }
+
+    .phone .desktop-toolbar { display: none; }
+    .desktop .mobile-tools { display: none; }
+    .phone .recipe-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .phone .recipe-card:nth-child(3) { display: none; }
+    .desktop .green { padding: .68rem 1rem .72rem; }
+    .desktop .headbar { grid-template-columns: minmax(10rem,1fr) auto; align-items: center; }
+    .desktop .joined-actions { justify-self: end; }
+
+    /* A — dedicated two-line title, paired selects */
+    .phone.v-a .headbar { grid-template-columns: 1fr; }
+    .phone.v-a .joined-actions .action { flex: 1; }
+    .v-a .select-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
+
+    /* B — elastic title beside actions, combined menu */
+    .phone.v-b .headbar { grid-template-columns: minmax(0,1fr) auto; align-items: start; }
+    .phone.v-b .joined-actions .action { width: 4.8rem; padding-inline: .38rem; }
+    .phone.v-b .title-copy strong { font-size: 1rem; }
+    .v-b .combined-row { display: grid; grid-template-columns: minmax(0,1fr) 5.4rem; gap: .34rem; }
+
+    /* C — title full width, action bar under, scope + refine */
+    .phone.v-c .headbar { grid-template-columns: 1fr; }
+    .phone.v-c .joined-actions { justify-self: stretch; }
+    .phone.v-c .joined-actions .action { flex: 1; }
+    .v-c .scope-refine { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,.72fr); gap: .34rem; }
+
+    /* D — actions share title row, one combined select */
+    .phone.v-d .headbar { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+    .phone.v-d .joined-actions .action { min-height: 3rem; width: 4.45rem; padding-inline: .3rem; }
+    .phone.v-d .title-copy strong { font-size: .98rem; }
+
+    /* E — full title, attached actions, inline details */
+    .phone.v-e .headbar { grid-template-columns: 1fr; }
+    .phone.v-e .joined-actions .action { flex: 1; }
+    .drawdown { position: relative; z-index: 3; }
+    .drawdown summary { list-style: none; }
+    .drawdown summary::-webkit-details-marker { display: none; }
+    .drawdown[open] .summary-trigger::after { content: '⌃'; }
+    .drawdown-panel { margin-top: .34rem; border: 1px solid rgb(255 255 255 / 18%); border-radius: .7rem; padding: .45rem; background: rgb(16 28 21 / 15%); }
+    .drawdown-panel .menu-section strong { color: #f2ca74; }
+    .drawdown-panel .menu-options button { border-color: rgb(255 255 255 / 20%); color: white; background: rgb(255 255 255 / 8%); }
+    .drawdown-panel .menu-options button.active { color: #302510; border-color: var(--honey); background: var(--honey); }
+
+    /* F — title row then actions, bottom sheet */
+    .phone.v-f .headbar { grid-template-columns: 1fr; }
+    .phone.v-f .joined-actions .action { flex: 1; }
+    .sheet-scrim { position: absolute; z-index: 11; inset: 0; display: flex; align-items: end; background: rgb(24 32 27 / 40%); }
+    .sheet-scrim[hidden] { display: none; }
+    .filter-sheet { width: 100%; max-height: 75%; overflow-y: auto; border-radius: 1rem 1rem 0 0; padding: .72rem; color: var(--ink); background: var(--card); box-shadow: 0 -14px 30px rgb(24 34 27 / 20%); }
+    .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; }
+    .sheet-head h5 { margin: 0; font: 600 1.05rem/1 var(--display); }
+    .sheet-head button { min-height: 2.5rem; border: 1px solid var(--line); border-radius: .55rem; padding: 0 .6rem; background: var(--paper); font-size: .58rem; }
+    .filter-sheet .menu-section strong { color: var(--muted); }
+
+    .decision-zone { max-width: 80rem; margin: 3.5rem auto 0; border-top: 4px solid var(--olive); padding-top: 1.2rem; }
+    .decision-zone h2 { margin-bottom: .35rem; font: 600 clamp(1.6rem,3vw,2.45rem)/1 var(--display); }
+    .decision-lede { max-width: 70ch; color: var(--muted); line-height: 1.5; }
+    fieldset { margin: 0; border: 0; border-top: 1px solid var(--line); padding: 1.1rem 0; }
+    legend { width: 100%; margin-bottom: .65rem; padding: 0; font: 600 1.1rem/1.2 var(--display); }
+    .options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .5rem; }
+    .option { position: relative; min-height: 100%; border: 1px solid var(--line); border-radius: .7rem; padding: .7rem; background: var(--card); cursor: pointer; }
+    .option:has(input:checked) { border-color: var(--olive); box-shadow: inset 0 0 0 1px var(--olive); }
+    .option input { position: absolute; top: .72rem; right: .72rem; width: 1.05rem; height: 1.05rem; accent-color: var(--olive); }
+    .option strong { display: block; padding-right: 1.4rem; font-size: .8rem; }
+    .option small { display: block; margin-top: .24rem; color: var(--muted); font-size: .68rem; line-height: 1.38; }
+    .option em { display: inline-block; margin-top: .32rem; color: #80550c; font-size: .61rem; font-style: normal; font-weight: 830; text-transform: uppercase; }
+    .note { margin-top: .6rem; }
+    .note label { display: block; margin-bottom: .24rem; color: var(--muted); font-size: .69rem; font-weight: 750; }
+    textarea { width: 100%; min-height: 5rem; resize: vertical; border: 1px solid var(--line); border-radius: .62rem; padding: .65rem; color: var(--ink); background: var(--card); line-height: 1.5; }
+    .handoff { border-top: 1px solid var(--line); padding-top: 1.1rem; }
+    .handoff h3 { margin-bottom: .25rem; font: 600 1.3rem/1.1 var(--display); }
+    .handoff p { color: var(--muted); font-size: .75rem; }
+    #handoff { min-height: 18rem; font: .69rem/1.52 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .button-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .55rem; }
+    .workspace-button { min-height: 2.75rem; border: 1px solid var(--olive); border-radius: .62rem; padding: .4rem .78rem; color: white; background: var(--olive); font-size: .74rem; font-weight: 820; }
+    .workspace-button.secondary { color: var(--olive); background: transparent; }
+    .save-status { color: var(--muted); font-size: .69rem; }
+    .save-status.warning { color: #9a4b20; }
+
+    @media (max-width: 72rem) { .variant { grid-template-columns: 1fr; } .variant-copy { max-width: 54rem; } }
+    @media (max-width: 48rem) { .brief { grid-template-columns: 1fr; } .switch-help { width: 100%; margin-left: 0; } .options { grid-template-columns: 1fr; } .workspace { padding-inline: .7rem; } .stage.desktop { min-width: 48rem; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *,*::before,*::after { transition-duration:.01ms!important; animation-duration:.01ms!important; } }
+  </style>
+</head>
+<body>
+  <header class="intro">
+    <p class="intro-kicker">Keukenbrein · Joined Command Bar refinement</p>
+    <h1>Long names, one-line desktop, compact mobile filters</h1>
+    <p class="intro-copy">Six concrete ways to finish the direction you selected. Every desktop specimen uses its available width before adding height. Every phone specimen keeps the joined actions visible and replaces filter-toggle rows with a compact entry control.</p>
+    <div class="invariants"><span>Green aesthetic fixed</span><span>Joined actions fixed</span><span>All actions visible</span><span>Two-line-safe titles</span><span>One desktop toolbar line</span><a href="../../feature-lists/archive/FEATURE_LIST_JOINED_COMMAND_BAR_REFINEMENT.md">Authoritative brief</a></div>
+  </header>
+
+  <nav class="switchboard" aria-label="Comparison controls">
+    <div class="switchboard-inner">
+      <div><span class="switch-label">Surface</span><div class="switches" data-switch="surface"><button type="button" data-value="stock" aria-pressed="true">Stock</button><button type="button" data-value="recipes" aria-pressed="false">Recipes</button><button type="button" data-value="detail" aria-pressed="false">Recipe detail</button></div></div>
+      <div><span class="switch-label">Viewport</span><div class="switches" data-switch="viewport"><button type="button" data-value="phone" aria-pressed="true">393 px phone</button><button type="button" data-value="desktop" aria-pressed="false">Desktop</button></div></div>
+      <div><span class="switch-label">Copy</span><div class="switches" data-switch="copy"><button type="button" data-value="english" aria-pressed="true">English</button><button type="button" data-value="dutch" aria-pressed="false">Long Dutch</button></div></div>
+      <div><span class="switch-label">State</span><div class="switches" data-switch="state"><button type="button" data-value="resting" aria-pressed="true">Resting</button><button type="button" data-value="active" aria-pressed="false">Active / recovery</button></div></div>
+      <span class="switch-help">Dropdowns, drawdowns, and sheets inside phone previews are interactive.</span>
+    </div>
+  </nav>
+
+  <main class="workspace">
+    <section class="brief"><div><h2>One selected system, six responsive answers</h2><p>Desktop composition is deliberately constrained to one elastic toolbar line. The meaningful choice is how mobile summarises and exposes filters, and how the title yields to joined actions under long copy.</p></div><p class="recommendation"><strong>Selected:</strong> B, Combined Filter Menu. The dropdown trigger owns the active summary; there is no duplicate Active line below the header.</p></section>
+    <section class="spread" id="spread" aria-live="polite"></section>
+
+    <section class="decision-zone" aria-labelledby="decision-title">
+      <h2 id="decision-title">Choose the responsive refinement</h2>
+      <p class="decision-lede">Select a complete approach or combine a title rule, mobile control, and desktop width balance.</p>
+      <fieldset><legend>1. Which mobile filter approach is closest?</legend><div class="options" id="direction-options"></div><div class="note"><label for="note-direction">Direction or mix-and-match notes verbatim</label><textarea id="note-direction" data-note="direction" placeholder="For example: A's paired selects with B's active summary and F's long-label sheet fallback."></textarea></div></fieldset>
+      <fieldset><legend>2. How should long titles share space with actions?</legend><div class="options"><label class="option"><input type="radio" name="titleRule" value="dedicated" checked><strong>Dedicated title row</strong><small>Phone title may use two lines; joined actions occupy their own full-width row.</small><em>Recommended</em></label><label class="option"><input type="radio" name="titleRule" value="elastic"><strong>Elastic beside actions</strong><small>Title and actions share one row; title may wrap to two lines before the breakpoint stacks.</small></label><label class="option"><input type="radio" name="titleRule" value="compact"><strong>Compact beside actions</strong><small>Keep one short row and use a smaller title treatment under long copy.</small></label></div><div class="note"><label for="note-title">Long-name notes verbatim</label><textarea id="note-title" data-note="title" placeholder="Which titles or action labels should never truncate or wrap?"></textarea></div></fieldset>
+      <fieldset><legend>3. What should receive the most desktop width?</legend><div class="options"><label class="option"><input type="radio" name="desktopBalance" value="search" checked><strong>Search-led elastic row</strong><small>Search/status receives the flexible remainder; filters keep minimum readable widths.</small><em>Recommended</em></label><label class="option"><input type="radio" name="desktopBalance" value="balanced"><strong>Balanced families</strong><small>Search, quick filters, and type filters receive similar proportions.</small></label><label class="option"><input type="radio" name="desktopBalance" value="filters"><strong>Filter-led row</strong><small>Filter families receive more width; search compresses first.</small></label></div><div class="note"><label for="note-desktop">Desktop allocation notes verbatim</label><textarea id="note-desktop" data-note="desktop" placeholder="Which group should grow or shrink first?"></textarea></div></fieldset>
+      <fieldset><legend>4. Follow-up constraints</legend><div class="note"><label for="note-followup">Anything the next refinement or implementation must preserve verbatim</label><textarea id="note-followup" data-note="followup" placeholder="Per-route, mobile, desktop, open-state, or recovery feedback."></textarea></div></fieldset>
+      <section class="handoff"><h3>Generated forward handoff</h3><p>Paste this into the next task. It points to the Markdown source and includes your notes without relying on this disposable HTML workspace.</p><textarea id="handoff" readonly aria-label="Generated handoff prompt"></textarea><div class="button-row"><button type="button" class="workspace-button" id="copy">Copy handoff</button><button type="button" class="workspace-button secondary" id="reset">Reset recommendations</button><span class="save-status" id="save-status" role="status">Selections save in this browser.</span></div></section>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+      const source = 'docs/feature-lists/archive/FEATURE_LIST_JOINED_COMMAND_BAR_REFINEMENT.md';
+      const storageKey = `${location.pathname}::joined-command-refinement::v2`;
+      const defaults = { view:{surface:'stock',viewport:'phone',copy:'english',state:'resting'}, direction:'b', titleRule:'dedicated', desktopBalance:'search', notes:{direction:'',title:'',desktop:'',followup:''} };
+      let model = JSON.parse(JSON.stringify(defaults));
+      let storageAvailable = true;
+      const variants = {
+        a:{name:'Elastic Pair',thesis:'Two side-by-side mobile selects; dedicated two-line-safe title and joined action row.',strength:'Clear, compact, and directly manipulable.',tradeoff:'One selected value per family is visible.',optimizes:'Repeated filtering and long names.'},
+        b:{name:'Combined Filter Menu',thesis:'One mobile Filters summary opens labelled Quick and Type sections.',strength:'Smallest resting footprint with explicit active state.',tradeoff:'Every change requires opening the menu.',optimizes:'Occasional filtering.'},
+        c:{name:'Scope + Refine',thesis:'The most-used family stays a direct select; the second family opens from Refine.',strength:'Balances speed with compactness.',tradeoff:'Filter families receive unequal prominence.',optimizes:'One dominant filtering habit.'},
+        d:{name:'Single “Show” Select',thesis:'One mobile select offers meaningful combinations such as Have all · Meat.',strength:'Fastest one-control scan.',tradeoff:'Arbitrary combinations are hard to represent.',optimizes:'A small common preset set.'},
+        e:{name:'Inline Drawdown',thesis:'A summary expands filter groups inline and preserves its active summary when closed.',strength:'All choices remain visible during deliberate filtering.',tradeoff:'Open state pushes content down.',optimizes:'Multi-filter sessions.'},
+        f:{name:'Filter Sheet Trigger',thesis:'One summary button opens a roomy bottom sheet; desktop remains one line.',strength:'Best room for long labels and filter growth.',tradeoff:'Adds a modal layer.',optimizes:'Complex filters and 320 px.'}
+      };
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          model = {
+            ...defaults,
+            ...parsed,
+            view: { ...defaults.view, ...(parsed.view || {}) },
+            notes: { ...defaults.notes, ...(parsed.notes || {}) }
+          };
+        }
+        localStorage.setItem(`${storageKey}::probe`, '1');
+        localStorage.removeItem(`${storageKey}::probe`);
+      } catch (error) {
+        storageAvailable = false;
+      }
+
+      function data(){
+        const nl=model.view.copy==='dutch', active=model.view.state==='active';
+        if(model.view.surface==='stock') return {eyebrow:nl?'Huishouden':'Household',title:nl?'Voorraad van het huishouden':'Stock',back:false,primary:nl?'Toevoegen':'Add',secondary:[nl?'Recente activiteit':'Activity'],search:nl?'Zoek in de volledige voorraad…':'Search all stock…',quick:nl?['Maaltijden','Ingrediënten','Alle voorraad']:['Meals','Ingredients','All stock'],types:nl?['Vriezer','Voorraadkast','Te controleren']:['Freezer','Pantry','Needs review'],sort:nl?'Filters':'Filters',summary:active?(nl?'Maaltijden · Vriezer':'Meals · Freezer'):(nl?'Geen filters':'No filters'),meta:active?'6 below target':'14 ready meals'};
+        if(model.view.surface==='recipes') return {eyebrow:nl?'Kookboek':'Cookbook',title:nl?'Recepten voor het hele huishouden':'Recipes',back:false,primary:nl?'Recept importeren':'Import',secondary:[nl?'Nieuwe maaltijd':'New meal'],search:nl?'Zoeken op naam of ingrediënt…':'Search by name or ingredient…',quick:nl?['Alles in huis','Vriezerbasis','Onder doel']:['Have all','Freezer staple','Below target'],types:nl?['Vlees','Vis','Groente','Soep','Pasta']:['Meat','Fish','Veggie','Soup','Pasta'],sort:nl?'Alfabetisch':'A–Z',summary:active?(nl?'Alles in huis · Vlees':'Have all · Meat'):(nl?'Alle recepten':'All recipes'),meta:''};
+        return {eyebrow:nl?'Recept':'Recipe',title:nl?'Geroosterde pompoenrisotto met salie, hazelnoten en citroen':'E2E Primary Stew with roasted tomatoes and basil',back:true,primary:nl?'Plannen':'Plan',secondary:[nl?'Recept bewerken':'Edit recipe',...(active?[nl?'Meer acties':'More']:[])],search:nl?'4 porties · 30 min · niets in vriezer':'4 servings · 30 min · none in freezer',quick:nl?['Kookweergave','Origineel recept']:['Cooking view','Original recipe'],types:['NL','EN'],sort:nl?'Taal':'Language',summary:active?(nl?'Kookweergave · EN':'Cooking view · EN'):(nl?'Kookweergave · NL':'Cooking view · NL'),meta:active?(nl?'Vertaling mislukt · Opnieuw proberen':'Translation failed · Retry'):''};
+      }
+      function identity(d){return `<div class="identity"><div class="identity-inner">${d.back?'<span class="back">‹</span>':''}<div class="title-copy"><small>${d.eyebrow}</small><strong>${d.title}</strong></div></div></div>`;}
+      function actions(d){return `<div class="joined-actions">${d.secondary.map((x,i)=>`<button class="action"><span>${i?'•••':'◌'}</span>${x}</button>`).join('')}<button class="action primary"><span>＋</span>${d.primary}</button></div>`;}
+      function joined(items,active){return `<div class="joined-filter">${items.slice(0,3).map((x,i)=>`<button class="${active&&i===0?'active':''}">${x}</button>`).join('')}</div>`;}
+      function desktopToolbar(d){const active=model.view.state==='active';return `<div class="desktop-toolbar"><div class="tool-field"><span>⌕</span><span>${d.search}</span>${d.meta?`<strong>${d.meta}</strong>`:''}</div><div class="tool-stack"><span class="toolbar-label">${model.view.surface==='detail'?'View':'Quick'}</span>${joined(d.quick,active)}</div><div class="tool-stack"><span class="toolbar-label">${model.view.surface==='detail'?'Language':'Type'}</span>${joined(d.types,active)}</div><div class="tool-field"><strong>${d.sort}</strong><span>⌄</span></div></div>`;}
+      function selectOptions(items){return items.map(x=>`<option>${x}</option>`).join('');}
+      function mobileSearch(d){return `<div class="mobile-search">⌕ <span>${d.search}</span>${d.meta?`<strong>${d.meta}</strong>`:''}</div>`;}
+      function menuPanel(d,id,hidden=true){return `<div class="menu-popover" id="${id}" ${hidden?'hidden':''}><div class="menu-section"><strong>${model.view.surface==='detail'?'View':'Quick filter'}</strong><div class="menu-options">${d.quick.map((x,i)=>`<button class="${model.view.state==='active'&&i===0?'active':''}">${x}</button>`).join('')}</div></div><div class="menu-section"><strong>${model.view.surface==='detail'?'Language':'Type'}</strong><div class="menu-options">${d.types.map((x,i)=>`<button class="${model.view.state==='active'&&i===0?'active':''}">${x}</button>`).join('')}</div></div><div class="menu-actions"><button>Clear</button><button class="done" data-close-menu="${id}">Done</button></div></div>`;}
+      function mobileTools(letter,d){
+        if(letter==='a') return `<div class="mobile-tools">${mobileSearch(d)}<div class="select-row"><select class="mobile-select" aria-label="Quick filter">${selectOptions(d.quick)}</select><select class="mobile-select" aria-label="Type">${selectOptions(d.types)}</select></div></div>`;
+        if(letter==='b') return `<div class="mobile-tools">${mobileSearch(d)}<div class="combined-row"><button class="menu-trigger" data-open-menu="menu-b"><strong>Filters${model.view.state==='active'?' · 2 active':''}</strong><span class="active-summary">${d.summary}</span></button><select class="mobile-select"><option>${d.sort}</option></select></div>${menuPanel(d,'menu-b')}</div>`;
+        if(letter==='c') return `<div class="mobile-tools">${mobileSearch(d)}<div class="scope-refine"><select class="mobile-select">${selectOptions(d.quick)}</select><button class="menu-trigger" data-open-menu="menu-c"><strong>Refine</strong><span class="active-summary">${model.view.state==='active'?d.types[0]:'Any type'}</span></button></div>${menuPanel({...d,quick:[]},'menu-c')}</div>`;
+        if(letter==='d') return `<div class="mobile-tools">${mobileSearch(d)}<select class="mobile-select" style="width:100%"><option>${d.summary}</option><option>${d.quick[0]} · ${d.types[0]}</option><option>${d.quick[1]||d.quick[0]} · ${d.types[1]||d.types[0]}</option></select></div>`;
+        if(letter==='e') return `<div class="mobile-tools">${mobileSearch(d)}<details class="drawdown"><summary class="summary-trigger"><strong>Filters</strong><span class="active-summary">${d.summary}</span></summary><div class="drawdown-panel"><div class="menu-section"><strong>${model.view.surface==='detail'?'View':'Quick filter'}</strong><div class="menu-options">${d.quick.map((x,i)=>`<button class="${model.view.state==='active'&&i===0?'active':''}">${x}</button>`).join('')}</div></div><div class="menu-section"><strong>${model.view.surface==='detail'?'Language':'Type'}</strong><div class="menu-options">${d.types.map((x,i)=>`<button class="${model.view.state==='active'&&i===0?'active':''}">${x}</button>`).join('')}</div></div></div></details></div>`;
+        return `<div class="mobile-tools">${mobileSearch(d)}<button class="menu-trigger" data-open-sheet="sheet-f"><strong>Filters</strong><span class="active-summary">${d.summary}</span></button></div>`;
+      }
+      function sheet(d){return `<div class="sheet-scrim" id="sheet-f" hidden><section class="filter-sheet"><div class="sheet-head"><h5>Filters</h5><button data-close-sheet="sheet-f">Close</button></div><div class="mobile-search" style="color:var(--ink);border-color:var(--line);background:var(--paper)">⌕ ${d.search}</div><div class="menu-section"><strong>${model.view.surface==='detail'?'View':'Quick filter'}</strong><div class="menu-options">${d.quick.map((x,i)=>`<button class="${model.view.state==='active'&&i===0?'active':''}">${x}</button>`).join('')}</div></div><div class="menu-section"><strong>${model.view.surface==='detail'?'Language':'Type'}</strong><div class="menu-options">${d.types.map((x,i)=>`<button class="${model.view.state==='active'&&i===0?'active':''}">${x}</button>`).join('')}</div></div><div class="menu-actions"><button>Clear</button><button class="done" data-close-sheet="sheet-f">Done</button></div></section></div>`;}
+      function content(){if(model.view.surface==='stock')return `<div class="content"><h4>Use next</h4><div class="stock-item"><b>E2E Primary freezer meal</b><span>Low stock · 2 portions · Recipe needed</span></div></div>`;if(model.view.surface==='recipes')return `<div class="content"><div class="recipe-grid"><div class="recipe-card"><i>♨</i><b>Primary Cook Mode</b><span>Plan · Make</span></div><div class="recipe-card"><i>♨</i><b>Primary Stew</b><span>Plan · Make</span></div><div class="recipe-card"><i>♨</i><b>Secondary Stew</b><span>Plan · Make</span></div></div></div>`;return `<div class="content"><div class="detail-block"><small>1 · Pot</small><p>Simmer until ready.</p></div></div>`;}
+      function preview(letter,d){const activeLine=letter==='b'?'':`<div class="paper-seam"><div class="active-strip"><span>Active:</span><span class="active-chip">${d.summary}</span></div></div>`;return `<div class="green"><div class="headbar">${identity(d)}${actions(d)}</div>${desktopToolbar(d)}${mobileTools(letter,d)}</div>${activeLine}${content()}${letter==='f'?sheet(d):''}`;}
+
+      function render(){const d=data(),route=model.view.surface==='stock'?'/inventory':model.view.surface==='recipes'?'/recipes':'/recipes/[slug]',spread=document.getElementById('spread');spread.innerHTML=Object.entries(variants).map(([letter,v])=>`<article class="variant ${model.direction===letter?'selected':''}" data-recommended="${letter==='b'}"><div class="variant-copy"><span class="letter">${letter.toUpperCase()}</span><h3>${v.name}</h3><p class="thesis">${v.thesis}</p><dl><dt>Strength</dt><dd>${v.strength}</dd><dt>Trade-off</dt><dd>${v.tradeoff}</dd><dt>Optimizes</dt><dd>${v.optimizes}</dd></dl><button class="choose" data-pick="${letter}">${model.direction===letter?'Selected direction':`Choose ${letter.toUpperCase()}`}</button></div><div class="stage-scroll"><div class="stage ${model.view.viewport} v-${letter}"><div class="stage-label"><span>${route}</span><span>${model.view.viewport} · ${model.view.copy} · ${model.view.state}</span></div><div class="screen">${preview(letter,d)}</div></div></div></article>`).join('');
+        spread.querySelectorAll('[data-pick]').forEach(btn=>btn.addEventListener('click',()=>{model.direction=btn.dataset.pick;const radio=document.querySelector(`input[name="direction"][value="${model.direction}"]`);if(radio)radio.checked=true;persist();render();updateHandoff();}));
+        spread.querySelectorAll('[data-open-menu]').forEach(btn=>btn.addEventListener('click',()=>{const menu=btn.closest('.mobile-tools').querySelector(`#${btn.dataset.openMenu}`);menu.hidden=!menu.hidden;}));
+        spread.querySelectorAll('[data-close-menu]').forEach(btn=>btn.addEventListener('click',()=>{btn.closest('.menu-popover').hidden=true;}));
+        spread.querySelectorAll('[data-open-sheet]').forEach(btn=>btn.addEventListener('click',()=>{btn.closest('.screen').querySelector(`#${btn.dataset.openSheet}`).hidden=false;}));
+        spread.querySelectorAll('[data-close-sheet]').forEach(btn=>btn.addEventListener('click',()=>{btn.closest('.screen').querySelector(`#${btn.dataset.closeSheet}`).hidden=true;}));
+      }
+      function buildOptions(){document.getElementById('direction-options').innerHTML=Object.entries(variants).map(([letter,v])=>`<label class="option"><input type="radio" name="direction" value="${letter}" ${letter==='b'?'checked':''}><strong>${letter.toUpperCase()} · ${v.name}</strong><small>${v.thesis}</small>${letter==='b'?'<em>Selected</em>':''}</label>`).join('');}
+      function sync(){document.querySelectorAll('[data-switch]').forEach(group=>{const n=group.dataset.switch;group.querySelectorAll('button').forEach(btn=>btn.setAttribute('aria-pressed',String(model.view[n]===btn.dataset.value)));});['direction','titleRule','desktopBalance'].forEach(n=>{const r=document.querySelector(`input[name="${n}"][value="${model[n]}"]`);if(r)r.checked=true;});document.querySelectorAll('[data-note]').forEach(f=>f.value=model.notes[f.dataset.note]||'');}
+      function persist(){if(!storageAvailable)return;try{localStorage.setItem(storageKey,JSON.stringify(model));}catch(error){storageAvailable=false;const s=document.getElementById('save-status');s.textContent='Changes are kept for this session only; browser storage is unavailable.';s.classList.add('warning');}}
+      function note(k,l){return `${l} (verbatim):\n${model.notes[k]||'[No additional note supplied]'}`;}
+      function updateHandoff(){const v=variants[model.direction],titleNames={dedicated:'Dedicated title row',elastic:'Elastic beside actions',compact:'Compact beside actions'},balanceNames={search:'Search-led elastic row',balanced:'Balanced families',filters:'Filter-led row'};document.getElementById('handoff').value=`Load ${source} in full and continue the Joined Command Bar responsive refinement from the recorded selection below. Do not use the HTML artifact as a source.\n\nFIXED DECISIONS\nPreserve the existing green Keukenbrein aesthetic and the selected Joined Command Bar action treatment. Keep every current page action visible. Change only /inventory, /recipes, and /recipes/[slug]; Meal Plan and Groceries remain untouched. Desktop must use available horizontal width before adding height, keeping Search/Status, Quick filters, Type, and Sort/View in one elastic line when labels fit. Preserve handlers, URL-backed filters, labels, recovery, focus, and touch targets.\n\nDECISION 1 — Mobile filter disclosure\nOptions: A Elastic Pair; B Combined Filter Menu; C Scope + Refine; D Single Show Select; E Inline Drawdown; F Filter Sheet Trigger.\nSelected: ${model.direction.toUpperCase()} · ${v.name}.\nRecommendation: B · Combined Filter Menu.\nRationale: one dropdown gives the phone header the smallest resting footprint while retaining a clear filter entry point. The closed Filters button owns the active count and selected-value summary; there is no separate Active strip below the header. Desktop retains the full one-line toolbar and communicates state in its selected segments.\nAssumptions/evidence: Freek explicitly selected Combined Filter Menu and asked to integrate the active line into the dropdown.\nUncertainty: if filter cardinality outgrows the dropdown, its open surface may become a bottom sheet without changing the trigger.\nPractical consequence: ${v.strength} Trade-off: ${v.tradeoff}\n${note('direction','User note under Decision 1')}\n\nDECISION 2 — Long-title allocation\nOptions: Dedicated title row; Elastic beside actions; Compact beside actions.\nSelected: ${titleNames[model.titleRule]}.\nRecommendation: Dedicated title row.\nRationale: it permits two lines without shrinking action labels and gives the joined bar deterministic full width at 320–393 px.\nAssumptions/evidence: recipe detail names and Dutch labels are the stress case; ellipsis should be a last resort.\nUncertainty: short index titles may not need the extra row, so a breakpoint/content-aware same-row state can still be used.\nPractical consequence: complete titles remain readable while all actions stay visible.\n${note('title','User note under Decision 2')}\n\nDECISION 3 — Desktop width balance\nOptions: Search-led elastic row; Balanced families; Filter-led row.\nSelected: ${balanceNames[model.desktopBalance]}.\nRecommendation: Search-led elastic row.\nRationale: search/status copy varies most; joined filter families need stable minimum widths but not equal growth.\nAssumptions/evidence: all groups must sit beside each other before wrapping.\nUncertainty: long localized filter labels may require balanced allocation at intermediate widths.\nPractical consequence: the toolbar fills the line without creating separate vertical filter rows.\n${note('desktop','User note under Decision 3')}\n\nFOLLOW-UP\n${note('followup','User note under Decision 4')}\n\nNEXT STEP\nIf the selected pieces are compatible, create one final composite or implementation plan. Do not modify production routes unless Freek explicitly requests implementation. This remains R2 presentation work with no Meal Plan, Groceries, schema, auth, data, provider, Albert Heijn, shopping-derivation, or deployment change.`;}
+
+      buildOptions();document.querySelectorAll('[data-switch]').forEach(group=>group.addEventListener('click',event=>{const btn=event.target.closest('button[data-value]');if(!btn)return;model.view[group.dataset.switch]=btn.dataset.value;sync();persist();render();}));document.addEventListener('change',event=>{const input=event.target.closest('input[type="radio"]');if(!input)return;model[input.name]=input.value;persist();if(input.name==='direction')render();updateHandoff();});document.querySelectorAll('[data-note]').forEach(f=>f.addEventListener('input',()=>{model.notes[f.dataset.note]=f.value;persist();updateHandoff();}));document.getElementById('copy').addEventListener('click',async()=>{const field=document.getElementById('handoff'),status=document.getElementById('save-status');try{await navigator.clipboard.writeText(field.value);status.textContent='Handoff copied.';status.classList.remove('warning');}catch(error){field.focus();field.select();status.textContent='Clipboard access failed. The handoff is selected; copy it manually.';status.classList.add('warning');}});document.getElementById('reset').addEventListener('click',()=>{model=JSON.parse(JSON.stringify(defaults));try{localStorage.removeItem(storageKey);}catch(error){}sync();render();updateHandoff();const s=document.getElementById('save-status');s.textContent=storageAvailable?'Recommendations restored and saved.':'Recommendations restored for this session.';s.classList.toggle('warning',!storageAvailable);});sync();render();updateHandoff();if(!storageAvailable){const s=document.getElementById('save-status');s.textContent='Changes are kept for this session only; browser storage is unavailable.';s.classList.add('warning');}
+    })();
+  </script>
+</body>
+</html>

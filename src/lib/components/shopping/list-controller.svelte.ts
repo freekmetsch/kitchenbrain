@@ -44,11 +44,26 @@ export type ShoppingFocusIntent = {
 	mode: 'preserve' | 'reveal';
 };
 
+export type SourceMutationStatus = 'saved' | 'stale' | 'failed';
+export type ShoppingNeed = 'required' | 'optional' | 'stocked';
+
+function needFor(source: ShoppingListSource): ShoppingNeed {
+	if (source.staple) return 'stocked';
+	if (source.optional) return 'optional';
+	return 'required';
+}
+
 type ShoppingListMessages = {
 	bought: (name: string, count: number) => string;
 	notBought: (name: string, count: number) => string;
 	removed: (name: string) => string;
 	restoreFailed: () => string;
+	choiceSaved: () => string;
+	choiceStale: () => string;
+	choiceFailed: () => string;
+	choiceMoved: (name: string, destination: string) => string;
+	filterAll: () => string;
+	notThisRun: () => string;
 };
 
 export type ShoppingListControllerDependencies = {
@@ -61,10 +76,17 @@ export type ShoppingListControllerDependencies = {
 	onToggleBought: (item: ShoppingListItem) => Promise<boolean>;
 	onDeleteManual: (source: ShoppingListSource) => Promise<boolean>;
 	onRestoreManual: (source: ShoppingListSource) => Promise<boolean>;
+	onChangeSourceTerm: (source: ShoppingListSource, term: string) => Promise<SourceMutationStatus>;
+	onChangeSourceNeed: (
+		source: ShoppingListSource,
+		need: ShoppingNeed
+	) => Promise<SourceMutationStatus>;
 	focus: (intent: ShoppingFocusIntent) => Promise<void>;
+	focusSource: (sourceKey: string) => Promise<void>;
 	waitForMotion: () => Promise<void>;
 	notifyUndo: (message: string, action: () => void | Promise<void>) => void;
 	notifyError: (message: string) => void;
+	notifySuccess: (message: string) => void;
 	messages: ShoppingListMessages;
 };
 
@@ -76,6 +98,9 @@ class ShoppingListController {
 	basketOpen = $state(false);
 	shoppingStatus = $state('');
 	lockedItemKeys = $state<string[]>([]);
+	offListOpen = $state(false);
+	#pendingSourceKeys = $state<string[]>([]);
+	#pendingRecipeIds = $state<number[]>([]);
 
 	readonly #dependencies: ShoppingListControllerDependencies;
 
@@ -186,6 +211,45 @@ class ShoppingListController {
 		return this.lockedItemKeys.includes(key);
 	}
 
+	sourcePending(sourceKey: string): boolean {
+		return this.#pendingSourceKeys.includes(sourceKey);
+	}
+
+	recipePending(recipeId: number | null): boolean {
+		return recipeId != null && this.#pendingRecipeIds.includes(recipeId);
+	}
+
+	#setSourcePending(sourceKey: string, value: boolean) {
+		this.#pendingSourceKeys = value
+			? [...new Set([...this.#pendingSourceKeys, sourceKey])]
+			: this.#pendingSourceKeys.filter((candidate) => candidate !== sourceKey);
+	}
+
+	#setRecipePending(recipeId: number | null, value: boolean) {
+		if (recipeId == null) return;
+		this.#pendingRecipeIds = value
+			? [...new Set([...this.#pendingRecipeIds, recipeId])]
+			: this.#pendingRecipeIds.filter((candidate) => candidate !== recipeId);
+	}
+
+	async #runSourceMutation(
+		mutation: () => Promise<SourceMutationStatus>
+	): Promise<SourceMutationStatus> {
+		try {
+			return await mutation();
+		} catch {
+			return 'failed';
+		}
+	}
+
+	#notifySourceError(result: 'stale' | 'failed') {
+		this.#dependencies.notifyError(
+			result === 'stale'
+				? this.#dependencies.messages.choiceStale()
+				: this.#dependencies.messages.choiceFailed()
+		);
+	}
+
 	#setItemLocked(key: string, value: boolean) {
 		this.lockedItemKeys = value
 			? [...new Set([...this.lockedItemKeys, key])]
@@ -246,6 +310,88 @@ class ShoppingListController {
 			await this.#dependencies.focus(focusIntent);
 		}
 		this.#dependencies.notifyUndo(this.shoppingStatus, () => this.undoBought(item, key));
+	}
+
+	async changeTerm(source: ShoppingListSource, term: string): Promise<boolean> {
+		if (
+			term === source.term ||
+			this.sourcePending(source.sourceKey) ||
+			this.recipePending(source.recipeId)
+		) {
+			return true;
+		}
+		this.#setSourcePending(source.sourceKey, true);
+		const result = await this.#runSourceMutation(() =>
+			this.#dependencies.onChangeSourceTerm(source, term)
+		);
+		try {
+			if (result === 'saved') {
+				this.#dependencies.notifySuccess(this.#dependencies.messages.choiceSaved());
+				await this.#dependencies.waitForMotion();
+			} else {
+				this.#notifySourceError(result);
+			}
+		} finally {
+			this.#setSourcePending(source.sourceKey, false);
+		}
+		await this.#dependencies.focusSource(source.sourceKey);
+		return result === 'saved';
+	}
+
+	async changeNeed(
+		source: ShoppingListSource,
+		need: ShoppingNeed,
+		offerUndo = true
+	): Promise<boolean> {
+		const previous = needFor(source);
+		if (
+			need === previous ||
+			this.sourcePending(source.sourceKey) ||
+			this.recipePending(source.recipeId)
+		) {
+			return true;
+		}
+
+		this.#setSourcePending(source.sourceKey, true);
+		this.#setRecipePending(source.recipeId, true);
+		const result = await this.#runSourceMutation(() =>
+			this.#dependencies.onChangeSourceNeed(source, need)
+		);
+
+		let movedMessage = '';
+		try {
+			if (result === 'saved') {
+				if (need !== 'required') this.offListOpen = true;
+				const destination =
+					need === 'required'
+						? this.#dependencies.messages.filterAll()
+						: this.#dependencies.messages.notThisRun();
+				movedMessage = this.#dependencies.messages.choiceMoved(source.name, destination);
+				this.shoppingStatus = movedMessage;
+				if ((previous === 'required') !== (need === 'required')) {
+					await this.#dependencies.waitForMotion();
+				}
+			} else {
+				this.#notifySourceError(result);
+			}
+		} finally {
+			this.#setSourcePending(source.sourceKey, false);
+			this.#setRecipePending(source.recipeId, false);
+		}
+
+		await this.#dependencies.focusSource(source.sourceKey);
+		if (result !== 'saved') return false;
+		if (offerUndo) {
+			this.#dependencies.notifyUndo(movedMessage, async () => {
+				const current = this.#dependencies
+					.sources()
+					.find((candidate) => candidate.sourceKey === source.sourceKey);
+				if (current) await this.changeNeed(current, previous, false);
+			});
+		} else {
+			this.#dependencies.notifySuccess(this.#dependencies.messages.choiceSaved());
+		}
+		return true;
 	}
 
 	async removeManual(item: ShoppingListItem, source: ShoppingListSource) {

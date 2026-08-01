@@ -8,7 +8,6 @@
 	import RecipeHero from '$lib/components/recipe-detail/RecipeHero.svelte';
 	import ImportReviewBanner from '$lib/components/recipe-detail/ImportReviewBanner.svelte';
 	import RecipeMetaChips from '$lib/components/recipe-detail/RecipeMetaChips.svelte';
-	import RecipeViewToolbar from '$lib/components/recipe-detail/RecipeViewToolbar.svelte';
 	import MealComposition from '$lib/components/recipe-detail/MealComposition.svelte';
 	import FreezerStockPanel from '$lib/components/recipe-detail/FreezerStockPanel.svelte';
 	import RoleCoverage from '$lib/components/recipe-detail/RoleCoverage.svelte';
@@ -287,9 +286,13 @@
 <RecipeHeader
 	{recipe}
 	{displayTitle}
+	view={recipeView}
 	{viewLang}
+	languageSwitchable={recipe.language !== 'en'}
 	{translationLoading}
 	{translationMessage}
+	onViewChange={(next) => (recipeView = next)}
+	onLanguageChange={setViewLanguage}
 	onAddToPlan={() => {
 		addToPlanOpen = true;
 	}}
@@ -351,13 +354,6 @@
 	/>
 	<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />
 </div>
-
-<RecipeViewToolbar
-	bind:view={recipeView}
-	language={viewLang}
-	languageSwitchable={recipe.language !== 'en'}
-	onLanguageChange={setViewLanguage}
-/>
 
 <BenchSheet
 	recipeSlug={recipe.slug}

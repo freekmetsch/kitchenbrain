@@ -437,11 +437,142 @@ for (const viewport of VIEWPORTS) {
 		const itemId = rowId!.replace('inventory-item-', '');
 		await page.goto(`/inventory?item=${itemId}`);
 		const editor = page.getByRole('dialog');
-		await expect(editor).toBeVisible();
+		await expect(editor).toBeVisible({ timeout: 15_000 });
 		await expect(editor.getByRole('heading', { name: mutationTarget })).toBeVisible();
 		await expect(editor.getByLabel('Name')).toHaveValue(mutationTarget);
 		await expect(row).toBeVisible();
 		await expectResponsiveSurface(page, '/inventory?item=…', viewport.width);
+	});
+
+	test(`Joined Stock and Recipe headers stay compact and complete at ${viewport.name}`, async ({
+		page
+	}, testInfo) => {
+		const fixture = kitchenFixtureFor(testInfo);
+
+		await page.setViewportSize(viewport);
+		await page.goto('/inventory');
+		const stockHeader = page.getByTestId('inventory-command-header');
+		await expect(stockHeader).toBeVisible();
+		const stockFilterTrigger = stockHeader
+			.locator('.stock-command-mobile')
+			.locator('.combined-filter-trigger');
+		await expect(stockFilterTrigger).toHaveAttribute('data-ready', 'true', {
+			timeout: 15_000
+		});
+		await expect(page.getByRole('button', { name: 'Recent activity', exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Add', exact: true })).toBeVisible();
+		await expect(page.locator('.stock-quick-view')).toHaveCount(0);
+
+		if (viewport.name === 'phone') {
+			const stockFilters = stockFilterTrigger;
+			await expect(stockFilters).toContainText('Meals');
+			await stockFilters.click();
+			const stockPanel = page.getByRole('dialog', { name: 'Stock filters' });
+			await expect(stockPanel).toBeVisible();
+			await stockPanel.getByRole('button', { name: 'Ingredients', exact: true }).click();
+			await expect(stockFilters).toContainText('Ingredients');
+			await stockPanel.getByRole('button', { name: 'Meals', exact: true }).click();
+			await stockPanel.getByRole('button', { name: 'Show results', exact: true }).click();
+			await expect(stockFilters).toHaveAttribute('aria-expanded', 'false');
+		} else {
+			const desktopStock = stockHeader.locator('.stock-command-desktop');
+			await expect(desktopStock).toBeVisible();
+			await desktopStock.getByRole('button', { name: 'Ingredients', exact: true }).click();
+			await expect(desktopStock.getByRole('button', { name: 'Ingredients', exact: true })).toHaveAttribute(
+				'aria-pressed',
+				'true'
+			);
+			await desktopStock.getByRole('button', { name: 'Meals', exact: true }).click();
+		}
+		await expectResponsiveSurface(page, '/inventory command header', viewport.width);
+
+		await page.goto('/recipes');
+		const recipeHeader = page.getByTestId('recipes-command-header');
+		await expect(recipeHeader).toBeVisible();
+		const recipeFilterTrigger = recipeHeader
+			.locator('.recipe-command-mobile')
+			.locator('.combined-filter-trigger');
+		await expect(recipeFilterTrigger).toHaveAttribute('data-ready', 'true', {
+			timeout: 15_000
+		});
+		await expect(page.getByRole('button', { name: '+ Meal', exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
+		await expect(page.locator('.recipe-filter-shell')).toHaveCount(0);
+
+		if (viewport.name === 'phone') {
+			const recipeFilters = recipeFilterTrigger;
+			await expect(recipeFilters).toContainText('No filters');
+			await recipeFilters.click();
+			const recipePanel = page.getByRole('dialog', { name: 'Recipe filters' });
+			await expect(recipePanel).toBeVisible();
+			await recipePanel.getByLabel('Food type').selectOption('meat');
+			await expect(page).toHaveURL(/class=meat/);
+			await expect(recipeFilters).toContainText('Meat');
+			await recipePanel.getByRole('button', { name: 'Clear filters', exact: true }).click();
+			await expect(page).toHaveURL(/\/recipes$/);
+		} else {
+			const desktopRecipes = recipeHeader.locator('.recipe-command-desktop');
+			await expect(desktopRecipes).toBeVisible();
+			await desktopRecipes.getByLabel('Food type').selectOption('vegetarian');
+			await expect(page).toHaveURL(/class=vegetarian/);
+			const rowTops = await recipeHeader.evaluate((header) =>
+				Array.from(
+					header.querySelectorAll<HTMLElement>(
+						'.recipe-quick-filters, .recipe-type-selects, .recipe-sort'
+					)
+				)
+					.filter((element) => element.offsetParent !== null)
+					.map((element) => Math.round(element.getBoundingClientRect().top))
+			);
+			expect(Math.max(...rowTops) - Math.min(...rowTops)).toBeLessThanOrEqual(2);
+		}
+		await expectResponsiveSurface(page, '/recipes command header', viewport.width);
+
+		await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+		const detailHeader = page.getByTestId('recipe-detail-command-header');
+		await expect(detailHeader).toBeVisible();
+		const viewFilterTrigger = detailHeader
+			.locator('.recipe-view-mobile')
+			.locator('.combined-filter-trigger');
+		await expect(viewFilterTrigger).toHaveAttribute('data-ready', 'true', {
+			timeout: 15_000
+		});
+		await expect(page.getByRole('button', { name: 'Edit recipe', exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Plan', exact: true })).toBeVisible();
+		const detailTitleLayout = await page.getByRole('heading', { level: 1 }).evaluate((heading) => {
+			const style = getComputedStyle(heading);
+			const parsedLineHeight = Number.parseFloat(style.lineHeight);
+			const lineHeight = Number.isNaN(parsedLineHeight)
+				? Number.parseFloat(style.fontSize) * 1.2
+				: parsedLineHeight;
+			return {
+				whiteSpace: style.whiteSpace,
+				height: heading.getBoundingClientRect().height,
+				maxTwoLines: lineHeight * 2 + 1
+			};
+		});
+		expect(detailTitleLayout.whiteSpace).not.toBe('nowrap');
+		expect(detailTitleLayout.height).toBeLessThanOrEqual(detailTitleLayout.maxTwoLines);
+
+		if (viewport.name === 'phone') {
+			const viewFilters = detailHeader
+				.locator('.recipe-view-mobile')
+				.getByRole('button', { name: /^View/ });
+			await expect(viewFilters).toContainText('Cooking view');
+			await viewFilters.click();
+			const viewPanel = page.getByRole('dialog', { name: 'Recipe view and language' });
+			await viewPanel.getByRole('button', { name: 'Original recipe', exact: true }).click();
+			await expect(viewFilters).toContainText('Original recipe');
+			await viewPanel.getByRole('button', { name: 'Done', exact: true }).click();
+		} else {
+			const desktopView = detailHeader.locator('.recipe-view-desktop');
+			await desktopView.getByRole('button', { name: 'Original recipe', exact: true }).click();
+			await expect(desktopView.getByRole('button', { name: 'Original recipe', exact: true })).toHaveAttribute(
+				'aria-pressed',
+				'true'
+			);
+		}
+		await expectResponsiveSurface(page, '/recipes/[slug] command header', viewport.width);
 	});
 
 	test(`Meal Plan covers pending recovery and sheet focus at ${viewport.name}`, async ({
@@ -769,7 +900,7 @@ for (const viewport of VIEWPORTS) {
 		const secondStep = page.getByRole('button', {
 			name: 'Read step 2: Serve the stew.'
 		});
-		await expect(firstStep).toHaveAttribute('aria-current', 'step');
+		await expect(firstStep).toHaveAttribute('aria-current', 'step', { timeout: 15_000 });
 		await secondStep.click();
 		await expect(secondStep).toHaveAttribute('aria-current', 'step');
 		await expect
