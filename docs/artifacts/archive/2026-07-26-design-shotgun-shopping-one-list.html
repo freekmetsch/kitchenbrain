@@ -1,0 +1,2336 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="data:," />
+	<title>Shopping one-list design shotgun</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #f7f3e9;
+			--card: #fffdf7;
+			--ink: #243128;
+			--muted: #68736b;
+			--line: #d9d2c4;
+			--olive: #334638;
+			--olive-deep: #293b30;
+			--olive-soft: #49614f;
+			--sage: #dfe8dd;
+			--honey: #d3a046;
+			--honey-soft: #f4e6bf;
+			--terra: #a84d2a;
+			--terra-soft: #f2ded3;
+			--white: #fff;
+			--shadow: 0 18px 48px rgb(39 48 41 / 14%);
+			--phone-shadow: 0 22px 48px rgb(26 35 29 / 22%);
+			font-family:
+				Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		html {
+			background: #e8e1d2;
+			scroll-behavior: smooth;
+		}
+
+		body {
+			min-width: 320px;
+			margin: 0;
+			background:
+				radial-gradient(circle at 8% 3%, rgb(211 160 70 / 18%), transparent 27rem),
+				radial-gradient(circle at 94% 9%, rgb(51 70 56 / 13%), transparent 30rem),
+				#eee8dc;
+			color: var(--ink);
+		}
+
+		button,
+		select,
+		textarea,
+		input {
+			font: inherit;
+		}
+
+		button,
+		select {
+			min-height: 44px;
+	}
+
+		button {
+			cursor: pointer;
+		}
+
+		button:focus-visible,
+		select:focus-visible,
+		textarea:focus-visible,
+		input:focus-visible {
+			outline: 3px solid var(--honey);
+			outline-offset: 2px;
+		}
+
+		a {
+			color: inherit;
+		}
+
+		.board-header {
+			position: relative;
+			overflow: hidden;
+			border-bottom: 1px solid rgb(255 255 255 / 10%);
+			background:
+				linear-gradient(120deg, rgb(255 255 255 / 4%), transparent 58%),
+				var(--olive-deep);
+			color: var(--white);
+		}
+
+		.board-header::after {
+			position: absolute;
+			right: -7rem;
+			bottom: -9rem;
+			width: 26rem;
+			height: 26rem;
+			border: 1px solid rgb(255 255 255 / 7%);
+			border-radius: 999px;
+			content: "";
+			pointer-events: none;
+		}
+
+		.board-header-inner {
+			position: relative;
+			z-index: 1;
+			max-width: 92rem;
+			margin: 0 auto;
+			padding: 3.25rem clamp(1rem, 4vw, 4rem) 2.75rem;
+		}
+
+		.eyebrow {
+			margin: 0 0 0.75rem;
+			color: #f0c66a;
+			font-size: 0.75rem;
+			font-weight: 800;
+			letter-spacing: 0.13em;
+			text-transform: uppercase;
+		}
+
+		.board-header h1 {
+			max-width: 65rem;
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(2.2rem, 5.7vw, 5.25rem);
+			font-weight: 500;
+			line-height: 0.96;
+			letter-spacing: -0.045em;
+		}
+
+		.board-lede {
+			max-width: 54rem;
+			margin: 1.25rem 0 0;
+			color: rgb(255 255 255 / 77%);
+			font-size: clamp(1rem, 1.7vw, 1.25rem);
+			line-height: 1.6;
+		}
+
+		.fixed-direction {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.55rem;
+			margin-top: 1.4rem;
+		}
+
+		.fixed-direction span {
+			display: inline-flex;
+			min-height: 2rem;
+			align-items: center;
+			border: 1px solid rgb(255 255 255 / 18%);
+			border-radius: 999px;
+			padding: 0 0.75rem;
+			background: rgb(255 255 255 / 7%);
+			color: rgb(255 255 255 / 83%);
+			font-size: 0.72rem;
+			font-weight: 700;
+		}
+
+		main {
+			max-width: 96rem;
+			margin: 0 auto;
+			padding: 2rem clamp(0.8rem, 3vw, 3rem) 5rem;
+		}
+
+		.section-intro {
+			display: grid;
+			grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.6fr);
+			gap: 1rem 2rem;
+			align-items: end;
+			margin: 0 auto 1.25rem;
+		}
+
+		.section-intro h2,
+		.decision-zone h2 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: clamp(1.8rem, 3vw, 3rem);
+			font-weight: 500;
+			letter-spacing: -0.03em;
+		}
+
+		.section-intro p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.95rem;
+			line-height: 1.6;
+		}
+
+		.concept-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(22rem, 1fr));
+			gap: 1rem;
+			align-items: start;
+			overflow-x: auto;
+			padding: 0.25rem 0.15rem 1.25rem;
+			scroll-snap-type: x proximity;
+		}
+
+		.concept {
+			min-width: 22rem;
+			scroll-snap-align: center;
+		}
+
+		.concept-copy {
+			min-height: 9.75rem;
+			margin-bottom: 0.75rem;
+			border: 1px solid rgb(51 70 56 / 14%);
+			border-radius: 1rem;
+			padding: 1rem;
+			background: rgb(255 253 247 / 72%);
+			box-shadow: 0 8px 24px rgb(46 55 48 / 6%);
+		}
+
+		.concept-kicker {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.75rem;
+			color: var(--muted);
+			font-size: 0.7rem;
+			font-weight: 800;
+			letter-spacing: 0.09em;
+			text-transform: uppercase;
+		}
+
+		.recommended {
+			border-radius: 999px;
+			padding: 0.3rem 0.5rem;
+			background: var(--honey-soft);
+			color: #68470f;
+			letter-spacing: 0;
+			text-transform: none;
+		}
+
+		.concept-copy h3 {
+			margin: 0.55rem 0 0.3rem;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.5rem;
+			font-weight: 500;
+		}
+
+		.concept-copy > p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.82rem;
+			line-height: 1.5;
+		}
+
+		.concept-facts {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 0.6rem;
+			margin-top: 0.75rem;
+		}
+
+		.concept-facts span {
+			color: var(--muted);
+			font-size: 0.69rem;
+			line-height: 1.35;
+		}
+
+		.concept-facts strong {
+			display: block;
+			margin-bottom: 0.1rem;
+			color: var(--ink);
+		}
+
+		.phone {
+			position: relative;
+			display: flex;
+			width: min(100%, 390px);
+			height: 844px;
+			flex-direction: column;
+			overflow: hidden;
+			margin: 0 auto;
+			border: 8px solid #17201a;
+			border-radius: 2.55rem;
+			background: var(--paper);
+			box-shadow: var(--phone-shadow);
+			color: var(--ink);
+		}
+
+		.phone::before {
+			position: absolute;
+			top: 0.5rem;
+			left: 50%;
+			z-index: 50;
+			width: 5.75rem;
+			height: 1.55rem;
+			border-radius: 999px;
+			background: #17201a;
+			content: "";
+			transform: translateX(-50%);
+			pointer-events: none;
+		}
+
+		.phone-status {
+			display: flex;
+			height: 2.35rem;
+			flex: 0 0 auto;
+			align-items: center;
+			justify-content: space-between;
+			padding: 0.35rem 1.15rem 0;
+			font-size: 0.65rem;
+			font-weight: 800;
+		}
+
+		.phone-status span:last-child {
+			letter-spacing: 0.05em;
+		}
+
+		.app-content {
+			position: relative;
+			display: flex;
+			min-height: 0;
+			flex: 1;
+			flex-direction: column;
+		}
+
+		.app-scroll {
+			min-height: 0;
+			flex: 1;
+			overflow-y: auto;
+			overscroll-behavior: contain;
+			scrollbar-width: thin;
+		}
+
+		.phone button,
+		.phone select {
+			min-height: 44px;
+		}
+
+		.phone button {
+			border: 0;
+			background: transparent;
+			color: inherit;
+		}
+
+		.shopping-head {
+			padding: 0.45rem 0.8rem 0.65rem;
+		}
+
+		.title-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.6rem;
+		}
+
+		.title-row h4 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.55rem;
+			font-weight: 500;
+			letter-spacing: -0.035em;
+		}
+
+		.ah-status {
+			display: inline-flex;
+			min-height: 1.75rem;
+			align-items: center;
+			gap: 0.35rem;
+			border: 1px solid rgb(51 70 56 / 18%);
+			border-radius: 999px;
+			padding: 0 0.55rem;
+			color: var(--olive);
+			font-size: 0.61rem;
+			font-weight: 750;
+			white-space: nowrap;
+		}
+
+		.ah-status i {
+			width: 0.42rem;
+			height: 0.42rem;
+			border-radius: 999px;
+			background: #4d9662;
+		}
+
+		.week-nav {
+			display: grid;
+			grid-template-columns: 44px minmax(0, 1fr) 44px;
+			align-items: center;
+			gap: 0.25rem;
+			margin-top: 0.25rem;
+		}
+
+		.week-nav > button {
+			border-radius: 0.65rem;
+			color: var(--muted);
+			font-size: 1.2rem;
+		}
+
+		.week-copy {
+			min-width: 0;
+			text-align: center;
+		}
+
+		.week-copy strong {
+			display: block;
+			overflow: hidden;
+			font-size: 0.71rem;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.week-copy span {
+			display: block;
+			margin-top: 0.12rem;
+			color: var(--muted);
+			font-size: 0.61rem;
+		}
+
+		.week-copy a {
+			color: var(--terra);
+			font-weight: 700;
+			text-decoration: none;
+		}
+
+		.progress-line {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			align-items: center;
+			gap: 0.5rem;
+			margin-top: 0.45rem;
+			color: var(--muted);
+			font-size: 0.62rem;
+		}
+
+		.progress-line strong {
+			color: var(--ink);
+		}
+
+		.progress-track {
+			height: 0.28rem;
+			overflow: hidden;
+			border-radius: 999px;
+			background: #e2dbcc;
+		}
+
+		.progress-track i {
+			display: block;
+			width: 17%;
+			height: 100%;
+			border-radius: inherit;
+			background: var(--honey);
+		}
+
+		.phone-tools {
+			position: sticky;
+			top: 0;
+			z-index: 15;
+			border-block: 1px solid rgb(51 70 56 / 10%);
+			padding: 0.45rem 0.75rem;
+			background: rgb(247 243 233 / 96%);
+			backdrop-filter: blur(10px);
+		}
+
+		.filter-rail {
+			display: flex;
+			gap: 0.35rem;
+			overflow-x: auto;
+			padding-bottom: 0.15rem;
+			scrollbar-width: none;
+		}
+
+		.filter-rail::-webkit-scrollbar {
+			display: none;
+		}
+
+		.filter-chip {
+			flex: 0 0 auto;
+			min-height: 44px !important;
+			border: 1px solid var(--line) !important;
+			border-radius: 999px;
+			padding: 0 0.68rem;
+			background: var(--card) !important;
+			color: var(--muted) !important;
+			font-size: 0.65rem;
+			font-weight: 700;
+			white-space: nowrap;
+		}
+
+		.filter-chip.active {
+			border-color: var(--olive) !important;
+			background: var(--olive) !important;
+			color: white !important;
+		}
+
+		.control-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.5rem;
+			margin-top: 0.35rem;
+		}
+
+		.control-row label {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.3rem;
+			color: var(--muted);
+			font-size: 0.63rem;
+			font-weight: 700;
+		}
+
+		.control-row select,
+		.meal-toolbar select {
+			min-height: 44px;
+			border: 1px solid var(--line);
+			border-radius: 0.55rem;
+			padding: 0 1.7rem 0 0.55rem;
+			background: var(--card);
+			color: var(--ink);
+			font-size: 0.64rem;
+			font-weight: 700;
+		}
+
+		.secondary-link {
+			min-height: 44px !important;
+			padding: 0 0.45rem;
+			color: var(--terra) !important;
+			font-size: 0.62rem;
+			font-weight: 800;
+		}
+
+		.list-section {
+			padding: 0.55rem 0.75rem 0.25rem;
+		}
+
+		.list-heading {
+			display: flex;
+			min-height: 1.7rem;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.5rem;
+			color: var(--muted);
+			font-size: 0.59rem;
+			font-weight: 800;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.shopping-list {
+			overflow: hidden;
+			margin: 0;
+			border: 1px solid rgb(51 70 56 / 16%);
+			border-radius: 0.8rem;
+			padding: 0;
+			background: var(--card);
+			box-shadow: 0 5px 16px rgb(46 55 48 / 5%);
+			list-style: none;
+		}
+
+		.item-row {
+			display: grid;
+			grid-template-columns: 44px minmax(0, 1fr) auto;
+			min-height: 50px;
+			align-items: center;
+			border-bottom: 1px solid rgb(217 210 196 / 72%);
+		}
+
+		.item-row:last-child {
+			border-bottom: 0;
+		}
+
+		.item-row.warning {
+			background: #fff9e8;
+		}
+
+		.check-control {
+			display: grid;
+			width: 44px;
+			height: 44px;
+			place-items: center;
+		}
+
+		.check-control span {
+			display: grid;
+			width: 1.25rem;
+			height: 1.25rem;
+			place-items: center;
+			border: 1.5px solid rgb(36 49 40 / 42%);
+			border-radius: 999px;
+			color: transparent;
+			font-size: 0.68rem;
+			font-weight: 900;
+		}
+
+		.check-control.checked span {
+			border-color: var(--olive);
+			background: var(--olive);
+			color: white;
+		}
+
+		.item-copy {
+			min-width: 0;
+			padding: 0.38rem 0.25rem 0.38rem 0;
+		}
+
+		.item-primary {
+			display: flex;
+			min-width: 0;
+			align-items: baseline;
+			gap: 0.35rem;
+		}
+
+		.item-primary strong {
+			overflow: hidden;
+			font-size: 0.73rem;
+			line-height: 1.25;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.item-primary b {
+			flex: 0 0 auto;
+			color: var(--muted);
+			font-size: 0.62rem;
+			font-weight: 700;
+			white-space: nowrap;
+		}
+
+		.item-meta {
+			display: flex;
+			min-width: 0;
+			align-items: center;
+			gap: 0.28rem;
+			margin-top: 0.12rem;
+			color: var(--muted);
+			font-size: 0.57rem;
+			line-height: 1.25;
+		}
+
+		.item-meta > span {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.source-breakdown {
+			display: grid;
+			gap: 0.08rem;
+			margin: 0.28rem 0 0;
+			border-left: 2px solid var(--honey);
+			padding: 0 0 0 0.42rem;
+			list-style: none;
+		}
+
+		.source-breakdown li {
+			display: flex;
+			min-width: 0;
+			align-items: baseline;
+			gap: 0.35rem;
+			color: var(--muted);
+			font-size: 0.54rem;
+			line-height: 1.35;
+		}
+
+		.source-breakdown b {
+			flex: 0 0 auto;
+			color: var(--ink);
+			font-variant-numeric: tabular-nums;
+		}
+
+		.source-breakdown span {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.mini-badge {
+			flex: 0 0 auto;
+			border-radius: 999px;
+			padding: 0.14rem 0.34rem;
+			background: var(--sage);
+			color: var(--olive);
+			font-size: 0.52rem;
+			font-weight: 800;
+		}
+
+		.mini-badge.warn {
+			background: var(--honey-soft);
+			color: #6b480f;
+		}
+
+		.rule-menu,
+		.rule-visible {
+			min-width: 44px;
+			padding: 0 0.4rem;
+			color: var(--muted) !important;
+			font-size: 0.74rem;
+			font-weight: 800;
+		}
+
+		.rule-visible {
+			color: var(--terra) !important;
+			font-size: 0.59rem;
+		}
+
+		.disclosure-stack {
+			display: grid;
+			gap: 0.35rem;
+			padding: 0.45rem 0.75rem 0.7rem;
+		}
+
+		.disclosure {
+			display: flex;
+			width: 100%;
+			min-height: 44px !important;
+			align-items: center;
+			justify-content: space-between;
+			border: 1px dashed rgb(51 70 56 / 23%) !important;
+			border-radius: 0.65rem;
+			padding: 0 0.65rem;
+			color: var(--muted) !important;
+			font-size: 0.61rem;
+			font-weight: 750;
+		}
+
+		.empty-filter {
+			margin: 0.5rem 0.75rem;
+			border: 1px dashed var(--line);
+			border-radius: 0.75rem;
+			padding: 1.5rem 0.75rem;
+			color: var(--muted);
+			font-size: 0.7rem;
+			text-align: center;
+		}
+
+		.action-dock {
+			display: grid;
+			grid-template-columns: 0.8fr 1.2fr;
+			flex: 0 0 auto;
+			gap: 0.4rem;
+			border-top: 1px solid rgb(51 70 56 / 12%);
+			padding: 0.42rem 0.65rem;
+			background: rgb(255 253 247 / 96%);
+			box-shadow: 0 -8px 18px rgb(51 70 56 / 7%);
+			backdrop-filter: blur(10px);
+		}
+
+		.action-dock button {
+			border-radius: 0.62rem;
+			font-size: 0.67rem;
+			font-weight: 850;
+		}
+
+		.add-action {
+			background: #ece7dc !important;
+		}
+
+		.ah-action {
+			background: var(--terra) !important;
+			color: white !important;
+		}
+
+		.bottom-nav {
+			display: grid;
+			grid-template-columns: repeat(5, 1fr);
+			height: 3.35rem;
+			flex: 0 0 auto;
+			border-top: 1px solid var(--line);
+			background: var(--card);
+		}
+
+		.bottom-nav span {
+			display: grid;
+			place-items: center;
+			color: var(--muted);
+			font-size: 0.52rem;
+			font-weight: 700;
+		}
+
+		.bottom-nav .active {
+			color: var(--terra);
+		}
+
+		/* Meal Lens */
+		.meal-lens-phone {
+			--paper: #f6f0e5;
+			--card: #fffaf1;
+		}
+
+		.meal-lens-phone .shopping-head {
+			background:
+				radial-gradient(circle at 92% 0, rgb(211 160 70 / 19%), transparent 9rem),
+				var(--paper);
+		}
+
+		.meal-lens {
+			padding: 0.15rem 0.75rem 0.55rem;
+		}
+
+		.meal-lens-label {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 0.35rem;
+			color: var(--muted);
+			font-size: 0.58rem;
+			font-weight: 800;
+			letter-spacing: 0.07em;
+			text-transform: uppercase;
+		}
+
+		.meal-lens-label button {
+			min-height: 44px;
+			padding: 0 0.35rem;
+			color: var(--terra);
+			font-size: 0.55rem;
+			font-weight: 850;
+			letter-spacing: 0;
+			text-transform: none;
+		}
+
+		.meal-cards {
+			display: grid;
+			grid-auto-columns: 7.4rem;
+			grid-auto-flow: column;
+			gap: 0.4rem;
+			overflow-x: auto;
+			padding: 0.1rem 0 0.2rem;
+			scrollbar-width: none;
+		}
+
+		.meal-cards::-webkit-scrollbar {
+			display: none;
+		}
+
+		.meal-card {
+			display: grid;
+			min-height: 4.35rem !important;
+			align-content: space-between;
+			border: 1px solid var(--line) !important;
+			border-radius: 0.8rem;
+			padding: 0.55rem;
+			background: var(--card) !important;
+			color: var(--ink) !important;
+			text-align: left;
+		}
+
+		.meal-card strong {
+			display: -webkit-box;
+			overflow: hidden;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 0.77rem;
+			font-weight: 600;
+			line-height: 1.15;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+		}
+
+		.meal-card span {
+			color: var(--muted);
+			font-size: 0.54rem;
+			font-weight: 750;
+		}
+
+		.meal-card.active {
+			border-color: var(--terra) !important;
+			background: var(--terra) !important;
+			color: white !important;
+		}
+
+		.meal-card.active span {
+			color: rgb(255 255 255 / 76%);
+		}
+
+		.meal-toolbar {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.45rem;
+			border-block: 1px solid rgb(51 70 56 / 11%);
+			padding: 0.35rem 0.75rem;
+			background: rgb(255 250 241 / 95%);
+		}
+
+		.meal-toolbar strong {
+			font-size: 0.66rem;
+		}
+
+		.meal-lens-phone .item-row {
+			min-height: 55px;
+		}
+
+		.meal-lens-phone .shopping-list {
+			border-radius: 1rem;
+		}
+
+		.meal-lens-phone .mini-badge {
+			background: var(--terra-soft);
+			color: #71351f;
+		}
+
+		/* Store Route */
+		.route-phone {
+			--paper: #eef0e8;
+			--card: #fbfcf7;
+			background: var(--paper);
+		}
+
+		.route-phone .phone-status,
+		.route-phone .shopping-head {
+			background: var(--olive-deep);
+			color: white;
+		}
+
+		.route-phone .ah-status {
+			border-color: rgb(255 255 255 / 22%);
+			color: white;
+		}
+
+		.route-phone .week-nav > button,
+		.route-phone .week-copy span {
+			color: rgb(255 255 255 / 70%);
+		}
+
+		.route-phone .week-copy a {
+			color: #f1c76c;
+		}
+
+		.route-phone .progress-line {
+			color: rgb(255 255 255 / 68%);
+		}
+
+		.route-phone .progress-line strong {
+			color: white;
+		}
+
+		.route-phone .progress-track {
+			background: rgb(255 255 255 / 16%);
+		}
+
+		.route-tools {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 0.45rem;
+			border-bottom: 1px solid rgb(51 70 56 / 14%);
+			padding: 0.48rem 0.75rem;
+			background: #e7eadf;
+		}
+
+		.route-note {
+			grid-column: 1 / -1;
+			color: var(--muted);
+			font-size: 0.54rem;
+			line-height: 1.35;
+		}
+
+		.route-tools label {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr);
+			align-items: center;
+			gap: 0.35rem;
+			color: var(--muted);
+			font-size: 0.57rem;
+			font-weight: 800;
+		}
+
+		.route-tools select,
+		.route-tools label select {
+			min-width: 0;
+			border: 1px solid rgb(51 70 56 / 21%);
+			border-radius: 0.6rem;
+			padding: 0 1.4rem 0 0.55rem;
+			background: var(--card);
+			color: var(--ink);
+			font-size: 0.63rem;
+			font-weight: 750;
+		}
+
+		.route-tools > [data-route-meal] {
+			grid-column: 1 / -1;
+		}
+
+		.route-tools button {
+			border: 1px solid rgb(51 70 56 / 21%);
+			border-radius: 0.6rem;
+			padding: 0 0.6rem;
+			background: var(--card);
+			color: var(--terra);
+			font-size: 0.59rem;
+			font-weight: 800;
+		}
+
+		.route-groups {
+			padding: 0.5rem 0.65rem;
+		}
+
+		.route-group {
+			overflow: hidden;
+			margin-bottom: 0.45rem;
+			border: 1px solid rgb(51 70 56 / 17%);
+			border-radius: 0.75rem;
+			background: var(--card);
+		}
+
+		.route-heading {
+			display: grid;
+			grid-template-columns: 1.35rem minmax(0, 1fr) auto;
+			min-height: 2.35rem;
+			align-items: center;
+			gap: 0.35rem;
+			padding: 0 0.55rem;
+			background: var(--olive);
+			color: white;
+			font-size: 0.61rem;
+			font-weight: 850;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+		}
+
+		.route-heading i {
+			display: block;
+			width: 1rem;
+			height: 0.2rem;
+			border-radius: 999px;
+			background: var(--honey);
+		}
+
+		.route-heading span:last-child {
+			color: rgb(255 255 255 / 72%);
+			font-size: 0.54rem;
+		}
+
+		.route-group .item-row {
+			min-height: 48px;
+		}
+
+		.route-phone .action-dock {
+			background: var(--olive-deep);
+		}
+
+		.route-phone .add-action {
+			background: rgb(255 255 255 / 10%) !important;
+			color: white !important;
+		}
+
+		.route-phone .ah-action {
+			background: var(--honey) !important;
+			color: #33240a !important;
+		}
+
+		/* Comparison and decision workspace */
+		.comparison {
+			margin-top: 2.25rem;
+			overflow: hidden;
+			border: 1px solid rgb(51 70 56 / 15%);
+			border-radius: 1.25rem;
+			background: rgb(255 253 247 / 78%);
+			box-shadow: var(--shadow);
+		}
+
+		.comparison table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.comparison th,
+		.comparison td {
+			border-bottom: 1px solid var(--line);
+			padding: 0.85rem 1rem;
+			font-size: 0.78rem;
+			line-height: 1.45;
+			text-align: left;
+			vertical-align: top;
+		}
+
+		.comparison th {
+			background: #ece7db;
+			color: var(--muted);
+			font-size: 0.66rem;
+			letter-spacing: 0.07em;
+			text-transform: uppercase;
+		}
+
+		.comparison td:first-child {
+			font-weight: 800;
+		}
+
+		.comparison tr:last-child td {
+			border-bottom: 0;
+		}
+
+		.decision-zone {
+			display: grid;
+			grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
+			gap: 1rem;
+			margin-top: 1rem;
+		}
+
+		.decision-card,
+		.handoff-card {
+			min-width: 0;
+			border: 1px solid rgb(51 70 56 / 15%);
+			border-radius: 1.25rem;
+			padding: clamp(1rem, 2.5vw, 1.6rem);
+			background: rgb(255 253 247 / 85%);
+			box-shadow: var(--shadow);
+		}
+
+		.decision-card > p,
+		.handoff-card > p {
+			color: var(--muted);
+			font-size: 0.84rem;
+			line-height: 1.55;
+		}
+
+		.direction-options {
+			display: grid;
+			gap: 0.6rem;
+			margin-top: 1rem;
+		}
+
+		.direction-option {
+			position: relative;
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr);
+			gap: 0.75rem;
+			border: 1px solid var(--line);
+			border-radius: 0.9rem;
+			padding: 0.85rem;
+			background: var(--card);
+			cursor: pointer;
+		}
+
+		.direction-option:has(input:checked) {
+			border-color: var(--olive);
+			box-shadow: inset 0 0 0 1px var(--olive);
+		}
+
+		.direction-option input {
+			width: 1.1rem;
+			height: 1.1rem;
+			margin: 0.15rem 0 0;
+			accent-color: var(--olive);
+		}
+
+		.direction-option strong {
+			display: block;
+			font-size: 0.85rem;
+		}
+
+		.direction-option span {
+			display: block;
+			margin-top: 0.15rem;
+			color: var(--muted);
+			font-size: 0.72rem;
+			line-height: 1.45;
+		}
+
+		.recommendation-box {
+			margin-top: 0.8rem;
+			border-left: 4px solid var(--honey);
+			border-radius: 0 0.7rem 0.7rem 0;
+			padding: 0.75rem 0.85rem;
+			background: var(--honey-soft);
+			color: #50370e;
+			font-size: 0.75rem;
+			line-height: 1.5;
+		}
+
+		.notes-label,
+		.handoff-label {
+			display: block;
+			margin-top: 1rem;
+			font-size: 0.72rem;
+			font-weight: 800;
+		}
+
+		textarea {
+			width: 100%;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 0.75rem;
+			padding: 0.75rem;
+			background: #fff;
+			color: var(--ink);
+			font-size: 0.75rem;
+			line-height: 1.5;
+		}
+
+		#notes {
+			min-height: 7rem;
+			margin-top: 0.35rem;
+		}
+
+		#handoff {
+			min-height: 24rem;
+			margin-top: 0.35rem;
+			font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+			font-size: 0.68rem;
+		}
+
+		.workspace-actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+			margin-top: 0.75rem;
+		}
+
+		.workspace-actions button {
+			border: 1px solid var(--line);
+			border-radius: 0.65rem;
+			padding: 0 0.85rem;
+			background: var(--card);
+			color: var(--ink);
+			font-size: 0.72rem;
+			font-weight: 800;
+		}
+
+		.workspace-actions .primary {
+			border-color: var(--terra);
+			background: var(--terra);
+			color: white;
+		}
+
+		#save-status {
+			min-height: 1.2rem;
+			margin: 0.6rem 0 0;
+			color: var(--muted);
+			font-size: 0.68rem;
+		}
+
+		.source-note {
+			margin-top: 1rem;
+			color: var(--muted);
+			font-size: 0.68rem;
+			line-height: 1.55;
+		}
+
+		.source-note code {
+			overflow-wrap: anywhere;
+		}
+
+		dialog {
+			width: min(92vw, 31rem);
+			max-height: 86vh;
+			overflow: auto;
+			border: 0;
+			border-radius: 1.15rem;
+			padding: 0;
+			background: var(--card);
+			color: var(--ink);
+			box-shadow: 0 30px 90px rgb(14 23 17 / 35%);
+		}
+
+		dialog::backdrop {
+			background: rgb(18 27 21 / 55%);
+			backdrop-filter: blur(4px);
+		}
+
+		.dialog-body {
+			padding: 1.15rem;
+		}
+
+		.dialog-body h3 {
+			margin: 0;
+			font-family: Georgia, "Times New Roman", serif;
+			font-size: 1.55rem;
+			font-weight: 500;
+		}
+
+		.dialog-context {
+			margin: 0.3rem 0 1rem;
+			color: var(--muted);
+			font-size: 0.78rem;
+		}
+
+		.rule-choice {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 0.65rem;
+			margin-top: 0.5rem;
+			border: 1px solid var(--line);
+			border-radius: 0.75rem;
+			padding: 0.7rem;
+		}
+
+		.rule-choice input {
+			margin-top: 0.15rem;
+			accent-color: var(--olive);
+		}
+
+		.rule-choice strong,
+		.rule-choice span {
+			display: block;
+		}
+
+		.rule-choice strong {
+			font-size: 0.8rem;
+		}
+
+		.rule-choice span {
+			margin-top: 0.1rem;
+			color: var(--muted);
+			font-size: 0.69rem;
+		}
+
+		.rule-source-chooser {
+			display: grid;
+			gap: 0.5rem;
+			margin-top: 0.75rem;
+		}
+
+		.rule-source-chooser button,
+		.action-menu-button {
+			display: flex;
+			width: 100%;
+			min-height: 44px;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.75rem;
+			border: 1px solid var(--line);
+			border-radius: 0.7rem;
+			padding: 0.65rem 0.75rem;
+			background: var(--card);
+			color: var(--ink);
+			font-size: 0.75rem;
+			font-weight: 800;
+			text-align: left;
+		}
+
+		.rule-source-chooser button span,
+		.action-menu-button span {
+			color: var(--muted);
+			font-size: 0.68rem;
+			font-weight: 600;
+		}
+
+		.dialog-actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: 0.5rem;
+			margin-top: 1rem;
+		}
+
+		.dialog-actions button {
+			border: 1px solid var(--line);
+			border-radius: 0.65rem;
+			padding: 0 0.85rem;
+			background: var(--card);
+			font-size: 0.74rem;
+			font-weight: 800;
+		}
+
+		.dialog-actions .save-rule {
+			border-color: var(--olive);
+			background: var(--olive);
+			color: white;
+		}
+
+		@media (max-width: 68rem) {
+			.section-intro,
+			.decision-zone {
+				grid-template-columns: 1fr;
+			}
+
+			.concept-grid {
+				grid-template-columns: repeat(3, 390px);
+			}
+		}
+
+		@media (max-width: 44rem) {
+			.board-header-inner {
+				padding-top: 2.5rem;
+			}
+
+			main {
+				padding-inline: 0.65rem;
+			}
+
+			.concept-grid {
+				grid-template-columns: repeat(3, minmax(330px, 390px));
+			}
+
+			.concept {
+				min-width: 330px;
+			}
+
+			.concept-copy {
+				min-height: 11rem;
+			}
+
+			.phone {
+				height: 760px;
+			}
+
+			.comparison {
+				overflow-x: auto;
+			}
+
+			.comparison table {
+				min-width: 52rem;
+			}
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			html {
+				scroll-behavior: auto;
+			}
+
+			* {
+				animation-duration: 0.01ms !important;
+				animation-iteration-count: 1 !important;
+				transition-duration: 0.01ms !important;
+			}
+		}
+	</style>
+</head>
+<body>
+	<header class="board-header">
+		<div class="board-header-inner">
+			<p class="eyebrow">Design shotgun · Shopping</p>
+			<h1>One list. Three ways to move through it.</h1>
+			<p class="board-lede">
+				Each direction removes the Run / meals / Every week switch, keeps unique items
+				checkable, and makes meals a lens instead of a second kind of screen.
+			</p>
+			<div class="fixed-direction" aria-label="Fixed design constraints">
+				<span>One page title: Shopping</span>
+				<span>Unique item rows</span>
+				<span>Meal filters</span>
+				<span>Sort without mode switching</span>
+				<span>Manage weekly items secondarily</span>
+				<span>Edit shopping rule</span>
+			</div>
+		</div>
+	</header>
+
+	<main>
+		<section aria-labelledby="prototype-heading">
+			<div class="section-intro">
+				<div>
+					<p class="eyebrow" style="color: var(--terra)">Comparable evidence</p>
+					<h2 id="prototype-heading">The same week at the same phone size</h2>
+				</div>
+				<p>
+					Try the meal filters, sort controls, item checks, covered-item disclosures, and
+					shopping-rule actions. Every phone starts with the same ten items, two in the
+					basket, and two covered by stock.
+				</p>
+			</div>
+
+			<div class="concept-grid">
+				<article class="concept">
+					<div class="concept-copy">
+						<div class="concept-kicker">
+							<span>A1 · List first</span>
+							<span class="recommended">Recommended</span>
+						</div>
+						<h3>Quiet Ledger</h3>
+						<p>A dense paper-like list with meal chips, one sort control, and exceptional context only.</p>
+						<div class="concept-facts">
+							<span><strong>Optimizes</strong>Fast scanning and checking</span>
+							<span><strong>Costs</strong>Meal selection is deliberately quiet</span>
+						</div>
+					</div>
+					<div class="phone ledger-phone" data-kind="ledger" aria-label="Quiet Ledger interactive phone prototype">
+						<div class="phone-status"><span>9:41</span><span>5G 100%</span></div>
+						<div class="app-content">
+							<div class="app-scroll">
+								<header class="shopping-head">
+									<div class="title-row">
+										<h4>Shopping</h4>
+										<span class="ah-status"><i></i>AH connected</span>
+									</div>
+									<div class="week-nav">
+										<button type="button" aria-label="Previous week">‹</button>
+										<div class="week-copy">
+											<strong>Wed 22 Jul – Tue 28 Jul</strong>
+											<span>Delivery Tue 21 Jul · <a href="#decision">Meal plan</a></span>
+										</div>
+										<button type="button" aria-label="Next week">›</button>
+									</div>
+									<div class="progress-line">
+										<strong data-left>10 to buy</strong>
+										<span class="progress-track"><i data-progress></i></span>
+										<span data-basket-label>2 in basket</span>
+									</div>
+								</header>
+								<div class="phone-tools">
+									<div class="filter-rail" data-filters></div>
+									<div class="control-row">
+										<label>Sort
+											<select data-sort aria-label="Sort shopping items">
+												<option value="plan">List order</option>
+												<option value="az">A–Z</option>
+												<option value="meal">By meal</option>
+												<option value="weekly">Weekly first</option>
+											</select>
+										</label>
+										<button type="button" class="secondary-link" data-weekly>Manage weekly items</button>
+									</div>
+								</div>
+								<div data-items></div>
+							</div>
+							<div class="action-dock">
+								<button type="button" class="add-action">+ Add item</button>
+								<button type="button" class="ah-action" data-ah-action>Review in AH · 10</button>
+							</div>
+							<nav class="bottom-nav" aria-label="Prototype navigation">
+								<span>Home</span><span>Stock</span><span>Plan</span><span class="active">Shopping</span><span>Recipes</span>
+							</nav>
+						</div>
+					</div>
+				</article>
+
+				<article class="concept">
+					<div class="concept-copy">
+						<div class="concept-kicker"><span>A2 · Meal first</span></div>
+						<h3>Meal Lens</h3>
+						<p>Meals become obvious visual filters while the underlying list remains unique and checkable.</p>
+						<div class="concept-facts">
+							<span><strong>Optimizes</strong>“What does this meal need?”</span>
+							<span><strong>Costs</strong>More vertical space before the list</span>
+						</div>
+					</div>
+					<div class="phone meal-lens-phone" data-kind="meal" aria-label="Meal Lens interactive phone prototype">
+						<div class="phone-status"><span>9:41</span><span>5G 100%</span></div>
+						<div class="app-content">
+							<div class="app-scroll">
+								<header class="shopping-head">
+									<div class="title-row">
+										<h4>Shopping</h4>
+										<span class="ah-status"><i></i>AH connected</span>
+									</div>
+									<div class="week-nav">
+										<button type="button" aria-label="Previous week">‹</button>
+										<div class="week-copy">
+											<strong>Wed 22 Jul – Tue 28 Jul</strong>
+											<span>Delivery Tue 21 Jul · <a href="#decision">Meal plan</a></span>
+										</div>
+										<button type="button" aria-label="Next week">›</button>
+									</div>
+									<div class="progress-line">
+										<strong data-left>10 to buy</strong>
+										<span class="progress-track"><i data-progress></i></span>
+										<span data-basket-label>2 in basket</span>
+									</div>
+								</header>
+								<section class="meal-lens">
+									<div class="meal-lens-label">
+										<span>Shop for a meal · 3 planned</span>
+										<button type="button" data-weekly>Manage weekly items</button>
+									</div>
+									<div class="meal-cards" data-meal-cards></div>
+								</section>
+								<div class="meal-toolbar">
+									<strong data-view-label>All items</strong>
+									<select data-sort aria-label="Sort shopping items">
+										<option value="plan">List order</option>
+										<option value="az">A–Z</option>
+										<option value="meal">By meal</option>
+										<option value="weekly">Weekly first</option>
+									</select>
+								</div>
+								<div data-items></div>
+							</div>
+							<div class="action-dock">
+								<button type="button" class="add-action">+ Add item</button>
+								<button type="button" class="ah-action" data-ah-action>Review in AH · 10</button>
+							</div>
+							<nav class="bottom-nav" aria-label="Prototype navigation">
+								<span>Home</span><span>Stock</span><span>Plan</span><span class="active">Shopping</span><span>Recipes</span>
+							</nav>
+						</div>
+					</div>
+				</article>
+
+				<article class="concept">
+					<div class="concept-copy">
+						<div class="concept-kicker"><span>A3 · Place first</span></div>
+						<h3>Store Route</h3>
+						<p>Unique items are grouped into shop sections, with meal filtering kept secondary.</p>
+						<div class="concept-facts">
+							<span><strong>Optimizes</strong>Less backtracking in the shop</span>
+							<span><strong>Costs</strong>Needs new category ownership</span>
+						</div>
+					</div>
+					<div class="phone route-phone" data-kind="route" aria-label="Store Route interactive phone prototype">
+						<div class="phone-status"><span>9:41</span><span>5G 100%</span></div>
+						<div class="app-content">
+							<div class="app-scroll">
+								<header class="shopping-head">
+									<div class="title-row">
+										<h4>Shopping</h4>
+										<span class="ah-status"><i></i>AH connected</span>
+									</div>
+									<div class="week-nav">
+										<button type="button" aria-label="Previous week">‹</button>
+										<div class="week-copy">
+											<strong>Wed 22 Jul – Tue 28 Jul</strong>
+											<span>Delivery Tue 21 Jul · <a href="#decision">Meal plan</a></span>
+										</div>
+										<button type="button" aria-label="Next week">›</button>
+									</div>
+									<div class="progress-line">
+										<strong data-left>10 to buy</strong>
+										<span class="progress-track"><i data-progress></i></span>
+										<span data-basket-label>2 in basket</span>
+									</div>
+								</header>
+								<div class="route-tools">
+									<span class="route-note">Illustrative shop sections · the app does not own category data yet</span>
+									<select data-route-meal aria-label="Filter by meal">
+										<option value="all">All meals</option>
+										<option value="curry">Kip-kikkererwtencurry</option>
+										<option value="rice">Rijstkom met groenten</option>
+										<option value="soup">Tomatensoep</option>
+										<option value="weekly">Weekly basics</option>
+									</select>
+									<label>Sort
+										<select data-sort aria-label="Sort shopping items within shop sections">
+											<option value="route">Store route</option>
+											<option value="az">A–Z</option>
+											<option value="meal">By meal</option>
+											<option value="weekly">Weekly first</option>
+										</select>
+									</label>
+									<button type="button" data-weekly>Manage weekly items</button>
+								</div>
+								<div data-items></div>
+							</div>
+							<div class="action-dock">
+								<button type="button" class="add-action">+ Add item</button>
+								<button type="button" class="ah-action" data-ah-action>Review in AH · 10</button>
+							</div>
+							<nav class="bottom-nav" aria-label="Prototype navigation">
+								<span>Home</span><span>Stock</span><span>Plan</span><span class="active">Shopping</span><span>Recipes</span>
+							</nav>
+						</div>
+					</div>
+				</article>
+			</div>
+		</section>
+
+		<section class="comparison" aria-labelledby="compare-heading">
+			<table>
+				<thead>
+					<tr>
+						<th id="compare-heading">Direction</th>
+						<th>Main strength</th>
+						<th>Main trade-off</th>
+						<th>Behavior it optimizes</th>
+						<th>Scope signal</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>A1 · Quiet Ledger</td>
+						<td>Most items per screen; filters and sorting stay visible without becoming the page.</td>
+						<td>Meal discovery relies on compact chips instead of visual cards.</td>
+						<td>Open list, scan, check, continue.</td>
+						<td>Uses current item and meal-source data.</td>
+					</tr>
+					<tr>
+						<td>A2 · Meal Lens</td>
+						<td>Turns the old Meals intent into a clear filter rather than a different settings screen.</td>
+						<td>The meal rail delays the first item and can feel too plan-oriented in store.</td>
+						<td>Pick a meal, then see exactly what remains for it.</td>
+						<td>Uses current data; higher UI composition cost.</td>
+					</tr>
+					<tr>
+						<td>A3 · Store Route</td>
+						<td>Best physical shopping sequence and clearest structure for a long list.</td>
+						<td>Wrong classifications create friction and need a correction path.</td>
+						<td>Finish one shop section before moving to the next.</td>
+						<td>Requires a new category source and ownership decision.</td>
+					</tr>
+				</tbody>
+			</table>
+		</section>
+
+		<section class="decision-zone" id="decision" aria-labelledby="decision-heading">
+			<form class="decision-card" id="decision-form">
+				<p class="eyebrow" style="color: var(--terra)">Converge</p>
+				<h2 id="decision-heading">Which direction should shape Shopping?</h2>
+				<p>
+					The recommendation is selected. Override it if another behavior matters more;
+					your choice and note are turned into a complete handoff.
+				</p>
+				<div class="direction-options">
+					<label class="direction-option">
+						<input type="radio" name="direction" value="A1 — Quiet Ledger" checked />
+						<span>
+							<strong>A1 — Quiet Ledger</strong>
+							<span>Choose the compact, low-chrome list. Meal filters and sorting remain immediately available.</span>
+						</span>
+					</label>
+					<label class="direction-option">
+						<input type="radio" name="direction" value="A2 — Meal Lens" />
+						<span>
+							<strong>A2 — Meal Lens</strong>
+							<span>Make meal selection visually prominent while preserving one deduplicated list.</span>
+						</span>
+					</label>
+					<label class="direction-option">
+						<input type="radio" name="direction" value="A3 — Store Route" />
+						<span>
+							<strong>A3 — Store Route</strong>
+							<span>Organize the unique list around shop sections and accept the additional classification work.</span>
+						</span>
+					</label>
+				</div>
+				<div class="recommendation-box">
+					<strong>Recommendation: A1 — Quiet Ledger.</strong>
+					It fixes the density, repetition, sorting, action-copy, and mode-switch problems
+					using data the app already owns. A stronger meal lens can be added later without
+					replacing the list.
+				</div>
+				<label class="notes-label" for="notes">Specific feedback</label>
+				<textarea id="notes" placeholder="Comment on layout, type, color, density, hierarchy, filtering, sorting, or the shopping-rule action."></textarea>
+				<div class="workspace-actions">
+					<button type="button" id="reset">Reset recommendation</button>
+				</div>
+				<p id="save-status" aria-live="polite"></p>
+			</form>
+
+			<div class="handoff-card">
+				<p class="eyebrow" style="color: var(--terra)">Forward-only handoff</p>
+				<h2>Continue with the selected design</h2>
+				<p>
+					This text carries the source, decision, evidence, assumptions, trade-offs, and
+					your note. The next step is planning, not immediate implementation.
+				</p>
+				<label class="handoff-label" for="handoff">Generated prompt</label>
+				<textarea id="handoff" readonly></textarea>
+				<div class="workspace-actions">
+					<button type="button" class="primary" id="copy-handoff">Copy handoff</button>
+				</div>
+				<p class="source-note">
+					Authoritative source:
+					<code>docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md</code>.
+					This HTML is a temporary decision workspace and does not change the production
+					Shopping route.
+				</p>
+			</div>
+		</section>
+	</main>
+
+	<dialog id="rule-dialog" aria-labelledby="rule-title">
+		<div class="dialog-body">
+			<p class="eyebrow" style="color: var(--terra)">Item settings</p>
+			<h3 id="rule-title">Edit shopping rule</h3>
+			<p class="dialog-context"><strong id="rule-name">Ingredient</strong> · <span id="rule-context">Recipe</span></p>
+			<div id="rule-source-step" hidden>
+				<p class="dialog-context">This item comes from more than one recipe. Choose the source-owned rule to edit.</p>
+				<div class="rule-source-chooser" id="rule-source-choices"></div>
+				<div class="dialog-actions">
+					<button type="button" id="close-rule-source">Cancel</button>
+				</div>
+			</div>
+			<div id="rule-editor">
+				<fieldset>
+					<legend><strong>When should this be added?</strong></legend>
+					<label class="rule-choice">
+						<input type="radio" name="shopping-rule" checked />
+						<span><strong>Every time</strong><span>The recipe needs this ingredient.</span></span>
+					</label>
+					<label class="rule-choice">
+						<input type="radio" name="shopping-rule" />
+						<span><strong>Nice to have</strong><span>The recipe still works without it.</span></span>
+					</label>
+					<label class="rule-choice">
+						<input type="radio" name="shopping-rule" />
+						<span><strong>Usually stocked</strong><span>Only add it when household stock is low.</span></span>
+					</label>
+				</fieldset>
+				<div class="dialog-actions">
+					<button type="button" id="back-rule" hidden>Back</button>
+					<button type="button" id="close-rule">Cancel</button>
+					<button type="button" class="save-rule" id="save-rule">Save rule</button>
+				</div>
+			</div>
+		</div>
+	</dialog>
+
+	<dialog id="item-actions-dialog" aria-labelledby="item-actions-title">
+		<div class="dialog-body">
+			<p class="eyebrow" style="color: var(--terra)">Item actions</p>
+			<h3 id="item-actions-title">Item</h3>
+			<p class="dialog-context">Choose what to change for this shopping item.</p>
+			<button type="button" class="action-menu-button" id="action-edit-rule">
+				Edit shopping rule
+				<span>Choose the recipe when this item is shared</span>
+			</button>
+			<div class="dialog-actions">
+				<button type="button" id="close-item-actions">Cancel</button>
+			</div>
+		</div>
+	</dialog>
+
+	<dialog id="weekly-dialog" aria-labelledby="weekly-title">
+		<div class="dialog-body">
+			<p class="eyebrow" style="color: var(--terra)">Secondary task</p>
+			<h3 id="weekly-title">Manage weekly items</h3>
+			<p class="dialog-context">
+				Recurring basics remain available without becoming a peer shopping mode.
+			</p>
+			<div class="shopping-list">
+				<div class="item-row">
+					<div class="check-control checked"><span>✓</span></div>
+					<div class="item-copy"><div class="item-primary"><strong>Brood</strong><b>1 loaf</b></div><div class="item-meta"><span>Included every week</span></div></div>
+					<span class="mini-badge" style="margin-right:.7rem">Included</span>
+				</div>
+				<div class="item-row">
+					<div class="check-control checked"><span>✓</span></div>
+					<div class="item-copy"><div class="item-primary"><strong>Havermout</strong><b>1 box</b></div><div class="item-meta"><span>Included every week</span></div></div>
+					<span class="mini-badge" style="margin-right:.7rem">Included</span>
+				</div>
+			</div>
+			<div class="dialog-actions">
+				<button type="button" id="close-weekly">Done</button>
+			</div>
+		</div>
+	</dialog>
+
+	<script>
+		(() => {
+			const sourcePath = "docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md";
+			const artifactPath = "docs/artifacts/archive/2026-07-26-design-shotgun-shopping-one-list.html";
+			const schemaVersion = 1;
+			const storageKey = `${artifactPath}:v${schemaVersion}`;
+			let persistenceAvailable = true;
+
+			const mealDetails = {
+				all: { short: "All", full: "All items" },
+				curry: { short: "Curry", full: "Kip-kikkererwtencurry" },
+				rice: { short: "Rice bowl", full: "Rijstkom met groenten" },
+				soup: { short: "Soup", full: "Tomatensoep" },
+				weekly: { short: "Weekly", full: "Weekly basics" }
+			};
+
+			const baseItems = [
+				{ id: "kipfilet", name: "Kipfilet", qty: "400 g", meals: ["curry"], section: "Fresh" },
+				{ id: "kikkererwten", name: "Kikkererwten", qty: "2 cans", meals: ["curry"], section: "Pantry" },
+				{ id: "garam", name: "Garam masala", qty: "2 tbsp", meals: ["curry"], section: "Pantry" },
+				{ id: "rijst", name: "Rijst", qty: "500 g", meals: ["curry", "rice"], section: "Pantry" },
+				{ id: "limoen", name: "Limoen", qty: "2", meals: ["curry", "rice"], section: "Fresh" },
+				{ id: "komkommer", name: "Komkommer", qty: "1", meals: ["rice"], section: "Fresh" },
+				{
+					id: "tomaten",
+					name: "Tomaten",
+					qty: "4 + 500 g",
+					meals: ["rice", "soup"],
+					section: "Fresh",
+					warning: true,
+					warningSources: [
+						{ qty: "4", meal: "rice" },
+						{ qty: "500 g", meal: "soup" }
+					]
+				},
+				{ id: "yoghurt", name: "Yoghurt", qty: "500 ml", meals: ["curry"], section: "Chilled" },
+				{ id: "brood", name: "Brood", qty: "1 loaf", meals: ["soup", "weekly"], section: "Bakery", weekly: true },
+				{ id: "havermout", name: "Havermout", qty: "1 box", meals: ["weekly"], section: "Pantry", weekly: true },
+				{ id: "melk", name: "Melk", qty: "1 litre", meals: ["weekly"], section: "Chilled", bought: true },
+				{ id: "bananen", name: "Bananen", qty: "6", meals: ["weekly"], section: "Fresh", bought: true },
+				{ id: "knoflook", name: "Knoflook", qty: "3 cloves", meals: ["curry", "soup"], section: "Fresh", covered: true },
+				{ id: "olie", name: "Olijfolie", qty: "2 tbsp", meals: ["curry", "rice", "soup"], section: "Pantry", covered: true }
+			];
+
+			const cloneItems = () => baseItems.map((item, index) => ({ ...item, order: index }));
+
+			function filteredActive(state) {
+				return state.items.filter((item) => {
+					if (item.bought || item.covered) return false;
+					if (state.filter === "all") return true;
+					return item.meals.includes(state.filter);
+				});
+			}
+
+			function sortedItems(items, sort) {
+				const next = [...items];
+				if (sort === "az") return next.sort((a, b) => a.name.localeCompare(b.name, "nl"));
+				if (sort === "meal") {
+					return next.sort((a, b) =>
+						(a.meals[0] ?? "").localeCompare(b.meals[0] ?? "") || a.order - b.order
+					);
+				}
+				if (sort === "weekly") {
+					return next.sort((a, b) => Number(Boolean(b.weekly)) - Number(Boolean(a.weekly)) || a.order - b.order);
+				}
+				return next.sort((a, b) => a.order - b.order);
+			}
+
+			function mealContext(item, state) {
+				if (item.warning) return "Recipe amounts do not combine";
+				if (state.filter !== "all" && state.filter !== "weekly") {
+					const otherMeals = item.meals.filter((meal) => meal !== state.filter && meal !== "weekly");
+					if (otherMeals.length) {
+						return `Also in ${otherMeals.map((meal) => mealDetails[meal].full).join(" + ")}`;
+					}
+					if (item.weekly) return "Weekly basic";
+					return "";
+				}
+				if (item.meals.length > 1) {
+					const mealCount = item.meals.filter((meal) => meal !== "weekly").length;
+					if (mealCount > 1) return `Shared by ${mealCount} meals`;
+				}
+				if (item.weekly) return "Weekly basic";
+				return "";
+			}
+
+			function rowTemplate(item, state, kind, completed = false, covered = false) {
+				const context = covered ? "Covered by stock" : mealContext(item, state);
+				const recipeMeals = item.meals.filter((meal) => meal !== "weekly");
+				const contextBadge = item.warning
+					? '<span class="mini-badge warn">Review amount</span>'
+					: item.meals.filter((meal) => meal !== "weekly").length > 1
+						? `<span class="mini-badge">${item.meals.filter((meal) => meal !== "weekly").length} meals</span>`
+						: item.weekly
+							? '<span class="mini-badge">Weekly</span>'
+							: "";
+				const ruleAction = recipeMeals.length === 0
+					? '<span class="mini-badge" style="margin-right:.55rem">Weekly</span>'
+					: kind === "meal"
+						? `<button type="button" class="rule-visible" data-rule="${item.id}">Edit shopping rule</button>`
+						: `<button type="button" class="rule-menu" data-actions="${item.id}" aria-label="Actions for ${item.name}">•••</button>`;
+				const checkControl = covered
+					? '<div class="check-control checked" aria-hidden="true"><span>✓</span></div>'
+					: `<button type="button" class="check-control${completed ? " checked" : ""}" data-check="${item.id}" aria-label="${completed ? "Move" : "Mark"} ${item.name} ${completed ? "back to list" : "as bought"}">
+							<span>✓</span>
+						</button>`;
+				const warningDetails = item.warningSources
+					? `<ul class="source-breakdown" aria-label="Recipe quantities">${item.warningSources.map((source) =>
+							`<li><b>${source.qty}</b><span>${mealDetails[source.meal].full}</span></li>`
+						).join("")}</ul>`
+					: "";
+				return `
+					<li class="item-row${item.warning ? " warning" : ""}" data-item="${item.id}">
+						${checkControl}
+						<div class="item-copy">
+							<div class="item-primary"><strong>${item.name}</strong><b>${item.qty}</b></div>
+							${context || contextBadge ? `<div class="item-meta"><span>${context}</span>${contextBadge}</div>` : ""}
+							${warningDetails}
+						</div>
+						${covered ? '<span class="mini-badge" style="margin-right:.55rem">In stock</span>' : ruleAction}
+					</li>`;
+			}
+
+			function listBlock(items, state, kind) {
+				if (!items.length) return '<div class="empty-filter">Nothing left for this filter.</div>';
+				return `
+					<section class="list-section">
+						<div class="list-heading"><span>${state.filter === "all" ? "To buy" : mealDetails[state.filter].full}</span><span>${items.length} items</span></div>
+						<ul class="shopping-list">${items.map((item) => rowTemplate(item, state, kind)).join("")}</ul>
+					</section>`;
+			}
+
+			function disclosures(state, kind) {
+				const matchesFilter = (item) => state.filter === "all" || item.meals.includes(state.filter);
+				const done = state.items.filter((item) => item.bought && matchesFilter(item));
+				const covered = state.items.filter((item) => item.covered && matchesFilter(item));
+				const scope = state.filter === "all" ? "" : " for this filter";
+				return `
+					<div class="disclosure-stack">
+						<button type="button" class="disclosure" data-toggle-done><span>${done.length} in basket${scope}</span><span>${state.showDone ? "Hide" : "Review"}</span></button>
+						${state.showDone ? `<ul class="shopping-list">${done.map((item) => rowTemplate(item, state, kind, true)).join("")}</ul>` : ""}
+						<button type="button" class="disclosure" data-toggle-covered><span>${covered.length} covered by stock${scope}</span><span>${state.showCovered ? "Hide" : "Show"}</span></button>
+						${state.showCovered ? `<ul class="shopping-list">${covered.map((item) => rowTemplate(item, state, kind, false, true)).join("")}</ul>` : ""}
+					</div>`;
+			}
+
+			function renderStandard(root, state, kind) {
+				const active = sortedItems(filteredActive(state), state.sort);
+				root.querySelector("[data-items]").innerHTML = listBlock(active, state, kind) + disclosures(state, kind);
+				bindRenderedControls(root, state);
+			}
+
+			function renderRoute(root, state) {
+				const active = sortedItems(filteredActive(state), state.sort);
+				const sectionOrder = ["Fresh", "Pantry", "Chilled", "Bakery"];
+				const groups = sectionOrder
+					.map((section) => ({ section, items: active.filter((item) => item.section === section) }))
+					.filter((group) => group.items.length);
+				const routeHtml = groups.length
+					? `<div class="route-groups">${groups.map((group) => `
+						<section class="route-group">
+							<header class="route-heading"><i></i><span>${group.section}</span><span>${group.items.length} left</span></header>
+							<ul class="shopping-list" style="border:0;border-radius:0;box-shadow:none">${group.items.map((item) => rowTemplate(item, state, "route")).join("")}</ul>
+						</section>`).join("")}</div>`
+					: '<div class="empty-filter">Nothing left for this filter.</div>';
+				root.querySelector("[data-items]").innerHTML = routeHtml + disclosures(state, "route");
+				bindRenderedControls(root, state);
+			}
+
+			function updateSummary(root, state) {
+				const activeCount = state.items.filter((item) => !item.bought && !item.covered).length;
+				const boughtCount = state.items.filter((item) => item.bought).length;
+				const total = activeCount + boughtCount;
+				const percent = total ? Math.round((boughtCount / total) * 100) : 100;
+				root.querySelector("[data-left]").textContent = `${activeCount} to buy`;
+				root.querySelector("[data-basket-label]").textContent = `${boughtCount} in basket`;
+				root.querySelector("[data-progress]").style.width = `${percent}%`;
+				root.querySelector("[data-ah-action]").textContent = `Review in AH · ${activeCount}`;
+			}
+
+			function renderFilters(root, state) {
+				const activeItems = state.items.filter((item) => !item.bought && !item.covered);
+				const keys = ["all", "curry", "rice", "soup", "weekly"];
+				const counts = Object.fromEntries(keys.map((key) => [
+					key,
+					key === "all" ? activeItems.length : activeItems.filter((item) => item.meals.includes(key)).length
+				]));
+
+				const rail = root.querySelector("[data-filters]");
+				if (rail) {
+					rail.innerHTML = keys.map((key) => `
+						<button type="button" class="filter-chip${state.filter === key ? " active" : ""}" data-filter="${key}" aria-pressed="${state.filter === key}">
+							${mealDetails[key].short} · ${counts[key]}
+						</button>`).join("");
+					rail.querySelectorAll("[data-filter]").forEach((button) => {
+						button.addEventListener("click", () => {
+							state.filter = button.dataset.filter;
+							renderRoot(root, state);
+							root.querySelector(`[data-filter="${state.filter}"]`)?.focus();
+						});
+					});
+				}
+
+				const mealCards = root.querySelector("[data-meal-cards]");
+				if (mealCards) {
+					mealCards.innerHTML = keys.slice(0, 4).map((key) => `
+						<button type="button" class="meal-card${state.filter === key ? " active" : ""}" data-filter="${key}" aria-pressed="${state.filter === key}">
+							<strong>${mealDetails[key].full}</strong>
+							<span>${counts[key]} ${counts[key] === 1 ? "item" : "items"}</span>
+						</button>`).join("");
+					mealCards.querySelectorAll("[data-filter]").forEach((button) => {
+						button.addEventListener("click", () => {
+							state.filter = button.dataset.filter;
+							renderRoot(root, state);
+							root.querySelector(`[data-filter="${state.filter}"]`)?.focus();
+						});
+					});
+					root.querySelector("[data-view-label]").textContent = mealDetails[state.filter].full;
+				}
+
+				const routeMeal = root.querySelector("[data-route-meal]");
+				if (routeMeal) routeMeal.value = state.filter;
+			}
+
+			function bindRenderedControls(root, state) {
+				root.querySelectorAll("[data-check]").forEach((button) => {
+					button.addEventListener("click", () => {
+						const item = state.items.find((candidate) => candidate.id === button.dataset.check);
+						if (!item || item.covered) return;
+						const before = sortedItems(filteredActive(state), state.sort);
+						const index = before.findIndex((candidate) => candidate.id === item.id);
+						const nextId = before[index + 1]?.id ?? before[index - 1]?.id ?? null;
+						item.bought = !item.bought;
+						renderRoot(root, state);
+						if (item.bought && nextId) root.querySelector(`[data-check="${nextId}"]`)?.focus();
+						else root.querySelector(`[data-toggle-done]`)?.focus();
+					});
+				});
+				root.querySelectorAll("[data-rule]").forEach((button) => {
+					button.addEventListener("click", () => {
+						const item = state.items.find((candidate) => candidate.id === button.dataset.rule);
+						if (item) openRule(item);
+					});
+				});
+				root.querySelectorAll("[data-actions]").forEach((button) => {
+					button.addEventListener("click", () => {
+						const item = state.items.find((candidate) => candidate.id === button.dataset.actions);
+						if (item) openItemActions(item);
+					});
+				});
+				root.querySelectorAll("[data-toggle-done]").forEach((button) => {
+					button.addEventListener("click", () => {
+						state.showDone = !state.showDone;
+						renderRoot(root, state);
+					});
+				});
+				root.querySelectorAll("[data-toggle-covered]").forEach((button) => {
+					button.addEventListener("click", () => {
+						state.showCovered = !state.showCovered;
+						renderRoot(root, state);
+					});
+				});
+			}
+
+			function renderRoot(root, state) {
+				renderFilters(root, state);
+				updateSummary(root, state);
+				if (state.kind === "route") renderRoute(root, state);
+				else renderStandard(root, state, state.kind);
+			}
+
+			document.querySelectorAll(".phone[data-kind]").forEach((root) => {
+				const state = {
+					kind: root.dataset.kind,
+					items: cloneItems(),
+					filter: "all",
+					sort: root.dataset.kind === "route" ? "route" : "plan",
+					showDone: false,
+					showCovered: false
+				};
+				root.__prototypeState = state;
+				root.querySelector("[data-sort]")?.addEventListener("change", (event) => {
+					state.sort = event.currentTarget.value;
+					renderRoot(root, state);
+				});
+				root.querySelector("[data-route-meal]")?.addEventListener("change", (event) => {
+					state.filter = event.currentTarget.value;
+					renderRoot(root, state);
+				});
+				root.querySelectorAll("[data-weekly]").forEach((button) => {
+					button.addEventListener("click", () => document.querySelector("#weekly-dialog").showModal());
+				});
+				renderRoot(root, state);
+			});
+
+			const ruleDialog = document.querySelector("#rule-dialog");
+			const weeklyDialog = document.querySelector("#weekly-dialog");
+			const itemActionsDialog = document.querySelector("#item-actions-dialog");
+			const ruleSourceStep = document.querySelector("#rule-source-step");
+			const ruleSourceChoices = document.querySelector("#rule-source-choices");
+			const ruleEditor = document.querySelector("#rule-editor");
+			const backRule = document.querySelector("#back-rule");
+			let actionItem = null;
+			let ruleItem = null;
+
+			function showRuleEditor(item, meal) {
+				document.querySelector("#rule-name").textContent = item.name;
+				document.querySelector("#rule-context").textContent = mealDetails[meal].full;
+				ruleSourceStep.hidden = true;
+				ruleEditor.hidden = false;
+				backRule.hidden = item.meals.filter((candidate) => candidate !== "weekly").length < 2;
+			}
+
+			function showRuleSources(item) {
+				const recipeMeals = item.meals.filter((meal) => meal !== "weekly");
+				document.querySelector("#rule-name").textContent = item.name;
+				document.querySelector("#rule-context").textContent = `${recipeMeals.length} recipe rules`;
+				ruleEditor.hidden = true;
+				ruleSourceStep.hidden = false;
+				ruleSourceChoices.innerHTML = recipeMeals.map((meal) => `
+					<button type="button" data-rule-source="${meal}">
+						${mealDetails[meal].full}
+						<span>Edit only this recipe rule</span>
+					</button>`).join("");
+				ruleSourceChoices.querySelectorAll("[data-rule-source]").forEach((button) => {
+					button.addEventListener("click", () => showRuleEditor(item, button.dataset.ruleSource));
+				});
+			}
+
+			function openRule(item) {
+				ruleItem = item;
+				const recipeMeals = item.meals.filter((meal) => meal !== "weekly");
+				if (recipeMeals.length > 1) showRuleSources(item);
+				else showRuleEditor(item, recipeMeals[0]);
+				ruleDialog.showModal();
+			}
+
+			function openItemActions(item) {
+				actionItem = item;
+				document.querySelector("#item-actions-title").textContent = item.name;
+				itemActionsDialog.showModal();
+			}
+
+			document.querySelector("#action-edit-rule").addEventListener("click", () => {
+				const item = actionItem;
+				itemActionsDialog.close();
+				if (item) openRule(item);
+			});
+			document.querySelector("#close-item-actions").addEventListener("click", () => itemActionsDialog.close());
+			document.querySelector("#close-rule").addEventListener("click", () => ruleDialog.close());
+			document.querySelector("#close-rule-source").addEventListener("click", () => ruleDialog.close());
+			document.querySelector("#save-rule").addEventListener("click", () => ruleDialog.close());
+			backRule.addEventListener("click", () => {
+				if (ruleItem) showRuleSources(ruleItem);
+			});
+			document.querySelector("#close-weekly").addEventListener("click", () => weeklyDialog.close());
+
+			const form = document.querySelector("#decision-form");
+			const notes = document.querySelector("#notes");
+			const handoff = document.querySelector("#handoff");
+			const status = document.querySelector("#save-status");
+			const reset = document.querySelector("#reset");
+			const copy = document.querySelector("#copy-handoff");
+
+			const directionDetails = {
+				"A1 — Quiet Ledger": {
+					outcome: "Use one compact divided list, a horizontal meal-filter rail, one sort control, and exceptional recipe context only.",
+					strength: "It fixes every reported issue with fields the app already owns.",
+					tradeoff: "Meal selection remains visually quiet.",
+					scope: "R2 code-only UI refinement; no category model is required."
+				},
+				"A2 — Meal Lens": {
+					outcome: "Use one deduplicated list below a prominent rail of meal selectors, with a compact sort control.",
+					strength: "The former Meals intent becomes highly discoverable without becoming a different settings screen.",
+					tradeoff: "The meal rail consumes vertical space and makes planning more prominent during shopping.",
+					scope: "R2 code-only UI refinement using current meal-source data."
+				},
+				"A3 — Store Route": {
+					outcome: "Use one deduplicated list grouped by Fresh, Pantry, Chilled, and Bakery, with meal filtering kept secondary.",
+					strength: "It best supports moving efficiently through a physical shop.",
+					tradeoff: "Wrong categories create friction and require a correction path.",
+					scope: "The UI is R2, but the category source and persistence model need a separate product and architecture decision."
+				}
+			};
+
+			function selectedDirection() {
+				return form.querySelector('input[name="direction"]:checked').value;
+			}
+
+			function buildPrompt() {
+				const selected = selectedDirection();
+				const detail = directionDetails[selected];
+				const note = notes.value;
+				return `Continue the Shopping one-list refinement workflow.
+
+Load the authoritative source:
+${sourcePath}
+
+Decision:
+- Question: Which one-list design should shape /shopping after removing the Run / meals / Every week mode switch?
+- Options considered: A1 — Quiet Ledger; A2 — Meal Lens; A3 — Store Route.
+- Selected outcome: ${selected}.
+- Selected layout: ${detail.outcome}
+- Main strength: ${detail.strength}
+- Trade-off accepted: ${detail.tradeoff}
+- Scope consequence: ${detail.scope}
+- Recommendation in the source: A1 — Quiet Ledger, because it fixes the reported density, repetition, sorting, action-copy, and mode-switch problems using current data.
+- Recommendation status: ${selected === "A1 — Quiet Ledger" ? "accepted" : "overridden"}.
+
+Fixed decisions that apply regardless of direction:
+- Use Shopping as the sole page identity; remove Weekly shop · Household run, Market run, and Run.
+- Remove the visible Run / meals / Every week switch.
+- Keep one canonical checkable item list in every filter and sort state.
+- Show each shopping item once; a meal selection filters the same deduplicated list.
+- Shared items remain one row and may say that they serve multiple meals.
+- A shared aggregated item keeps separate source-owned recipe rules; Edit shopping rule first asks which recipe rule will change.
+- Meal filters scope active, completed, and stock-covered disclosures consistently.
+- Keep week range, delivery date, progress, meal-plan access, and AH state as compressed supporting context.
+- Move recurring-item maintenance behind Manage weekly items.
+- Keep Add item, sorting, recurring-item access, completed recovery, and covered disclosure available in every direction.
+- Keep incompatible-quantity detail honest by showing each source amount with its recipe.
+- Replace the vague Change action with Edit shopping rule and identify the affected ingredient and recipe in the opened surface.
+- Preserve 44 CSS-pixel touch targets, completed-item recovery, covered-item disclosure, warnings, English and Dutch, and the Dutch-canonical AH seam.
+
+Evidence:
+- src/lib/components/shopping/ShoppingLists.svelte owns three peer tabs for unlike jobs and renders one recipe-source row per ingredient.
+- The current Meals rows repeat source.recipeTitle below every source.name by construction.
+- src/lib/components/shopping/SourceDecisionSheet.svelte proves that Change edits a shopping rule: required/optional/stocked state, the weekly AH term, and an optional canonical recipe substitution.
+- ShoppingListItem.forMeals and ShoppingListSource.mealNames already support meal filtering without duplicate item rows.
+- ShoppingListItem.sources retains distinct source-owned recipe rules behind an aggregated item.
+- The current shopping model has no aisle or store-section field.
+
+Assumptions:
+- The household usually opens Shopping to acquire items, not to audit recipe policy.
+- Week context and AH readiness are supporting state, not additional page identities.
+- Recurring-item editing is important but secondary during the active shop.
+- Meal filtering must never duplicate a shared item or create two independent bought states.
+
+Uncertainty:
+- The live household page could not be inspected in an isolated signed-out browser; the brief is grounded in the current repository, the user's exact report, and existing repository screenshots.
+- The frequency with which the household shops meal-first versus list-first is not measured.
+- Store Route needs a trustworthy category source and correction flow before implementation can be responsibly planned.
+- Store Route's prototype categories are illustrative, not existing app data.
+
+User-written note under the design decision, reproduced verbatim:
+${note || "(No additional note.)"}
+
+Next requested work:
+- Confirm the selected direction once.
+- Route the approved design through /plan before implementation.
+- Keep the implementation code-only unless a separately approved category decision requires more.
+- Verify populated, empty, long-name, shared-item, incompatible-quantity, covered, completed, recurring, AH-disconnected, stale, partial, and uncertain states in English and Dutch at 375, 768, and 1280 px plus narrow reflow and high zoom.
+- Run npm run check, npm run test:unit, and npm run build before a PR.
+`;
+			}
+
+			function saveWorkspace() {
+				const state = {
+					schemaVersion,
+					direction: selectedDirection(),
+					notes: notes.value
+				};
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(state));
+					status.textContent = "Your selection and note are saved in this browser.";
+				} catch {
+					persistenceAvailable = false;
+					status.textContent = "Changes are kept for this visit, but this browser could not save them.";
+				}
+				handoff.value = buildPrompt();
+			}
+
+			function restoreWorkspace() {
+				try {
+					const raw = localStorage.getItem(storageKey);
+					if (!raw) return;
+					const state = JSON.parse(raw);
+					if (state.schemaVersion !== schemaVersion) return;
+					const radio = [...form.elements.direction].find((input) => input.value === state.direction);
+					if (radio) radio.checked = true;
+					notes.value = typeof state.notes === "string" ? state.notes : "";
+				} catch {
+					persistenceAvailable = false;
+				}
+			}
+
+			form.addEventListener("input", saveWorkspace);
+			copy.addEventListener("click", async () => {
+				handoff.value = buildPrompt();
+				try {
+					await navigator.clipboard.writeText(handoff.value);
+					status.textContent = "Handoff copied.";
+				} catch {
+					handoff.focus();
+					handoff.select();
+					status.textContent = "Copy was blocked. The handoff is selected; copy it with Ctrl+C or Cmd+C.";
+				}
+			});
+			reset.addEventListener("click", () => {
+				form.querySelector('input[value="A1 — Quiet Ledger"]').checked = true;
+				notes.value = "";
+				try {
+					localStorage.removeItem(storageKey);
+				} catch {
+					persistenceAvailable = false;
+				}
+				saveWorkspace();
+				status.textContent = persistenceAvailable
+					? "Reset to the recommended direction."
+					: "Reset for this visit; browser saving is unavailable.";
+			});
+
+			restoreWorkspace();
+			handoff.value = buildPrompt();
+			status.textContent = persistenceAvailable
+				? "Your selection and note are saved in this browser."
+				: "Changes are kept for this visit, but this browser could not save them.";
+		})();
+	</script>
+</body>
+</html>

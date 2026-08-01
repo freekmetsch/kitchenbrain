@@ -1188,6 +1188,88 @@ content was retained or performed.
 
 Touched: docs/deploys/2026-07.md, docs/log.md
 
+## 2026-07-26 | html-artifact | design shotgun: Shopping one-list refinement
+
+Touched: docs/artifacts/archive/2026-07-26-design-shotgun-shopping-one-list.html,
+docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md
+
+## 2026-07-26 | html-artifact | plan: Shopping one-list refinement
+
+Touched: docs/artifacts/archive/2026-07-26-plan-shopping-one-list-refinement.html,
+docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md
+
+## 2026-07-28 | deploy-canary | Shopping production lineage degraded
+
+Confirmed that production is healthy but serves a manual Railway snapshot created before the
+finished Shopping refinement. Git ancestry, deployment metadata, and the authenticated DOM agree:
+the feature commit is not on the configured `main` source branch. The public canary records only
+structural counts and contains no household list content or credential values.
+
+Touched: docs/artifacts/archive/2026-07-28-canary-shopping-stale-deployment.html,
+docs/deploys/2026-07.md,
+docs/known_issues/solved/ISSUE_RAILWAY_PRODUCTION_STALE_DEPLOY_20260728-1413.md
+
+## 2026-07-28 | html-artifact | plan: Production deployment lineage recovery
+
+Planned a replacement-first credential cutover, complete feature-branch promotion to `main`,
+exact-revision Railway deployment, authenticated Shopping canary, and a names-only deployment
+inspection guard. Production work remains blocked at the explicit beta R3 checkpoint.
+
+Touched: docs/artifacts/archive/2026-07-28-plan-production-deployment-lineage-recovery.html,
+docs/feature-lists/archive/FEATURE_LIST_PRODUCTION_DEPLOYMENT_LINEAGE_RECOVERY.md
+
+## 2026-07-29 | html-artifact | design shotgun: App house style
+
+Compared five component-level house styles against one synthetic phone specimen and exposed six
+independent contracts for surfaces, control shape, pill meaning, action hierarchy, section type,
+and density. The recommended default keeps the shipped Kitchen Ledger atmosphere while tightening
+semantic component ownership. The local workspace supports dark and stress-state review, a
+responsive live workbench, locally saved overrides and notes, explicit deferral, and a paste-ready
+forward handoff. No production UI or app behavior changed.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style.html
+
+## 2026-07-29 | html-artifact | refinement: Ledger Compact actions
+
+Recorded Ledger Compact as the approved house-style base with mixed-by-job surfaces, 8 px control
+geometry, selection/status pills, one terra primary, serif section titles, and tight 4/8/12 visual
+rhythm over 44 px touch targets. The focused workspace compares Flat, Inset, Joined, Marked, and
+Quiet compact action systems with identical content, dark and stress states, a responsive
+mix-and-match workbench, five independent action decisions, locally saved notes, and a complete
+forward handoff.
+
+General components have no leading category stripe. The only specimen stripe encodes recipe
+categorization. No production UI or app behavior changed.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-compact-actions.html
+
+## 2026-07-29 | plan + html-artifact | App house style implementation
+
+Promoted the approved Ledger Compact component selections into an execution-ready R2 plan. The
+final contract uses flat terra primary actions, olive outline secondary actions, established-icon
+ghost squares, compact square filter chips, proportional fixed header pairs, separate content
+pairs, olive tonal fields, framed repeated lists, raised paper notices, and a recipe-only category
+stripe.
+
+The plan maps the existing shared UI owners and every stable-surface caller boundary, excludes the
+in-flight Assistant correction and specialized Cook Mode controls, and sequences eight vertical
+tickets through actions, filters/status, fields, sections, notices, recipe categorization, drift
+deletion, documentation, complete verification, and supervised delivery. The critique is GO with
+no unresolved P0/P1 blocker or open user decision.
+
+The human review workspace visualizes the fixed component contract, scope boundaries, four phases,
+eight tickets, verification matrix, and risk case. Browser verification confirmed ten component
+rows, eight working ticket disclosures, 320/393/768/1280 px layouts without page overflow, and
+zero console errors or warnings. No production UI, app behavior, household data, provider, or AH
+state changed.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
+docs/artifacts/archive/2026-07-29-plan-app-house-style.html
+
+## 2026-07-29 | plan + html-artifact | request-driven Assistant correction
+
 ## 2026-07-31 19:34 | ship | Household work-surface refinement
 
 Implemented the recommended design composite across Meal plan, Recipes, Stock, and Review AH
@@ -1266,3 +1348,13 @@ provider turn, household mutation, AH lookup, AH push, authenticated body, cooki
 household content was retained or performed.
 
 Touched: docs/deploys/2026-07.md, docs/log.md
+
+## 2026-08-01 13:39 | archive-scan | 0 feature lists, 2 HTMLs archived
+
+Archived the two missing Shopping One List decision artifacts beside their already-terminal feature
+list. Removed only stale root copies whose exact blobs remain recoverable in Git history and whose
+newer terminal copies are already tracked. The repository still has no `scripts/archive-scan.ps1`,
+so the validated inline fallback was used.
+
+Touched: docs/artifacts/archive/2026-07-26-design-shotgun-shopping-one-list.html,
+docs/artifacts/archive/2026-07-26-plan-shopping-one-list-refinement.html, docs/log.md
