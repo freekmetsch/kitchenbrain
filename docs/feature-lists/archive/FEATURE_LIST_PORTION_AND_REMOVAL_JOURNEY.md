@@ -1,6 +1,6 @@
 # Portion and Removal Journey
 
-_Status: Shipped to production — PR #64, Railway deployment `ea73e310-ee83-4ec8-9aae-5284fe1c082a` (2026-08-01)_
+_Status: Shipped to production — PR #64, Railway deployment `ea73e310-ee83-4ec8-9aae-5284fe1c082a`; late-review hardening in PR #66, Railway deployment `a11a5b76-5b45-4266-bead-65794f3ce305` (2026-08-01)_
 
 _Overall risk: R3 — additive SQLite migrations and real household records_
 _Stage gate: passed by the pre-0028 migration rehearsal before PR #64 merged_
@@ -43,6 +43,13 @@ connected-AH skip. The one load-sensitive secondary hydration timeout passed on 
 The R3 migration rehearsal upgrades a pre-0028 database with representative recipe, planned-meal,
 shopping, revision, bought, and prior-AH-push data; it preserves those records, reports no foreign-key
 errors, and proves older installations can still apply their earlier journal before upgrading.
+
+The late-review follow-up centralizes the 1–99 planned-serving schema, rejects protected serving edits
+before AI proposals are shown and again when they are applied, bounds client writes, clears optimistic
+serving state on every removal path, keeps archive restore state live without a reload, and preserves
+shopping-list revision invalidation across an in-flight AH push. Its final head passed all 705 Vitest
+tests, warning-free Svelte diagnostics, the production build, and focused primary/secondary browser
+coverage before the exact-main production canary passed.
 
 ## Problem Framing
 
