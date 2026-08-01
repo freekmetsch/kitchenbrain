@@ -1,9 +1,9 @@
 # Portion and Removal Journey
 
-_Status: Ready for production delivery — all local gates passed (2026-08-01)_
+_Status: Shipped to production — PR #64, Railway deployment `ea73e310-ee83-4ec8-9aae-5284fe1c082a` (2026-08-01)_
 
 _Overall risk: R3 — additive SQLite migrations and real household records_
-_Stage gate: required before either schema branch reaches production_
+_Stage gate: passed by the pre-0028 migration rehearsal before PR #64 merged_
 _Diagnosis: `docs/known_issues/solved/ISSUE_RECIPE_MEAL_PLAN_SHOPPING_CONTROL_FRICTION_20260801-1425.md`_
 
 ## Outcome
