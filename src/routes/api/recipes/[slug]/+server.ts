@@ -15,7 +15,8 @@ const PatchSchema = z.object({
 	rotation_seasons: z
 		.array(z.enum(['spring', 'summer', 'autumn', 'winter']))
 		.optional(),
-	dismiss_review: z.boolean().optional()
+	dismiss_review: z.boolean().optional(),
+	archived: z.boolean().optional()
 });
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
@@ -28,7 +29,8 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			targetPortions: input.target_portions,
 			rotationPolicy: input.rotation_policy,
 			rotationSeasons: input.rotation_seasons,
-			dismissReview: input.dismiss_review
+			dismissReview: input.dismiss_review,
+			archived: input.archived
 		});
 	} catch (cause) {
 		if (cause instanceof RotationSettingsError) throw error(400, cause.message);

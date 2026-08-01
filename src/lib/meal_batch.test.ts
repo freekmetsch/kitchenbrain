@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { batchServingMultiplier, batchServingTarget } from './meal_batch';
+import {
+	BATCH_SERVING_MULTIPLIERS,
+	batchServingMultiplier,
+	batchServingTarget
+} from './meal_batch';
+
+it('offers only whole batch multipliers from one through four', () => {
+	expect(BATCH_SERVING_MULTIPLIERS).toEqual([1, 2, 3, 4]);
+});
 
 describe('batchServingTarget', () => {
 	it('uses the saved recipe yield rather than the current meal count', () => {

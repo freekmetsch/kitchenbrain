@@ -742,7 +742,7 @@ for (const viewport of VIEWPORTS) {
 		await historySheet.getByRole('button', { name: 'Close' }).click();
 
 		await expect(page.getByRole('button', { name: /^Shopping rules/ })).toHaveCount(0);
-		const needPill = page.getByRole('button', {
+		const needPill = page.getByRole('combobox', {
 			name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Always`
 		});
 		const buyPill = page.getByRole('combobox', {
@@ -779,7 +779,7 @@ for (const viewport of VIEWPORTS) {
 		await expect(buyPill).toHaveValue(fixture.shoppingName);
 		await page.getByText('Not this run (2)', { exact: true }).click();
 		await expect(
-			page.getByRole('button', {
+			page.getByRole('combobox', {
 				name: new RegExp(`^Change need for ${fixture.shoppingSibling}`)
 			})
 		).toHaveCount(2);
@@ -789,7 +789,7 @@ for (const viewport of VIEWPORTS) {
 			})
 		).toHaveCount(0);
 		await expect(
-			page.getByRole('button', {
+			page.getByRole('combobox', {
 				name: `Change need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}. Current: Nice to have`
 			})
 		).toBeVisible();
@@ -963,7 +963,7 @@ test('Shopping keeps source controls compact at 320, 768, and 200% text', async 
 		.getByRole('link', { name: 'Connect it in Settings' });
 	await expect(connectAh).toBeVisible();
 	expect((await connectAh.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-	const needPill = page.getByRole('button', {
+	const needPill = page.getByRole('combobox', {
 		name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Always`
 	});
 	const buyPill = page.getByRole('combobox', {

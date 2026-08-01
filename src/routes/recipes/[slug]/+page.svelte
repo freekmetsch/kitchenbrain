@@ -8,6 +8,10 @@
 	import RecipeHero from '$lib/components/recipe-detail/RecipeHero.svelte';
 	import ImportReviewBanner from '$lib/components/recipe-detail/ImportReviewBanner.svelte';
 	import RecipeMetaChips from '$lib/components/recipe-detail/RecipeMetaChips.svelte';
+	import RecipeArchiveControl from '$lib/components/recipe-detail/RecipeArchiveControl.svelte';
+	import RecipePlanContext, {
+		type RecipePlanOccurrence
+	} from '$lib/components/recipe-detail/RecipePlanContext.svelte';
 	import MealComposition from '$lib/components/recipe-detail/MealComposition.svelte';
 	import FreezerStockPanel from '$lib/components/recipe-detail/FreezerStockPanel.svelte';
 	import RoleCoverage from '$lib/components/recipe-detail/RoleCoverage.svelte';
@@ -33,6 +37,8 @@
 			partOfMeals: Array<{ id: number; slug: string; title: string; titleEn: string | null }>;
 			occasionServings: number | null;
 			planMealId: number | null;
+			planMealEditable: boolean;
+			plannedOccurrences: RecipePlanOccurrence[];
 			cookingIngredients: Recipe['ingredients'];
 			cookingIngredientsEn: Recipe['ingredients'] | null;
 			cookingIngredientStock: boolean[];
@@ -302,6 +308,7 @@
 	onResetCookProgress={resetCookProgress}
 	onRemovePhoto={() => void deleteImage()}
 	onRetryTranslation={(force) => void requestTranslation(force)}
+	canPlan={recipe.archivedAt == null}
 />
 
 <div
@@ -318,6 +325,18 @@
 />
 
 <RecipeMetaChips {recipe} {displayNotes} />
+
+<RecipePlanContext
+	slug={recipe.slug}
+	selectedMealId={data.planMealId}
+	occurrences={data.plannedOccurrences}
+/>
+
+<RecipeArchiveControl
+	slug={recipe.slug}
+	title={displayTitle}
+	archived={recipe.archivedAt != null}
+/>
 
 {#if recipe.needsReview}
 	<ImportReviewBanner
@@ -356,26 +375,29 @@
 	<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />
 </div>
 
-<BenchSheet
-	recipeSlug={recipe.slug}
-	recipeRevision={recipe.contentRevision}
-	planMealId={data.planMealId}
-	recipeTitle={displayTitle}
-	initial={isCookModeEligibleForNewSession(recipe.cookModeJson, viewLang, cookingServings)
-		? recipe.cookModeJson
-		: null}
-	requiresPlan={true}
-	progressSignature={`${recipe.slug}:${recipe.updatedAt?.toString() ?? 'saved'}`}
-	fallback={benchSheetFallback}
-	view={recipeView}
-	viewLang={viewLang}
-	onEdit={openEditRaw}
-	onCooked={() => {
-		void invalidateAll();
-		freezeOpen = true;
-	}}
-	bind:controller={benchSheetController}
-/>
+{#key data.planMealId ?? 'direct'}
+	<BenchSheet
+		recipeSlug={recipe.slug}
+		recipeRevision={recipe.contentRevision}
+		planMealId={data.planMealId}
+		planMealEditable={data.planMealEditable}
+		recipeTitle={displayTitle}
+		initial={isCookModeEligibleForNewSession(recipe.cookModeJson, viewLang, cookingServings)
+			? recipe.cookModeJson
+			: null}
+		requiresPlan={true}
+		progressSignature={`${recipe.slug}:${recipe.updatedAt?.toString() ?? 'saved'}`}
+		fallback={benchSheetFallback}
+		view={recipeView}
+		viewLang={viewLang}
+		onEdit={openEditRaw}
+		onCooked={() => {
+			void invalidateAll();
+			freezeOpen = true;
+		}}
+		bind:controller={benchSheetController}
+	/>
+{/key}
 
 <MealComposition
 	slug={recipe.slug}

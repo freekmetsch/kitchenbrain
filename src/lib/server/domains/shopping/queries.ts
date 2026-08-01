@@ -115,7 +115,11 @@ export type ShoppingSourceView = {
 	term: string;
 	amount: string | null;
 	unit: string | null;
+	amountOverridden: boolean;
+	derivedAmount: string | null;
+	derivedUnit: string | null;
 	component: string | null;
+	mealIds: number[];
 	mealNames: string[];
 	approvedTerms: string[];
 	included: boolean;
@@ -162,6 +166,7 @@ export type ShoppingWeekView = {
 	done: ShoppingBuyRow[];
 	recurring: RecurringShoppingView[];
 	legacy: LegacyShoppingView[];
+	excluded: Array<{ weekStart: string; nameKey: string; name: string }>;
 };
 
 function ingredientState(entry: WeekEntry, recipesById: Map<number, typeof schema.recipes.$inferSelect>) {
@@ -266,7 +271,11 @@ export function getShoppingWeekView(db: DB, weekStart: string): ShoppingWeekView
 			term: entry.selectedName ?? entry.name,
 			amount: quantity.amount,
 			unit: quantity.unit,
+			amountOverridden: entry.amountOverride != null || entry.unitOverride != null,
+			derivedAmount: entry.amount,
+			derivedUnit: entry.unit,
 			component: entry.component,
+			mealIds: entry.mealIds,
 			mealNames: entry.mealIds.flatMap((id) => (mealNames.has(id) ? [mealNames.get(id)!] : [])),
 			approvedTerms: entry.approvedTerms,
 			included: entry.included,
@@ -280,6 +289,19 @@ export function getShoppingWeekView(db: DB, weekStart: string): ShoppingWeekView
 
 	const activeSources = sources.filter((source) => source.sourceKind !== 'legacy');
 	const aggregate = aggregateRows(activeSources, inventory.map((item) => item.name));
+	const excluded = db
+		.select()
+		.from(schema.shoppingWeekExclusions)
+		.where(eq(schema.shoppingWeekExclusions.weekStartDate, weekStart))
+		.orderBy(asc(schema.shoppingWeekExclusions.name))
+		.all()
+		.map((entry) => ({
+			weekStart: entry.weekStartDate,
+			nameKey: entry.nameKey,
+			name: entry.name
+		}));
+	const excludedKeys = new Set(excluded.map((entry) => entry.nameKey));
+	const visibleAggregate = aggregate.filter((row) => !excludedKeys.has(normalizeNameKey(row.name)));
 	const recurringRows = db
 		.select()
 		.from(schema.recurringShoppingItems)
@@ -320,9 +342,10 @@ export function getShoppingWeekView(db: DB, weekStart: string): ShoppingWeekView
 
 	return {
 		sources: activeSources,
-		toBuy: aggregate.filter((row) => !row.bought),
-		done: aggregate.filter((row) => row.bought),
+		toBuy: visibleAggregate.filter((row) => !row.bought),
+		done: visibleAggregate.filter((row) => row.bought),
 		recurring,
-		legacy
+		legacy,
+		excluded
 	};
 }

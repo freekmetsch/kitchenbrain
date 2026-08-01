@@ -8,6 +8,7 @@
 	import ShoppingLists from '$lib/components/shopping/ShoppingLists.svelte';
 	import WeekNav from '$lib/components/shopping/WeekNav.svelte';
 	import ShoppingNotices from '$lib/components/shopping/ShoppingNotices.svelte';
+	import ShoppingMealPortions from '$lib/components/shopping/ShoppingMealPortions.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -29,6 +30,8 @@
 	let addItemOpen = $state(false);
 	let showCovered = $state(false);
 	let historyOpen = $state(false);
+	let plannedServingPending = $state(false);
+	let shoppingListRevision = $state(0);
 
 	let pending = $derived(items.filter((item) => !item.bought));
 	let done = $derived(items.filter((item) => item.bought));
@@ -149,11 +152,38 @@
 		});
 	}
 
+	async function restoreThisWeek(item: { name: string }): Promise<boolean> {
+		return mutate({
+			action: 'restore_week_item',
+			weekStart: data.weekStart,
+			term: item.name
+		});
+	}
+
+	async function removeThisWeek(item: Item): Promise<boolean> {
+		const removed = await mutate({
+			action: 'exclude_week_item',
+			weekStart: data.weekStart,
+			term: item.name
+		});
+		if (removed) {
+			toast.undo(m.shopping_toast_removed({ name: item.name }), () => void restoreThisWeek(item));
+		}
+		return removed;
+	}
+
 	function markBought(refs: Set<string>) {
 		items = items.map((item) => {
 			const ref = `entries:${[...(item.entryIds ?? [])].sort((a, b) => a - b).join(',')}`;
 			return refs.has(ref) ? { ...item, bought: true } : item;
 		});
+	}
+
+	function handleServingsSettled() {
+		shoppingListRevision += 1;
+		if (data.pushHistory.length) {
+			toast.success(m.shopping_portions_changed_after_push());
+		}
 	}
 </script>
 
@@ -173,6 +203,13 @@
 
 	<div class="shopping-market-layout ui-grove-surface">
 		<main class="min-w-0">
+			<ShoppingMealPortions
+				meals={data.plannedMeals}
+				editable={data.isEditable}
+				weekStart={data.weekStart}
+				onpendingchange={(value) => (plannedServingPending = value)}
+				onservingssettled={handleServingsSettled}
+			/>
 			{#if data.pushHistory.length}
 				<div class="shopping-history-tools">
 					<PushHistory
@@ -197,12 +234,15 @@
 				sources={data.sources}
 				recurring={data.recurring}
 				legacy={data.legacy}
+				excludedWeekItems={data.excluded}
 				{emptyState}
 				bind:showCovered
 				{bonusByName}
 				onToggleBought={toggleBought}
 				onDeleteManual={removeManual}
 				onRestoreManual={restoreManual}
+				onRemoveThisWeek={removeThisWeek}
+				onRestoreThisWeek={restoreThisWeek}
 				editable={data.isEditable}
 				onChangeSourceTerm={(source, term) =>
 					mutateSource(source, { action: 'term', term })}
@@ -272,7 +312,8 @@
 			<button
 				type="button"
 				class="market-ah-action ui-action ui-action-primary"
-				disabled={visibleToBuyCount === 0}
+				disabled={visibleToBuyCount === 0 || plannedServingPending}
+				aria-busy={plannedServingPending}
 				onclick={() => ahSheet?.openAhModal()}
 				aria-label={m.shopping_review_ah_order()}
 			>
@@ -297,6 +338,7 @@
 <AhSheet
 	bind:this={ahSheet}
 	weekStart={data.weekStart}
+	listRevision={shoppingListRevision}
 	pending={pending}
 	bind:bonusByName
 	onMarkedBought={markBought}

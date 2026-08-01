@@ -17,6 +17,29 @@ export function listMealPlanMeals(db: DbOrTx): MealPlanMeal[] {
 		.all();
 }
 
+export function listRecipeMealOccurrences(
+	db: DbOrTx,
+	recipeSlug: string,
+	fromWeekStart: string
+): MealPlanMeal[] {
+	return db
+		.select()
+		.from(schema.mealPlanMeals)
+		.where(
+			and(
+				eq(schema.mealPlanMeals.recipeSlug, recipeSlug),
+				gte(schema.mealPlanMeals.weekStartDate, fromWeekStart)
+			)
+		)
+		.orderBy(
+			asc(schema.mealPlanMeals.weekStartDate),
+			asc(schema.mealPlanMeals.plannedDate),
+			asc(schema.mealPlanMeals.sortOrder),
+			asc(schema.mealPlanMeals.id)
+		)
+		.all();
+}
+
 export function listMealsForWeek(db: DbOrTx, weekStart: string): MealPlanMeal[] {
 	const range = weekKeyRange(weekStart);
 	return db

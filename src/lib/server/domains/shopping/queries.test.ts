@@ -8,6 +8,7 @@ import {
 	getShoppingWeekEntry,
 	getShoppingWeekView
 } from './queries';
+import { excludeShoppingWeekAggregate, restoreShoppingWeekAggregate } from './commands';
 
 const WEEK = '2026-07-22';
 
@@ -115,6 +116,38 @@ describe('shopping week projection', () => {
 		expect(view.toBuy).toHaveLength(1);
 		expect(view.toBuy[0]).toMatchObject({ name: 'roomboter', amount: '500', unit: 'g' });
 		expect(view.toBuy[0].entryIds).toHaveLength(2);
+	});
+
+	it('removes and restores one normalized aggregate for one shopping week', () => {
+		const db = createTestDb();
+		const now = new Date();
+		db.insert(schema.shoppingWeekEntries)
+			.values({
+				weekStartDate: WEEK,
+				sourceKey: 'recipe:1:tomato',
+				sourceKind: 'recipe',
+				name: 'Tomaten',
+				selectedName: 'Tomaten',
+				approvedTerms: ['Tomaten'],
+				createdAt: now,
+				updatedAt: now
+			})
+			.run();
+
+		excludeShoppingWeekAggregate(db, {
+			weekStart: WEEK,
+			term: '  TOMATEN ',
+			weekStartDay: 2,
+			today: WEEK
+		});
+		expect(getShoppingWeekView(db, WEEK).toBuy).toEqual([]);
+		expect(getShoppingWeekView(db, WEEK).excluded).toEqual([
+			{ weekStart: WEEK, nameKey: 'tomat', name: 'TOMATEN' }
+		]);
+
+		restoreShoppingWeekAggregate(db, { weekStart: WEEK, term: 'tomaten', weekStartDay: 2, today: WEEK });
+		expect(getShoppingWeekView(db, WEEK).toBuy).toHaveLength(1);
+		expect(getShoppingWeekView(db, WEEK).excluded).toEqual([]);
 	});
 
 	it('keeps one Dutch-term row with every incompatible quantity source and excludes unresolved legacy rows', () => {

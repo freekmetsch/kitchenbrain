@@ -8,6 +8,8 @@ import {
 } from '$lib/meal_rotation';
 import {
 	getRecipeBySlug,
+	archiveRecipe,
+	restoreRecipe,
 	updateRecipeMetadata
 } from '$lib/server/domains/recipes';
 
@@ -17,6 +19,7 @@ type RecipeMetadataPatch = {
 	rotationPolicy?: RotationPolicy | null;
 	rotationSeasons?: RotationSeason[];
 	dismissReview?: boolean;
+	archived?: boolean;
 };
 
 export function createRecipeMetadataService(db: Db) {
@@ -53,6 +56,8 @@ export function createRecipeMetadataService(db: Db) {
 					changes.needsReview = false;
 					changes.reviewReason = null;
 				}
+				if (input.archived === true) archiveRecipe(tx, recipe.id);
+				if (input.archived === false) restoreRecipe(tx, recipe.id);
 				if (Object.keys(changes).length > 0) updateRecipeMetadata(tx, recipe.id, changes);
 				const updated = getRecipeBySlug(tx, slug)!;
 				return {
@@ -61,7 +66,8 @@ export function createRecipeMetadataService(db: Db) {
 					targetPortions: updated.targetPortions,
 					rotationPolicy: updated.rotationPolicy,
 					rotationSeasons: updated.rotationSeasonsJson,
-					needsReview: updated.needsReview
+					needsReview: updated.needsReview,
+					archivedAt: updated.archivedAt
 				};
 			});
 		}

@@ -18,7 +18,10 @@
 	import { cookPaletteGraph, fmtClock, paletteFor, type BeatPalette } from './cook-mode/palette';
 	import { localizeCookMode } from './cook-mode/staleness';
 	import { cookStepKey, normalizeCookProgress, selectCookStep } from './cook-mode/cook_progress';
-	import type { FrozenCookRecipe } from './cook-mode/cook_session';
+	import {
+		restoredCookSessionServings,
+		type FrozenCookRecipe
+	} from './cook-mode/cook_session';
 	import {
 		applySessionSwapsToSteps,
 		toggleCounterIngredient,
@@ -29,8 +32,10 @@
 		preparationAsFirstStep
 	} from './cook-mode/cooking_steps';
 	import OriginalRecipeView from './OriginalRecipeView.svelte';
+	import ServingBatchPicker from './ServingBatchPicker.svelte';
 	import { CookSessionStorageController } from './cook-mode/session-controller.svelte';
 	import { CookModeNetworkController } from './cook-mode/network-controller.svelte';
+	import { plannedServingsRegistryForScope } from '$lib/planned_servings_client';
 
 	export type BenchSheetController = {
 		resetSession: () => void;
@@ -68,6 +73,7 @@
 		onEdit: () => void;
 		onCooked?: () => void;
 		planMealId?: number | null;
+		planMealEditable?: boolean;
 		controller: BenchSheetController;
 	};
 
@@ -84,6 +90,7 @@
 		onEdit,
 		onCooked,
 		planMealId = null,
+		planMealEditable = true,
 		controller = $bindable<BenchSheetController>()
 	}: Props = $props();
 
@@ -105,6 +112,22 @@
 	let activeStoredCookMode = $derived(frozenRecipe?.storedCookMode ?? storedCookMode);
 	let activeViewLang = $derived(frozenViewLang ?? viewLang);
 	let servingDraft = $state(untrack(() => fallback.servings ?? 4));
+	let servingLabel = $derived(
+		planMealId == null
+			? m.benchsheet_cooking_servings_label()
+			: m.benchsheet_planned_servings_label()
+	);
+	let servingInputDisabled = $derived(planMealId != null && !planMealEditable);
+	const servingsRegistry = plannedServingsRegistryForScope();
+	const initialPlanMealId = untrack(() => planMealId);
+	const initialPlannedServings = untrack(() => fallback.servings);
+	const servingUnsubscribe =
+		initialPlanMealId != null && initialPlannedServings != null
+			? servingsRegistry.subscribe(
+					{ id: initialPlanMealId, servings: initialPlannedServings },
+					(snapshot) => (servingDraft = snapshot.desired)
+				)
+			: null;
 	let localizedPlan = $derived(
 		requiresPlan
 			? localizeCookMode(activeStoredCookMode, activeViewLang, {
@@ -295,7 +318,10 @@
 			sessionStarted = true;
 			frozenRecipe = saved.frozenRecipe;
 			frozenViewLang = saved.frozenViewLang;
-			servingDraft = saved.servings;
+			servingDraft = restoredCookSessionServings(
+				saved.servings,
+				planMealId == null ? null : fallback.servings
+			);
 			counterChecks = saved.counterChecks;
 			sessionSwaps = saved.sessionSwaps;
 			currentStepKey =
@@ -354,6 +380,7 @@
 	});
 
 	onDestroy(() => {
+		servingUnsubscribe?.();
 		network.destroy();
 	});
 
@@ -396,15 +423,20 @@
 	}
 
 	function changeServings(delta: number) {
+		if (servingInputDisabled) return;
 		beginSession();
-		servingDraft = Math.max(1, Math.min(99, servingDraft + delta));
+		if (planMealId == null) servingDraft = Math.max(1, Math.min(99, servingDraft + delta));
+		else void servingsRegistry.change(planMealId, delta);
 		void tick().then(saveProgress);
 	}
 
 	function setServingMultiplier(multiplier: number) {
+		if (servingInputDisabled) return;
 		beginSession();
 		const baseline = activeBaselineServings ?? fallback.servings ?? 4;
-		servingDraft = Math.max(1, Math.min(99, Math.round(baseline * multiplier)));
+		const target = Math.max(1, Math.min(99, Math.round(baseline * multiplier)));
+		if (planMealId == null) servingDraft = target;
+		else void servingsRegistry.set(planMealId, target);
 		void tick().then(saveProgress);
 	}
 
@@ -454,14 +486,14 @@
 	<div class="flex min-h-11 items-center gap-2 px-3 py-1.5">
 		<div
 			class="inline-flex min-h-9 items-center rounded-lg border border-base-300 bg-base-100"
-			aria-label={m.recipes_fallback_servings_label()}
+			aria-label={servingLabel}
 		>
-			<span class="pl-2.5 pr-1 text-xs text-base-content/60">{m.recipes_fallback_servings_label()}</span>
+			<span class="pl-2.5 pr-1 text-xs text-base-content/60">{servingLabel}</span>
 			<button
 				type="button"
 				class="btn btn-ghost btn-xs min-h-9 min-w-9 px-0 text-base"
 				aria-label={m.benchsheet_servings_decrease()}
-				disabled={servingDraft <= 1 || loading}
+				disabled={servingInputDisabled || servingDraft <= 1}
 				onclick={() => changeServings(-1)}>−</button
 			>
 			<span class="w-7 text-center text-sm font-semibold tabular-nums">{servingDraft}</span>
@@ -469,7 +501,7 @@
 				type="button"
 				class="btn btn-ghost btn-xs min-h-9 min-w-9 px-0 text-base"
 				aria-label={m.benchsheet_servings_increase()}
-				disabled={servingDraft >= 99 || loading}
+				disabled={servingInputDisabled || servingDraft >= 99}
 				onclick={() => changeServings(1)}>+</button
 			>
 		</div>
@@ -510,19 +542,22 @@
 		</div>
 	{/if}
 	{#if steps.length}
-		<div class="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-3 py-2">
-			<span class="text-xs font-semibold text-base-content/55">{m.recipes_fallback_servings_label()}</span>
+		<div class="mx-auto flex max-w-5xl flex-nowrap items-center gap-2 px-3 py-2">
+			<span class="shrink-0 text-xs font-semibold text-base-content/55">{servingLabel}</span>
 			<div class="inline-flex min-h-11 items-center rounded-lg border border-base-300 bg-base-100">
-				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_decrease()} disabled={servingDraft <= 1 || loading} onclick={() => changeServings(-1)}>−</button>
+				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_decrease()} disabled={servingInputDisabled || servingDraft <= 1} onclick={() => changeServings(-1)}>−</button>
 				<span class="w-8 text-center text-sm font-semibold tabular-nums">{servingDraft}</span>
-				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_increase()} disabled={servingDraft >= 99 || loading} onclick={() => changeServings(1)}>+</button>
+				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_increase()} disabled={servingInputDisabled || servingDraft >= 99} onclick={() => changeServings(1)}>+</button>
 			</div>
 			{#if fallback.scalingMode !== 'fixed_batch'}
-				<div class="flex min-h-11 items-center gap-1" aria-label={m.recipes_fallback_servings_label()}>
-					{#each [1, 1.5, 2] as multiplier}
-						<button type="button" class="btn btn-xs h-11 min-h-0 min-w-11 px-2.5 {servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier) ? 'btn-primary' : 'btn-ghost'}" aria-pressed={servingDraft === Math.round((activeBaselineServings ?? fallback.servings ?? 4) * multiplier)} onclick={() => setServingMultiplier(multiplier)}>{multiplier === 1.5 ? '1½×' : `${multiplier}×`}</button>
-					{/each}
-				</div>
+				<ServingBatchPicker
+					baselineServings={activeBaselineServings ?? fallback.servings}
+					currentServings={servingDraft}
+					ariaLabel={m.benchsheet_batch_size_aria()}
+					menuLabel={m.benchsheet_batch_size_button()}
+					disabled={servingInputDisabled}
+					onselect={setServingMultiplier}
+				/>
 			{/if}
 		</div>
 	{/if}

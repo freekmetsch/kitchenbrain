@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
-import { updateCanonicalRecipe, updateCookModeCache } from './commands';
+import {
+	archiveRecipe,
+	restoreRecipe,
+	updateCanonicalRecipe,
+	updateCookModeCache
+} from './commands';
+import { getRecipeBySlug, listRecipePlanningOptions, listRecipes } from './queries';
 
 function seedRecipe(db: ReturnType<typeof createTestDb>) {
 	const now = new Date('2026-01-01T00:00:00.000Z');
@@ -22,6 +28,22 @@ function seedRecipe(db: ReturnType<typeof createTestDb>) {
 }
 
 describe('recipe commands', () => {
+	it('archives recipes out of active choices while preserving historical reads and restore', () => {
+		const db = createTestDb();
+		const recipe = seedRecipe(db);
+
+		expect(archiveRecipe(db, recipe.id, new Date('2026-08-01T10:00:00Z'))?.archivedAt).toEqual(
+			new Date('2026-08-01T10:00:00Z')
+		);
+		expect(listRecipes(db)).toEqual([]);
+		expect(listRecipePlanningOptions(db)).toEqual([]);
+		expect(getRecipeBySlug(db, recipe.slug)?.id).toBe(recipe.id);
+
+		expect(restoreRecipe(db, recipe.id)?.archivedAt).toBeNull();
+		expect(listRecipes(db)).toHaveLength(1);
+		expect(listRecipePlanningOptions(db)).toHaveLength(1);
+	});
+
 	it('keeps canonical CAS and cache-only revision behavior inside a caller-owned transaction', () => {
 		const db = createTestDb();
 		const recipe = seedRecipe(db);

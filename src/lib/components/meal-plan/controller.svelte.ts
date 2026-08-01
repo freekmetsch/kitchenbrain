@@ -13,6 +13,11 @@ import {
 } from '$lib/meal_source_choice';
 import type { RotationPolicy, RotationSeason } from '$lib/meal_rotation';
 import type { RotationShortlistCandidate } from '$lib/meal_rotation_shortlist';
+import { plannedServingsRegistryForScope } from '$lib/planned_servings_client';
+import {
+	PlannedServingsRegistry,
+	type PlannedServingsSnapshot
+} from '$lib/planned_servings_registry';
 
 export type MealPlanMeal = {
 	id: number;
@@ -86,6 +91,7 @@ type AddMealInput = {
 type ControllerDependencies = {
 	basePath?: string;
 	fetcher?: typeof fetch;
+	servingsRegistry?: PlannedServingsRegistry;
 };
 
 function cloneWeeks(value: MealPlanWeek[]): MealPlanWeek[] {
@@ -137,12 +143,15 @@ export class MealPlanController {
 	private tempMealId = -1;
 	private readonly basePath: string;
 	private readonly fetcher: typeof fetch;
+	private readonly servingsRegistry: PlannedServingsRegistry;
+	private servingUnsubscribers = new Map<number, () => void>();
 
 	constructor(initial: MealPlanControllerData, dependencies: ControllerDependencies = {}) {
 		this.basePath = dependencies.basePath ?? '';
 		this.fetcher =
 			dependencies.fetcher ??
 			((input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init));
+		this.servingsRegistry = dependencies.servingsRegistry ?? plannedServingsRegistryForScope();
 		this.syncData(initial);
 	}
 
@@ -155,6 +164,12 @@ export class MealPlanController {
 		this.hasPastWeeks = data.hasPastWeeks;
 		this.rotationShortlists = structuredClone(data.rotationShortlists);
 		this.prefs = { ...data.mealPlanPrefs };
+		this.syncServingSubscriptions();
+	}
+
+	destroy(): void {
+		for (const unsubscribe of this.servingUnsubscribers.values()) unsubscribe();
+		this.servingUnsubscribers.clear();
 	}
 
 	get selectedWeek() {
@@ -249,6 +264,39 @@ export class MealPlanController {
 		this.pendingAdds = next;
 	}
 
+	private setServingPending(mealId: number, pending: boolean): void {
+		const next = { ...this.pendingServings };
+		if (pending) next[mealId] = true;
+		else delete next[mealId];
+		this.pendingServings = next;
+	}
+
+	private syncServingSubscriptions(): void {
+		for (const unsubscribe of this.servingUnsubscribers.values()) unsubscribe();
+		this.servingUnsubscribers.clear();
+		const meals = this.weeks.flatMap((week) => week.meals);
+		for (const meal of meals) {
+			if (meal.servings == null) continue;
+			const unsubscribe = this.servingsRegistry.subscribe(meal, (snapshot) =>
+				this.applyServingSnapshot(snapshot)
+			);
+			this.servingUnsubscribers.set(meal.id, unsubscribe);
+		}
+	}
+
+	private applyServingSnapshot(snapshot: PlannedServingsSnapshot): void {
+		for (const week of this.weeks) {
+			const meal = week.meals.find((candidate) => candidate.id === snapshot.mealId);
+			if (!meal) continue;
+			if (meal.servings !== snapshot.desired) {
+				meal.servings = snapshot.desired;
+				this.weeks = [...this.weeks];
+			}
+			this.setServingPending(snapshot.mealId, snapshot.pending);
+			return;
+		}
+	}
+
 	private updateMeal(updated: MealPlanMeal): void {
 		for (const week of this.weeks) {
 			const index = week.meals.findIndex((meal) => meal.id === updated.id);
@@ -266,6 +314,8 @@ export class MealPlanController {
 			if (index !== -1) {
 				week.meals[index] = { ...saved };
 				this.weeks = [...this.weeks];
+				this.servingsRegistry.transfer(tempId, saved);
+				this.syncServingSubscriptions();
 				return;
 			}
 		}
@@ -544,6 +594,7 @@ export class MealPlanController {
 		newSource: MealSource
 	): Promise<void> => {
 		if (this.pendingSourceToggles[meal.id] || meal.id < 0) return;
+		await this.servingsRegistry.flush(meal.id);
 		const recipe = this.recipeForMeal(meal);
 		if (!recipe || (newSource === 'freezer' && recipe.onHandPortions <= 0)) return;
 		const servings = defaultServingsForMealSource(
@@ -577,7 +628,12 @@ export class MealPlanController {
 		const next = { ...this.pendingSourceToggles };
 		delete next[meal.id];
 		this.pendingSourceToggles = next;
-		if (ok && saved) this.updateMeal(saved);
+		if (ok && saved) {
+			this.servingsRegistry.sync(saved);
+			this.updateMeal(saved);
+		} else {
+			this.servingsRegistry.sync(previous);
+		}
 	};
 
 	setPlannedDate = async (
@@ -657,6 +713,7 @@ export class MealPlanController {
 
 	removeMeal = async (meal: MealPlanMeal): Promise<void> => {
 		if (this.pendingDeletes[meal.id]) return;
+		this.servingsRegistry.discard(meal.id);
 		const before = cloneWeeks(this.weeks);
 		this.pendingDeletes = { ...this.pendingDeletes, [meal.id]: true };
 		this.removeMealFromState(meal.id);
@@ -699,53 +756,40 @@ export class MealPlanController {
 	};
 
 	setServings = async (meal: MealPlanMeal, nextValue: number): Promise<boolean> => {
-		if (meal.id < 0 || this.pendingServings[meal.id]) return false;
 		if (
+			this.pendingSourceToggles[meal.id] ||
 			!Number.isInteger(nextValue) ||
 			nextValue < 1 ||
 			nextValue > 99 ||
-			nextValue === meal.servings
+			nextValue === this.servingsRegistry.snapshot(meal.id)?.desired
 		) {
 			return false;
 		}
-		const previous = { ...meal };
-		this.pendingServings = { ...this.pendingServings, [meal.id]: true };
-		this.updateMeal({ ...meal, servings: nextValue });
-		let saved: MealPlanMeal | null = null;
-		const ok = await optimistic(
-			async () => {
-				const response = await this.fetcher(
-					`${this.basePath}/api/meal-plan/${meal.id}`,
-					{
-						method: 'PUT',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ servings: nextValue })
-					}
-				);
-				if (response.ok) saved = await response.json();
-				return response;
-			},
-			() => this.updateMeal(previous),
-			m.mealplan_toast_could_not_update_servings()
-		);
-		const pending = { ...this.pendingServings };
-		delete pending[meal.id];
-		this.pendingServings = pending;
-		if (ok && saved) {
-			this.updateMeal(saved);
+		if (!this.servingsRegistry.snapshot(meal.id) && meal.servings != null) {
+			this.servingsRegistry.sync(meal);
+		}
+		const ok = await this.servingsRegistry.set(meal.id, nextValue);
+		if (ok) {
 			this.servingsStatus = m.mealplan_servings_updated({
 				dinner: meal.dinner,
-				count: nextValue
+				count: this.servingsRegistry.snapshot(meal.id)?.confirmed ?? nextValue
 			});
 		}
 		return ok;
 	};
 
 	changeServings = async (meal: MealPlanMeal, delta: number): Promise<void> => {
-		await this.setServings(
-			meal,
-			Math.max(1, Math.min(99, (meal.servings ?? 1) + delta))
-		);
+		if (this.pendingSourceToggles[meal.id]) return;
+		if (!this.servingsRegistry.snapshot(meal.id) && meal.servings != null) {
+			this.servingsRegistry.sync(meal);
+		}
+		const ok = await this.servingsRegistry.change(meal.id, delta);
+		if (ok) {
+			this.servingsStatus = m.mealplan_servings_updated({
+				dinner: meal.dinner,
+				count: this.servingsRegistry.snapshot(meal.id)?.confirmed ?? meal.servings ?? 1
+			});
+		}
 	};
 
 	addCustomFromSearch = async (): Promise<void> => {

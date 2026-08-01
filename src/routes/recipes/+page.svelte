@@ -49,6 +49,7 @@
 		subCount: number;
 		servings: number | null;
 		scalingMode: 'scalable' | 'fixed_batch';
+		archivedAt: string | Date | null;
 	};
 
 	type Toggles = {
@@ -56,6 +57,7 @@
 		freezerOnly: boolean;
 		belowTargetOnly: boolean;
 		rotationOnly: boolean;
+		archivedOnly: boolean;
 	};
 
 	let {
@@ -79,6 +81,7 @@
 	let makeOpen = $state(false);
 	let freezeOpen = $state(false);
 	let cookedPortions = $state(2);
+	let restoringRecipeIds = $state<number[]>([]);
 	let actionWeeks = $derived(labelWeeks(data.weeks, {
 		thisWeek: m.recipes_week_this(),
 		nextWeek: m.recipes_week_next(),
@@ -93,6 +96,25 @@
 	function openMake(recipe: Recipe) {
 		actionRecipe = recipe;
 		makeOpen = true;
+	}
+
+	async function restoreRecipe(recipe: Recipe) {
+		if (restoringRecipeIds.includes(recipe.id)) return;
+		restoringRecipeIds = [...restoringRecipeIds, recipe.id];
+		try {
+			const response = await fetch(`${base}/api/recipes/${recipe.slug}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ archived: false })
+			});
+			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			toast.success(m.recipes_restored_toast({ title: displayTitle(recipe) }));
+			await invalidateAll();
+		} catch {
+			toast.error(m.recipes_restore_failed());
+		} finally {
+			restoringRecipeIds = restoringRecipeIds.filter((id) => id !== recipe.id);
+		}
 	}
 
 	let searchInput = $state(untrack(() => data.query));
@@ -179,11 +201,12 @@
 	type ToggleName = keyof Toggles;
 
 	// data.toggles uses JS names; the URL contract uses short param names.
-	const TOGGLE_PARAM: Record<ToggleName, 'have' | 'freezer' | 'below' | 'rotation'> = {
+	const TOGGLE_PARAM: Record<ToggleName, 'have' | 'freezer' | 'below' | 'rotation' | 'archived'> = {
 		haveAll: 'have',
 		freezerOnly: 'freezer',
 		belowTargetOnly: 'below',
-		rotationOnly: 'rotation'
+		rotationOnly: 'rotation',
+		archivedOnly: 'archived'
 	};
 
 	function recipeHref(overrides: {
@@ -196,6 +219,7 @@
 		freezer?: boolean;
 		below?: boolean;
 		rotation?: boolean;
+		archived?: boolean;
 	} = {}) {
 		const params = new URLSearchParams();
 		const nextQ = overrides.q ?? searchInput;
@@ -207,6 +231,7 @@
 		const nextFreezer = overrides.freezer ?? data.toggles.freezerOnly;
 		const nextBelow = overrides.below ?? data.toggles.belowTargetOnly;
 		const nextRotation = overrides.rotation ?? data.toggles.rotationOnly;
+		const nextArchived = overrides.archived ?? data.toggles.archivedOnly;
 		if (nextQ) params.set('q', nextQ);
 		if (nextSort !== 'title') params.set('sort', nextSort);
 		if (nextClass) params.set('class', nextClass);
@@ -216,6 +241,7 @@
 		if (nextFreezer) params.set('freezer', '1');
 		if (nextBelow) params.set('below', '1');
 		if (nextRotation) params.set('rotation', '1');
+		if (nextArchived) params.set('archived', '1');
 		const qs = params.toString();
 		return `${base}/recipes${qs ? '?' + qs : ''}`;
 	}
@@ -257,7 +283,8 @@
 		data.toggles.haveAll ||
 			data.toggles.freezerOnly ||
 			data.toggles.belowTargetOnly ||
-			data.toggles.rotationOnly
+			data.toggles.rotationOnly ||
+			data.toggles.archivedOnly
 	);
 	const hasActiveFilters = $derived(
 		Boolean(data.query || ingredientFilter || classFilter || dishFilter || anyToggle)
@@ -267,6 +294,7 @@
 			Number(data.toggles.freezerOnly) +
 			Number(data.toggles.belowTargetOnly) +
 			Number(data.toggles.rotationOnly) +
+			Number(data.toggles.archivedOnly) +
 			Number(Boolean(classFilter)) +
 			Number(Boolean(dishFilter)) +
 			Number(Boolean(ingredientFilter))
@@ -277,6 +305,7 @@
 			data.toggles.freezerOnly ? m.recipes_filter_freezer_staple() : null,
 			data.toggles.belowTargetOnly ? m.recipes_filter_below_target() : null,
 			data.toggles.rotationOnly ? m.recipes_filter_in_rotation() : null,
+			data.toggles.archivedOnly ? m.recipes_archived_filter() : null,
 			classFilter ? (foodCategoryLabel(classFilter) ?? classFilter) : null,
 			dishFilter ? (foodCategoryLabel(dishFilter) ?? dishFilter) : null,
 			ingredientFilter ? `${m.recipes_using_ingredient_prefix()} ${ingredientFilter}` : null
@@ -295,7 +324,7 @@
 		classFilter = '';
 		dishFilter = '';
 		ingredientFilter = '';
-		goto(recipeHref({ q: '', sort: 'title', class: '', dish: '', ingredient: '', have: false, freezer: false, below: false, rotation: false }));
+		goto(recipeHref({ q: '', sort: 'title', class: '', dish: '', ingredient: '', have: false, freezer: false, below: false, rotation: false, archived: false }));
 	}
 
 	async function scrape() {
@@ -384,6 +413,9 @@
 		const rhythm = rhythmLabel(recipe.rotationPolicy);
 		const cooked = lastCookedLabel(recipe);
 		const statuses: Array<CardStatus | null> = [
+			recipe.archivedAt
+				? { label: m.recipes_archived_badge(), tone: 'warning' }
+				: null,
 			recipe.needsReview
 				? { label: m.recipes_review_badge(), tone: 'warning' }
 				: null,
@@ -452,6 +484,9 @@
 		<button type="button" class:active={data.toggles.rotationOnly} aria-pressed={data.toggles.rotationOnly} title={m.recipes_filter_in_rotation()} onclick={() => toggle('rotationOnly')}>
 			{m.recipes_filter_in_rotation()}
 		</button>
+		<button type="button" class:active={data.toggles.archivedOnly} aria-pressed={data.toggles.archivedOnly} title={m.recipes_archived_filter()} onclick={() => toggle('archivedOnly')}>
+			{m.recipes_archived_filter()}
+		</button>
 	</div>
 {/snippet}
 
@@ -491,7 +526,7 @@
 <div class="recipe-page ui-grove-page">
 	<KitchenPageHeader eyebrow={m.recipes_header_context()} title={m.recipes_heading()} variant="command">
 		{#snippet actions()}
-			<button
+			{#if !data.toggles.archivedOnly}<button
 				type="button"
 				class="ui-action ui-action-tertiary ui-action-on-dark"
 				aria-haspopup="dialog"
@@ -503,7 +538,7 @@
 					newMealSlugs = [];
 					newMealError = '';
 				}}
-			>{m.recipes_new_meal_button()}</button>
+			>{m.recipes_new_meal_button()}</button>{/if}
 			<button type="button" class="ui-action ui-action-primary" aria-haspopup="dialog" aria-expanded={scrapeOpen} onclick={() => (scrapeOpen = true)}>
 				{m.recipes_import_button()}
 			</button>
@@ -616,9 +651,18 @@
 						</div>
 					</div>
 					</a>
-					<div class="recipe-card-actions">
-						<button type="button" class="ui-action ui-action-tertiary" onclick={() => openPlan(recipe)}>{m.recipes_header_plan_button()}</button>
-						<button type="button" class="ui-action ui-action-secondary" onclick={() => openMake(recipe)}>{m.recipes_make_button()}</button>
+					<div class="recipe-card-actions" class:archived={!!recipe.archivedAt}>
+						{#if recipe.archivedAt}
+							<button
+								type="button"
+								class="ui-action ui-action-secondary"
+								disabled={restoringRecipeIds.includes(recipe.id)}
+								onclick={() => void restoreRecipe(recipe)}
+							>{m.recipes_restore_button()}</button>
+						{:else}
+							<button type="button" class="ui-action ui-action-tertiary" onclick={() => openPlan(recipe)}>{m.recipes_header_plan_button()}</button>
+							<button type="button" class="ui-action ui-action-secondary" onclick={() => openMake(recipe)}>{m.recipes_make_button()}</button>
+						{/if}
 					</div>
 				</article>
 			{/each}
@@ -950,6 +994,10 @@
 
 	.recipe-card-actions .ui-action {
 		padding-inline: 0.5rem;
+	}
+
+	.recipe-card-actions.archived {
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.recipe-shelf-card {

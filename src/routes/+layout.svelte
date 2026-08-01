@@ -2,12 +2,13 @@
 	import { navigating } from '$app/stores';
 	import { afterNavigate, beforeNavigate, onNavigate } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import { onDestroy, untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { MainScrollRestoration } from '$lib/navigation/scroll_restoration';
 	import { provideChatAgent } from '$lib/chat/agent_context';
 	import { ChatAgentController } from '$lib/stores/chat-agent.svelte';
 	import NavBar from '$lib/components/NavBar.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
+	import { plannedServingsRegistry } from '$lib/planned_servings_client';
 	import '../app.css';
 
 	let { data, children } = $props<{
@@ -31,8 +32,13 @@
 	onDestroy(() => chatAgent?.destroy());
 
 	let mainEl = $state<HTMLElement>();
+	let hydrated = $state(false);
 	let scrollFrame: number | null = null;
 	const mainScroll = new MainScrollRestoration();
+
+	onMount(() => {
+		hydrated = true;
+	});
 
 	beforeNavigate(() => {
 		if (mainEl) mainScroll.capture(mainEl.scrollTop);
@@ -67,6 +73,10 @@
 				await navigation.complete;
 			});
 		});
+	});
+
+	onNavigate(async () => {
+		await plannedServingsRegistry.flush();
 	});
 </script>
 
@@ -108,7 +118,10 @@
 </style>
 
 {#if data.user}
-	<div class="app-shell h-dvh flex flex-col overflow-hidden">
+	<div
+		class="app-shell h-dvh flex flex-col overflow-hidden"
+		data-hydrated={hydrated ? 'true' : undefined}
+	>
 		<main bind:this={mainEl} class="app-main flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
 			{@render children()}
 		</main>

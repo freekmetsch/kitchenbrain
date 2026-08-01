@@ -1,4 +1,6 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import Database from 'better-sqlite3';
+import { E2E_DATABASE } from './config';
 import { kitchenFixtureFor } from './fixtures';
 
 async function expectSettledSourceControl(control: Locator) {
@@ -7,11 +9,17 @@ async function expectSettledSourceControl(control: Locator) {
 			control.evaluateAll((elements) => ({
 				count: elements.length,
 				enabled: elements.filter(
-					(element) => element instanceof HTMLButtonElement && !element.disabled
+					(element) =>
+						(element instanceof HTMLButtonElement || element instanceof HTMLSelectElement) &&
+						!element.disabled
 				).length
 			}))
 		)
 		.toEqual({ count: 1, enabled: 1 });
+}
+
+async function expectAppHydrated(page: Page) {
+	await expect(page.locator('.app-shell[data-hydrated="true"]')).toBeVisible({ timeout: 30_000 });
 }
 
 test('Stock quantity, delete, and undo stay recoverable', async ({ page }, testInfo) => {
@@ -108,6 +116,111 @@ test('Meal Plan serving edits and remove undo stay recoverable', async ({ page }
 	await expect(
 		restoredMeal.locator('xpath=ancestor::li[1]').getByText('5 portions', { exact: true })
 	).toBeVisible();
+});
+
+test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({ page }, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	await page.goto(`/shopping?week=${fixture.weekStart}`);
+	await page.waitForLoadState('networkidle');
+
+	const increase = page.getByRole('button', {
+		name: `Increase portions for ${fixture.recipeTitle}`
+	});
+	const shoppingCount = increase.locator('xpath=preceding-sibling::span[1]');
+	const before = Number.parseInt((await shoppingCount.textContent()) ?? '', 10);
+	const recipeHref = await page.getByRole('link', { name: fixture.recipeTitle }).getAttribute('href');
+	expect(recipeHref).toMatch(/\?plan=\d+$/);
+
+	const increased = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PUT' && /\/api\/meal-plan\/\d+$/.test(response.url())
+	);
+	await increase.click();
+	expect((await increased).ok()).toBe(true);
+	await expect(shoppingCount).toHaveText(`${before + 1} portions`);
+
+	await page.goto(`/meal-plan?week=${fixture.weekStart}`);
+	await expectAppHydrated(page);
+	await expect(page.getByText(`${before + 1} portions`, { exact: true })).toBeVisible();
+
+	await page.goto(recipeHref!);
+	await expectAppHydrated(page);
+	const recipeIncrease = page.getByRole('button', { name: 'Increase servings' });
+	await expect(recipeIncrease.locator('xpath=preceding-sibling::span[1]')).toHaveText(`${before + 1}`);
+
+	await page.goto(`/shopping?week=${fixture.weekStart}`);
+	await expectAppHydrated(page);
+	const decrease = page.getByRole('button', {
+		name: `Decrease portions for ${fixture.recipeTitle}`
+	});
+	const restored = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PUT' && /\/api\/meal-plan\/\d+$/.test(response.url())
+	);
+	await decrease.click();
+	expect((await restored).ok()).toBe(true);
+	await expect(decrease.locator('xpath=following-sibling::span[1]')).toHaveText(`${before} portions`);
+});
+
+test('Shopping removes any aggregate for one week and restores it with Undo', async ({ page }, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	await page.goto(`/shopping?week=${fixture.weekStart}`);
+	await page.waitForLoadState('networkidle');
+	const checkbox = page.getByRole('checkbox', { name: `Mark ${fixture.shoppingName} bought` });
+	await expect(checkbox).toBeVisible();
+
+	await page.getByRole('button', { name: `Actions for ${fixture.shoppingName}` }).click();
+	const removed = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' &&
+			response.url().endsWith('/api/shopping') &&
+			response.request().postDataJSON().action === 'exclude_week_item'
+	);
+	await page.getByRole('button', { name: 'Remove from this week' }).first().click();
+	expect((await removed).ok()).toBe(true);
+	await expect(checkbox).toBeHidden();
+
+	const restored = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' &&
+			response.url().endsWith('/api/shopping') &&
+			response.request().postDataJSON().action === 'restore_week_item'
+	);
+	await page.getByRole('button', { name: 'Undo' }).click();
+	expect((await restored).ok()).toBe(true);
+	await expect(checkbox).toBeVisible();
+});
+
+test('Recipe archive leaves history intact and restores from Undo', async ({ page }, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+	await expectAppHydrated(page);
+	const archived = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PATCH' &&
+			response.url().endsWith(`/api/recipes/${fixture.cookRecipeSlug}`) &&
+			response.request().postDataJSON().archived === true
+	);
+	page.once('dialog', (dialog) => dialog.accept());
+	await page.getByRole('button', { name: 'Archive recipe' }).click();
+	expect((await archived).ok()).toBe(true);
+	await expect(page).toHaveURL(/\/recipes$/);
+	const restoredRecipeHeading = page.getByRole('heading', {
+		name: fixture.cookRecipeTitle,
+		level: 2,
+		exact: true
+	});
+	await expect(restoredRecipeHeading).toHaveCount(0);
+
+	const restored = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PATCH' &&
+			response.url().endsWith(`/api/recipes/${fixture.cookRecipeSlug}`) &&
+			response.request().postDataJSON().archived === false
+	);
+	await page.getByRole('button', { name: 'Undo' }).click();
+	expect((await restored).ok()).toBe(true);
+	await expect(restoredRecipeHeading).toBeVisible();
 });
 
 test('Recipe rhythm creates a deterministic Cook shortlist without the old Suggest action', async ({
@@ -247,11 +360,11 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 		.selectOption(fixture.shoppingName);
 	expect((await termRestored).ok()).toBe(true);
 
-	const needButton = page.getByRole('button', {
+	const needButton = page.getByRole('combobox', {
 		name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Always`
 	});
 	await page.getByText('Not this run (2)', { exact: true }).click();
-	const siblingNeed = page.getByRole('button', {
+	const siblingNeed = page.getByRole('combobox', {
 		name: `Change need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}. Current: Nice to have`
 	});
 	await expect(siblingNeed).toBeVisible();
@@ -268,7 +381,7 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 			response.request().method() === 'POST' &&
 			response.url().endsWith('/api/shopping/recipe-choice')
 	);
-	await needButton.click();
+	await needButton.selectOption('optional');
 	await expect(siblingNeed).toBeDisabled();
 	const excludedResponse = await sourceExcluded;
 	expect(excludedResponse.ok()).toBe(true);
@@ -278,7 +391,7 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 	});
 	await expect(page.getByText('Not this run (3)', { exact: true })).toBeVisible();
 	await expect(
-		page.getByRole('button', {
+		page.getByRole('combobox', {
 			name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: Nice to have`
 		})
 	).toBeVisible();
@@ -308,10 +421,10 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 				response.url().endsWith('/api/shopping/recipe-choice')
 		);
 		await page
-			.getByRole('button', {
+			.getByRole('combobox', {
 				name: `Change need for ${fixture.shoppingName} · ${fixture.recipeTitle}. Current: ${state.current}`
 			})
-			.click();
+			.selectOption(state.next);
 		const response = await changed;
 		expect(response.ok()).toBe(true);
 		expect(response.request().postDataJSON()).toMatchObject({
@@ -335,11 +448,11 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 					response.request().method() === 'POST' &&
 					response.url().endsWith('/api/shopping/recipe-choice')
 			);
-			const needControl = page.getByRole('button', {
+			const needControl = page.getByRole('combobox', {
 				name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: ${transition.current}`
 			});
 			await expectSettledSourceControl(needControl);
-			await needControl.click();
+			await needControl.selectOption(transition.next);
 			const response = await changed;
 			expect(response.ok()).toBe(true);
 			expect(response.request().postDataJSON()).toMatchObject({
@@ -352,7 +465,7 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 		page.getByRole('checkbox', { name: `Mark ${fixture.shoppingSibling} bought` })
 	).toBeVisible();
 	for (const recipeTitle of [fixture.recipeTitle, otherRecipeTitle]) {
-		const needControl = page.getByRole('button', {
+		const needControl = page.getByRole('combobox', {
 			name: `Change need for ${fixture.shoppingSibling} · ${recipeTitle}. Current: Always`
 		});
 		await expectSettledSourceControl(needControl);
@@ -361,7 +474,7 @@ test('Shopping bought undo and recipe-source choice stay recoverable', async ({
 				response.request().method() === 'POST' &&
 				response.url().endsWith('/api/shopping/recipe-choice')
 		);
-		await needControl.click();
+		await needControl.selectOption('optional');
 		expect((await excluded).ok()).toBe(true);
 	}
 	await expect(
@@ -565,4 +678,56 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 	await expect
 		.poll(() => page.evaluate((key) => localStorage.getItem(key), progressKey))
 		.toBeNull();
+});
+
+test('Recipe portions stay interactive while cook guidance loads', async ({ page }, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	const database = new Database(E2E_DATABASE);
+	const cached = database
+		.prepare('SELECT cook_mode_json AS cookModeJson FROM recipes WHERE slug = ?')
+		.get(fixture.cookRecipeSlug) as { cookModeJson: string | null } | undefined;
+	database.prepare('UPDATE recipes SET cook_mode_json = NULL WHERE slug = ?').run(fixture.cookRecipeSlug);
+	database.close();
+
+	let releaseRequest = () => {};
+	let markRequestStarted = () => {};
+	const requestStarted = new Promise<void>((resolve) => {
+		markRequestStarted = resolve;
+	});
+	const heldRequest = new Promise<void>((resolve) => {
+		releaseRequest = resolve;
+	});
+	const cookModePattern = `**/api/recipes/${fixture.cookRecipeSlug}/cook-mode?**`;
+
+	try {
+		await page.route(cookModePattern, async (route) => {
+			markRequestStarted();
+			await heldRequest;
+			await route.abort().catch(() => {
+				// The page may release the route while failed-test cleanup is already unhooking it.
+			});
+		});
+		await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+		await requestStarted;
+
+		const decrease = page.getByRole('button', { name: 'Decrease servings' });
+		const increase = page.getByRole('button', { name: 'Increase servings' });
+		const servings = increase.locator('xpath=preceding-sibling::span[1]');
+
+		await expect(decrease).toBeEnabled();
+		await expect(increase).toBeEnabled();
+		await expect(servings).toHaveText('4');
+		await decrease.click();
+		await expect(servings).toHaveText('3');
+		await increase.click();
+		await expect(servings).toHaveText('4');
+	} finally {
+		releaseRequest();
+		await page.unroute(cookModePattern);
+		const restoreDatabase = new Database(E2E_DATABASE);
+		restoreDatabase
+			.prepare('UPDATE recipes SET cook_mode_json = ? WHERE slug = ?')
+			.run(cached?.cookModeJson ?? null, fixture.cookRecipeSlug);
+		restoreDatabase.close();
+	}
 });

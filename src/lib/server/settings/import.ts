@@ -117,6 +117,7 @@ const RecipeImport = z.object({
 	freezerStapleOptOut: z.boolean(),
 	needsReview: z.boolean(),
 	reviewReason: z.string().nullable(),
+	archivedAt: zTimestampOrNull.default(null),
 	createdAt: zTimestamp,
 	updatedAt: zTimestamp
 })
@@ -241,6 +242,13 @@ const ShoppingWeekEntryImport = z.object({
 	updatedAt: zTimestamp
 });
 
+const ShoppingWeekExclusionImport = z.object({
+	weekStartDate: z.string(),
+	nameKey: z.string().min(1),
+	name: z.string().min(1),
+	createdAt: zTimestamp
+});
+
 const AhFavoriteImport = z.object({
 	nameKey: z.string().min(1),
 	productId: z.string().min(1),
@@ -267,6 +275,7 @@ const ImportFileSchema = z.object({
 	shopping_overrides: z.array(ShoppingOverrideImport).default([]),
 	recurring_shopping_items: z.array(RecurringShoppingItemImport).default([]),
 	shopping_week_entries: z.array(ShoppingWeekEntryImport).default([]),
+	shopping_week_exclusions: z.array(ShoppingWeekExclusionImport).default([]),
 	ah_favorites: z.array(AhFavoriteImport).default([]),
 	recipe_ah_preferences: z.array(RecipeAhPreferenceImport).default([])
 });
@@ -321,6 +330,13 @@ export function validateImportFile(raw: unknown): ImportValidation {
 		(entry) => `${entry.weekStartDate}\u0000${entry.sourceKey}`
 	);
 	if (dupWeekSource != null) return { ok: false, error: 'Duplicate shopping week/source key' };
+	const dupWeekExclusion = firstDuplicate(
+		data.shopping_week_exclusions,
+		(exclusion) => `${exclusion.weekStartDate}\u0000${exclusion.nameKey}`
+	);
+	if (dupWeekExclusion != null) {
+		return { ok: false, error: 'Duplicate shopping week exclusion' };
+	}
 	const dupFavorite = firstDuplicate(data.ah_favorites, (favorite) => favorite.nameKey);
 	if (dupFavorite != null) return { ok: false, error: `Duplicate AH favorite "${dupFavorite}"` };
 	const dupRecipePreference = firstDuplicate(
@@ -390,6 +406,7 @@ export function isBootstrapEligible(db: DB): boolean {
 		rowCount(db, schema.shoppingListOverrides) === 0 &&
 		rowCount(db, schema.recurringShoppingItems) === 0 &&
 		rowCount(db, schema.shoppingWeekEntries) === 0 &&
+		rowCount(db, schema.shoppingWeekExclusions) === 0 &&
 		rowCount(db, schema.ahFavorites) === 0 &&
 		rowCount(db, schema.recipeAhPreferences) === 0
 	);
@@ -407,7 +424,8 @@ export function getBootstrapBlockers(db: DB): ResetGroupKey[] {
 	if (
 		rowCount(db, schema.shoppingListOverrides) > 0 ||
 		rowCount(db, schema.recurringShoppingItems) > 0 ||
-		rowCount(db, schema.shoppingWeekEntries) > 0
+		rowCount(db, schema.shoppingWeekEntries) > 0 ||
+		rowCount(db, schema.shoppingWeekExclusions) > 0
 	) {
 		blockers.push('shopping_data');
 	}
@@ -454,6 +472,11 @@ export function importBootstrap(db: DB, data: ImportFileData): ImportOutcome {
 			inserted.shopping_week_entries = tx
 				.insert(schema.shoppingWeekEntries)
 				.values(data.shopping_week_entries)
+				.run().changes;
+		if (data.shopping_week_exclusions.length)
+			inserted.shopping_week_exclusions = tx
+				.insert(schema.shoppingWeekExclusions)
+				.values(data.shopping_week_exclusions)
 				.run().changes;
 		if (data.ah_favorites.length) {
 			inserted.ah_favorites = tx.insert(schema.ahFavorites).values(data.ah_favorites).run().changes;

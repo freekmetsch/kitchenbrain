@@ -79,6 +79,14 @@ function derivedValuesChanged(existing: WeekEntry, next: Partial<WeekEntry>): bo
 	});
 }
 
+function derivedQuantityChanged(existing: WeekEntry, next: Partial<WeekEntry>): boolean {
+	if (existing.amountOverride != null || existing.unitOverride != null) return false;
+	return (
+		(next.amount !== undefined && next.amount !== existing.amount) ||
+		(next.unit !== undefined && next.unit !== existing.unit)
+	);
+}
+
 function insertRecipeEntry(
 	db: DB,
 	weekStart: string,
@@ -174,7 +182,12 @@ export function materializeShoppingWeek(
 			if (derivedValuesChanged(current, changes)) {
 				executor
 					.update(schema.shoppingWeekEntries)
-					.set({ ...changes, revision: sql`${schema.shoppingWeekEntries.revision} + 1`, updatedAt: now })
+					.set({
+						...changes,
+						...(derivedQuantityChanged(current, changes) ? { bought: false } : {}),
+						revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
+						updatedAt: now
+					})
 					.where(eq(schema.shoppingWeekEntries.id, current.id))
 					.run();
 				updated++;
@@ -214,7 +227,12 @@ export function materializeShoppingWeek(
 			if (derivedValuesChanged(current, changes)) {
 				executor
 					.update(schema.shoppingWeekEntries)
-					.set({ ...changes, revision: sql`${schema.shoppingWeekEntries.revision} + 1`, updatedAt: now })
+					.set({
+						...changes,
+						...(derivedQuantityChanged(current, changes) ? { bought: false } : {}),
+						revision: sql`${schema.shoppingWeekEntries.revision} + 1`,
+						updatedAt: now
+					})
 					.where(eq(schema.shoppingWeekEntries.id, current.id))
 					.run();
 				updated++;

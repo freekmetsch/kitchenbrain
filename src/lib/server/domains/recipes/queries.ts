@@ -1,4 +1,4 @@
-import { desc, eq, inArray, like, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, like, notInArray } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { DbOrTx } from '$lib/server/db/types';
 
@@ -8,16 +8,32 @@ export function getRecipeBySlug(db: DbOrTx, slug: string): Recipe | undefined {
 	return db.select().from(schema.recipes).where(eq(schema.recipes.slug, slug)).get();
 }
 
+export function getActiveRecipeBySlug(db: DbOrTx, slug: string): Recipe | undefined {
+	return db
+		.select()
+		.from(schema.recipes)
+		.where(and(eq(schema.recipes.slug, slug), isNull(schema.recipes.archivedAt)))
+		.get();
+}
+
 export function getRecipeById(db: DbOrTx, id: number): Recipe | undefined {
 	return db.select().from(schema.recipes).where(eq(schema.recipes.id, id)).get();
 }
 
 export function findRecipeByTitle(db: DbOrTx, title: string): Recipe | undefined {
-	return db.select().from(schema.recipes).where(like(schema.recipes.title, `%${title}%`)).get();
+	return db
+		.select()
+		.from(schema.recipes)
+		.where(and(like(schema.recipes.title, `%${title}%`), isNull(schema.recipes.archivedAt)))
+		.get();
 }
 
 export function listRecipes(db: DbOrTx): Recipe[] {
-	return db.select().from(schema.recipes).all();
+	return db.select().from(schema.recipes).where(isNull(schema.recipes.archivedAt)).all();
+}
+
+export function listArchivedRecipes(db: DbOrTx): Recipe[] {
+	return db.select().from(schema.recipes).where(isNotNull(schema.recipes.archivedAt)).all();
 }
 
 export function getRecipesBySlugs(db: DbOrTx, slugs: string[]): Recipe[] {
@@ -43,7 +59,11 @@ export function listMealCandidates(db: DbOrTx) {
 			titleEn: schema.recipes.titleEn
 		})
 		.from(schema.recipes)
-		.where(mealIds.length ? notInArray(schema.recipes.id, mealIds) : undefined)
+		.where(
+			mealIds.length
+				? and(notInArray(schema.recipes.id, mealIds), isNull(schema.recipes.archivedAt))
+				: isNull(schema.recipes.archivedAt)
+		)
 		.all();
 }
 
@@ -66,6 +86,7 @@ export function listRecipePlanningOptions(db: DbOrTx) {
 			lastCookedAt: schema.recipes.lastCookedAt
 		})
 		.from(schema.recipes)
+		.where(isNull(schema.recipes.archivedAt))
 		.orderBy(schema.recipes.title)
 		.all();
 }
@@ -89,6 +110,7 @@ export function listRecipeSuggestionCandidates(db: DbOrTx, limit = 60) {
 			targetPortions: schema.recipes.targetPortions
 		})
 		.from(schema.recipes)
+		.where(isNull(schema.recipes.archivedAt))
 		.orderBy(desc(schema.recipes.rating))
 		.limit(limit)
 		.all();

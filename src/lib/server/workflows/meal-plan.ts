@@ -20,6 +20,7 @@ import {
 } from '$lib/server/domains/meal-plan/queries';
 import {
 	getRecipeBySlug,
+	getActiveRecipeBySlug,
 	subRecipesOf,
 	updateRecipeCookStats
 } from '$lib/server/domains/recipes';
@@ -159,7 +160,14 @@ export function createMealPlanService(
 					input.weekStartDate,
 					getWeekStartDay(tx)
 				);
-				const recipe = input.recipeSlug ? getRecipeBySlug(tx, input.recipeSlug) : undefined;
+				const recipe = input.recipeSlug ? getActiveRecipeBySlug(tx, input.recipeSlug) : undefined;
+				if (input.recipeSlug && !recipe) {
+					return {
+						ok: false as const,
+						code: 'recipe_unavailable' as const,
+						error: 'Recipe is unavailable for new meal plans'
+					};
+				}
 				const meal = createMealPlanMeal(tx, {
 					weekNumber: isoWeekNumber(weekStartDate),
 					weekStartDate,
@@ -182,6 +190,40 @@ export function createMealPlanService(
 				if (result.ok) {
 					dependencies.reconcileShopping(tx, [result.meal.weekStartDate]);
 				}
+				return result;
+			});
+		},
+
+		setPlannedServings(
+			id: number,
+			servings: number,
+			source?: 'fresh' | 'freezer'
+		) {
+			return db.transaction((tx) => {
+				const meal = getMealPlanMeal(tx, id);
+				if (!meal) {
+					return { ok: false as const, code: 'not_found' as const, error: 'Meal not found' };
+				}
+				const currentWeekStart = weekStartFor(todayIso(), getWeekStartDay(tx));
+				if (meal.weekStartDate < currentWeekStart) {
+					return {
+						ok: false as const,
+						code: 'past_week' as const,
+						error: 'Past meal portions cannot be changed'
+					};
+				}
+				if (meal.status === 'cooked') {
+					return {
+						ok: false as const,
+						code: 'already_cooked' as const,
+						error: 'Cooked meal portions cannot be changed'
+					};
+				}
+				const result = updateMealPlanMetadata(tx, id, {
+					servings,
+					...(source === undefined ? {} : { source })
+				});
+				if (result.ok) dependencies.reconcileShopping(tx, [result.meal.weekStartDate]);
 				return result;
 			});
 		},

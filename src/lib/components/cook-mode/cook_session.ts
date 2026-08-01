@@ -28,6 +28,15 @@ export type CookSessionReadResult =
 	| { state: 'discard' }
 	| { state: 'ready'; session: CookSessionV5 };
 
+export function restoredCookSessionServings(
+	storedServings: number,
+	plannedServings: number | null
+): number {
+	return plannedServings != null && Number.isInteger(plannedServings) && plannedServings >= 1
+		? plannedServings
+		: storedServings;
+}
+
 export function readCookSession(value: unknown): CookSessionReadResult {
 	if (value == null) return { state: 'empty' };
 	if (typeof value !== 'object') return { state: 'discard' };

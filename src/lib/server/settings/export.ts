@@ -8,6 +8,7 @@ import {
 	shoppingListOverrides,
 	recurringShoppingItems,
 	shoppingWeekEntries,
+	shoppingWeekExclusions,
 	ahFavorites,
 	recipeAhPreferences
 } from '$lib/server/db/schema';
@@ -30,6 +31,7 @@ export function buildHouseholdExport(database: Db, now = new Date()) {
 		shopping_overrides: database.select().from(shoppingListOverrides).all(),
 		recurring_shopping_items: database.select().from(recurringShoppingItems).all(),
 		shopping_week_entries: database.select().from(shoppingWeekEntries).all(),
+		shopping_week_exclusions: database.select().from(shoppingWeekExclusions).all(),
 		ah_favorites: database.select().from(ahFavorites).all(),
 		recipe_ah_preferences: database.select().from(recipeAhPreferences).all()
 	};

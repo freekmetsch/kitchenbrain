@@ -49,6 +49,69 @@ describe('meal-plan workflow', () => {
 		expect(db.select().from(schema.mealPlanMeals).all()).toHaveLength(0);
 	});
 
+	it('rejects new planned references to an archived recipe', () => {
+		const db = createTestDb();
+		const now = new Date();
+		db.insert(schema.recipes)
+			.values({
+				slug: 'archived-soup',
+				title: 'Archived soup',
+				servings: 4,
+				ingredients: [],
+				directions: [],
+				archivedAt: now,
+				createdAt: now,
+				updatedAt: now
+			})
+			.run();
+
+		expect(
+			createMealPlanService(db).create({
+				weekStartDate: '2026-08-05',
+				dinner: 'Archived soup',
+				recipeSlug: 'archived-soup',
+				sourcePolicy: 'coerce-fresh'
+			})
+		).toMatchObject({ ok: false, code: 'recipe_unavailable' });
+		expect(db.select().from(schema.mealPlanMeals).all()).toEqual([]);
+	});
+
+	it('rejects planned-serving writes for past and cooked meals before reconciling shopping', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-08-03T10:00:00.000Z'));
+		const db = createTestDb();
+		const reconcileShopping = vi.fn();
+		const mealPlan = createMealPlanService(db, { reconcileShopping });
+		const past = mealPlan.create({
+			weekStartDate: '2026-07-22',
+			dinner: 'Past soup',
+			servings: 4,
+			sourcePolicy: 'coerce-fresh'
+		});
+		const current = mealPlan.create({
+			weekStartDate: '2026-07-29',
+			dinner: 'Cooked soup',
+			servings: 4,
+			sourcePolicy: 'coerce-fresh'
+		});
+		if (!past.ok || !current.ok) throw new Error('fixture meal missing');
+		expect(mealPlan.cook(current.meal.id, '2026-08-03').ok).toBe(true);
+		reconcileShopping.mockClear();
+
+		expect(mealPlan.setPlannedServings(past.meal.id, 6)).toMatchObject({
+			ok: false,
+			code: 'past_week'
+		});
+		expect(mealPlan.setPlannedServings(current.meal.id, 6)).toMatchObject({
+			ok: false,
+			code: 'already_cooked'
+		});
+		expect(
+			db.select({ servings: schema.mealPlanMeals.servings }).from(schema.mealPlanMeals).all()
+		).toEqual([{ servings: 4 }, { servings: 4 }]);
+		expect(reconcileShopping).not.toHaveBeenCalled();
+	});
+
 	it('cooks and uncooks a planned recipe with matching log and recipe stats', () => {
 		const db = createTestDb();
 		const now = new Date();

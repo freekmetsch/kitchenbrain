@@ -24,7 +24,9 @@ import {
 	upsertAhFavorite,
 	getShoppingWeekEntry,
 	getShoppingWeekView,
-	listRecentShoppingPushes
+	listRecentShoppingPushes,
+	excludeShoppingWeekAggregate,
+	restoreShoppingWeekAggregate
 } from '$lib/server/domains/shopping';
 import { getMealPlanPrefs, getWeekStartDay } from '$lib/server/meal_plan/prefs';
 import {
@@ -35,6 +37,7 @@ import {
 	weekStartFor
 } from '$lib/week';
 import { deriveWeekNeeds } from './shopping-needs';
+import { getRecipesBySlugs } from '$lib/server/domains/recipes';
 import { normalize as normalizeAhDutchTerm } from '$lib/server/ah/matching';
 import { getAHStatus } from '$lib/server/ah/client';
 
@@ -153,6 +156,12 @@ export function createShoppingService(db: Db) {
 				setBoughtForEntries(tx, input);
 			});
 		},
+		excludeWeekItem(input: Parameters<typeof excludeShoppingWeekAggregate>[1]) {
+			return inTransaction((tx) => excludeShoppingWeekAggregate(tx, input));
+		},
+		restoreWeekItem(input: Parameters<typeof restoreShoppingWeekAggregate>[1]) {
+			return inTransaction((tx) => restoreShoppingWeekAggregate(tx, input));
+		},
 		resolveLegacy(input: Parameters<typeof resolveLegacyShoppingEntry>[1]) {
 			return inTransaction((tx) => {
 				initializeShoppingSourceData(tx);
@@ -210,8 +219,19 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 		initializeShoppingSourceData(tx);
 		materializeShoppingWeek(tx, weekStart, { weekStartDay: prefs.weekStartDay });
 		const meals = listMealsForWeekUnordered(tx, weekStart);
+		const recipesBySlug = new Map(
+			getRecipesBySlugs(
+				tx,
+				[...new Set(meals.flatMap((meal) => (meal.recipeSlug ? [meal.recipeSlug] : [])))]
+			).map((recipe) => [recipe.slug, recipe])
+		);
 		const needs = deriveWeekNeeds(tx, meals);
 		const shopping = getShoppingWeekView(tx, weekStart);
+		const activeMealIds = new Set(
+			[...shopping.toBuy, ...shopping.done].flatMap((row) =>
+				row.sources.flatMap((source) => source.mealIds)
+			)
+		);
 		const pushHistory = listRecentShoppingPushes(tx, weekStart, 5);
 		return {
 			weekStart,
@@ -230,6 +250,29 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 			emptyState: meals.length === 0 ? ('no_meals' as const) : ('nothing_needed' as const),
 			ah: getAHStatus(),
 			shopping,
+			plannedMeals: meals.flatMap((meal) =>
+				meal.recipeSlug == null || meal.servings == null
+					? []
+					: (() => {
+							const recipe = recipesBySlug.get(meal.recipeSlug);
+							if (!recipe) return [];
+							return [
+							{
+								id: meal.id,
+								dinner: meal.dinner,
+								recipeSlug: meal.recipeSlug,
+								servings: meal.servings,
+								baselineServings: recipe.servings ?? 4,
+								scalingMode: recipe.scalingMode,
+								status: meal.status,
+								source: meal.source,
+								plannedDate: meal.plannedDate,
+								note: meal.note,
+								contributesActiveItems: activeMealIds.has(meal.id)
+							}
+						];
+						})()
+			),
 			needs,
 			pushHistory
 		};
