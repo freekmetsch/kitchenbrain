@@ -1396,3 +1396,18 @@ docs/feature-lists/archive/{FEATURE_LIST_JOINED_COMMAND_BAR_REFINEMENT.md,
 FEATURE_LIST_SHOPPING_SOURCE_CONTROLLER_REFACTOR.md}, docs/log.md,
 src/lib/components/{recipe-detail,shopping,ui}/, src/lib/ui_house_style_source.test.ts,
 src/routes/{inventory,recipes}/, tests/e2e/{house-style,responsive-parity}.e2e.ts
+
+## 2026-08-01 15:27 | deploy-canary | Joined command headers
+
+Merged PR #60 and supervised Railway deployment `a2ace8a2-6918-475b-b8d6-ff3dd07c6157` to
+`SUCCESS` at exact remote `main` commit `c85f06a`. Both guarded household authentication checks
+passed; `/api/healthz` returned `200` with `status: ok`; and the 320 and 1280 px logged-out
+Inventory, Recipes, and recipe-detail boundaries redirected cleanly to login with no overflow,
+console error, page error, failed request, or HTTP 5xx. Bounded Railway checks found zero
+application errors and zero HTTP 5xx.
+
+The complete authenticated behavior and responsive route matrix passed locally before merge. No
+provider turn, household mutation, AH lookup, AH push, authenticated body, cookie, screenshot, or
+household content was retained or performed.
+
+Touched: docs/deploys/2026-08.md, docs/log.md
