@@ -1521,3 +1521,22 @@ or household-list content was retained as deployment evidence; ordinary producti
 Litestream replication remained unchanged.
 
 Touched: docs/deploys/2026-08.md, docs/log.md
+
+## 2026-08-01 21:51 | deploy-canary | Synchronized portions and reversible removal
+
+Merged PR #64 and supervised Railway deployment `ea73e310-ee83-4ec8-9aae-5284fe1c082a` to
+`SUCCESS` at exact remote `main` commit `827bafa7952eaa6ef07a5950989fe4aefdffbc3f`
+from the configured GitHub source `freekmetsch/kitchenbrain`, branch `main`; `railway up` was not
+used. Both guarded household authentication checks passed, and `/api/healthz` returned `200` with
+`status: ok`.
+
+The 320 and 1280 px logged-out Recipes, Meal Plan, and Shopping boundaries redirected cleanly to
+login with no horizontal overflow, console error, page error, failed request, or HTTP 5xx. Bounded
+Railway checks found zero application errors and zero HTTP 5xx. The full primary and secondary
+authenticated browser gates, all 696 Vitest tests, the production build, zero-warning Svelte
+diagnostics, and the pre-0028 migration rehearsal passed before merge. No provider turn, household
+mutation, AH lookup, or AH push was performed. No authenticated response body, cookie, screenshot,
+or household-list content was retained as deployment evidence.
+
+Touched: docs/deploys/2026-08.md,
+docs/feature-lists/archive/FEATURE_LIST_PORTION_AND_REMOVAL_JOURNEY.md, docs/log.md
