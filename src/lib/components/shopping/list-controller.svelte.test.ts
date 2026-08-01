@@ -400,6 +400,70 @@ describe('shopping list controller', () => {
 		expect(test.undo).toHaveBeenCalledTimes(1);
 	});
 
+	it('blocks sibling term choices while their recipe need is moving', async () => {
+		const original = source(1, 'recipe', { recipeId: 10, name: 'tomatoes' });
+		const sibling = source(2, 'recipe', {
+			recipeId: 10,
+			name: 'basil',
+			term: 'basil',
+			approvedTerms: ['basil', 'thai basil']
+		});
+		const test = harness([item('tomatoes', 1, [original, sibling])]);
+		let finishNeed!: (status: 'saved') => void;
+		const pendingNeed = new Promise<'saved'>((resolve) => {
+			finishNeed = resolve;
+		});
+		const changeTerm = vi.fn(async () => 'saved' as const);
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onChangeSourceNeed: () => pendingNeed,
+			onChangeSourceTerm: changeTerm
+		});
+
+		const moving = controller.changeNeed(original, 'optional');
+		await Promise.resolve();
+
+		await expect(controller.changeTerm(sibling, 'thai basil')).resolves.toBe(true);
+		expect(changeTerm).not.toHaveBeenCalled();
+
+		finishNeed('saved');
+		await expect(moving).resolves.toBe(true);
+	});
+
+	it('keeps each concurrent recipe move attached to its own undo message', async () => {
+		const tomatoes = source(1, 'recipe', { recipeId: 10, name: 'tomatoes' });
+		const basil = source(2, 'recipe', { recipeId: 20, name: 'basil' });
+		const test = harness([item('tomatoes', 1, [tomatoes]), item('basil', 2, [basil])]);
+		let releaseTomatoesFocus!: () => void;
+		const tomatoesFocus = new Promise<void>((resolve) => {
+			releaseTomatoesFocus = resolve;
+		});
+		let reachTomatoesFocus!: () => void;
+		const tomatoesFocusReached = new Promise<void>((resolve) => {
+			reachTomatoesFocus = resolve;
+		});
+		const focusSource = vi.fn(async (sourceKey: string) => {
+			if (sourceKey !== tomatoes.sourceKey) return;
+			reachTomatoesFocus();
+			await tomatoesFocus;
+		});
+		const controller = createShoppingListController({
+			...test.dependencies,
+			focusSource
+		});
+
+		const movingTomatoes = controller.changeNeed(tomatoes, 'optional');
+		await tomatoesFocusReached;
+		await expect(controller.changeNeed(basil, 'optional')).resolves.toBe(true);
+		releaseTomatoesFocus();
+		await expect(movingTomatoes).resolves.toBe(true);
+
+		expect(test.undo.mock.calls.map(([message]) => message)).toEqual([
+			'basil:not-this-run',
+			'tomatoes:not-this-run'
+		]);
+	});
+
 	it('undoes a moved source with the refreshed source revision', async () => {
 		const original = source(1, 'recipe', {
 			recipeId: 10,

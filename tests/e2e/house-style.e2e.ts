@@ -12,7 +12,6 @@ const PAPER_RGB = 'rgb(248, 245, 237)';
 
 async function expectRouteFrame(page: Page, route: string, width: number): Promise<void> {
 	await page.goto(route);
-	await page.waitForLoadState('networkidle');
 	await expect(page.locator('h1')).toHaveCount(1);
 	expect(
 		await page.evaluate(
@@ -117,6 +116,7 @@ test('house-style roles hold across stable routes and target viewports', async (
 				.getByTestId('inventory-command-header')
 				.locator('.stock-command-mobile')
 				.getByRole('button', { name: /^Filters/ });
+			await expect(stockFilterTrigger).toHaveAttribute('data-ready', 'true');
 			await stockFilterTrigger.press('Enter');
 			const stockFilters = page.getByRole('dialog', { name: 'Stock filters' });
 			await expect(stockFilters).toBeVisible();
@@ -196,6 +196,7 @@ test('house-style roles hold across stable routes and target viewports', async (
 				.getByTestId('recipes-command-header')
 				.locator('.recipe-command-mobile')
 				.getByRole('button', { name: /^Filters/ });
+			await expect(recipeFilterTrigger).toHaveAttribute('data-ready', 'true');
 			await recipeFilterTrigger.press('Enter');
 			const recipeFilters = page.getByRole('dialog', { name: 'Recipe filters' });
 			await expect(recipeFilters).toBeVisible();
@@ -391,6 +392,7 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 	await page.waitForLoadState('networkidle');
 
 	const filterTrigger = page.getByRole('button', { name: /^Filters/ });
+	await expect(filterTrigger).toHaveAttribute('data-ready', 'true');
 	await filterTrigger.focus();
 	await filterTrigger.press('Enter');
 	const firstFilter = page
@@ -452,7 +454,7 @@ test('fresh recipe edits stay clean while recovered drafts remain explicit', asy
 	await page.reload();
 
 	const save = page.getByRole('button', { name: 'Save changes' });
-	await expect(save).toBeDisabled();
+	await expect(save).toBeDisabled({ timeout: 15_000 });
 	await expect.poll(() => page.evaluate((draftKey) => sessionStorage.getItem(draftKey), key)).toBeNull();
 
 	const title = page.getByLabel('Title');

@@ -142,7 +142,7 @@
 {/snippet}
 
 {#snippet stockQuickViews(menuSurface = false)}
-	<div class="stock-command-group stock-quick-group" class:menu-surface={menuSurface} aria-label={m.inventory_quick_filters_label()}>
+	<div class="stock-command-group stock-quick-group" class:menu-surface={menuSurface} role="group" aria-label={m.inventory_quick_filters_label()}>
 		{#if controller.readyMealCount > 0}
 			<button type="button" class:active={controller.quickView === 'ready'} aria-pressed={controller.quickView === 'ready'} aria-label={m.inventory_radar_ready_aria({ count: controller.readyMealCount })} onclick={() => controller.toggleQuickView('ready')}>
 				<strong>{controller.readyMealCount}</strong><span>{m.inventory_radar_meals_label()}</span>
@@ -161,7 +161,7 @@
 {/snippet}
 
 {#snippet stockScopes(menuSurface = false)}
-	<div class="stock-command-group stock-scope-group" class:menu-surface={menuSurface} aria-label={m.inventory_scope_label()}>
+	<div class="stock-command-group stock-scope-group" class:menu-surface={menuSurface} role="group" aria-label={m.inventory_scope_label()}>
 		{#each SCOPES as scope}
 			<button type="button" class:active={controller.scope === scope} aria-pressed={controller.scope === scope} onclick={() => controller.setScope(scope)}>
 				{controller.scopeLabel(scope)}

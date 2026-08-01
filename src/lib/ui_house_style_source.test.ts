@@ -75,7 +75,7 @@ describe('stable app house-style source contract', () => {
 		expect(header).not.toContain('::after');
 		expect(recipeDetail).toContain('layout="contextual"');
 		expect(recipeDetail).toContain('variant="command"');
-		expect(recipeDetail).toContain('CombinedFilterMenu');
+		expect(recipeDetail).toContain('<CombinedFilterMenu');
 		expect(recipeEdit).toContain('layout="contextual"');
 		expect(recipeEdit).toContain('kitchen-page-header-action-label');
 		expect(recipeEdit).toContain(
@@ -154,14 +154,14 @@ describe('stable app house-style source contract', () => {
 		expect(recipes).toContain('recipe-command-toolbar');
 		expect(recipes).toContain('recipe-quick-filters');
 		expect(recipes).toContain('recipe-type-selects');
-		expect(recipes).toContain('CombinedFilterMenu');
+		expect(recipes).toContain('<CombinedFilterMenu');
 		expect(recipes).toContain('recipe-card-actions');
 		expect(recipes).not.toContain('ui-scroll-rail');
 		expect(recipes).not.toContain('scrollRail');
 
 		expect(inventory).toContain('stock-command-toolbar');
 		expect(inventory).toContain('stock-filter-selects');
-		expect(inventory).toContain('CombinedFilterMenu');
+		expect(inventory).toContain('<CombinedFilterMenu');
 		expect(inventory).not.toContain('FiltersSheet');
 		expect(inventoryController).not.toContain('filtersOpen');
 		expect(existsSync('src/lib/components/inventory/FiltersSheet.svelte')).toBe(false);

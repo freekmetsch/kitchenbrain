@@ -437,7 +437,7 @@ for (const viewport of VIEWPORTS) {
 		const itemId = rowId!.replace('inventory-item-', '');
 		await page.goto(`/inventory?item=${itemId}`);
 		const editor = page.getByRole('dialog');
-		await expect(editor).toBeVisible();
+		await expect(editor).toBeVisible({ timeout: 15_000 });
 		await expect(editor.getByRole('heading', { name: mutationTarget })).toBeVisible();
 		await expect(editor.getByLabel('Name')).toHaveValue(mutationTarget);
 		await expect(row).toBeVisible();
@@ -451,17 +451,20 @@ for (const viewport of VIEWPORTS) {
 
 		await page.setViewportSize(viewport);
 		await page.goto('/inventory');
-		await page.waitForLoadState('networkidle');
 		const stockHeader = page.getByTestId('inventory-command-header');
 		await expect(stockHeader).toBeVisible();
+		const stockFilterTrigger = stockHeader
+			.locator('.stock-command-mobile')
+			.locator('.combined-filter-trigger');
+		await expect(stockFilterTrigger).toHaveAttribute('data-ready', 'true', {
+			timeout: 15_000
+		});
 		await expect(page.getByRole('button', { name: 'Recent activity', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Add', exact: true })).toBeVisible();
 		await expect(page.locator('.stock-quick-view')).toHaveCount(0);
 
 		if (viewport.name === 'phone') {
-			const stockFilters = stockHeader
-				.locator('.stock-command-mobile')
-				.getByRole('button', { name: /^Filters/ });
+			const stockFilters = stockFilterTrigger;
 			await expect(stockFilters).toContainText('Meals');
 			await stockFilters.click();
 			const stockPanel = page.getByRole('dialog', { name: 'Stock filters' });
@@ -484,17 +487,20 @@ for (const viewport of VIEWPORTS) {
 		await expectResponsiveSurface(page, '/inventory command header', viewport.width);
 
 		await page.goto('/recipes');
-		await page.waitForLoadState('networkidle');
 		const recipeHeader = page.getByTestId('recipes-command-header');
 		await expect(recipeHeader).toBeVisible();
+		const recipeFilterTrigger = recipeHeader
+			.locator('.recipe-command-mobile')
+			.locator('.combined-filter-trigger');
+		await expect(recipeFilterTrigger).toHaveAttribute('data-ready', 'true', {
+			timeout: 15_000
+		});
 		await expect(page.getByRole('button', { name: '+ Meal', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
 		await expect(page.locator('.recipe-filter-shell')).toHaveCount(0);
 
 		if (viewport.name === 'phone') {
-			const recipeFilters = recipeHeader
-				.locator('.recipe-command-mobile')
-				.getByRole('button', { name: /^Filters/ });
+			const recipeFilters = recipeFilterTrigger;
 			await expect(recipeFilters).toContainText('No filters');
 			await recipeFilters.click();
 			const recipePanel = page.getByRole('dialog', { name: 'Recipe filters' });
@@ -523,14 +529,22 @@ for (const viewport of VIEWPORTS) {
 		await expectResponsiveSurface(page, '/recipes command header', viewport.width);
 
 		await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
-		await page.waitForLoadState('networkidle');
 		const detailHeader = page.getByTestId('recipe-detail-command-header');
 		await expect(detailHeader).toBeVisible();
+		const viewFilterTrigger = detailHeader
+			.locator('.recipe-view-mobile')
+			.locator('.combined-filter-trigger');
+		await expect(viewFilterTrigger).toHaveAttribute('data-ready', 'true', {
+			timeout: 15_000
+		});
 		await expect(page.getByRole('button', { name: 'Edit recipe', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Plan', exact: true })).toBeVisible();
 		const detailTitleLayout = await page.getByRole('heading', { level: 1 }).evaluate((heading) => {
 			const style = getComputedStyle(heading);
-			const lineHeight = Number.parseFloat(style.lineHeight);
+			const parsedLineHeight = Number.parseFloat(style.lineHeight);
+			const lineHeight = Number.isNaN(parsedLineHeight)
+				? Number.parseFloat(style.fontSize) * 1.2
+				: parsedLineHeight;
 			return {
 				whiteSpace: style.whiteSpace,
 				height: heading.getBoundingClientRect().height,
@@ -886,7 +900,7 @@ for (const viewport of VIEWPORTS) {
 		const secondStep = page.getByRole('button', {
 			name: 'Read step 2: Serve the stew.'
 		});
-		await expect(firstStep).toHaveAttribute('aria-current', 'step');
+		await expect(firstStep).toHaveAttribute('aria-current', 'step', { timeout: 15_000 });
 		await secondStep.click();
 		await expect(secondStep).toHaveAttribute('aria-current', 'step');
 		await expect

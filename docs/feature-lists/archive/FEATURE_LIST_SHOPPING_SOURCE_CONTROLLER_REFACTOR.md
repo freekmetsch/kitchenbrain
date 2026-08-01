@@ -64,7 +64,7 @@ left with DOM focus primitives, message wiring, and rendering only.
 | `ShoppingLists.svelte` | Rendering, DOM focus/reveal, motion duration, plus source mutation lifecycle | Retain rendering/DOM effects; delegate source lifecycle |
 | `list-controller.svelte.ts` | Filter projection, bought/manual actions, row locks, basket/action-sheet state | Become the single interaction-state owner for the rendered list |
 | `ShoppingSourceQuickControls.svelte` | Accessible need/term controls and local select rollback | Keep unchanged; consume controller state through existing props |
-| `+page.svelte` | Revision-bound network mutation and `invalidateAll()` | Keep unchanged; continue returning `saved | stale | failed` |
+| `+page.svelte` | Revision-bound network mutation and `invalidateAll()` | Keep unchanged; continue returning `saved \| stale \| failed` |
 | `shopping_list_view.ts` | Pure projection/grouping/key selection | Keep unchanged |
 
 ## Option comparison

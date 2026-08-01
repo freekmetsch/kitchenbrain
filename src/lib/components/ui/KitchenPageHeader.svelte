@@ -41,7 +41,7 @@
 					<h1>{title}</h1>
 				</div>
 			</div>
-			{#if variant === 'command' && actions}
+			{#if actions}
 				<div class="kitchen-page-header-actions">
 					{@render actions()}
 				</div>

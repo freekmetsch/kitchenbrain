@@ -256,6 +256,16 @@ docs/artifacts/archive/2026-07-25-plan-kitchen-visual-system-completion.html
 The repository has no `scripts/archive-scan.ps1`; the terminal artifacts were moved with the
 validated inline fallback and the repo remains a candidate for the shared archive-script rollout.
 
+## 2026-07-26 | html-artifact | design shotgun: Shopping one-list refinement
+
+Touched: docs/artifacts/archive/2026-07-26-design-shotgun-shopping-one-list.html,
+docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md
+
+## 2026-07-26 | html-artifact | plan: Shopping one-list refinement
+
+Touched: docs/artifacts/archive/2026-07-26-plan-shopping-one-list-refinement.html,
+docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md
+
 ## 2026-07-27 | html-artifact | plan and design shotgun: Primary page UI unification
 
 Touched: docs/artifacts/2026-07-27-plan-primary-page-ui-unification.html,
@@ -602,6 +612,26 @@ inline fallback was used.
 
 Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_JOURNEY_SIMPLIFICATION.md,
 docs/artifacts/archive/2026-07-28-design-shotgun-shopping-source-board.html
+
+## 2026-07-28 | deploy-canary | Shopping production lineage degraded
+
+Confirmed that production is healthy but serves a manual Railway snapshot created before the
+finished Shopping refinement. Git ancestry, deployment metadata, and the authenticated DOM agree:
+the feature commit is not on the configured `main` source branch. The public canary records only
+structural counts and contains no household list content or credential values.
+
+Touched: docs/artifacts/archive/2026-07-28-canary-shopping-stale-deployment.html,
+docs/deploys/2026-07.md,
+docs/known_issues/solved/ISSUE_RAILWAY_PRODUCTION_STALE_DEPLOY_20260728-1413.md
+
+## 2026-07-28 | html-artifact | plan: Production deployment lineage recovery
+
+Planned a replacement-first credential cutover, complete feature-branch promotion to `main`,
+exact-revision Railway deployment, authenticated Shopping canary, and a names-only deployment
+inspection guard. Production work remains blocked at the explicit beta R3 checkpoint.
+
+Touched: docs/artifacts/archive/2026-07-28-plan-production-deployment-lineage-recovery.html,
+docs/feature-lists/archive/FEATURE_LIST_PRODUCTION_DEPLOYMENT_LINEAGE_RECOVERY.md
 
 ## 2026-07-29 | run | Assistant Plan → Shop First slice
 
@@ -964,6 +994,73 @@ Touched: docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN_V2.md,
 docs/feature-lists/FEATURE_LIST_APP_HOUSE_STYLE_GREEN_RIBBON.md,
 docs/artifacts/2026-07-29-plan-app-house-style-green-ribbon.html, docs/log.md
 
+## 2026-07-29 | html-artifact | design shotgun: App house style
+
+Compared five component-level house styles against one synthetic phone specimen and exposed six
+independent contracts for surfaces, control shape, pill meaning, action hierarchy, section type,
+and density. The recommended default keeps the shipped Kitchen Ledger atmosphere while tightening
+semantic component ownership. The local workspace supports dark and stress-state review, a
+responsive live workbench, locally saved overrides and notes, explicit deferral, and a paste-ready
+forward handoff. No production UI or app behavior changed.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style.html
+
+## 2026-07-29 | html-artifact | refinement: Ledger Compact actions
+
+Recorded Ledger Compact as the approved house-style base with mixed-by-job surfaces, 8 px control
+geometry, selection/status pills, one terra primary, serif section titles, and tight 4/8/12 visual
+rhythm over 44 px touch targets. The focused workspace compares Flat, Inset, Joined, Marked, and
+Quiet compact action systems with identical content, dark and stress states, a responsive
+mix-and-match workbench, five independent action decisions, locally saved notes, and a complete
+forward handoff.
+
+General components have no leading category stripe. The only specimen stripe encodes recipe
+categorization. No production UI or app behavior changed.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
+docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-compact-actions.html
+
+## 2026-07-29 | plan + html-artifact | App house style implementation
+
+Promoted the approved Ledger Compact component selections into an execution-ready R2 plan. The
+final contract uses flat terra primary actions, olive outline secondary actions, established-icon
+ghost squares, compact square filter chips, proportional fixed header pairs, separate content
+pairs, olive tonal fields, framed repeated lists, raised paper notices, and a recipe-only category
+stripe.
+
+The plan maps the existing shared UI owners and every stable-surface caller boundary, excludes the
+in-flight Assistant correction and specialized Cook Mode controls, and sequences eight vertical
+tickets through actions, filters/status, fields, sections, notices, recipe categorization, drift
+deletion, documentation, complete verification, and supervised delivery. The critique is GO with
+no unresolved P0/P1 blocker or open user decision.
+
+The human review workspace visualizes the fixed component contract, scope boundaries, four phases,
+eight tickets, verification matrix, and risk case. Browser verification confirmed ten component
+rows, eight working ticket disclosures, 320/393/768/1280 px layouts without page overflow, and
+zero console errors or warnings. No production UI, app behavior, household data, provider, or AH
+state changed.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
+docs/artifacts/archive/2026-07-29-plan-app-house-style.html
+
+## 2026-07-29 | plan + html-artifact | request-driven Assistant correction
+
+Diagnosed the shipped Butler Brief as unsolicited home-load noticing rather than the intended
+request-scoped assertiveness. The corrective roadmap now removes the Brief and related initiative
+model, keeps safe preparation behind an explicit request, and recommends one result-first Outcome
+Docket inside the triggering conversation. It also records how to recut the useful unmerged
+Stock, meal, and cooking drafts without the canceled Butler service-state schema.
+
+The local design workspace compares Quiet Conversation, Outcome Docket, and Turn Workbench using
+identical synthetic content and the approved Ledger Compact style. It saves direction, progress,
+location, density, and verbatim notes locally and generates a complete forward handoff. No
+production UI, household data, provider, Albert Heijn, or app behavior changed.
+
+Touched: docs/feature-lists/FEATURE_LIST_ASSISTANT_HOUSEHOLD_BUTLER_ROADMAP.md,
+docs/known_issues/solved/ISSUE_ASSISTANT_PROACTIVE_NOTICING_20260729-1637.md,
+docs/artifacts/2026-07-29-design-shotgun-request-driven-assistant.html
+
 ## 2026-07-30 | run + iterative ui | Soft Utility Green Ribbon
 
 Implemented the approved Green Ribbon across Stock, Meal plan, Shopping, Recipes
@@ -1188,120 +1285,6 @@ content was retained or performed.
 
 Touched: docs/deploys/2026-07.md, docs/log.md
 
-## 2026-07-26 | html-artifact | design shotgun: Shopping one-list refinement
-
-Touched: docs/artifacts/archive/2026-07-26-design-shotgun-shopping-one-list.html,
-docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md
-
-## 2026-07-26 | html-artifact | plan: Shopping one-list refinement
-
-Touched: docs/artifacts/archive/2026-07-26-plan-shopping-one-list-refinement.html,
-docs/feature-lists/archive/FEATURE_LIST_SHOPPING_ONE_LIST_REFINEMENT.md
-
-## 2026-07-28 | deploy-canary | Shopping production lineage degraded
-
-Confirmed that production is healthy but serves a manual Railway snapshot created before the
-finished Shopping refinement. Git ancestry, deployment metadata, and the authenticated DOM agree:
-the feature commit is not on the configured `main` source branch. The public canary records only
-structural counts and contains no household list content or credential values.
-
-Touched: docs/artifacts/archive/2026-07-28-canary-shopping-stale-deployment.html,
-docs/deploys/2026-07.md,
-docs/known_issues/solved/ISSUE_RAILWAY_PRODUCTION_STALE_DEPLOY_20260728-1413.md
-
-## 2026-07-28 | html-artifact | plan: Production deployment lineage recovery
-
-Planned a replacement-first credential cutover, complete feature-branch promotion to `main`,
-exact-revision Railway deployment, authenticated Shopping canary, and a names-only deployment
-inspection guard. Production work remains blocked at the explicit beta R3 checkpoint.
-
-Touched: docs/artifacts/archive/2026-07-28-plan-production-deployment-lineage-recovery.html,
-docs/feature-lists/archive/FEATURE_LIST_PRODUCTION_DEPLOYMENT_LINEAGE_RECOVERY.md
-
-## 2026-07-29 | html-artifact | design shotgun: App house style
-
-Compared five component-level house styles against one synthetic phone specimen and exposed six
-independent contracts for surfaces, control shape, pill meaning, action hierarchy, section type,
-and density. The recommended default keeps the shipped Kitchen Ledger atmosphere while tightening
-semantic component ownership. The local workspace supports dark and stress-state review, a
-responsive live workbench, locally saved overrides and notes, explicit deferral, and a paste-ready
-forward handoff. No production UI or app behavior changed.
-
-Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
-docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style.html
-
-## 2026-07-29 | html-artifact | refinement: Ledger Compact actions
-
-Recorded Ledger Compact as the approved house-style base with mixed-by-job surfaces, 8 px control
-geometry, selection/status pills, one terra primary, serif section titles, and tight 4/8/12 visual
-rhythm over 44 px touch targets. The focused workspace compares Flat, Inset, Joined, Marked, and
-Quiet compact action systems with identical content, dark and stress states, a responsive
-mix-and-match workbench, five independent action decisions, locally saved notes, and a complete
-forward handoff.
-
-General components have no leading category stripe. The only specimen stripe encodes recipe
-categorization. No production UI or app behavior changed.
-
-Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
-docs/artifacts/archive/2026-07-29-design-shotgun-app-house-style-compact-actions.html
-
-## 2026-07-29 | plan + html-artifact | App house style implementation
-
-Promoted the approved Ledger Compact component selections into an execution-ready R2 plan. The
-final contract uses flat terra primary actions, olive outline secondary actions, established-icon
-ghost squares, compact square filter chips, proportional fixed header pairs, separate content
-pairs, olive tonal fields, framed repeated lists, raised paper notices, and a recipe-only category
-stripe.
-
-The plan maps the existing shared UI owners and every stable-surface caller boundary, excludes the
-in-flight Assistant correction and specialized Cook Mode controls, and sequences eight vertical
-tickets through actions, filters/status, fields, sections, notices, recipe categorization, drift
-deletion, documentation, complete verification, and supervised delivery. The critique is GO with
-no unresolved P0/P1 blocker or open user decision.
-
-The human review workspace visualizes the fixed component contract, scope boundaries, four phases,
-eight tickets, verification matrix, and risk case. Browser verification confirmed ten component
-rows, eight working ticket disclosures, 320/393/768/1280 px layouts without page overflow, and
-zero console errors or warnings. No production UI, app behavior, household data, provider, or AH
-state changed.
-
-Touched: docs/feature-lists/archive/FEATURE_LIST_APP_HOUSE_STYLE_DESIGN_SHOTGUN.md,
-docs/artifacts/archive/2026-07-29-plan-app-house-style.html
-
-## 2026-07-29 | plan + html-artifact | request-driven Assistant correction
-
-## 2026-07-31 19:34 | ship | Household work-surface refinement
-
-Implemented the recommended design composite across Meal plan, Recipes, Stock, and Review AH
-order. Meal plan now combines Add meal, delivery-as-Shopping, and overflow in one named ribbon
-exception; ordinary meal cards use two rows and the shortlist introduction uses two text rows.
-Recipes now use a no-scroll responsive filter grid and compact Paper Shelf cards. Stock moves
-outcomes, search, scope, and visible dropdown filters into the green utility band, removes the old
-Filters sheet, and replaces dot/emoji chains with text metadata plus at most one urgency marker.
-The AH review now triages unresolved, unconfirmed, and unreviewed low-confidence choices above
-compact confirmed rows, with disclosed details and a sticky send summary.
-
-The canonical gate passed 114 unit-test files / 671 tests, 31 primary authenticated product stories
-plus auth setup with one deliberate connected-AH skip, zero Svelte diagnostics, and the production
-build. The responsive house-style story exercised 320, 393, 768, and 1280 px. The first clean
-unit run encountered a one-time concurrent SQLite migration collision; the immediate canonical
-rerun passed and the final complete gate remained green. No provider call, real AH request,
-shopping derivation, preview-token behavior, schema, auth, or household data changed.
-
-Touched: docs/{ui-house-style.md,log.md}, docs/feature-lists/archive/,
-docs/artifacts/archive/, messages/{en,nl}.json, src/lib/components/{inventory,shopping}/,
-src/routes/{inventory,meal-plan,recipes}/, src/lib/ui_house_style_source.test.ts,
-tests/e2e/house-style.e2e.ts
-
-## 2026-07-31 19:35 | archive-scan | 1 feature list, 1 HTML archived
-
-Moved the shipped Household Work Surfaces brief and its collective design-shotgun workspace into
-their archive directories. The repository still has no `scripts/archive-scan.ps1`, so the validated
-inline fallback was used.
-
-Touched: docs/feature-lists/archive/FEATURE_LIST_HOUSEHOLD_WORK_SURFACE_REFINEMENT.md,
-docs/artifacts/archive/2026-07-31-design-shotgun-household-work-surfaces.html, docs/log.md
-
 ## 2026-07-31 15:59 | review-fix | Recipe Rotation review corrections
 
 Addressed all 11 actionable PR review threads before promotion: cadence-boundary reservations,
@@ -1335,6 +1318,38 @@ or household content was retained or performed.
 
 Touched: docs/deploys/2026-07.md, docs/log.md
 
+## 2026-07-31 19:34 | ship | Household work-surface refinement
+
+Implemented the recommended design composite across Meal plan, Recipes, Stock, and Review AH
+order. Meal plan now combines Add meal, delivery-as-Shopping, and overflow in one named ribbon
+exception; ordinary meal cards use two rows and the shortlist introduction uses two text rows.
+Recipes now use a no-scroll responsive filter grid and compact Paper Shelf cards. Stock moves
+outcomes, search, scope, and visible dropdown filters into the green utility band, removes the old
+Filters sheet, and replaces dot/emoji chains with text metadata plus at most one urgency marker.
+The AH review now triages unresolved, unconfirmed, and unreviewed low-confidence choices above
+compact confirmed rows, with disclosed details and a sticky send summary.
+
+The canonical gate passed 114 unit-test files / 671 tests, 31 primary authenticated product stories
+plus auth setup with one deliberate connected-AH skip, zero Svelte diagnostics, and the production
+build. The responsive house-style story exercised 320, 393, 768, and 1280 px. The first clean
+unit run encountered a one-time concurrent SQLite migration collision; the immediate canonical
+rerun passed and the final complete gate remained green. No provider call, real AH request,
+shopping derivation, preview-token behavior, schema, auth, or household data changed.
+
+Touched: docs/{ui-house-style.md,log.md}, docs/feature-lists/archive/,
+docs/artifacts/archive/, messages/{en,nl}.json, src/lib/components/{inventory,shopping}/,
+src/routes/{inventory,meal-plan,recipes}/, src/lib/ui_house_style_source.test.ts,
+tests/e2e/house-style.e2e.ts
+
+## 2026-07-31 19:35 | archive-scan | 1 feature list, 1 HTML archived
+
+Moved the shipped Household Work Surfaces brief and its collective design-shotgun workspace into
+their archive directories. The repository still has no `scripts/archive-scan.ps1`, so the validated
+inline fallback was used.
+
+Touched: docs/feature-lists/archive/FEATURE_LIST_HOUSEHOLD_WORK_SURFACE_REFINEMENT.md,
+docs/artifacts/archive/2026-07-31-design-shotgun-household-work-surfaces.html, docs/log.md
+
 ## 2026-07-31 22:55 | deploy-canary | Household work-surface refinement
 
 Merged PR #58 and supervised Railway deployment `9420e05e-9411-4677-8900-10c9cbd084a5` to
@@ -1358,3 +1373,26 @@ so the validated inline fallback was used.
 
 Touched: docs/artifacts/archive/2026-07-26-design-shotgun-shopping-one-list.html,
 docs/artifacts/archive/2026-07-26-plan-shopping-one-list-refinement.html, docs/log.md
+
+## 2026-08-01 15:16 | review-fix | Joined command headers
+
+Addressed all eight actionable CodeRabbit findings and the valid quick wins on PR #60. Recipe-detail
+keyboard activation now preserves native button behavior; recipe-filter mutations block conflicting
+choices and keep their own undo message during concurrent requests. The combined filter menu gained
+guarded outside-click handling, keyboard focus containment, and an explicit hydration-ready marker.
+Header actions render independently, Recipes uses one reusable sort control, Stock filter groups have
+explicit accessible names, and the archived decision records now distinguish the recommendation from
+the final selection accurately.
+
+The final gate passed 114 unit-test files / 680 tests, zero Svelte diagnostics, the production build,
+and every application assertion exercised by the complete authenticated browser matrix, with one
+deliberate connected-AH skip. One Chromium worker closed before its remaining house-style story
+started; the exact story then passed in isolation across all four viewports. Focused tests also proved
+that sibling filter choices remain blocked during a recipe mutation and concurrent recipe moves retain
+the correct undo message. No provider call, real AH request, schema, auth, or household data changed.
+
+Touched: docs/artifacts/archive/2026-08-01-design-shotgun-joined-command-bar-refinement.html,
+docs/feature-lists/archive/{FEATURE_LIST_JOINED_COMMAND_BAR_REFINEMENT.md,
+FEATURE_LIST_SHOPPING_SOURCE_CONTROLLER_REFACTOR.md}, docs/log.md,
+src/lib/components/{recipe-detail,shopping,ui}/, src/lib/ui_house_style_source.test.ts,
+src/routes/{inventory,recipes}/, tests/e2e/{house-style,responsive-parity}.e2e.ts

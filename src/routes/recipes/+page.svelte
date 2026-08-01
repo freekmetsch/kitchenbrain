@@ -478,6 +478,16 @@
 	</div>
 {/snippet}
 
+{#snippet recipeSort()}
+	<select class="ui-field recipe-sort" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
+		<option value="title">{m.recipes_sort_az()}</option>
+		<option value="rating">{m.recipes_sort_rating()}</option>
+		<option value="recent">{m.recipes_sort_recent()}</option>
+		<option value="neglected">{m.recipes_sort_neglected()}</option>
+		<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
+	</select>
+{/snippet}
+
 <div class="recipe-page ui-grove-page">
 	<KitchenPageHeader eyebrow={m.recipes_header_context()} title={m.recipes_heading()} variant="command">
 		{#snippet actions()}
@@ -512,13 +522,7 @@
 						{m.recipes_clear_filters_button()}
 					</button>
 				{/if}
-				<select class="ui-field recipe-sort" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
-					<option value="title">{m.recipes_sort_az()}</option>
-					<option value="rating">{m.recipes_sort_rating()}</option>
-					<option value="recent">{m.recipes_sort_recent()}</option>
-					<option value="neglected">{m.recipes_sort_neglected()}</option>
-					<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
-				</select>
+				{@render recipeSort()}
 			</div>
 			<div class="recipe-command-mobile">
 				<CombinedFilterMenu
@@ -545,13 +549,7 @@
 						<button type="button" class="recipe-menu-clear" onclick={clearFilters}>{m.recipes_clear_filters_button()}</button>
 					{/if}
 				</CombinedFilterMenu>
-				<select class="ui-field recipe-sort" bind:value={sortBy} onchange={search} aria-label={m.recipes_sort_aria()}>
-					<option value="title">{m.recipes_sort_az()}</option>
-					<option value="rating">{m.recipes_sort_rating()}</option>
-					<option value="recent">{m.recipes_sort_recent()}</option>
-					<option value="neglected">{m.recipes_sort_neglected()}</option>
-					<option value="most-cooked">{m.recipes_sort_most_cooked()}</option>
-				</select>
+				{@render recipeSort()}
 			</div>
 		</div>
 	</KitchenPageHeader>

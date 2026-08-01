@@ -21,33 +21,55 @@
 		children: Snippet;
 	} = $props();
 
-	let trigger: HTMLButtonElement;
+	let trigger = $state<HTMLButtonElement>();
 	let panel = $state<HTMLElement>();
+
+	function focusableElements() {
+		return Array.from(
+			panel?.querySelectorAll<HTMLElement>(
+				'button:not([disabled]), select:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+			) ?? []
+		);
+	}
 
 	async function toggle() {
 		open = !open;
 		if (!open) return;
 		await tick();
-		panel?.querySelector<HTMLElement>('button, select, input, [href], [tabindex="0"]')?.focus();
+		focusableElements()[0]?.focus();
 	}
 
 	function close(restoreFocus = false) {
 		open = false;
 		if (restoreFocus) trigger?.focus();
 	}
+
+	function containFocus(event: KeyboardEvent) {
+		const focusable = focusableElements();
+		if (focusable.length === 0) return;
+		const current = document.activeElement;
+		if (event.shiftKey && (current === focusable[0] || !panel?.contains(current))) {
+			event.preventDefault();
+			focusable.at(-1)?.focus();
+		} else if (!event.shiftKey && current === focusable.at(-1)) {
+			event.preventDefault();
+			focusable[0]?.focus();
+		}
+	}
 </script>
 
 <svelte:window
 	onclick={(event) => {
 		if (!open) return;
-		const target = event.target as HTMLElement;
-		if (!target.closest(`[data-combined-filter="${id}"]`)) close();
+		const target = event.target;
+		if (!(target instanceof Element) || !target.closest(`[data-combined-filter="${id}"]`)) close();
 	}}
 	onkeydown={(event) => {
-		if (open && event.key === 'Escape') {
+		if (!open) return;
+		if (event.key === 'Escape') {
 			event.preventDefault();
 			close(true);
-		}
+		} else if (event.key === 'Tab') containFocus(event);
 	}}
 />
 
@@ -60,6 +82,7 @@
 		aria-expanded={open}
 		aria-controls={`${id}-panel`}
 		aria-haspopup="dialog"
+		data-ready={trigger ? 'true' : 'false'}
 		onclick={(event) => {
 			event.stopPropagation();
 			void toggle();

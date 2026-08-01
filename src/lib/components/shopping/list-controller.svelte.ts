@@ -313,7 +313,13 @@ class ShoppingListController {
 	}
 
 	async changeTerm(source: ShoppingListSource, term: string): Promise<boolean> {
-		if (term === source.term || this.sourcePending(source.sourceKey)) return true;
+		if (
+			term === source.term ||
+			this.sourcePending(source.sourceKey) ||
+			this.recipePending(source.recipeId)
+		) {
+			return true;
+		}
 		this.#setSourcePending(source.sourceKey, true);
 		const result = await this.#runSourceMutation(() =>
 			this.#dependencies.onChangeSourceTerm(source, term)
@@ -352,6 +358,7 @@ class ShoppingListController {
 			this.#dependencies.onChangeSourceNeed(source, need)
 		);
 
+		let movedMessage = '';
 		try {
 			if (result === 'saved') {
 				if (need !== 'required') this.offListOpen = true;
@@ -359,7 +366,8 @@ class ShoppingListController {
 					need === 'required'
 						? this.#dependencies.messages.filterAll()
 						: this.#dependencies.messages.notThisRun();
-				this.shoppingStatus = this.#dependencies.messages.choiceMoved(source.name, destination);
+				movedMessage = this.#dependencies.messages.choiceMoved(source.name, destination);
+				this.shoppingStatus = movedMessage;
 				if ((previous === 'required') !== (need === 'required')) {
 					await this.#dependencies.waitForMotion();
 				}
@@ -374,7 +382,7 @@ class ShoppingListController {
 		await this.#dependencies.focusSource(source.sourceKey);
 		if (result !== 'saved') return false;
 		if (offerUndo) {
-			this.#dependencies.notifyUndo(this.shoppingStatus, async () => {
+			this.#dependencies.notifyUndo(movedMessage, async () => {
 				const current = this.#dependencies
 					.sources()
 					.find((candidate) => candidate.sourceKey === source.sourceKey);

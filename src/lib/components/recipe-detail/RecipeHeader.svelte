@@ -93,9 +93,10 @@
 	}
 
 	function handleMenuButtonKeydown(event: KeyboardEvent) {
-		if (event.key !== 'ArrowDown' && event.key !== 'Enter' && event.key !== ' ') return;
+		if (event.key !== 'ArrowDown') return;
 		event.preventDefault();
 		if (!menuOpen) void toggleMenu();
+		else menuPanel?.querySelector<HTMLElement>('[data-recipe-menu-item]')?.focus();
 	}
 </script>
 

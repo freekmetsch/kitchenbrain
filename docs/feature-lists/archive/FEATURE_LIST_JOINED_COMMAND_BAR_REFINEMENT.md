@@ -45,7 +45,7 @@ bottom sheet trigger; selected state must remain visible without opening the con
 
 ## Six complete refinements
 
-### A. Elastic Pair — recommended
+### A. Elastic Pair
 
 Desktop uses one elastic toolbar: Search, Quick filters, Type, and Sort sit beside each other with
 proportional widths. Phone gives the title a two-line-safe row, keeps the joined action bar beneath it,
@@ -142,6 +142,7 @@ deployment state.
   conditional recipe actions remain intact.
 - Meal Plan and Groceries were not changed.
 
-Verification completed with zero Svelte diagnostics, 678 unit tests, all 34 runnable authenticated
-Playwright tests at the repository gate (one provider-dependent case skipped), manual visual review at
-393 px and 1280 px, and a successful production build against an isolated migrated database.
+Verification completed with zero Svelte diagnostics, 680 unit tests, all application assertions in the
+authenticated Playwright matrix (one provider-dependent case skipped), manual visual review at 393 px
+and 1280 px, and a successful production build against an isolated migrated database. One Chromium
+worker closed before its remaining story started; that exact story passed immediately in isolation.
