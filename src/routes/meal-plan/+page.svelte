@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { slide } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
@@ -24,7 +24,11 @@
 	import type { PageData } from './$types';
 	import { formatDate } from '$lib/i18n';
 	import { MOTION_CONTENT_MS, MOTION_MICRO_MS } from '$lib/motion';
-	import { batchServingMultiplier, batchServingTarget } from '$lib/meal_batch';
+	import {
+		BATCH_SERVING_MULTIPLIERS,
+		batchServingMultiplier,
+		batchServingTarget
+	} from '$lib/meal_batch';
 	import { mealPlanWeekHref } from '$lib/meal_plan_navigation';
 	import MealSourceChoice from '$lib/components/meal-plan/MealSourceChoice.svelte';
 	import { MealPlanController } from '$lib/components/meal-plan/controller.svelte';
@@ -35,8 +39,10 @@
 		{ basePath: base }
 	);
 	$effect(() => {
-		controller.syncData(data);
+		const nextData = data;
+		untrack(() => controller.syncData(nextData));
 	});
+	onDestroy(() => controller.destroy());
 
 	const DRAWER_CATEGORIES = ['meat', 'vegetarian', 'vegan', 'fish', 'pasta', 'soup', 'dessert'];
 
@@ -227,19 +233,19 @@
 									>
 										<button
 											type="button"
-											disabled={meal.servings <= 1}
-											aria-disabled={!!controller.pendingServings[meal.id] || meal.servings <= 1}
+											disabled={meal.servings <= 1 || !!controller.pendingSourceToggles[meal.id]}
+											aria-disabled={meal.servings <= 1 || !!controller.pendingSourceToggles[meal.id]}
 											aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })}
-											onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, -1)}
+											onclick={() => controller.changeServings(meal, -1)}
 										>−</button>
 										<span class="meal-serving-count-short" aria-hidden="true">{meal.servings}</span>
 										<span class="meal-serving-count-long">{m.mealplan_servings_count({ count: meal.servings })}</span>
 										<button
 											type="button"
-											disabled={meal.servings >= 99}
-											aria-disabled={!!controller.pendingServings[meal.id] || meal.servings >= 99}
+											disabled={meal.servings >= 99 || !!controller.pendingSourceToggles[meal.id]}
+											aria-disabled={meal.servings >= 99 || !!controller.pendingSourceToggles[meal.id]}
 											aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })}
-											onclick={() => !controller.pendingServings[meal.id] && controller.changeServings(meal, 1)}
+											onclick={() => controller.changeServings(meal, 1)}
 										>+</button>
 									</div>
 								{/if}
@@ -262,8 +268,8 @@
 											{#if linkedRecipe && meal.source !== 'freezer'}
 												{@const selectedBatch = batchServingMultiplier(linkedRecipe.servings, meal.servings)}
 												<CompactPopover
-													disabled={!!controller.pendingServings[meal.id]}
 													ariaLabel={m.mealplan_batch_size_aria({ dinner: meal.dinner })}
+													disabled={!!controller.pendingSourceToggles[meal.id]}
 												>
 													{#snippet trigger()}
 														<span>{m.mealplan_batch_size_button()}</span>
@@ -273,7 +279,7 @@
 													{/snippet}
 													{#snippet children(close)}
 														<SegmentedControl
-															options={[1, 2, 3, 4].map((multiplier) => ({
+													options={BATCH_SERVING_MULTIPLIERS.map((multiplier) => ({
 																value: multiplier,
 																label: `×${multiplier}`,
 																disabled: batchServingTarget(linkedRecipe.servings, multiplier) == null
@@ -285,7 +291,7 @@
 																: m.mealplan_batch_scalable()}
 															onchange={(multiplier) => {
 																const target = batchServingTarget(linkedRecipe.servings, multiplier);
-																if (target != null && !controller.pendingServings[meal.id]) {
+														if (target != null) {
 																	controller.setServings(meal, target);
 																	close();
 																}

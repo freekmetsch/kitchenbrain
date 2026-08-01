@@ -27,7 +27,8 @@
 		hasCookProgress,
 		onResetCookProgress,
 		onRemovePhoto,
-		onRetryTranslation
+		onRetryTranslation,
+		canPlan
 	}: {
 		recipe: Recipe;
 		displayTitle: string;
@@ -45,6 +46,7 @@
 		onResetCookProgress: () => void;
 		onRemovePhoto: () => void;
 		onRetryTranslation: (force: boolean) => void;
+		canPlan: boolean;
 	} = $props();
 
 	let viewMenuOpen = $state(false);
@@ -128,7 +130,7 @@
 				items={overflowItems}
 			/>
 		{/if}
-		<button type="button" class="ui-action ui-action-primary" aria-haspopup="dialog" aria-expanded={addToPlanOpen} onclick={onAddToPlan}>
+		<button type="button" class="ui-action ui-action-primary" disabled={!canPlan} aria-haspopup="dialog" aria-expanded={addToPlanOpen} onclick={onAddToPlan}>
 			<Icon name="plus" class="h-3.5 w-3.5" /> {m.recipes_header_plan_button()}
 		</button>
 	{/snippet}

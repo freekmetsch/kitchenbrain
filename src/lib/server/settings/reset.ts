@@ -74,6 +74,7 @@ const GROUP_TABLES: Record<ResetGroupKey, AnySQLiteTable[]> = {
 	spending_log: [schema.spending],
 	// shopping_push_items cascades from shopping_push_history — no separate entry.
 	shopping_data: [
+		schema.shoppingWeekExclusions,
 		schema.shoppingWeekEntries,
 		schema.recurringShoppingItems,
 		schema.shoppingListOverrides,

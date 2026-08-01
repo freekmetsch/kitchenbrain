@@ -19,6 +19,7 @@
 	import type { PreviewItem } from '$lib/shopping_ah';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { fade } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import AhPreviewItem from './AhPreviewItem.svelte';
 	import AhPushResult from './AhPushResult.svelte';
 	import { MOTION_MICRO_MS } from '$lib/motion';
@@ -26,6 +27,7 @@
 
 	type Props = {
 		weekStart: string;
+		listRevision: number;
 		/** Canonical unfiltered pending items; client filters and Store Route never narrow AH. */
 		pending: ShoppingListItem[];
 		/** Bonus status per item name, rendered on the page's list rows. */
@@ -33,7 +35,7 @@
 		/** Called after a push so the page can mark the pushed items bought. */
 		onMarkedBought: (refs: Set<string>) => void;
 	};
-	let { weekStart, pending, bonusByName = $bindable(), onMarkedBought }: Props = $props();
+	let { weekStart, listRevision, pending, bonusByName = $bindable(), onMarkedBought }: Props = $props();
 
 	let ahOpen = $state(false);
 	let ahLoading = $state(false);
@@ -48,6 +50,7 @@
 	let ahPushing = $state(false);
 	let ahResult = $state<AhPushOutcome | null>(null);
 	let previewRun = 0;
+	let observedListRevision = untrack(() => listRevision);
 
 	// Favorite AH product per item term (household-level, server-persisted).
 	// Seeded from each preview's isFavorite flags; toggles update optimistically.
@@ -80,6 +83,18 @@
 		ahPushing = false;
 		bonusByName = {};
 		resetAhPreview();
+	});
+
+	$effect(() => {
+		const revision = listRevision;
+		if (revision === observedListRevision) return;
+		observedListRevision = revision;
+		const hadOpenPreview = ahOpen && (ahLoading || ahItems != null);
+		if (ahPushing) return;
+		ahOpen = false;
+		ahLoading = false;
+		resetAhPreview();
+		if (hadOpenPreview) toast.success(m.shopping_ah_preview_invalidated());
 	});
 
 	let pushSummary = $derived.by(() => {

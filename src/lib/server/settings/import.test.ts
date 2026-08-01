@@ -267,6 +267,39 @@ describe('validateImportFile', () => {
 		]);
 	});
 
+	it('round-trips recipe archives and one-week shopping exclusions', () => {
+		const validation = validateImportFile(
+			emptyFile({
+				recipes: [baseRecipe({ archivedAt: NOW })],
+				shopping_week_exclusions: [
+					{
+						weekStartDate: '2026-07-22',
+						nameKey: 'kikkererwten',
+						name: 'Kikkererwten',
+						createdAt: NOW
+					}
+				]
+			})
+		);
+		expect(validation.ok).toBe(true);
+		if (!validation.ok) return;
+
+		const db = createTestDb();
+		const outcome = importBootstrap(db, validation.data);
+		expect(outcome).toMatchObject({
+			ok: true,
+			inserted: { recipes: 1, shopping_week_exclusions: 1 }
+		});
+		expect(db.select().from(schema.recipes).get()?.archivedAt?.getTime()).toBe(
+			Math.floor(new Date(NOW).getTime() / 1000) * 1000
+		);
+		expect(db.select().from(schema.shoppingWeekExclusions).get()).toMatchObject({
+			weekStartDate: '2026-07-22',
+			nameKey: 'kikkererwten',
+			name: 'Kikkererwten'
+		});
+	});
+
 	it('round-trips household and recipe-specific AH product preferences', () => {
 		const validation = validateImportFile(
 			emptyFile({

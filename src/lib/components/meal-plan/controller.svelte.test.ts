@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MealPlanController, type MealPlanControllerData } from './controller.svelte';
 import { toast } from '$lib/stores/toast.svelte';
+import { PlannedServingsRegistry, type PlannedServingMeal } from '$lib/planned_servings_registry';
 
 function data(weekStartDate: string): MealPlanControllerData {
 	return {
@@ -100,6 +101,53 @@ describe('MealPlanController', () => {
 		expect(await first).toBe(true);
 		expect(controller.weeks[0].meals).toHaveLength(1);
 		expect(controller.weeks[0].meals[0].id).toBe(7);
+	});
+
+	it('keeps rapid serving taps visible and persists the final target', async () => {
+		let resolveFirst!: (meal: PlannedServingMeal) => void;
+		let resolveSecond!: (meal: PlannedServingMeal) => void;
+		const write = vi
+			.fn<(mealId: number, servings: number) => Promise<PlannedServingMeal>>()
+			.mockImplementationOnce(
+				() => new Promise<PlannedServingMeal>((resolve) => (resolveFirst = resolve))
+			)
+			.mockImplementationOnce(
+				() => new Promise<PlannedServingMeal>((resolve) => (resolveSecond = resolve))
+			);
+		const registry = new PlannedServingsRegistry({ write });
+		const initial = data('2026-07-01');
+		initial.weeks[0].meals = [
+			{
+				id: 7,
+				weekStartDate: '2026-07-01',
+				weekNumber: 31,
+				dinner: 'Lasagne',
+				recipeSlug: 'lasagne',
+				servings: 4,
+				status: 'planned',
+				source: 'fresh',
+				cookedDate: null,
+				plannedDate: null,
+				note: null,
+				sortOrder: 0,
+				createdAt: new Date('2026-07-01T10:00:00Z')
+			}
+		];
+		const controller = new MealPlanController(initial, { servingsRegistry: registry });
+		const meal = controller.weeks[0].meals[0];
+
+		const first = controller.changeServings(meal, 1);
+		const second = controller.changeServings(meal, 1);
+
+		expect(controller.weeks[0].meals[0].servings).toBe(6);
+		expect(controller.pendingServings[7]).toBe(true);
+		resolveFirst({ id: 7, servings: 5 });
+		await vi.waitFor(() => expect(write).toHaveBeenCalledTimes(2));
+		resolveSecond({ id: 7, servings: 6 });
+		await Promise.all([first, second]);
+
+		expect(controller.weeks[0].meals[0].servings).toBe(6);
+		expect(controller.pendingServings[7]).toBeUndefined();
 	});
 
 	it('lets a planned rotation row be undone back into its shortlist lane', async () => {

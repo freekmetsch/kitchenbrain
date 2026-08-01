@@ -153,6 +153,7 @@ export const recipes = sqliteTable('recipes', {
 	freezerStapleOptOut: integer('freezer_staple_opt_out', { mode: 'boolean' }).notNull().default(false),
 	needsReview: integer('needs_review', { mode: 'boolean' }).notNull().default(false),
 	reviewReason: text('review_reason'),
+	archivedAt: integer('archived_at', { mode: 'timestamp' }),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
 });
@@ -344,6 +345,17 @@ export const shoppingWeekEntries = sqliteTable(
 		index('shopping_week_entries_recurring_idx').on(t.recurringItemId),
 		unique('shopping_week_entries_legacy_override_unique').on(t.legacyOverrideId)
 	]
+);
+
+export const shoppingWeekExclusions = sqliteTable(
+	'shopping_week_exclusions',
+	{
+		weekStartDate: text('week_start_date').notNull(),
+		nameKey: text('name_key').notNull(),
+		name: text('name').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => [primaryKey({ columns: [table.weekStartDate, table.nameKey] })]
 );
 
 // Household-level favorite AH product per ingredient name ("knoflook" always

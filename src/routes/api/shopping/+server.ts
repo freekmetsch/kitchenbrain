@@ -71,6 +71,11 @@ const PostSchema = z.discriminatedUnion('action', [
 		bought: z.boolean()
 	}),
 	z.object({
+		action: z.enum(['exclude_week_item', 'restore_week_item']),
+		weekStart: isoDateSchema,
+		term: z.string().min(1).max(256)
+	}),
+	z.object({
 		action: z.literal('resolve_legacy'),
 		legacyEntryId: z.number().int().positive(),
 		expectedLegacyRevision: z.number().int().positive(),
@@ -126,6 +131,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 		if (body.action === 'set_bought_entries') {
 			shoppingService.setBought({ ...body, weekStartDay });
+			return json({ ok: true });
+		}
+		if (body.action === 'exclude_week_item') {
+			shoppingService.excludeWeekItem({ ...body, weekStartDay });
+			return json({ ok: true });
+		}
+		if (body.action === 'restore_week_item') {
+			shoppingService.restoreWeekItem({ ...body, weekStartDay });
 			return json({ ok: true });
 		}
 		if (body.action === 'resolve_legacy') {

@@ -15,7 +15,11 @@ export type ShoppingListSource = {
 	term: string;
 	amount: string | null;
 	unit: string | null;
+	amountOverridden?: boolean;
+	derivedAmount?: string | null;
+	derivedUnit?: string | null;
 	component: string | null;
+	mealIds?: number[];
 	mealNames: string[];
 	approvedTerms: string[];
 	included: boolean;

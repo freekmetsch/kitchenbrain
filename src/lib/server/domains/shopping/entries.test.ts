@@ -224,7 +224,31 @@ describe('source-owned shopping week entries', () => {
 		db.update(schema.mealPlanMeals).set({ servings: 8 }).where(eq(schema.mealPlanMeals.id, meal.id)).run();
 		materializeShoppingWeek(db, CURRENT_WEEK, { weekStartDay: WEEK_START_DAY, today: CURRENT_WEEK });
 		const refreshed = db.select().from(schema.shoppingWeekEntries).get()!;
-		expect(refreshed).toMatchObject({ amount: '800', selectedName: 'basmatirijst', bought: true });
+		expect(refreshed).toMatchObject({ amount: '800', selectedName: 'basmatirijst', bought: false });
+	});
+
+	it('preserves a manual amount override and its bought state when planned servings change', () => {
+		const db = createTestDb();
+		const recipe = seedRecipe(db, 'override-curry', [
+			{ id: 'rice', name: 'rijst', amount: '400', unit: 'g' }
+		]);
+		const meal = seedMeal(db, recipe.slug);
+		materializeShoppingWeek(db, CURRENT_WEEK, { weekStartDay: WEEK_START_DAY, today: CURRENT_WEEK });
+		const entry = db.select().from(schema.shoppingWeekEntries).get()!;
+		db.update(schema.shoppingWeekEntries)
+			.set({ amountOverride: '3', unitOverride: 'kg', bought: true })
+			.where(eq(schema.shoppingWeekEntries.id, entry.id))
+			.run();
+
+		db.update(schema.mealPlanMeals).set({ servings: 8 }).where(eq(schema.mealPlanMeals.id, meal.id)).run();
+		materializeShoppingWeek(db, CURRENT_WEEK, { weekStartDay: WEEK_START_DAY, today: CURRENT_WEEK });
+
+		expect(db.select().from(schema.shoppingWeekEntries).get()).toMatchObject({
+			amount: '800',
+			amountOverride: '3',
+			unitOverride: 'kg',
+			bought: true
+		});
 	});
 
 	it('initializes once and reconciles a directly affected meal week after writes', () => {

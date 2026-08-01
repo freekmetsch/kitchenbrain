@@ -43,6 +43,7 @@ export type Recipe = {
 	rotationSeasonsJson: RotationSeason[];
 	needsReview: boolean;
 	reviewReason: string | null;
+	archivedAt: Date | null;
 };
 export type Week = { weekStartDate: string; weekEndDate: string; weekNumber: number; label: string };
 

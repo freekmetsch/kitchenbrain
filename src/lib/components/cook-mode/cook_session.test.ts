@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readCookSession } from './cook_session';
+import { readCookSession, restoredCookSessionServings } from './cook_session';
 const frozenRecipe = {
 	signature: 'g1',
 	storedCookMode: null,
@@ -11,6 +11,11 @@ const frozenRecipe = {
 };
 
 describe('cook session persistence', () => {
+	it('keeps server-provided planned servings authoritative over a stored cooking session', () => {
+		expect(restoredCookSessionServings(9, 4)).toBe(4);
+		expect(restoredCookSessionServings(9, null)).toBe(9);
+	});
+
 	it('accepts only a frozen-plan payload that records its display language', () => {
 		expect(
 			readCookSession({

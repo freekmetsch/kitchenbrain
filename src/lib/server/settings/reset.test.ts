@@ -171,6 +171,14 @@ describe('resetGroup(shopping_data)', () => {
 				updatedAt: NOW
 			})
 			.run();
+		db.insert(schema.shoppingWeekExclusions)
+			.values({
+				weekStartDate: '2026-07-06',
+				nameKey: 'melk',
+				name: 'Melk',
+				createdAt: NOW
+			})
+			.run();
 
 		expect(() => resetGroup(db, 'shopping_data')).not.toThrow();
 
@@ -179,6 +187,7 @@ describe('resetGroup(shopping_data)', () => {
 		expect(db.select().from(schema.shoppingPushItems).all()).toHaveLength(0);
 		expect(db.select().from(schema.recurringShoppingItems).all()).toHaveLength(0);
 		expect(db.select().from(schema.shoppingWeekEntries).all()).toHaveLength(0);
+		expect(db.select().from(schema.shoppingWeekExclusions).all()).toHaveLength(0);
 		expect(getHouseholdPref(db, K_SHOPPING_SOURCE_MIGRATION)).toBeNull();
 	});
 });

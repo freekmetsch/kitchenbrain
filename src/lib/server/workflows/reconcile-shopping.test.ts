@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
 import {
 	isShoppingWeekEditable,
+	loadShoppingPageData,
 	reconcileShoppingAfterWrite,
 	resolveShoppingWeek
 } from './reconcile-shopping';
+
+afterEach(() => vi.useRealTimers());
 
 describe('shopping week selection', () => {
 	it('keeps an explicit week query authoritative', () => {
@@ -67,6 +70,53 @@ describe('shopping week selection', () => {
 });
 
 describe('shopping reconciliation workflow', () => {
+	it('projects every recipe-backed meal even when it contributes no active shopping row', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-07-29T10:00:00.000Z'));
+		const db = createTestDb();
+		const now = new Date();
+		db.insert(schema.recipes)
+			.values({
+				slug: 'pantry-soup',
+				title: 'Pantry soup',
+				servings: 4,
+				ingredients: [],
+				directions: [],
+				createdAt: now,
+				updatedAt: now
+			})
+			.run();
+		const meal = db
+			.insert(schema.mealPlanMeals)
+			.values({
+				weekNumber: 31,
+				weekStartDate: '2026-07-29',
+				dinner: 'Pantry soup',
+				recipeSlug: 'pantry-soup',
+				servings: 4,
+				sortOrder: 0,
+				createdAt: now
+			})
+			.returning()
+			.get();
+
+		expect(loadShoppingPageData(db, '2026-07-29').plannedMeals).toEqual([
+			{
+				id: meal.id,
+				dinner: 'Pantry soup',
+				recipeSlug: 'pantry-soup',
+				servings: 4,
+				baselineServings: 4,
+				scalingMode: 'scalable',
+				status: 'planned',
+				source: 'fresh',
+				plannedDate: null,
+				note: null,
+				contributesActiveItems: false
+			}
+		]);
+	});
+
 	it('participates in its caller transaction without committing a nested transaction', () => {
 		const db = createTestDb();
 		const now = new Date();

@@ -1,12 +1,16 @@
 import { db as appDb } from '$lib/server/db/index';
 import { getUserPref } from '$lib/server/db/user_prefs';
 import { getMealPlanPrefs } from '$lib/server/meal_plan/prefs';
-import { getMealPlanMeal } from '$lib/server/domains/meal-plan/queries';
+import {
+	getMealPlanMeal,
+	listRecipeMealOccurrences
+} from '$lib/server/domains/meal-plan/queries';
 import {
 	expandedIngredientRoleCoverage,
 	expandMealIngredientsForServings,
 	getRecipeBySlug,
 	getRecipesByIds,
+	listArchivedRecipes,
 	listRecipes,
 	mealsContaining,
 	recipeFoodClass,
@@ -57,6 +61,7 @@ export function loadRecipeListData(input: {
 	const freezerOnly = input.url.searchParams.get('freezer') === '1';
 	const belowTargetOnly = input.url.searchParams.get('below') === '1';
 	const rotationOnly = input.url.searchParams.get('rotation') === '1';
+	const archivedOnly = input.url.searchParams.get('archived') === '1';
 
 	const stockNames = listActiveInventoryNames(appDb);
 	const frozenByRecipe = frozenPortionsByRecipe(appDb);
@@ -68,7 +73,7 @@ export function loadRecipeListData(input: {
 		return { weekStartDate, weekNumber: isoWeekNumber(weekStartDate) };
 	});
 
-	let enriched = listRecipes(appDb).map((recipe) => {
+	let enriched = (archivedOnly ? listArchivedRecipes(appDb) : listRecipes(appDb)).map((recipe) => {
 			const ingredients = recipe.ingredients as Ingredient[];
 			const total = ingredients.length;
 			const covered = ingredients.filter((ingredient) =>
@@ -162,7 +167,7 @@ export function loadRecipeListData(input: {
 		classFilter,
 		dishFilter,
 		ingredientFilter,
-		toggles: { haveAll, freezerOnly, belowTargetOnly, rotationOnly },
+		toggles: { haveAll, freezerOnly, belowTargetOnly, rotationOnly, archivedOnly },
 		dishTypes: DISH_TYPES,
 		recipeLang: input.recipeLang,
 		weeks
@@ -239,6 +244,16 @@ export function loadRecipeDetailData(slug: string, input: { recipeLang: string; 
 			? getMealPlanMeal(appDb, planId)
 			: null;
 	const linkedPlan = plannedMeal?.recipeSlug === recipe.slug ? plannedMeal : null;
+	const currentAndFutureOccurrences = listRecipeMealOccurrences(appDb, recipe.slug, currentWeekStart);
+	const plannedOccurrences = (
+		linkedPlan && !currentAndFutureOccurrences.some((meal) => meal.id === linkedPlan.id)
+			? [linkedPlan, ...currentAndFutureOccurrences]
+			: currentAndFutureOccurrences
+	).map((meal) => ({ ...meal, servings: meal.servings ?? recipe.servings }));
+	const planMealEditable =
+		linkedPlan != null &&
+		linkedPlan.weekStartDate >= currentWeekStart &&
+		linkedPlan.status === 'planned';
 	const requestedServings = Number(input.url.searchParams.get('servings'));
 	const directServings =
 		Number.isInteger(requestedServings) && requestedServings >= 1 && requestedServings <= 99
@@ -256,6 +271,8 @@ export function loadRecipeDetailData(slug: string, input: { recipeLang: string; 
 		partOfMeals,
 		occasionServings: linkedPlan?.servings ?? directServings ?? recipe.servings,
 		planMealId: linkedPlan?.id ?? null,
+		planMealEditable,
+		plannedOccurrences,
 		cookingIngredients,
 		cookingIngredientsEn,
 		cookingIngredientStock,

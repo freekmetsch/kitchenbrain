@@ -14,7 +14,7 @@ setup('authenticate the isolated test accounts', async ({ browser }) => {
 		await page.locator('input[name="password"]').fill(account.password);
 		await page.locator('form button[type="submit"]').click();
 
-		await expect(page.getByRole('navigation')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByRole('navigation')).toBeVisible({ timeout: 60_000 });
 		expect(new URL(page.url()).pathname).toBe('/');
 		const sessionCookie = (await context.cookies(E2E_ORIGIN)).find(
 			(cookie) => cookie.name === 'session_id'

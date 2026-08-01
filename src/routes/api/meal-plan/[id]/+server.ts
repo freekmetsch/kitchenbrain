@@ -26,6 +26,16 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		body.status === undefined &&
 		body.cookedDate === undefined
 	) {
+		if (body.servings != null) {
+			if (body.plannedDate !== undefined) {
+				throw error(400, 'Serving changes cannot be combined with a planned-date change');
+			}
+			const result = mealPlanService.setPlannedServings(id, body.servings, body.source);
+			if (!result.ok) {
+				throw error(result.code === 'not_found' ? 404 : 409, result.error);
+			}
+			return json(result.meal);
+		}
 		const updates: Partial<{ plannedDate: string | null; source: 'fresh' | 'freezer'; servings: number | null }> = {};
 		if (body.plannedDate !== undefined) updates.plannedDate = body.plannedDate;
 		if (body.servings !== undefined) updates.servings = body.servings;

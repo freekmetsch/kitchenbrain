@@ -1374,6 +1374,77 @@ so the validated inline fallback was used.
 Touched: docs/artifacts/archive/2026-07-26-design-shotgun-shopping-one-list.html,
 docs/artifacts/archive/2026-07-26-plan-shopping-one-list-refinement.html, docs/log.md
 
+## 2026-08-01 15:12 | plan | Portion and Removal Journey
+
+Diagnosed the recipe → meal plan → shopping UX without changing application code. A deterministic
+controller probe confirmed that rapid portion taps are dropped during an in-flight save. The audit
+also found that a temporary-looking shopping control changes lasting recipe or pantry defaults,
+recipe-derived rows lack a current-week removal action, planned portions are absent from shopping
+lineage, and recipes have no safe removal path.
+
+Prepared a nine-ticket R3 plan covering a generation-aware serving queue, responsive x1/x2/x3/x4
+selectors, planned-serving context, separately stored week-level shopping exclusions, explicit
+future-default controls, and reversible recipe archiving. Independent Opus review returned ready
+with mitigations and materially strengthened the plan around cross-writer serving races,
+aggregate-level exclusion identity, historical recipe query boundaries, migration compatibility,
+and code-only rollback. Runtime checks used isolated test users at phone and desktop widths; no
+household data, provider call, AH push, credential, screenshot, HAR, or cookie was retained.
+
+Touched: docs/known_issues/current/ISSUE_RECIPE_MEAL_PLAN_SHOPPING_CONTROL_FRICTION_20260801-1425.md,
+docs/feature-lists/FEATURE_LIST_PORTION_AND_REMOVAL_JOURNEY.md,
+docs/artifacts/2026-08-01-plan-portion-and-removal-journey.html, docs/log.md
+
+## 2026-08-01 19:09 | implementation | Synchronized portions and reversible removal
+
+Implemented one planned-meal serving value across Recipe, Meal Plan, and Shopping. Rapid taps now
+coalesce to the latest target, Recipe controls remain usable while cooking guidance loads, Shopping
+edits an exact planned occurrence, and all three pages reconcile the same shopping quantities. The
+responsive batch picker now offers `x1`, `x2`, `x3`, and `x4`.
+
+Added reversible planned-meal removal, current-week Shopping exclusions, explicit future-list
+defaults, and recipe archive/restore. Additive migrations preserve historical recipe references and
+settings export/import/reset now round-trip the new records. The Dutch-only AH lookup boundary is
+unchanged; serving edits invalidate an open review but never rewrite an already-sent basket.
+
+Svelte diagnostics, a clean production build, all 696 Vitest tests, and the complete primary
+authenticated browser matrix passed. The complete secondary-account matrix passed 38 stories with
+the deliberate connected-AH skip; its only load-sensitive hydration timeout passed on a focused
+rerun after the readiness threshold was aligned with the other hydrated controls. The R3 migration
+rehearsal upgraded a pre-0028 database while preserving representative recipe, meal-plan, shopping,
+revision, bought, and prior-AH-push records with no foreign-key errors. No household data, provider
+request, or AH operation was used.
+
+Touched: src/lib/planned_servings_registry.ts, src/lib/components/BenchSheet.svelte,
+src/lib/components/meal-plan/controller.svelte.ts, src/lib/components/shopping/ShoppingMealPortions.svelte,
+src/lib/server/workflows/meal-plan.ts, src/lib/server/workflows/reconcile-shopping.ts,
+src/lib/server/domains/recipes/commands.ts, drizzle/0028_nostalgic_mystique.sql,
+drizzle/0029_deep_ogun.sql, tests/e2e/kitchen-flows.e2e.ts,
+src/lib/server/db/portion_removal_migration.test.ts,
+docs/feature-lists/FEATURE_LIST_PORTION_AND_REMOVAL_JOURNEY.md,
+docs/known_issues/solved/ISSUE_RECIPE_MEAL_PLAN_SHOPPING_CONTROL_FRICTION_20260801-1425.md,
+docs/log.md
+
+## 2026-08-01 17:46 | implementation | Green Ribbon interaction polish
+
+Finished the shared Green Ribbon control family without adding a second drawer dependency. Stock,
+Recipes, and recipe-detail compact disclosures now use the existing modal bottom drawer. Meal Plan
+and Recipe overflow actions share one responsive component: a drawer below 768 px and a keyboard
+menu above it. Direct dialog buttons now report their open state, joined header actions have a quiet
+outer boundary, and filter drawers close when their compact trigger disappears at a breakpoint.
+
+Independent Opus review found stacking, menu-semantics, focus-return, style-leakage, breakpoint, and
+Recipe action-test gaps; all accepted findings were fixed. The exact staged patch passed 114 unit
+files / 680 tests, zero Svelte diagnostics, all 35 authenticated primary browser stories plus the
+expected connected-AH skip, and the production build. The successful gate used an in-memory SQLite
+database in a clean temporary worktree because the ignored local `dev.db` has the already documented
+timer migration mismatch and concurrent Portion and Removal work was active in the shared checkout.
+No dependency, schema, auth, provider, AH, household data, or configuration changed.
+
+Touched: docs/{ui-house-style.md,log.md},
+docs/feature-lists/archive/FEATURE_LIST_GREEN_HEADER_INTERACTION_POLISH.md,
+src/lib/components/{recipe-detail,shopping,ui}/, src/lib/ui_house_style_source.test.ts,
+src/routes/{inventory,meal-plan,recipes,shopping}/, tests/e2e/house-style.e2e.ts
+
 ## 2026-08-01 15:16 | review-fix | Joined command headers
 
 Addressed all eight actionable CodeRabbit findings and the valid quick wins on PR #60. Recipe-detail
@@ -1412,26 +1483,26 @@ household content was retained or performed.
 
 Touched: docs/deploys/2026-08.md, docs/log.md
 
-## 2026-08-01 17:46 | implementation | Green Ribbon interaction polish
+## 2026-08-01 15:40 | plan-revision | Synchronized portions across Recipe, Meal Plan, and Shopping
 
-Finished the shared Green Ribbon control family without adding a second drawer dependency. Stock,
-Recipes, and recipe-detail compact disclosures now use the existing modal bottom drawer. Meal Plan
-and Recipe overflow actions share one responsive component: a drawer below 768 px and a keyboard
-menu above it. Direct dialog buttons now report their open state, joined header actions have a quiet
-outer boundary, and filter drawers close when their compact trigger disappears at a breakpoint.
+Reopened the Portion and Removal Journey after Freek clarified that Recipe `+`/`−` was completely
+unpressable and that Shopping must edit the same planned portion value. Source tracing confirmed
+that Recipe disables every serving button during cook-guidance loading, keeps changes local even
+with an exact planned-meal ID, and Shopping discards editable meal identity into name-only source
+context.
 
-Independent Opus review found stacking, menu-semantics, focus-return, style-leakage, breakpoint, and
-Recipe action-test gaps; all accepted findings were fixed. The exact staged patch passed 114 unit
-files / 680 tests, zero Svelte diagnostics, all 35 authenticated primary browser stories plus the
-expected connected-AH skip, and the production build. The successful gate used an in-memory SQLite
-database in a clean temporary worktree because the ignored local `dev.db` has the already documented
-timer migration mismatch and concurrent Portion and Removal work was active in the shared checkout.
-No dependency, schema, auth, provider, AH, household data, or configuration changed.
+Revised the plan from nine to twelve bounded tickets. It now starts with an isolated Recipe-input
+unblock, then adds one meal-ID-keyed client registry and server command shared by Recipe, Meal Plan,
+and Shopping. Shopping receives a dedicated planned-meals projection and controls outside repeated
+ingredient rows, with explicit behavior for manual amount overrides, changed bought/pushed rows,
+row-revision races, open AH preview, prior AH pushes, duplicate/composite recipes, and past/cooked
+meals. A second independent Opus review returned GO conditional on those mitigations; all are now
+baked into the tickets and failure-mode table. No application code, household data, provider call,
+or AH request changed.
 
-Touched: docs/{ui-house-style.md,log.md},
-docs/feature-lists/archive/FEATURE_LIST_GREEN_HEADER_INTERACTION_POLISH.md,
-src/lib/components/{recipe-detail,shopping,ui}/, src/lib/ui_house_style_source.test.ts,
-src/routes/{inventory,meal-plan,recipes,shopping}/, tests/e2e/house-style.e2e.ts
+Touched: docs/known_issues/current/ISSUE_RECIPE_MEAL_PLAN_SHOPPING_CONTROL_FRICTION_20260801-1425.md,
+docs/feature-lists/FEATURE_LIST_PORTION_AND_REMOVAL_JOURNEY.md,
+docs/artifacts/2026-08-01-plan-portion-and-removal-journey.html, docs/log.md
 
 ## 2026-08-01 18:47 | deploy-canary | Green Ribbon interaction polish
 

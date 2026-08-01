@@ -19,6 +19,7 @@ describe('buildHouseholdExport', () => {
 			'shopping_overrides',
 			'recurring_shopping_items',
 			'shopping_week_entries',
+			'shopping_week_exclusions',
 			'ah_favorites',
 			'recipe_ah_preferences'
 		]);

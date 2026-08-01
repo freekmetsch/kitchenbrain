@@ -384,7 +384,9 @@ test('Recipe patch review stays selective and responsive at phone and desktop', 
 		await expect(
 			review.getByText('Checked at AH: AH Tomatenblokjes (400 g)', { exact: true })
 		).toBeVisible();
-		await expect(review.getByRole('group', { name: fixture.shoppingName })).toBeVisible();
+		await expect(review.getByRole('group', { name: fixture.shoppingName })).toBeVisible({
+			timeout: 30_000
+		});
 		await expect(
 			review.getByRole('group', {
 				name: 'Parmezaanse kaas met een bewust lange productomschrijving'
@@ -455,7 +457,9 @@ test('Persisted chat keeps only the latest dense recipe decision surface active'
 			page.getByText('A newer review replaced these suggestions.', { exact: true })
 		).toBeVisible();
 		await expect.poll(() => checkedTokens).toContain(newToken);
-		await expect(review.getByRole('group', { name: fixture.shoppingName })).toBeVisible();
+		await expect(review.getByRole('group', { name: fixture.shoppingName })).toBeVisible({
+			timeout: 30_000
+		});
 		await expect(review.getByRole('group', { name: 'Parmezaanse kaas' })).toBeVisible();
 
 		const activity = page

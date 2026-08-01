@@ -15,6 +15,56 @@ export class ShoppingMutationError extends Error {
 	}
 }
 
+function assertEditableShoppingWeek(input: {
+	weekStart: string;
+	weekStartDay: number;
+	today?: string;
+}): void {
+	const currentWeek = weekStartFor(input.today ?? todayIso(), input.weekStartDay);
+	if (input.weekStart < currentWeek) {
+		throw new ShoppingMutationError('past_week', 'Past shopping weeks cannot be changed');
+	}
+}
+
+export function excludeShoppingWeekAggregate(
+	db: DB,
+	input: { weekStart: string; term: string; weekStartDay: number; today?: string }
+): void {
+	assertEditableShoppingWeek(input);
+	const name = input.term.trim();
+	const nameKey = normalizeNameKey(name);
+	if (!nameKey) throw new ShoppingMutationError('invalid_term', 'Shopping item name is empty');
+	db.insert(schema.shoppingWeekExclusions)
+		.values({
+			weekStartDate: input.weekStart,
+			nameKey,
+			name,
+			createdAt: new Date()
+		})
+		.onConflictDoUpdate({
+			target: [schema.shoppingWeekExclusions.weekStartDate, schema.shoppingWeekExclusions.nameKey],
+			set: { name }
+		})
+		.run();
+}
+
+export function restoreShoppingWeekAggregate(
+	db: DB,
+	input: { weekStart: string; term: string; weekStartDay: number; today?: string }
+): void {
+	assertEditableShoppingWeek(input);
+	const nameKey = normalizeNameKey(input.term);
+	if (!nameKey) throw new ShoppingMutationError('invalid_term', 'Shopping item name is empty');
+	db.delete(schema.shoppingWeekExclusions)
+		.where(
+			and(
+				eq(schema.shoppingWeekExclusions.weekStartDate, input.weekStart),
+				eq(schema.shoppingWeekExclusions.nameKey, nameKey)
+			)
+		)
+		.run();
+}
+
 export function applyRecipeShoppingChoice(
 	db: DB,
 	input: {

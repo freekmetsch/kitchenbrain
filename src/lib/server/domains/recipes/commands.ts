@@ -177,6 +177,24 @@ export function updateRecipeMetadata(
 		.get();
 }
 
+export function archiveRecipe(db: DbOrTx, recipeId: number, now = new Date()) {
+	return db
+		.update(schema.recipes)
+		.set({ archivedAt: now, updatedAt: now })
+		.where(eq(schema.recipes.id, recipeId))
+		.returning()
+		.get();
+}
+
+export function restoreRecipe(db: DbOrTx, recipeId: number, now = new Date()) {
+	return db
+		.update(schema.recipes)
+		.set({ archivedAt: null, updatedAt: now })
+		.where(eq(schema.recipes.id, recipeId))
+		.returning()
+		.get();
+}
+
 export function updateRecipeTranslationCache(
 	db: DbOrTx,
 	options: {

@@ -31,6 +31,7 @@
 	import LegacyShoppingReview from './LegacyShoppingReview.svelte';
 
 	type RecurringInput = { name: string; amount: string | null; unit: string | null };
+	type ExcludedWeekItem = { weekStart: string; nameKey: string; name: string };
 
 	type Props = {
 		pending: ShoppingListItem[];
@@ -38,6 +39,7 @@
 		sources: ShoppingListSource[];
 		recurring: RecurringShoppingItem[];
 		legacy: LegacyShoppingItem[];
+		excludedWeekItems: ExcludedWeekItem[];
 		notices?: Snippet;
 		emptyState: 'no_meals' | 'nothing_needed';
 		editable: boolean;
@@ -46,6 +48,8 @@
 		onToggleBought: (item: ShoppingListItem) => Promise<boolean>;
 		onDeleteManual: (source: ShoppingListSource) => Promise<boolean>;
 		onRestoreManual: (source: ShoppingListSource) => Promise<boolean>;
+		onRemoveThisWeek: (item: ShoppingListItem) => Promise<boolean>;
+		onRestoreThisWeek: (item: ExcludedWeekItem) => Promise<boolean>;
 		onChangeSourceTerm: (
 			source: ShoppingListSource,
 			term: string
@@ -77,6 +81,7 @@
 		sources,
 		recurring,
 		legacy,
+		excludedWeekItems,
 		notices,
 		emptyState,
 		editable,
@@ -85,6 +90,8 @@
 		onToggleBought,
 		onDeleteManual,
 		onRestoreManual,
+		onRemoveThisWeek,
+		onRestoreThisWeek,
 		onChangeSourceTerm,
 		onChangeSourceNeed,
 		onAddRecurring,
@@ -280,6 +287,24 @@
 	</details>
 {/if}
 
+{#if excludedWeekItems.length}
+	<details class="not-this-run ui-list-group">
+		<summary>{m.shopping_not_this_run_count({ count: excludedWeekItems.length })}</summary>
+		<ul>
+			{#each excludedWeekItems as item (item.nameKey)}
+				<li class="flex min-h-11 items-center justify-between gap-2 px-3 py-1.5">
+					<strong>{item.name}</strong>
+					<button
+						type="button"
+						class="ui-action ui-action-secondary"
+						onclick={() => void onRestoreThisWeek(item)}
+					>{m.shopping_restore_button()}</button>
+				</li>
+			{/each}
+		</ul>
+	</details>
+{/if}
+
 {#if notices}{@render notices()}{/if}
 <LegacyShoppingReview items={controller.legacy} onResolve={onResolveLegacy} />
 <p class="sr-only" aria-live="polite">{controller.shoppingStatus}</p>
@@ -396,9 +421,11 @@
 									{/each}
 								</div>
 								{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
+								{#if item.manualContribution}<span>{m.shopping_manual_amount_not_following()}</span>{/if}
 							{:else}
 								<strong title={item.name}>{item.name}</strong>
 								{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
+								{#if item.manualContribution}<span>{m.shopping_manual_amount_not_following()}</span>{/if}
 							{/if}
 							{#if item.incompatibleQuantities && actionOwned.length}
 								<ul class="market-source-lines" aria-label={m.shopping_quantity_sources_label()}>
@@ -420,7 +447,7 @@
 						</div>
 						<div class="market-row-trailing">
 							{#if bonusByName[item.name]}<StatusBadge tone="warning">{m.shopping_bonus_chip()}</StatusBadge>{/if}
-							{#if actionOwned.length}
+							{#if item.sources?.length}
 								<button
 									type="button"
 									class="market-row-more ui-action ui-action-tertiary ui-action-icon"
@@ -556,6 +583,22 @@
 	onclose={controller.handleActionClose.bind(controller)}
 >
 	{#if controller.selectedItem}
+		<button
+			type="button"
+			class="ui-action ui-action-danger w-full justify-between text-left"
+			disabled={controller.actionPending}
+			onclick={() => {
+				const selected = controller.selectedItem!;
+				controller.itemActionOpen = false;
+				void onRemoveThisWeek(selected);
+			}}
+		>
+			<span>
+				<strong>{m.shopping_remove_this_week()}</strong>
+				<small>{controller.selectedItem.name}</small>
+			</span>
+			<Icon name="trash" />
+		</button>
 		{@const itemManualSources = controller.selectedItem.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
 		{#if itemManualSources.length}
 			<div class="source-action-group">

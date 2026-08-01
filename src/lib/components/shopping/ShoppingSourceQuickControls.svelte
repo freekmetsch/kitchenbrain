@@ -28,12 +28,6 @@
 		return 'required';
 	}
 
-	function nextNeed(current: ShoppingNeed): ShoppingNeed {
-		if (current === 'required') return 'optional';
-		if (current === 'optional') return 'stocked';
-		return 'required';
-	}
-
 	function needLabel(value: ShoppingNeed): string {
 		if (value === 'stocked') return m.shopping_need_usually_stocked();
 		if (value === 'optional') return m.shopping_need_nice_to_have();
@@ -60,6 +54,13 @@
 		const saved = await onTerm(source, select.value);
 		if (!saved) select.value = previous;
 	}
+
+	async function chooseNeed(event: Event) {
+		const select = event.currentTarget as HTMLSelectElement;
+		const previous = need();
+		const saved = await onNeed(source, select.value as ShoppingNeed);
+		if (!saved) select.value = previous;
+	}
 </script>
 
 <div
@@ -71,20 +72,24 @@
 		<strong>{source.name}</strong>
 		{#if sourceContext()}<small>{sourceContext()}</small>{/if}
 	</span>
-	<button
-		type="button"
-		class="ui-action ui-action-secondary need-choice"
-		data-source-key={source.sourceKey}
-		disabled={disabled || pending || needBlocked}
-		aria-busy={pending}
-		aria-label={m.shopping_need_cycle_aria({
-			name: controlName(),
-			current: needLabel(need())
-		})}
-		onclick={() => onNeed(source, nextNeed(need()))}
-	>
-		{needLabel(need())}
-	</button>
+	<label class="future-choice" aria-busy={pending}>
+		<span>{m.shopping_future_lists_label()}</span>
+		<select
+			class="ui-field need-choice"
+			data-source-key={source.sourceKey}
+			value={need()}
+			disabled={disabled || pending || needBlocked}
+			aria-label={m.shopping_need_cycle_aria({
+				name: controlName(),
+				current: needLabel(need())
+			})}
+			onchange={(event) => void chooseNeed(event)}
+		>
+			<option value="required">{m.shopping_future_required()}</option>
+			<option value="optional">{m.shopping_future_optional()}</option>
+			<option value="stocked">{m.shopping_future_stocked()}</option>
+		</select>
+	</label>
 	{#if source.approvedTerms.length > 1}
 		<label class="buy-field" aria-busy={pending}>
 			<span class="sr-only">{m.shopping_buy_term_aria({ name: controlName() })}</span>
@@ -142,13 +147,25 @@
 	}
 
 	.need-choice {
-		max-width: 7rem;
+		width: min(9rem, 28vw);
 		min-width: 0;
 		padding-inline: 0.55rem;
 		overflow: hidden;
 		font-size: 0.6rem;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.future-choice {
+		display: grid;
+		min-width: 0;
+		gap: 0.08rem;
+	}
+
+	.future-choice > span {
+		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+		font-size: 0.52rem;
+		font-weight: 750;
 	}
 
 	.buy-field {
@@ -167,7 +184,7 @@
 		white-space: nowrap;
 	}
 
-	.need-choice:disabled {
+	.future-choice select:disabled {
 		cursor: wait;
 		opacity: 0.58;
 	}
@@ -179,6 +196,10 @@
 
 		.buy-field :global(.ui-field) {
 			width: min(9rem, 18vw);
+		}
+
+		.need-choice {
+			width: min(10rem, 19vw);
 		}
 	}
 </style>
