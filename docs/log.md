@@ -1432,3 +1432,19 @@ Touched: docs/{ui-house-style.md,log.md},
 docs/feature-lists/archive/FEATURE_LIST_GREEN_HEADER_INTERACTION_POLISH.md,
 src/lib/components/{recipe-detail,shopping,ui}/, src/lib/ui_house_style_source.test.ts,
 src/routes/{inventory,meal-plan,recipes,shopping}/, tests/e2e/house-style.e2e.ts
+
+## 2026-08-01 18:47 | deploy-canary | Green Ribbon interaction polish
+
+Merged PR #62 and supervised Railway deployment `af3a48bb-21e4-4221-b0b0-ca96aa51bb37`
+to `SUCCESS` at exact remote `main` commit `7b90fa8`. Both guarded household authentication
+checks passed; `/api/healthz` returned `200` with `status: ok`; and the 320 and 1280 px logged-out
+Inventory, Meal Plan, Recipes, and Shopping boundaries redirected cleanly to login with no
+overflow, console error, page error, failed request, or HTTP 5xx. Bounded Railway checks found
+zero application errors and zero HTTP 5xx.
+
+The complete authenticated gate passed locally before review, and the review follow-up passed
+warning-free Svelte diagnostics plus its six source-contract tests. No provider turn, household
+mutation, AH lookup, AH push, authenticated body, cookie, screenshot, or household content was
+retained or performed.
+
+Touched: docs/deploys/2026-08.md, docs/log.md
