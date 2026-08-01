@@ -1540,3 +1540,54 @@ or household-list content was retained as deployment evidence.
 
 Touched: docs/deploys/2026-08.md,
 docs/feature-lists/archive/FEATURE_LIST_PORTION_AND_REMOVAL_JOURNEY.md, docs/log.md
+
+## 2026-08-01 23:22 | ux-ui-audit | Shopping ready-first journey
+
+Audited the current `/shopping` journey with isolated synthetic fixtures at 375 × 812 and
+1280 × 900. The bought/Undo loop, focus continuity, forms, rollback behavior, and AH review
+triage are sound. The dominant remaining friction is page order: on phone the first item begins at
+y = 1,029 after 387 px of planned-meal controls and 332 px of unresolved AH history. Recipe rows
+also carry lasting future-list controls in the in-store scan path, and the fixed action dock
+intersects the first desktop row.
+
+Recorded a ready-first recommendation in authoritative Markdown and created a self-contained visual
+decision workspace. Its default keeps the list first, compresses but preserves unresolved AH
+evidence, moves preparation and lasting defaults behind deliberate actions, reserves non-overlapping
+space for Add/AH actions, and keeps every current recovery safeguard. No application code,
+household data, provider call, or real AH request changed.
+
+Touched: docs/SHOPPING_UX_UI_AUDIT.md,
+docs/artifacts/2026-08-01-ux-ui-shopping-ready-first.html, docs/log.md
+
+## 2026-08-02 01:36 | run | Shopping ready-first journey
+
+Implemented the accepted `/shopping` audit as a ready-first experience. The page now moves a
+compact readiness summary, unresolved AH warning, one action shelf, filters, and shopping rows into
+the repeated in-store path. Planned portions, weekly-item editing, recipe choices, and detailed AH
+history remain available through deliberate sheets and inline handoffs. Phone content reserves the
+exact shelf height, toasts sit above both navigation and shelf, and desktop actions stay in document
+flow.
+
+Shopping rows now show a direct trash action when removal is their only command; three-dot menus
+remain only for genuine multi-action recipe or manual-source choices. Direct removal is limited to
+editable active rows and keeps immediate Undo. Source-choice sheets follow the remaining active
+source when an aggregate splits, close only after the last active source leaves, and return focus to
+the moved source in Not this run.
+
+Verification passed with zero Svelte diagnostics, all 705 Vitest tests, the production build, and
+40 authenticated Playwright cases for each isolated household account; the connected-AH case is
+intentionally skipped. The first full unit attempt exposed a stale ignored `dev.db` migration race,
+so the successful gate used a fresh pre-migrated database under `.test-data`; the development
+database was not changed. No provider turn, household mutation, AH lookup, AH push, authenticated
+artifact, or household content was retained or performed.
+
+Touched: docs/SHOPPING_UX_UI_AUDIT.md,
+docs/artifacts/2026-08-01-ux-ui-shopping-ready-first.html, docs/ui-house-style.md, docs/log.md,
+messages/en.json, messages/nl.json, src/app.css, src/lib/components/shopping/AddItemForm.svelte,
+src/lib/components/shopping/InlineWeeklyItemsEditor.svelte,
+src/lib/components/shopping/PushHistory.svelte,
+src/lib/components/shopping/ShoppingLists.svelte,
+src/lib/components/shopping/ShoppingMealPortions.svelte,
+src/lib/components/shopping/WeekNav.svelte, src/lib/ui_house_style_source.test.ts,
+src/routes/shopping/+page.svelte, tests/e2e/house-style.e2e.ts,
+tests/e2e/kitchen-flows.e2e.ts, tests/e2e/responsive-parity.e2e.ts

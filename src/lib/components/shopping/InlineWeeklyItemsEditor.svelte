@@ -141,7 +141,12 @@
 			</div>
 		</form>
 	{:else if editable}
-		<button type="button" class="ui-action ui-action-secondary weekly-add" onclick={() => void showAdd()}>
+		<button
+			type="button"
+			class="ui-action ui-action-secondary weekly-add"
+			data-weekly-add-button
+			onclick={() => void showAdd()}
+		>
 			<Icon name="plus" />
 			{m.shopping_recurring_add()}
 		</button>

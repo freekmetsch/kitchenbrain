@@ -33,7 +33,7 @@ Do not add a universal component whose variants reproduce page-local drift.
 | Section title | A meaningful body section | `ui-section-title`; sentence-case sans-serif, with weight and spacing rather than a display face |
 | Notice | Contextual info, success, warning, or error | `KitchenNotice`; a Warm Wash tonal field with a quiet semantic border. The caller retains its icon, copy, role/live region, recovery action, and input state |
 | Recipe category | Recipe-index categorization | Keep it as optional text. Imagery is optional and no placeholder block appears when a recipe has no image |
-| Bottom navigation | The primary app destinations | One Green Anchor with a cream 14 px active pill; Shopping's phone Paper Shelf attaches directly above it |
+| Bottom navigation | The primary app destinations | One Green Anchor with a cream 14 px active pill; Shopping's phone Paper Shelf occupies its own reserved row directly above it |
 
 ## Boundaries
 
@@ -56,14 +56,18 @@ Do not add a universal component whose variants reproduce page-local drift.
   drawer in the compact layout, so the page behind it is inert and focus returns to the trigger.
   Overflow actions use an anchored menu at 768 px and above, with arrow-key navigation and Escape
   dismissal.
+- Do not use an options menu for one command. Render a single non-destructive action directly. A
+  destructive action may stay direct on an editable active ledger row only when the write is
+  immediately reversible with Undo; omit it from completed, covered, and read-only rows. Actions
+  that are irreversible or high-consequence still require a labelled confirmation step.
 - Meal plan is the sole three-affordance ribbon exception: clay Add meal, a delivery-labelled
   Shopping destination, and quiet overflow form one compact action group. At 320 px that group may
   occupy a second ribbon row; other standard ribbons retain the normal 64/72 px geometry.
 - Recipe Edit is Recipe First: the recipe name is the H1 and the editing label is the eyebrow.
   A clean Save stays quiet/disabled; a dirty Save becomes the clay commit.
-- Shopping keeps AH status as passive dot-plus-text metadata in the top action group. At 320 px,
-  Add item may use its accessible plus-icon treatment because the persistent Paper Shelf retains
-  the full label.
+- Shopping keeps AH status as passive dot-plus-text metadata in the Green Ribbon. Its Paper Shelf
+  owns the only Add item action and reserves real scrollport space on phone; desktop keeps the
+  shelf in normal document flow so rows never pass beneath it.
 - Filters and statuses are different roles. If a user can change it, use a button with a selected
   state. Grove Fill is the shared selected treatment. If it only reports state, use passive
   dot-plus-text markup.
@@ -77,8 +81,12 @@ Do not add a universal component whose variants reproduce page-local drift.
   card uses words for section, class, staple, expiry, and recipe relationship, with at most one
   leading urgency marker. Recipe relationships are summarized once and expanded into a focused
   review instead of repeated icon or dot chains on every row.
-- Shopping uses one centered 52 rem work column. The latest unresolved AH outcome remains inline;
-  successful and previous sends live in the on-demand history sheet.
+- Shopping uses one centered 52 rem work column and leads with the current run: compact unresolved
+  AH attention, computed readiness, filters, then item rows. Planned-meal portions and weekly-item
+  definitions live behind deliberate setup actions. Recipe-source defaults live in item details,
+  while active rows keep only name, quantity/source cue, completion, and their immediate action.
+  The latest unresolved AH outcome remains inline; successful and previous sends live in the
+  on-demand history sheet.
 - Review AH order is triage-first: unresolved, unconfirmed, and unreviewed low-confidence choices
   stay expanded under Needs a look; settled choices collapse under Confirmed. Selected product,
   price, and pack count remain visible, alternate/favorite controls use Details disclosure, and the

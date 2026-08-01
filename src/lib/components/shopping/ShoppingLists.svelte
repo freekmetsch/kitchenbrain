@@ -102,6 +102,7 @@
 	}: Props = $props();
 
 	let weeklyEditMode = $state(false);
+	let sourceFocusAfterActionClose = $state<string | null>(null);
 	const reducedMotion =
 		typeof window !== 'undefined' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -121,9 +122,12 @@
 		const row = target.closest<HTMLElement>('.market-run-row') ?? target;
 		const rowRect = row.getBoundingClientRect();
 		const mainRect = appMain.getBoundingClientRect();
+		const dock = document.querySelector<HTMLElement>('.shopping-market-dock');
+		const dockRect = dock?.getBoundingClientRect();
 		const dockTop =
-			document.querySelector<HTMLElement>('.shopping-market-dock')?.getBoundingClientRect().top ??
-			mainRect.bottom;
+			dock && getComputedStyle(dock).position === 'fixed' && (dockRect?.top ?? 0) > mainRect.top
+				? dockRect!.top
+				: mainRect.bottom;
 		const visibleTop = mainRect.top + 8;
 		const visibleBottom = Math.min(mainRect.bottom, dockTop) - 8;
 		if (rowRect.top < visibleTop) {
@@ -153,9 +157,11 @@
 
 	async function focusSourceKey(sourceKey: string) {
 		await tick();
-		const target = [...document.querySelectorAll<HTMLElement>('[data-source-key]')].find(
-			(element) => element.dataset.sourceKey === sourceKey
-		);
+		const inOpenDialog = [...document.querySelectorAll<HTMLElement>('dialog[open] [data-source-key]')];
+		const candidates = inOpenDialog.length
+			? inOpenDialog
+			: [...document.querySelectorAll<HTMLElement>('[data-source-key]')];
+		const target = candidates.find((element) => element.dataset.sourceKey === sourceKey);
 		target?.focus();
 	}
 
@@ -201,7 +207,39 @@
 
 	$effect(() => {
 		controller.reconcileFilter();
+		const selected = controller.selectedItem;
+		if (!selected) return;
+		const selectedKey = shoppingItemKey(selected);
+		const selectedSourceKeys = new Set(selected.sources?.map((source) => source.sourceKey) ?? []);
+		const currentItems = [...pending, ...done];
+		const current =
+			currentItems.find((item) => shoppingItemKey(item) === selectedKey) ??
+			currentItems.find((item) =>
+				item.sources?.some((source) => selectedSourceKeys.has(source.sourceKey))
+			);
+		if (current && current !== selected) {
+			controller.selectedItem = current;
+		} else if (!current && controller.itemActionOpen) {
+			sourceFocusAfterActionClose = selected.sources?.find((selectedSource) =>
+				sources.some(
+					(currentSource) =>
+						currentSource.sourceKey === selectedSource.sourceKey && !currentSource.included
+				)
+		)?.sourceKey ?? null;
+			controller.itemActionOpen = false;
+		}
 	});
+
+	export async function openWeeklyEditor() {
+		controller.setFilter({ kind: 'weekly' });
+		weeklyEditMode = true;
+		await tick();
+		const target =
+			document.querySelector<HTMLElement>('[data-weekly-add-button]') ??
+			document.querySelector<HTMLElement>('[data-weekly-edit-button]');
+		target?.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' });
+		target?.focus({ preventScroll: true });
+	}
 
 	let visibleExcludedSources = $derived(
 		controller.excludedRecipeSources.filter((source) => {
@@ -237,6 +275,39 @@
 		await tick();
 		document.querySelector<HTMLElement>('[data-weekly-edit-button]')?.focus();
 	}
+
+	function recipeSources(item: ShoppingListItem): ShoppingListSource[] {
+		return item.sources?.filter((source) => source.sourceKind === 'recipe') ?? [];
+	}
+
+	function manualSources(item: ShoppingListItem): ShoppingListSource[] {
+		return item.sources?.filter((source) => source.sourceKind === 'manual') ?? [];
+	}
+
+	function hasItemMenu(item: ShoppingListItem): boolean {
+		const allSources = item.sources ?? [];
+		const manuals = manualSources(item);
+		return recipeSources(item).length > 0 || manuals.length > 1 || (manuals.length === 1 && allSources.length > 1);
+	}
+
+	function sourceCue(item: ShoppingListItem): string {
+		if (item.forMeals?.length) return m.shopping_for_meals({ meals: item.forMeals.join(', ') });
+		if ((item.sources ?? []).some((source) => source.sourceKind === 'weekly')) {
+			return m.shopping_filter_weekly();
+		}
+		if ((item.sources ?? []).some((source) => source.sourceKind === 'manual')) {
+			return m.shopping_source_manual();
+		}
+		return '';
+	}
+
+	function handleItemActionClose() {
+		controller.handleActionClose();
+		const sourceKey = sourceFocusAfterActionClose;
+		if (!sourceKey) return;
+		sourceFocusAfterActionClose = null;
+		queueMicrotask(() => void focusSourceKey(sourceKey));
+	}
 </script>
 
 {#snippet sourceQuickControls(source: ShoppingListSource)}
@@ -259,6 +330,39 @@
 		onIncluded={onSetRecurringIncluded}
 		onDisable={onDisableRecurring}
 	/>
+{/snippet}
+
+{#snippet itemIdentity(item: ShoppingListItem)}
+	<strong title={item.name}>{item.name}</strong>
+	{#if itemLabel(item) || sourceCue(item)}
+		<span>{[itemLabel(item), sourceCue(item)].filter(Boolean).join(' · ')}</span>
+	{/if}
+	{#if item.manualContribution}<span>{m.shopping_manual_amount_not_following()}</span>{/if}
+{/snippet}
+
+{#snippet itemAction(item: ShoppingListItem)}
+	{#if editable && item.sources?.length}
+		{#if hasItemMenu(item)}
+			<button
+				type="button"
+				class="market-row-more ui-action ui-action-tertiary ui-action-icon"
+				aria-label={m.shopping_item_actions_aria({ name: item.name })}
+				onclick={() => controller.openActions(item)}
+			>
+				<span aria-hidden="true">•••</span>
+			</button>
+		{:else}
+			<button
+				type="button"
+				class="market-row-remove ui-action ui-action-danger ui-action-icon"
+				disabled={!editable}
+				aria-label={m.shopping_remove_item_this_week_aria({ name: item.name })}
+				onclick={() => void onRemoveThisWeek(item)}
+			>
+				<Icon name="trash" />
+			</button>
+		{/if}
+	{/if}
 {/snippet}
 
 <div class="shopping-controls" role="region" aria-label={m.shopping_list_controls()}>
@@ -391,7 +495,6 @@
 				<ul class="market-run-list">
 				{#each group.items as item, index (shoppingItemKey(item))}
 					{@const key = shoppingItemKey(item)}
-					{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
 					{@const actionOwned = item.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
 					<li
 						class:warning={item.incompatibleQuantities}
@@ -414,19 +517,7 @@
 							<span><Icon name="check" /></span>
 						</label>
 						<div class="market-row-copy">
-							{#if recipeOwned.length}
-								<div class="source-quick-stack">
-									{#each recipeOwned as source (source.sourceKey)}
-										{@render sourceQuickControls(source)}
-									{/each}
-								</div>
-								{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
-								{#if item.manualContribution}<span>{m.shopping_manual_amount_not_following()}</span>{/if}
-							{:else}
-								<strong title={item.name}>{item.name}</strong>
-								{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
-								{#if item.manualContribution}<span>{m.shopping_manual_amount_not_following()}</span>{/if}
-							{/if}
+							{@render itemIdentity(item)}
 							{#if item.incompatibleQuantities && actionOwned.length}
 								<ul class="market-source-lines" aria-label={m.shopping_quantity_sources_label()}>
 									{#each actionOwned as source (source.sourceKey)}
@@ -447,16 +538,7 @@
 						</div>
 						<div class="market-row-trailing">
 							{#if bonusByName[item.name]}<StatusBadge tone="warning">{m.shopping_bonus_chip()}</StatusBadge>{/if}
-							{#if item.sources?.length}
-								<button
-									type="button"
-									class="market-row-more ui-action ui-action-tertiary ui-action-icon"
-									aria-label={m.shopping_item_actions_aria({ name: item.name })}
-									onclick={() => controller.openActions(item)}
-								>
-									<span aria-hidden="true">•••</span>
-								</button>
-							{/if}
+							{@render itemAction(item)}
 						</div>
 					</li>
 				{/each}
@@ -483,31 +565,13 @@
 {#if showCovered && controller.coveredPending.length}
 	<ul class="market-run-list market-covered-list" aria-label={m.shopping_in_stock_chip({ count: controller.coveredPending.length })}>
 		{#each controller.coveredPending as item (shoppingItemKey(item))}
-			{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
 			<li class="market-run-row covered">
 				<div class="market-covered-marker" aria-hidden="true"><Icon name="check" /></div>
 				<div class="market-row-copy">
-					{#if recipeOwned.length}
-						<div class="source-quick-stack">
-							{#each recipeOwned as source (source.sourceKey)}
-								{@render sourceQuickControls(source)}
-							{/each}
-						</div>
-					{:else}
-						<strong title={item.name}>{item.name}</strong>
-					{/if}
-					{#if itemLabel(item)}<span>{itemLabel(item)}</span>{/if}
+					{@render itemIdentity(item)}
 				</div>
 				<div class="market-row-trailing">
 					<StatusBadge tone="success">{m.shopping_covered_badge()}</StatusBadge>
-					{#if item.sources?.length}
-						<button
-							type="button"
-							class="market-row-more ui-action ui-action-tertiary ui-action-icon"
-							aria-label={m.shopping_item_actions_aria({ name: item.name })}
-							onclick={() => controller.openActions(item)}
-						><span aria-hidden="true">•••</span></button>
-					{/if}
 				</div>
 			</li>
 		{/each}
@@ -531,7 +595,6 @@
 	<ul class="market-run-list market-done-list">
 		{#each controller.completed as item (shoppingItemKey(item))}
 			{@const key = shoppingItemKey(item)}
-			{@const recipeOwned = item.sources?.filter((source) => source.sourceKind === 'recipe') ?? []}
 			<li
 				class:locked={controller.itemLocked(key)}
 				class="market-run-row"
@@ -552,24 +615,8 @@
 					<span><Icon name="check" /></span>
 				</label>
 				<div class="market-row-copy">
-					{#if recipeOwned.length}
-						<div class="source-quick-stack">
-							{#each recipeOwned as source (source.sourceKey)}
-								{@render sourceQuickControls(source)}
-							{/each}
-						</div>
-					{:else}
-						<strong>{item.name}</strong>
-					{/if}
+					{@render itemIdentity(item)}
 				</div>
-				{#if item.sources?.length}
-					<button
-						type="button"
-						class="market-row-more ui-action ui-action-tertiary ui-action-icon"
-						aria-label={m.shopping_item_actions_aria({ name: item.name })}
-						onclick={() => controller.openActions(item)}
-					><span aria-hidden="true">•••</span></button>
-				{/if}
 			</li>
 		{/each}
 	</ul>
@@ -580,13 +627,23 @@
 	title={controller.selectedItem?.name ?? m.shopping_item_actions_title_generic()}
 	desktopSide
 	dismissible={!controller.actionPending}
-	onclose={controller.handleActionClose.bind(controller)}
+		onclose={handleItemActionClose}
 >
 	{#if controller.selectedItem}
+		{@const itemRecipeSources = recipeSources(controller.selectedItem)}
+		{#if itemRecipeSources.length}
+			<div class="source-action-group source-choice-group">
+				<h3 class="ui-section-title">{m.shopping_item_recipe_choices()}</h3>
+				<p>{m.shopping_item_recipe_choices_help()}</p>
+				{#each itemRecipeSources as source (source.sourceKey)}
+					{@render sourceQuickControls(source)}
+				{/each}
+			</div>
+		{/if}
 		<button
 			type="button"
 			class="ui-action ui-action-danger w-full justify-between text-left"
-			disabled={controller.actionPending}
+			disabled={!editable || controller.actionPending}
 			onclick={() => {
 				const selected = controller.selectedItem!;
 				controller.itemActionOpen = false;
@@ -600,14 +657,14 @@
 			<Icon name="trash" />
 		</button>
 		{@const itemManualSources = controller.selectedItem.sources?.filter((source) => source.sourceKind === 'manual') ?? []}
-		{#if itemManualSources.length}
+		{#if itemManualSources.length && (controller.selectedItem.sources?.length ?? 0) > 1}
 			<div class="source-action-group">
 				<h3 class="ui-section-title">{m.shopping_source_manual()}</h3>
 				{#each itemManualSources as source (source.id)}
 					<button
 						type="button"
 						class="ui-action ui-action-danger w-full justify-between text-left"
-						disabled={controller.actionPending}
+						disabled={!editable || controller.actionPending}
 						onclick={() => void controller.removeManual(controller.selectedItem!, source)}
 					>
 						<span>
@@ -872,7 +929,6 @@
 
 	.market-row-copy {
 		min-width: 0;
-		cursor: pointer;
 		padding: 0.4rem 0.3rem 0.4rem 0;
 	}
 
@@ -894,13 +950,6 @@
 		line-height: 1.3;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-	}
-
-	.source-quick-stack {
-		display: grid;
-		gap: 0.3rem;
-		min-width: 0;
-		cursor: default;
 	}
 
 	.market-source-lines {
@@ -933,6 +982,11 @@
 	.market-row-more {
 		font-size: 0.72rem;
 		letter-spacing: 0.06em;
+	}
+
+	.market-row-remove :global(svg) {
+		width: 0.95rem;
+		height: 0.95rem;
 	}
 
 	.market-basket-summary {
@@ -1001,6 +1055,21 @@
 
 	.source-action-group h3 {
 		margin-bottom: 0.35rem;
+	}
+
+	.source-choice-group {
+		display: grid;
+		gap: 0.55rem;
+		margin-bottom: 0.85rem;
+		padding-bottom: 0.85rem;
+		border-bottom: 1px solid var(--kitchen-line);
+	}
+
+	.source-choice-group > p {
+		margin: -0.2rem 0 0;
+		color: var(--kitchen-muted);
+		font-size: 0.68rem;
+		line-height: 1.4;
 	}
 
 	.source-action-group :global(.ui-action) {

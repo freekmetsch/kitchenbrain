@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Request, type Route } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Request, type Route } from '@playwright/test';
 import { kitchenFixtureFor } from './fixtures';
 
 const VIEWPORTS = [
@@ -22,9 +22,12 @@ async function expectShoppingFocusInAppViewport(page: Page): Promise<void> {
 		const row = focused?.closest<HTMLElement>('.market-run-row') ?? focused;
 		const rowRect = row?.getBoundingClientRect();
 		const mainRect = document.querySelector<HTMLElement>('main.app-main')?.getBoundingClientRect();
+		const dock = document.querySelector<HTMLElement>('.shopping-market-dock');
+		const dockRect = dock?.getBoundingClientRect();
 		const dockTop =
-			document.querySelector<HTMLElement>('.shopping-market-dock')?.getBoundingClientRect().top ??
-			window.innerHeight;
+			dock && getComputedStyle(dock).position === 'fixed'
+				? (dockRect?.top ?? window.innerHeight)
+				: (mainRect?.bottom ?? window.innerHeight);
 		return {
 			windowScrollY: window.scrollY,
 			focusedKey: focused?.dataset.shoppingKey ?? null,
@@ -46,8 +49,8 @@ function nextWeek(weekStart: string): string {
 	return date.toISOString().slice(0, 10);
 }
 
-function needCombobox(page: Page, name: string | RegExp) {
-	return page.getByRole('combobox', { name, exact: typeof name === 'string' });
+function needCombobox(scope: Page | Locator, name: string | RegExp) {
+	return scope.getByRole('combobox', { name, exact: typeof name === 'string' });
 }
 
 test('Shopping keeps source order, focus, and singleton reflow local', async ({ page }, testInfo) => {
@@ -701,33 +704,39 @@ for (const viewport of VIEWPORTS) {
 		const visibleHistory = page.getByRole('region', { name: 'Sent to AH' });
 		await expect(visibleHistory).toHaveCount(1);
 		await expect(visibleHistory.getByText('AH result unknown', { exact: true })).toBeVisible();
-		await expect(visibleHistory).toContainText('Check in AH');
+		await expect(visibleHistory).toContainText('AH may have received these items');
 		await expect(visibleHistory.getByRole('link', { name: 'Open AH' })).toBeVisible();
 		await expect(visibleHistory.getByRole('button', { name: /retry/i })).toHaveCount(0);
-		const moreProductDetails = visibleHistory.getByText('View more product details (1)', {
-			exact: true
-		});
+		const moreProductDetails = visibleHistory.getByText(/View sent items \(\d+\)/);
 		await expect(moreProductDetails).toBeVisible();
 		await expect(visibleHistory.getByText(/E2E AH almonds/)).toBeHidden();
 		const previousSends = visibleHistory.getByText('Previous sends (1)', { exact: true });
 		await expect(previousSends).toHaveCount(0);
 		const historyBox = await visibleHistory.boundingBox();
 		const ledgerBox = await page.locator('.shopping-ledger-section').first().boundingBox();
+		const appMainBox = await page.locator('main.app-main').boundingBox();
+		expect(appMainBox).not.toBeNull();
 		expect(historyBox?.y).toBeLessThan(ledgerBox?.y ?? 0);
-		if (viewport.name === 'phone') {
-			const overlappingRows = await page
-				.locator('.shopping-ledger-section .market-run-row')
-				.evaluateAll((rows) => {
-					const dock = document.querySelector<HTMLElement>('.shopping-market-dock');
-					const dockRect = dock?.getBoundingClientRect();
-					if (!dockRect) return [];
-					return rows
-						.map((row) => row.getBoundingClientRect())
-						.filter((row) => row.top < dockRect.bottom && row.bottom > dockRect.top)
-						.map((row) => ({ top: row.top, bottom: row.bottom }));
-				});
-			expect(overlappingRows).toEqual([]);
-		} else {
+		expect(ledgerBox?.y).toBeLessThan((appMainBox?.y ?? 0) + (appMainBox?.height ?? 0));
+		const overlappingRows = await page
+			.locator('.shopping-ledger-section .market-run-row')
+			.evaluateAll((rows) => {
+				const dock = document.querySelector<HTMLElement>('.shopping-market-dock');
+				const main = document.querySelector<HTMLElement>('main.app-main');
+				const dockRect = dock?.getBoundingClientRect();
+				const mainRect = main?.getBoundingClientRect();
+				if (!dockRect || !mainRect) return [];
+				return rows
+					.map((row) => row.getBoundingClientRect())
+					.filter(
+						(row) =>
+							Math.max(row.top, mainRect.top) < dockRect.bottom &&
+							Math.min(row.bottom, mainRect.bottom) > dockRect.top
+					)
+					.map((row) => ({ top: row.top, bottom: row.bottom }));
+			});
+		expect(overlappingRows).toEqual([]);
+		if (viewport.name !== 'phone') {
 			expect(Math.abs((historyBox?.x ?? 0) - (ledgerBox?.x ?? Number.POSITIVE_INFINITY))).toBeLessThan(
 				2
 			);
@@ -743,24 +752,23 @@ for (const viewport of VIEWPORTS) {
 		await historySheet.getByRole('button', { name: 'Close' }).click();
 
 		await expect(page.getByRole('button', { name: /^Shopping rules/ })).toHaveCount(0);
+		await page.getByRole('button', { name: `Actions for ${fixture.shoppingName}` }).click();
+		const itemDetails = page.locator('dialog[open]');
 		const needPill = needCombobox(
-			page,
+			itemDetails,
 			`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitle}`
 		);
-		const buyPill = page.getByRole('combobox', {
+		const buyPill = itemDetails.getByRole('combobox', {
 			name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
 		});
 		await expect(needPill).toBeVisible();
 		await expect(buyPill).toBeVisible();
 		await expect(buyPill.locator('option')).toHaveCount(5);
-		await expect(page.locator('dialog[open]')).toHaveCount(0);
-		const sourceName = page.getByText(fixture.shoppingName, { exact: true }).first();
-		const [sourceBox, needBox, buyBox] = await Promise.all([
-			sourceName.boundingBox(),
+		await expect(page.locator('dialog[open]')).toHaveCount(1);
+		const [needBox, buyBox] = await Promise.all([
 			needPill.boundingBox(),
 			buyPill.boundingBox()
 		]);
-		expect(Math.abs((sourceBox?.y ?? 0) - (needBox?.y ?? 0))).toBeLessThan(20);
 		expect(Math.abs((needBox?.y ?? 0) - (buyBox?.y ?? 0))).toBeLessThan(20);
 		await page.route(
 			'**/api/shopping/recipe-choice',
@@ -779,7 +787,8 @@ for (const viewport of VIEWPORTS) {
 			})
 		).toBeVisible();
 		await expect(buyPill).toHaveValue(fixture.shoppingName);
-		await page.getByText('Not this run (2)', { exact: true }).click();
+		await itemDetails.getByRole('button', { name: 'Close' }).click();
+		await page.locator('details.not-this-run > summary').click();
 		await expect(
 			page.getByRole('combobox', {
 				name: `Choose future-list need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}`,
@@ -938,7 +947,7 @@ for (const viewport of VIEWPORTS) {
 	});
 }
 
-test('Shopping keeps source controls compact at 320, 768, and 200% text', async (
+test('Shopping keeps list rows compact and item details legible at 320, 768, and 200% text', async (
 	{ page },
 	testInfo
 ) => {
@@ -967,11 +976,21 @@ test('Shopping keeps source controls compact at 320, 768, and 200% text', async 
 		.getByRole('link', { name: 'Connect it in Settings' });
 	await expect(connectAh).toBeVisible();
 	expect((await connectAh.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+	await expect(
+		page.getByRole('button', {
+			name: `Remove ${fixture.longShoppingNames[0]} from this week`
+		})
+	).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: `Actions for ${fixture.longShoppingNames[0]}` })
+	).toHaveCount(0);
+	await page.getByRole('button', { name: `Actions for ${fixture.shoppingName}` }).click();
+	const itemDetails = page.getByRole('dialog', { name: fixture.shoppingName });
 	const needPill = needCombobox(
-		page,
+		itemDetails,
 		`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitle}`
 	);
-	const buyPill = page.getByRole('combobox', {
+	const buyPill = itemDetails.getByRole('combobox', {
 		name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
 	});
 	await expect(needPill).toBeVisible();
@@ -1006,16 +1025,19 @@ test('Shopping source controls remain legible in Dutch dark mode', async ({ page
 		document.cookie = 'PARAGLIDE_LOCALE=nl; path=/';
 	});
 	await page.reload();
+	await expect(page.locator('.app-shell[data-hydrated="true"]')).toBeVisible();
 	await page.evaluate(() => {
 		document.documentElement.setAttribute('data-theme', 'dark');
 	});
 
 	await expect(page.getByRole('heading', { name: 'Boodschappen', level: 1 })).toBeVisible();
+	await page.getByRole('button', { name: `Acties voor ${fixture.shoppingName}` }).click();
+	const itemDetails = page.getByRole('dialog', { name: fixture.shoppingName });
 	const needPill = needCombobox(
-		page,
+		itemDetails,
 		`Kies behoefte voor toekomstige lijsten voor ${fixture.shoppingName} · ${fixture.recipeTitle}`
 	);
-	const buyPill = page.getByRole('combobox', {
+	const buyPill = itemDetails.getByRole('combobox', {
 		name: `Kies wat je deze ronde koopt voor ${fixture.shoppingName} · ${fixture.recipeTitle}`
 	});
 	await expect(needPill).toBeVisible();
@@ -1028,7 +1050,7 @@ test('Shopping source controls remain legible in Dutch dark mode', async ({ page
 	await expect(
 		page
 			.getByRole('region', { name: 'Verstuurd naar AH' })
-			.getByText('Bekijk meer productdetails (1)', { exact: true })
+			.getByText(/Bekijk verstuurde items \(\d+\)/)
 	).toBeVisible();
 	expect(await needPill.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
 	expect(await buyPill.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');

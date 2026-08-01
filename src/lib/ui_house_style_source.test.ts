@@ -172,6 +172,15 @@ describe('stable app house-style source contract', () => {
 		);
 		const ahSheet = readFileSync('src/lib/components/shopping/AhSheet.svelte', 'utf8');
 		const ahItem = readFileSync('src/lib/components/shopping/AhPreviewItem.svelte', 'utf8');
+		const shoppingPage = readFileSync('src/routes/shopping/+page.svelte', 'utf8');
+		const shoppingList = readFileSync(
+			'src/lib/components/shopping/ShoppingLists.svelte',
+			'utf8'
+		);
+		const shoppingHeader = readFileSync(
+			'src/lib/components/shopping/WeekNav.svelte',
+			'utf8'
+		);
 
 		expect(mealPlan).toContain('plan-header-actions');
 		expect(mealPlan).toContain('plan-shopping-action');
@@ -204,5 +213,15 @@ describe('stable app house-style source contract', () => {
 		expect(ahSheet).toContain('ah-review-footer');
 		expect(ahItem).toContain('compact?: boolean');
 		expect(ahItem).toContain('ah-compact-row');
+
+		expect(shoppingPage).toContain('shopping-readiness');
+		expect(shoppingPage).toContain('--shopping-shelf-height');
+		expect(shoppingPage.indexOf('shopping-readiness')).toBeLessThan(
+			shoppingPage.indexOf('<ShoppingLists')
+		);
+		expect(shoppingHeader).not.toContain('onAddItem');
+		expect(shoppingList).toContain('hasItemMenu');
+		expect(shoppingList).toContain('shopping_remove_item_this_week_aria');
+		expect(shoppingList).not.toContain('source-quick-stack');
 	});
 });

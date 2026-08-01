@@ -161,7 +161,7 @@ test('house-style roles hold across stable routes and target viewports', async (
 			'aria-haspopup',
 			'dialog'
 		);
-		await expect(page.getByRole('link', { name: /Delivery|Shopping/ })).toBeVisible();
+		await expect(page.locator('.plan-shopping-action')).toBeVisible();
 		await expect(page.locator('.plan-more[aria-label="More meal plan options"]')).toBeVisible();
 		const mealCards = page.locator('.plan-meal-list > li');
 		await expect(mealCards.first()).toBeVisible();
@@ -190,10 +190,12 @@ test('house-style roles hold across stable routes and target viewports', async (
 			page.locator('.kitchen-page-header-action [data-house-style="status-badge"]')
 		).toHaveCount(1);
 		await expect(
-			page
-				.locator('.kitchen-page-header-action')
-				.getByRole('button', { name: 'Add item', exact: true })
+			page.locator('.kitchen-page-header-action').getByRole('button')
+		).toHaveCount(0);
+		await expect(
+			page.locator('.shopping-market-dock').getByRole('button', { name: 'Add item', exact: true })
 		).toHaveAttribute('aria-haspopup', 'dialog');
+		await expect(page.getByRole('heading', { name: 'Ready for this shop' })).toBeVisible();
 		await expect(page.locator('.ui-page-utility [data-house-style="status-badge"]')).toHaveCount(0);
 		const shoppingFilters = page.getByRole('radiogroup', { name: 'Filter shopping list' });
 		await expect(shoppingFilters).toBeVisible();
@@ -296,7 +298,8 @@ test('house-style roles hold across stable routes and target viewports', async (
 	}
 });
 
-test('phone chassis joins the paper work surface to the Shopping action shelf', async ({ page }) => {
+test('phone chassis joins the paper work surface to the Shopping action shelf', async ({ page }, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
 	await page.setViewportSize({ width: 393, height: 844 });
 	await page.goto('/shopping');
 	await page.waitForLoadState('networkidle');
@@ -313,10 +316,68 @@ test('phone chassis joins the paper work surface to the Shopping action shelf', 
 	const nav = page.getByRole('navigation', { name: /Primary|Primair/ });
 	const dockBox = await dock.boundingBox();
 	const navBox = await nav.boundingBox();
+	const mainBox = await page.locator('main.app-main').boundingBox();
 	expect(Math.abs((dockBox?.y ?? 0) + (dockBox?.height ?? 0) - (navBox?.y ?? 0))).toBeLessThan(1);
+	expect(Math.abs((mainBox?.y ?? 0) + (mainBox?.height ?? 0) - (dockBox?.y ?? 0))).toBeLessThan(1);
 	expect(dockBox?.x ?? 0).toBeCloseTo(6, 0);
 	expect(await dock.evaluate((element) => getComputedStyle(element).borderBottomWidth)).toBe('0px');
 	expect(await dock.evaluate((element) => getComputedStyle(element).backdropFilter)).toBe('none');
+
+	const removed = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' &&
+			response.url().endsWith('/api/shopping') &&
+			response.request().postDataJSON().action === 'exclude_week_item'
+	);
+	await page
+		.getByRole('button', {
+			name: `Remove ${fixture.longShoppingNames[0]} from this week`
+		})
+		.click();
+	expect((await removed).ok()).toBe(true);
+	const toast = page.locator('.ui-z-toast');
+	await expect(toast).toBeVisible();
+	const toastBox = await toast.boundingBox();
+	const currentDockBox = await dock.boundingBox();
+	expect((toastBox?.y ?? 0) + (toastBox?.height ?? Number.POSITIVE_INFINITY)).toBeLessThan(
+		currentDockBox?.y ?? 0
+	);
+
+	const restored = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' &&
+			response.url().endsWith('/api/shopping') &&
+			response.request().postDataJSON().action === 'restore_week_item'
+	);
+	await toast.getByRole('button', { name: 'Undo' }).click();
+	expect((await restored).ok()).toBe(true);
+});
+
+test('Shopping hands one-off and plan setup into the inline weekly editor', async ({ page }) => {
+	await page.setViewportSize({ width: 393, height: 844 });
+	await page.goto('/shopping');
+	await expect(page.locator('.app-shell[data-hydrated="true"]')).toBeVisible();
+
+	await page
+		.locator('.shopping-market-dock')
+		.getByRole('button', { name: 'Add item', exact: true })
+		.click();
+	const addSheet = page.getByRole('dialog', { name: 'Add one-off item' });
+	await expect(addSheet).toBeVisible();
+	await addSheet.getByRole('button', { name: 'Manage weekly items' }).click();
+	await expect(addSheet).toBeHidden();
+	await expect(page.getByRole('radio', { name: 'Weekly items', exact: true })).toHaveAttribute(
+		'aria-checked',
+		'true'
+	);
+	await expect(page.getByRole('button', { name: 'Add weekly item', exact: true })).toBeFocused();
+
+	await page.getByRole('radio', { name: 'All', exact: true }).click();
+	await page.getByRole('button', { name: 'Adjust plan' }).click();
+	const setupSheet = page.getByRole('dialog', { name: 'Shopping setup' });
+	await setupSheet.getByRole('button', { name: 'Manage weekly items' }).click();
+	await expect(setupSheet).toBeHidden();
+	await expect(page.getByRole('button', { name: 'Add weekly item', exact: true })).toBeFocused();
 });
 
 test('contextual Recipe ribbons keep the family geometry while fitting Back and action', async ({
@@ -470,6 +531,7 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 		document.cookie = 'PARAGLIDE_LOCALE=nl; path=/';
 	});
 	await page.goto('/shopping');
+	await expect(page.locator('.app-shell[data-hydrated="true"]')).toBeVisible();
 	await page.evaluate(() => {
 		document.documentElement.setAttribute('data-theme', 'dark');
 	});
@@ -479,7 +541,11 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
 		)
 	).toBe(0);
-	const darkField = page.locator('.ui-field:visible').first();
+	await page
+		.locator('.shopping-market-dock')
+		.getByRole('button', { name: 'Item toevoegen', exact: true })
+		.click();
+	const darkField = page.getByRole('dialog', { name: 'Eenmalig item toevoegen' }).locator('.ui-field').first();
 	await expect(darkField).toBeVisible();
 	await darkField.focus();
 	expect(await darkField.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe('none');

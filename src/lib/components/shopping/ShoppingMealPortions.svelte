@@ -9,6 +9,7 @@
 	import { formatDate } from '$lib/i18n';
 	import { batchServingTarget } from '$lib/meal_batch';
 	import ServingBatchPicker from '$lib/components/ServingBatchPicker.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
 
 	export type ShoppingPlannedMeal = {
 		id: number;
@@ -209,7 +210,7 @@
 							disabled={!editable || meal.status === 'cooked' || removingMealIds.includes(meal.id)}
 							aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
 							onclick={() => void removeMeal(meal)}
-						>×</button>
+						><Icon name="trash" /></button>
 					</div>
 				</li>
 			{/each}
@@ -284,7 +285,11 @@
 	.shopping-meal-remove {
 		width: 2.75rem;
 		flex: 0 0 2.75rem;
-		font-size: 1.1rem;
+	}
+
+	.shopping-meal-remove :global(svg) {
+		width: 0.95rem;
+		height: 0.95rem;
 	}
 
 	.shopping-meal-stepper button {

@@ -99,6 +99,19 @@ html[data-theme='dark'] {
 	background: var(--kitchen-grove);
 }
 
+.app-shell:has(.shopping-market) {
+	--shopping-shelf-height: 3.75rem;
+}
+
+@media (max-width: 47.99rem) {
+	.app-shell:has(.shopping-market) {
+		--ui-fixed-bar-height: var(--shopping-shelf-height);
+		--ui-overlay-bottom: calc(
+			var(--ui-nav-offset) + var(--ui-fixed-bar-height) + var(--ui-overlay-gap)
+		);
+	}
+}
+
 .app-main {
 	scroll-padding-block: 1rem calc(var(--ui-fixed-bar-height) + 1rem);
 	background: var(--kitchen-grove);

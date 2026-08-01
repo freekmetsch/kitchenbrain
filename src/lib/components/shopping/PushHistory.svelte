@@ -186,33 +186,54 @@
 				{/if}
 			</header>
 
-			{#if latestHelp}
-				<KitchenNotice tone="warning" class="mt-2 text-xs font-semibold" role="alert">
-					{latestHelp}
-				</KitchenNotice>
-			{/if}
-
-			{#if shoppingPushOutcomeNeedsReview(latestOutcome)}
-				{#if latestItems.visible.length}
-					{@render itemLines(latestItems.visible)}
+			{#if mode === 'attention'}
+				<div class="push-attention-body">
+					{#if latestHelp}
+						<KitchenNotice tone="warning" class="push-attention-notice" role="alert">
+							{latestHelp}
+						</KitchenNotice>
+					{/if}
+					<div class="push-attention-actions">
+						{#if latest.items.length}
+							<details class="push-details">
+								<summary>{m.shopping_pushhistory_view_items({ count: latest.items.length })}</summary>
+								{@render attemptItems(latest)}
+							</details>
+						{/if}
+						<a class="push-open-ah" href="https://www.ah.nl" target="_blank" rel="noopener noreferrer">
+							{m.shopping_ah_open_button()}
+						</a>
+					</div>
+				</div>
+			{:else}
+				{#if latestHelp}
+					<KitchenNotice tone="warning" class="mt-2 text-xs font-semibold" role="alert">
+						{latestHelp}
+					</KitchenNotice>
 				{/if}
-				{#if latestItems.disclosed.length}
+
+				{#if shoppingPushOutcomeNeedsReview(latestOutcome)}
+					{#if latestItems.visible.length}
+						{@render itemLines(latestItems.visible)}
+					{/if}
+					{#if latestItems.disclosed.length}
+						<details class="push-details">
+							<summary>{m.shopping_pushhistory_view_more_items({ count: latestItems.disclosed.length })}</summary>
+							{@render itemLines(latestItems.disclosed)}
+						</details>
+					{/if}
+				{:else if latestOutcome === 'success' && latest.items.length}
 					<details class="push-details">
-						<summary>{m.shopping_pushhistory_view_more_items({ count: latestItems.disclosed.length })}</summary>
-						{@render itemLines(latestItems.disclosed)}
+						<summary>{m.shopping_pushhistory_view_items({ count: latest.items.length })}</summary>
+						{@render attemptItems(latest)}
 					</details>
 				{/if}
-			{:else if latestOutcome === 'success' && latest.items.length}
-				<details class="push-details">
-					<summary>{m.shopping_pushhistory_view_items({ count: latest.items.length })}</summary>
-					{@render attemptItems(latest)}
-				</details>
-			{/if}
 
-			{#if shoppingPushOutcomeNeedsReview(latestOutcome)}
-				<a class="push-open-ah" href="https://www.ah.nl" target="_blank" rel="noopener noreferrer">
-					{m.shopping_ah_open_button()}
-				</a>
+				{#if shoppingPushOutcomeNeedsReview(latestOutcome)}
+					<a class="push-open-ah" href="https://www.ah.nl" target="_blank" rel="noopener noreferrer">
+						{m.shopping_ah_open_button()}
+					</a>
+				{/if}
 			{/if}
 		</article>
 
@@ -259,6 +280,13 @@
 
 	.push-latest {
 		padding: 0.7rem;
+	}
+
+	.push-history.compact .push-latest {
+		position: relative;
+		border: 1px solid color-mix(in oklab, var(--color-warning) 38%, var(--color-base-300));
+		border-radius: 0.75rem;
+		padding: 0.55rem 0.65rem;
 	}
 
 	.push-latest.pending,
@@ -411,6 +439,65 @@
 		color: white;
 		font-size: 0.67rem;
 		font-weight: 800;
+	}
+
+	.push-attention-body {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.4rem 0.65rem;
+		margin-top: 0.35rem;
+	}
+
+	.push-attention-body :global(.push-attention-notice) {
+		margin: 0;
+		padding: 0.4rem 0.55rem;
+		font-size: 0.65rem;
+		font-weight: 650;
+		line-height: 1.35;
+	}
+
+	.push-attention-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.25rem;
+	}
+
+	.push-attention-actions .push-details,
+	.push-attention-actions .push-open-ah {
+		margin-top: 0;
+	}
+
+	.push-attention-actions .push-details summary,
+	.push-attention-actions .push-open-ah {
+		min-height: 2.75rem;
+		padding-inline: 0.6rem;
+		font-size: 0.64rem;
+	}
+
+	.push-attention-actions .push-details[open] {
+		order: 2;
+		flex: 1 0 100%;
+	}
+
+	.push-attention-actions .push-item-list {
+		margin-top: 0.25rem;
+		border: 1px solid var(--kitchen-line);
+		border-radius: 0.65rem;
+		padding: 0.65rem;
+		background: var(--kitchen-card);
+	}
+
+	@media (max-width: 30rem) {
+		.push-attention-body {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.push-attention-actions {
+			justify-content: flex-start;
+		}
 	}
 
 	.push-previous {

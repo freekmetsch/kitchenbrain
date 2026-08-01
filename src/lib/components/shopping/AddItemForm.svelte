@@ -14,16 +14,18 @@
 	type Props = {
 		weekStart: string;
 		onAdded: (item: ShoppingListItem) => void | Promise<void>;
+		onManageWeekly: () => void | Promise<void>;
 		open?: boolean;
 	};
 
-	let { weekStart, onAdded, open = $bindable(false) }: Props = $props();
+	let { weekStart, onAdded, onManageWeekly, open = $bindable(false) }: Props = $props();
 	let addName = $state('');
 	let addAmount = $state('');
 	let addUnit = $state('');
 	let addSubmitting = $state(false);
 	let addError = $state('');
 	let nameInput = $state<HTMLInputElement | null>(null);
+	let weeklyHandoffAfterClose = $state(false);
 
 	export async function openAddModal() {
 		addError = '';
@@ -70,10 +72,36 @@
 			addSubmitting = false;
 		}
 	}
+
+	function handoffToWeeklyItems() {
+		weeklyHandoffAfterClose = true;
+		open = false;
+	}
+
+	function handleClose() {
+		if (!weeklyHandoffAfterClose) return;
+		queueMicrotask(() => {
+			weeklyHandoffAfterClose = false;
+			void onManageWeekly();
+		});
+	}
 </script>
 
-<BottomSheet bind:open title={m.shopping_add_one_off_title()} desktopSide>
+<BottomSheet
+	bind:open
+	title={m.shopping_add_one_off_title()}
+	desktopSide
+	restoreFocus={!weeklyHandoffAfterClose}
+	onclose={handleClose}
+>
 	<p class="mb-4 text-sm text-base-content/70">{m.shopping_add_one_off_help()}</p>
+	<button
+		type="button"
+		class="manage-weekly-link ui-action ui-action-tertiary"
+		onclick={handoffToWeeklyItems}
+	>
+		{m.shopping_manage_weekly()}
+	</button>
 	<form
 		onsubmit={(event) => {
 			event.preventDefault();
@@ -144,6 +172,10 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) 4.75rem 4.75rem;
 		gap: 0.5rem;
+	}
+
+	.manage-weekly-link {
+		margin: -0.75rem 0 0.75rem -0.75rem;
 	}
 
 	@media (max-width: 20rem) {

@@ -27,15 +27,26 @@
 	let bonusByName = $state<Record<string, boolean>>({});
 	let ahSheet = $state<{ openAhModal: () => Promise<void> }>();
 	let addItemForm = $state<{ openAddModal: () => Promise<void> }>();
+	let shoppingLists = $state<{ openWeeklyEditor: () => Promise<void> }>();
 	let addItemOpen = $state(false);
 	let showCovered = $state(false);
 	let historyOpen = $state(false);
+	let preparationOpen = $state(false);
+	let weeklyHandoffAfterPreparation = $state(false);
 	let plannedServingPending = $state(false);
 	let shoppingListRevision = $state(0);
 
 	let pending = $derived(items.filter((item) => !item.bought));
 	let done = $derived(items.filter((item) => item.bought));
 	let visibleToBuyCount = $derived(pending.filter((item) => !item.covered).length);
+	let plannedPortions = $derived(data.plannedMeals.reduce((total, meal) => total + meal.servings, 0));
+	let readinessTitle = $derived(
+		plannedServingPending
+			? m.shopping_readiness_updating()
+			: visibleToBuyCount === 0
+				? m.shopping_readiness_complete()
+				: m.shopping_readiness_title()
+	);
 	let emptyState = $derived(data.emptyState === 'no_meals' ? ('no_meals' as const) : ('nothing_needed' as const));
 
 	$effect(() => {
@@ -185,6 +196,19 @@
 			toast.success(m.shopping_portions_changed_after_push());
 		}
 	}
+
+	function handoffPreparationToWeeklyItems() {
+		weeklyHandoffAfterPreparation = true;
+		preparationOpen = false;
+	}
+
+	function handlePreparationClose() {
+		if (!weeklyHandoffAfterPreparation) return;
+		queueMicrotask(() => {
+			weeklyHandoffAfterPreparation = false;
+			void shoppingLists?.openWeeklyEditor();
+		});
+	}
 </script>
 
 <svelte:head><title>{m.shopping_title()}</title></svelte:head>
@@ -197,25 +221,17 @@
 		isDefaultWeek={data.isDefaultWeek}
 		deliveryDate={data.deliveryDate}
 		ahConnected={data.ah.connected}
-		{addItemOpen}
-		onAddItem={() => addItemForm?.openAddModal()}
 	/>
 
 	<div class="shopping-market-layout ui-grove-surface">
 		<main class="min-w-0">
-			<ShoppingMealPortions
-				meals={data.plannedMeals}
-				editable={data.isEditable}
-				weekStart={data.weekStart}
-				onpendingchange={(value) => (plannedServingPending = value)}
-				onservingssettled={handleServingsSettled}
-			/>
 			{#if data.pushHistory.length}
 				<div class="shopping-history-tools">
 					<PushHistory
 						pushHistory={data.pushHistory}
 						mode="attention"
 						compact
+						showHeading={false}
 						headingId="shopping-push-attention"
 					/>
 					<button
@@ -228,7 +244,75 @@
 					</button>
 				</div>
 			{/if}
+
+			<section
+				class="shopping-readiness"
+				class:updating={plannedServingPending}
+				aria-labelledby="shopping-readiness-title"
+				aria-busy={plannedServingPending}
+				aria-live="polite"
+			>
+				<div class="shopping-readiness-icon" aria-hidden="true"><Icon name={plannedServingPending ? 'clock' : 'check'} /></div>
+				<div class="shopping-readiness-copy">
+					<h2 id="shopping-readiness-title">{readinessTitle}</h2>
+					<span>
+						{m.shopping_readiness_items({ count: visibleToBuyCount })}
+						{#if data.plannedMeals.length}
+							· {m.shopping_readiness_plan({ meals: data.plannedMeals.length, portions: plannedPortions })}
+						{:else}
+							· {m.shopping_readiness_without_meals()}
+						{/if}
+					</span>
+				</div>
+				{#if data.plannedMeals.length}
+					<button
+						type="button"
+						class="ui-action ui-action-tertiary"
+						aria-haspopup="dialog"
+						aria-expanded={preparationOpen}
+						onclick={() => (preparationOpen = true)}
+					>
+						{m.shopping_adjust_plan()}
+					</button>
+				{:else}
+					<button type="button" class="ui-action ui-action-tertiary" onclick={() => void shoppingLists?.openWeeklyEditor()}>
+						{m.shopping_manage_weekly()}
+					</button>
+				{/if}
+			</section>
+
+			<div class="shopping-market-dock" aria-label={m.shopping_heading()}>
+				<button type="button" class="market-add-action ui-action ui-action-secondary" disabled={!data.isEditable} aria-haspopup="dialog" aria-expanded={addItemOpen} onclick={() => addItemForm?.openAddModal()}>
+					<Icon name="plus" />
+					{m.shopping_additem_submit_aria()}
+				</button>
+				{#if data.ah.connected}
+					<button
+						type="button"
+						class="market-ah-action ui-action ui-action-primary"
+						disabled={visibleToBuyCount === 0 || plannedServingPending}
+						aria-busy={plannedServingPending}
+						onclick={() => ahSheet?.openAhModal()}
+						aria-label={m.shopping_review_ah_order()}
+					>
+						<Icon name="cart" />
+						{m.shopping_review_ah_short()}
+						{#if visibleToBuyCount > 0}<span>{visibleToBuyCount}</span>{/if}
+					</button>
+				{:else}
+					<a
+						class="market-ah-action ui-action ui-action-primary"
+						href="{base}/settings/connections"
+						aria-label={m.shopping_connect_settings_link()}
+					>
+						<Icon name="cart" />
+						{m.shopping_connect_ah_short()}
+					</a>
+				{/if}
+			</div>
+
 			<ShoppingLists
+				bind:this={shoppingLists}
 				{pending}
 				{done}
 				sources={data.sources}
@@ -302,39 +386,15 @@
 			</ShoppingLists>
 		</main>
 	</div>
-
-	<div class="shopping-market-dock" aria-label={m.shopping_heading()}>
-		<button type="button" class="market-add-action ui-action ui-action-secondary" aria-haspopup="dialog" aria-expanded={addItemOpen} onclick={() => addItemForm?.openAddModal()}>
-			<Icon name="plus" />
-			{m.shopping_additem_submit_aria()}
-		</button>
-		{#if data.ah.connected}
-			<button
-				type="button"
-				class="market-ah-action ui-action ui-action-primary"
-				disabled={visibleToBuyCount === 0 || plannedServingPending}
-				aria-busy={plannedServingPending}
-				onclick={() => ahSheet?.openAhModal()}
-				aria-label={m.shopping_review_ah_order()}
-			>
-				<Icon name="cart" />
-				{m.shopping_review_ah_short()}
-				{#if visibleToBuyCount > 0}<span>{visibleToBuyCount}</span>{/if}
-			</button>
-		{:else}
-			<a
-				class="market-ah-action ui-action ui-action-primary"
-				href="{base}/settings/connections"
-				aria-label={m.shopping_connect_settings_link()}
-			>
-				<Icon name="cart" />
-				{m.shopping_connect_ah_short()}
-			</a>
-		{/if}
-	</div>
 </div>
 
-<AddItemForm bind:this={addItemForm} bind:open={addItemOpen} weekStart={data.weekStart} onAdded={addItem} />
+<AddItemForm
+	bind:this={addItemForm}
+	bind:open={addItemOpen}
+	weekStart={data.weekStart}
+	onAdded={addItem}
+	onManageWeekly={() => void shoppingLists?.openWeeklyEditor()}
+/>
 <AhSheet
 	bind:this={ahSheet}
 	weekStart={data.weekStart}
@@ -343,6 +403,31 @@
 	bind:bonusByName
 	onMarkedBought={markBought}
 />
+<BottomSheet
+	bind:open={preparationOpen}
+	title={m.shopping_preparation_title()}
+	desktopSide
+	dismissible={!plannedServingPending}
+	restoreFocus={!weeklyHandoffAfterPreparation}
+	onclose={handlePreparationClose}
+>
+	<ShoppingMealPortions
+		meals={data.plannedMeals}
+		editable={data.isEditable}
+		weekStart={data.weekStart}
+		onpendingchange={(value) => (plannedServingPending = value)}
+		onservingssettled={handleServingsSettled}
+	/>
+	<button
+		type="button"
+		class="shopping-manage-weekly ui-action ui-action-secondary"
+		disabled={plannedServingPending}
+		onclick={handoffPreparationToWeeklyItems}
+	>
+		<Icon name="clipboard" />
+		{m.shopping_manage_weekly()}
+	</button>
+</BottomSheet>
 <BottomSheet
 	bind:open={historyOpen}
 	title={m.shopping_sent_to_ah_heading()}
@@ -357,11 +442,6 @@
 </BottomSheet>
 
 <style>
-	:global(.app-shell:has(.shopping-market)) {
-		--ui-fixed-bar-height: 5rem;
-		--ui-overlay-bottom: calc(var(--ui-nav-offset) + 5rem + var(--ui-overlay-gap));
-	}
-
 	.shopping-market {
 		--market-olive: var(--kitchen-olive);
 		--market-olive-ink: var(--kitchen-olive);
@@ -377,7 +457,7 @@
 	.shopping-market-layout {
 		width: min(calc(100% - (2 * var(--kitchen-frame-width))), var(--kitchen-focus-width));
 		margin-inline: auto;
-		padding-block: 0.65rem max(7rem, var(--ui-overlay-bottom));
+		padding-block: 0.65rem 1rem;
 	}
 
 	.shopping-history-tools {
@@ -397,23 +477,81 @@
 		margin-bottom: 0;
 	}
 
+	.shopping-readiness {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.6rem;
+		min-height: 3.5rem;
+		margin-bottom: 0.6rem;
+		border: 1px solid color-mix(in oklab, var(--color-success) 30%, var(--kitchen-line));
+		border-radius: var(--kitchen-surface-radius);
+		padding: 0.4rem 0.45rem 0.4rem 0.65rem;
+		background: color-mix(in oklab, var(--color-success) 7%, var(--kitchen-card));
+	}
+
+	.shopping-readiness-icon {
+		display: grid;
+		width: 1.75rem;
+		height: 1.75rem;
+		place-items: center;
+		border-radius: 999px;
+		background: color-mix(in oklab, var(--color-success) 18%, var(--kitchen-card));
+		color: var(--color-success);
+	}
+
+	.shopping-readiness-icon :global(svg) {
+		width: 0.9rem;
+		height: 0.9rem;
+	}
+
+	.shopping-readiness.updating {
+		border-color: color-mix(in oklab, var(--color-warning) 35%, var(--kitchen-line));
+		background: color-mix(in oklab, var(--color-warning) 8%, var(--kitchen-card));
+	}
+
+	.shopping-readiness.updating .shopping-readiness-icon {
+		background: color-mix(in oklab, var(--color-warning) 18%, var(--kitchen-card));
+		color: var(--color-warning);
+	}
+
+	.shopping-readiness-copy {
+		display: grid;
+		min-width: 0;
+		gap: 0.08rem;
+	}
+
+	.shopping-readiness-copy h2 {
+		margin: 0;
+		font-size: 0.75rem;
+		font-weight: 750;
+	}
+
+	.shopping-readiness-copy span {
+		color: var(--kitchen-muted);
+		font-size: 0.63rem;
+		line-height: 1.35;
+	}
+
+	.shopping-readiness > :global(.ui-action) {
+		min-height: 2.75rem;
+		padding-inline: 0.6rem;
+		font-size: 0.66rem;
+	}
+
 	.shopping-market-dock {
-		position: fixed;
-		right: 0.75rem;
-		bottom: calc(var(--ui-nav-offset) + 0.5rem);
-		left: 0.75rem;
-		z-index: 60;
+		position: relative;
+		z-index: 20;
 		display: grid;
 		grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
 		gap: 0.5rem;
-		max-width: 30rem;
-		margin: 0 auto;
+		max-width: 24rem;
+		margin: 0 0 0.65rem auto;
 		border: 1px solid color-mix(in oklab, var(--market-olive) 18%, var(--color-base-300));
 		border-radius: 0.9rem;
 		padding: 0.45rem;
 		background: color-mix(in oklab, var(--market-card) 95%, transparent);
-		box-shadow: 0 12px 32px rgb(48 60 49 / 22%);
-		backdrop-filter: blur(12px);
+		box-shadow: 0 8px 20px rgb(48 60 49 / 12%);
 	}
 
 	.shopping-market-dock :global(.ui-action) {
@@ -422,16 +560,23 @@
 	}
 
 	@media (max-width: 47.99rem) {
+		:global(.app-shell:has(.shopping-market) .app-main) {
+			margin-bottom: var(--shopping-shelf-height);
+		}
+
 		.shopping-market-dock {
+			position: fixed;
+			top: auto;
 			right: var(--kitchen-frame-width);
 			bottom: var(--ui-nav-offset);
 			left: var(--kitchen-frame-width);
+			height: var(--shopping-shelf-height);
 			max-width: none;
+			margin: 0;
 			border-bottom: 0;
 			border-radius: var(--kitchen-surface-radius) var(--kitchen-surface-radius) 0 0;
 			background: var(--kitchen-card);
 			box-shadow: 0 -8px 22px rgb(35 58 46 / 13%);
-			backdrop-filter: none;
 		}
 	}
 
@@ -453,16 +598,12 @@
 
 	@media (min-width: 48rem) {
 		.shopping-market-layout {
-			padding-block: 0.85rem max(7rem, var(--ui-overlay-bottom));
+			padding-block: 0.85rem 1.25rem;
 		}
 	}
 
-	@media (min-width: 64rem) {
-		.shopping-market-dock {
-			left: 50%;
-			right: auto;
-			width: 30rem;
-			transform: translateX(-50%);
-		}
+	.shopping-manage-weekly {
+		width: 100%;
+		margin-top: 0.75rem;
 	}
 </style>

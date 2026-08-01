@@ -3,7 +3,6 @@
 	import { base } from '$app/paths';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
-	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
@@ -16,8 +15,6 @@
 		isDefaultWeek: boolean;
 		deliveryDate?: string | null;
 		ahConnected: boolean;
-		addItemOpen: boolean;
-		onAddItem: () => void;
 	};
 
 	let {
@@ -26,9 +23,7 @@
 		nextWeek,
 		isDefaultWeek,
 		deliveryDate = null,
-		ahConnected,
-		addItemOpen,
-		onAddItem
+		ahConnected
 	}: Props = $props();
 
 	function locale(): string {
@@ -61,23 +56,11 @@
 		<StatusBadge tone={ahConnected ? 'success' : 'warning'} onDark>
 			{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
 		</StatusBadge>
-		<button
-			type="button"
-			class="ui-action ui-action-primary"
-			aria-label={m.shopping_additem_submit_aria()}
-			aria-haspopup="dialog"
-			aria-expanded={addItemOpen}
-			onclick={onAddItem}
-		>
-			<Icon name="plus" class="h-4 w-4" />
-			<span class="shopping-header-action-label">{m.shopping_additem_submit_aria()}</span>
-		</button>
 	{/snippet}
 </KitchenPageHeader>
 
 <div class="ui-page-utility">
 	<div class="market-run-state ui-page-utility-inner">
-	<div class="market-run-state">
 		<KitchenWeekNavigator
 			previousHref={`${base}/shopping?week=${prevWeek}`}
 			nextHref={`${base}/shopping?week=${nextWeek}`}
@@ -99,7 +82,6 @@
 				</div>
 			</div>
 		</KitchenWeekNavigator>
-	</div>
 	</div>
 </div>
 
@@ -149,33 +131,6 @@
 	.market-week-copy b {
 		font-weight: 400;
 		opacity: 0.5;
-	}
-
-	@media (max-width: 23rem) {
-		:global(
-			.kitchen-page-header:has(.shopping-header-action-label) .kitchen-page-header-identity
-		) {
-			flex-wrap: nowrap;
-			padding-block: 0;
-		}
-
-		.shopping-header-action-label {
-			position: absolute;
-			width: 1px;
-			height: 1px;
-			padding: 0;
-			margin: -1px;
-			overflow: hidden;
-			clip: rect(0, 0, 0, 0);
-			clip-path: inset(50%);
-			white-space: nowrap;
-			border: 0;
-		}
-
-		:global(.kitchen-page-header-action .ui-action-primary) {
-			width: 2.75rem;
-			padding-inline: 0;
-		}
 	}
 
 </style>
