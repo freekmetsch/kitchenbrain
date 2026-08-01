@@ -139,13 +139,14 @@
 		margin-left: auto;
 	}
 
-	.kitchen-page-header-action :global(.ui-action) {
+	.kitchen-page-header-action > :global(.ui-action),
+	.kitchen-page-header-action > :global(.header-action-menu) > :global(.ui-action) {
 		max-width: min(11rem, 42vw);
 		border-color: rgb(255 255 255 / 18%);
 		box-shadow: 0 1px 0 rgb(0 0 0 / 9%);
 	}
 
-	.kitchen-page-header-action :global(.ui-action-primary:disabled) {
+	.kitchen-page-header-action > :global(.ui-action-primary:disabled) {
 		border-color: rgb(255 255 255 / 12%);
 		background: rgb(255 255 255 / 8%);
 		color: var(--kitchen-ribbon-muted);
@@ -195,9 +196,15 @@
 		grid-auto-flow: column;
 		grid-auto-columns: minmax(0, 1fr);
 		gap: 0;
+		border-radius: 0.625rem;
+		background: rgb(255 255 255 / 4%);
+		box-shadow:
+			0 1px 0 rgb(0 0 0 / 10%),
+			inset 0 1px 0 rgb(255 255 255 / 7%);
 	}
 
-	.kitchen-page-header-actions :global(.ui-action) {
+	.kitchen-page-header-actions > :global(.ui-action),
+	.kitchen-page-header-actions > :global(.ui-action-segment) > :global(.ui-action) {
 		width: 100%;
 		min-width: 0;
 		border-color: rgb(255 255 255 / 20%);
@@ -206,33 +213,41 @@
 		line-height: 1.1;
 	}
 
-	.kitchen-page-header-actions :global(.ui-action-segment) {
+	.kitchen-page-header-actions > :global(.ui-action-segment) {
 		position: relative;
 		display: flex;
 		min-width: 0;
 	}
 
-	.kitchen-page-header-actions :global(.ui-action-segment .ui-action) {
+	.kitchen-page-header-actions > :global(.ui-action-segment) > :global(.ui-action) {
 		border-radius: 0;
 	}
 
-	.kitchen-page-header-actions :global(.ui-action + .ui-action),
-	.kitchen-page-header-actions :global(* + .ui-action),
-	.kitchen-page-header-actions :global(.ui-action + .ui-action-segment) {
+	.kitchen-page-header-actions > :global(.ui-action + .ui-action),
+	.kitchen-page-header-actions > :global(.ui-action + .ui-action-segment),
+	.kitchen-page-header-actions > :global(.ui-action-segment + .ui-action) {
 		margin-left: -1px;
 	}
 
-	.kitchen-page-header-actions :global(.ui-action:first-child) {
+	.kitchen-page-header-actions > :global(.ui-action:first-child),
+	.kitchen-page-header-actions > :global(.ui-action-segment:first-child) > :global(.ui-action) {
 		border-radius: 0.625rem 0 0 0.625rem;
 	}
 
-	.kitchen-page-header-actions :global(.ui-action:last-child) {
+	.kitchen-page-header-actions > :global(.ui-action:last-child),
+	.kitchen-page-header-actions > :global(.ui-action-segment:last-child) > :global(.ui-action) {
 		border-radius: 0 0.625rem 0.625rem 0;
 	}
 
-	.kitchen-page-header-actions :global(.ui-action-primary) {
+	.kitchen-page-header-actions > :global(.ui-action-primary),
+	.kitchen-page-header-actions > :global(.ui-action-segment) > :global(.ui-action-primary) {
 		position: relative;
 		z-index: 1;
+	}
+
+	.kitchen-page-header :global(.ui-action-on-dark[aria-expanded='true']) {
+		border-color: rgb(255 255 255 / 46%);
+		background: rgb(255 255 255 / 18%);
 	}
 
 	.kitchen-page-header-payload {

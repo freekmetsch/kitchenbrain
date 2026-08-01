@@ -26,6 +26,7 @@
 	let bonusByName = $state<Record<string, boolean>>({});
 	let ahSheet = $state<{ openAhModal: () => Promise<void> }>();
 	let addItemForm = $state<{ openAddModal: () => Promise<void> }>();
+	let addItemOpen = $state(false);
 	let showCovered = $state(false);
 	let historyOpen = $state(false);
 
@@ -166,6 +167,7 @@
 		isDefaultWeek={data.isDefaultWeek}
 		deliveryDate={data.deliveryDate}
 		ahConnected={data.ah.connected}
+		{addItemOpen}
 		onAddItem={() => addItemForm?.openAddModal()}
 	/>
 
@@ -262,7 +264,7 @@
 	</div>
 
 	<div class="shopping-market-dock" aria-label={m.shopping_heading()}>
-		<button type="button" class="market-add-action ui-action ui-action-secondary" onclick={() => addItemForm?.openAddModal()}>
+		<button type="button" class="market-add-action ui-action ui-action-secondary" aria-haspopup="dialog" aria-expanded={addItemOpen} onclick={() => addItemForm?.openAddModal()}>
 			<Icon name="plus" />
 			{m.shopping_additem_submit_aria()}
 		</button>
@@ -291,7 +293,7 @@
 	</div>
 </div>
 
-<AddItemForm bind:this={addItemForm} weekStart={data.weekStart} onAdded={addItem} />
+<AddItemForm bind:this={addItemForm} bind:open={addItemOpen} weekStart={data.weekStart} onAdded={addItem} />
 <AhSheet
 	bind:this={ahSheet}
 	weekStart={data.weekStart}

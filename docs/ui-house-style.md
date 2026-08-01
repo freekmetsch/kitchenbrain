@@ -28,6 +28,7 @@ Do not add a universal component whose variants reproduce page-local drift.
 | Connected rows | One tightly related ledger | `ui-list-group`; internal dividers, 14 px outer corners, and Soft Lift separation from other boards |
 | Object cards | Recipes, Stock items, or Meals that need their own boundary | Separate bordered cards with modest 8–12 px gaps. Repeated household work prefers two-line identity/quantity then choice/action rhythm; disclose rare controls instead of making every card tall |
 | Anchored compact choice | A secondary choice needed beside repeated work | `CompactPopover`; native top-layer popover, viewport clamp/flip, focus return, and a shared segmented choice inside |
+| Green Ribbon disclosure | Filters, view choices, or overflow actions opened from the page header | `CombinedFilterMenu` uses `BottomSheet` whenever its compact trigger is present. `HeaderActionMenu` uses the same modal drawer below 768 px and a true `role="menu"` action list from 768 px upward; it stays separate from `CompactPopover` because it runs commands or navigation instead of choosing one value |
 | Focused form | A form section that needs a deliberate working boundary | `ui-form-card`; do not use it for explanatory copy or every page section |
 | Section title | A meaningful body section | `ui-section-title`; sentence-case sans-serif, with weight and spacing rather than a display face |
 | Notice | Contextual info, success, warning, or error | `KitchenNotice`; a Warm Wash tonal field with a quiet semantic border. The caller retains its icon, copy, role/live region, recovery action, and input state |
@@ -51,6 +52,10 @@ Do not add a universal component whose variants reproduce page-local drift.
   wider viewports. Do not use contextual layout as a general compact-header option.
 - The ribbon owns identity, not route payload. Put at most one primary action in it. Back is
   leading navigation, not a second action.
+- Keep direct actions direct. A Green Ribbon control that reveals choices opens a modal bottom
+  drawer in the compact layout, so the page behind it is inert and focus returns to the trigger.
+  Overflow actions use an anchored menu at 768 px and above, with arrow-key navigation and Escape
+  dismissal.
 - Meal plan is the sole three-affordance ribbon exception: clay Add meal, a delivery-labelled
   Shopping destination, and quiet overflow form one compact action group. At 320 px that group may
   occupy a second ribbon row; other standard ribbons retain the normal 64/72 px geometry.

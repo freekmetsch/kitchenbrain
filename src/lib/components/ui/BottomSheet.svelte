@@ -5,18 +5,24 @@
 
 	let {
 		open = $bindable(false),
+		id,
 		title,
 		desktopCentered = false,
 		desktopSide = false,
 		dismissible = true,
+		initialFocus,
+		restoreFocus = true,
 		children,
 		onclose
 	}: {
 		open?: boolean;
+		id?: string;
 		title?: string;
 		desktopCentered?: boolean;
 		desktopSide?: boolean;
 		dismissible?: boolean;
+		initialFocus?: string;
+		restoreFocus?: boolean;
 		children: Snippet;
 		onclose?: () => void;
 	} = $props();
@@ -32,6 +38,9 @@
 			returnFocus =
 				document.activeElement instanceof HTMLElement ? document.activeElement : null;
 			dialog.showModal();
+			if (initialFocus) {
+				queueMicrotask(() => dialog?.querySelector<HTMLElement>(initialFocus)?.focus());
+			}
 		}
 		else if (!open && dialog.open) dialog.close();
 	});
@@ -41,6 +50,7 @@
 		onclose?.();
 		const target = returnFocus;
 		returnFocus = null;
+		if (!restoreFocus) return;
 		queueMicrotask(() => {
 			if (target?.isConnected) target.focus();
 		});
@@ -58,6 +68,7 @@
 
 <dialog
 	bind:this={dialog}
+	{id}
 	aria-label={title}
 	onclose={handleClose}
 	onclick={handleClick}
@@ -74,11 +85,11 @@
 		style="padding-bottom: env(safe-area-inset-bottom)"
 	>
 		{#if title}
-			<div class="flex items-center justify-between border-b border-base-200 px-4 py-3">
-				<h2 class="text-sm font-semibold">{title}</h2>
+			<div class="bottom-sheet-heading flex items-center justify-between border-b border-base-200 px-4 py-3">
+				<h2 class="bottom-sheet-title text-sm font-semibold">{title}</h2>
 				<button
 					type="button"
-					class="ui-action ui-action-tertiary ui-action-icon"
+					class="bottom-sheet-close ui-action ui-action-tertiary ui-action-icon"
 					aria-label={m.ui_bottomsheet_close()}
 					disabled={!dismissible}
 					onclick={() => (open = false)}><Icon name="x" class="h-4 w-4" /></button
@@ -92,6 +103,17 @@
 </dialog>
 
 <style>
+	.bottom-sheet-title {
+		min-width: 0;
+		flex: 1 1 auto;
+	}
+
+	.bottom-sheet-close {
+		width: 2.75rem;
+		min-width: 2.75rem;
+		flex: 0 0 2.75rem;
+	}
+
 	/* Slide-up entrance + fade-out exit via @starting-style / allow-discrete.
 	   Older browsers skip the animation entirely (instant open/close) — the
 	   showModal() behavior above is untouched. Durations are clamped globally

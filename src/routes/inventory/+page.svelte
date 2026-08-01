@@ -206,10 +206,10 @@
 <div class="stock-radar ui-grove-page">
 	<KitchenPageHeader eyebrow={m.inventory_header_context()} title={m.inventory_heading()} variant="command">
 		{#snippet actions()}
-			<button type="button" class="ui-action ui-action-tertiary ui-action-on-dark" aria-label={m.inventory_activity_aria()} onclick={() => controller.openActivity()}>
+			<button type="button" class="ui-action ui-action-tertiary ui-action-on-dark" aria-label={m.inventory_activity_aria()} aria-haspopup="dialog" aria-expanded={controller.activityOpen} onclick={() => controller.openActivity()}>
 				<Icon name="clock" class="h-4 w-4" />{m.inventory_activity_aria()}
 			</button>
-			<button type="button" class="ui-action ui-action-primary" aria-expanded={controller.showAddForm} onclick={() => (controller.showAddForm = true)}>
+			<button type="button" class="ui-action ui-action-primary" aria-haspopup="dialog" aria-expanded={controller.showAddForm} onclick={() => (controller.showAddForm = true)}>
 				<Icon name="plus" class="h-3.5 w-3.5" />{m.inventory_add_button()}
 			</button>
 		{/snippet}
@@ -357,7 +357,7 @@
 				{:else if controller.items.length === 0}
 					<EmptyState iconName="jar" title={m.inventory_empty_title()}>
 						{#snippet action()}
-							<button type="button" class="ui-action ui-action-primary" onclick={() => (controller.showAddForm = true)}>
+							<button type="button" class="ui-action ui-action-primary" aria-haspopup="dialog" aria-expanded={controller.showAddForm} onclick={() => (controller.showAddForm = true)}>
 								{m.inventory_empty_add_first_button()}
 							</button>
 						{/snippet}

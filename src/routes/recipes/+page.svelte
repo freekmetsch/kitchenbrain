@@ -494,6 +494,8 @@
 			<button
 				type="button"
 				class="ui-action ui-action-tertiary ui-action-on-dark"
+				aria-haspopup="dialog"
+				aria-expanded={newMealOpen}
 				onclick={() => {
 					newMealOpen = true;
 					newMealTitle = '';
@@ -502,7 +504,7 @@
 					newMealError = '';
 				}}
 			>{m.recipes_new_meal_button()}</button>
-			<button type="button" class="ui-action ui-action-primary" onclick={() => (scrapeOpen = true)}>
+			<button type="button" class="ui-action ui-action-primary" aria-haspopup="dialog" aria-expanded={scrapeOpen} onclick={() => (scrapeOpen = true)}>
 				{m.recipes_import_button()}
 			</button>
 		{/snippet}
@@ -566,7 +568,7 @@
 				{#if hasActiveFilters}
 					<button class="ui-action ui-action-secondary" onclick={clearFilters}>{m.recipes_clear_filters_button()}</button>
 				{:else}
-					<button class="ui-action ui-action-primary" onclick={() => (scrapeOpen = true)}>{m.recipes_import_recipe_button()}</button>
+					<button class="ui-action ui-action-primary" aria-haspopup="dialog" aria-expanded={scrapeOpen} onclick={() => (scrapeOpen = true)}>{m.recipes_import_recipe_button()}</button>
 				{/if}
 			{/snippet}
 		</EmptyState>
