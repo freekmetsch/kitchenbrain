@@ -715,6 +715,13 @@
 		color: var(--kitchen-olive);
 	}
 
+	.recipe-command-group > button:focus-visible {
+		position: relative;
+		z-index: 2;
+		outline: 2px solid white;
+		outline-offset: -3px;
+	}
+
 	.recipe-menu-section {
 		display: grid;
 		gap: 0.4rem;
@@ -751,6 +758,11 @@
 		border-color: var(--kitchen-olive);
 		background: var(--kitchen-olive);
 		color: white;
+	}
+
+	.recipe-command-group.menu-surface > button:focus-visible {
+		outline-color: var(--kitchen-olive);
+		outline-offset: 2px;
 	}
 
 	.recipe-type-selects {
@@ -958,9 +970,13 @@
 
 		.recipe-command-desktop {
 			display: grid;
-			grid-template-columns: minmax(19rem, 1.55fr) minmax(14rem, 0.9fr) minmax(7.5rem, 0.45fr) minmax(8rem, 0.42fr);
+			grid-template-columns: minmax(16rem, 1.55fr) minmax(12rem, 0.9fr) minmax(6rem, 0.45fr) minmax(7.25rem, 0.42fr);
 			align-items: stretch;
 			gap: 0.4rem;
+		}
+
+		.recipe-command-desktop > .recipe-sort {
+			grid-column: -2 / -1;
 		}
 	}
 

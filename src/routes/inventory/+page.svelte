@@ -538,6 +538,13 @@
 		color: var(--stock-olive);
 	}
 
+	.stock-command-group > button:focus-visible {
+		position: relative;
+		z-index: 2;
+		outline: 2px solid white;
+		outline-offset: -3px;
+	}
+
 	.stock-quick-group strong {
 		font-size: 0.84rem;
 		font-variant-numeric: tabular-nums;
@@ -579,6 +586,11 @@
 		border-color: var(--stock-olive);
 		background: var(--stock-olive);
 		color: white;
+	}
+
+	.stock-command-group.menu-surface > button:focus-visible {
+		outline-color: var(--stock-olive);
+		outline-offset: 2px;
 	}
 
 	.stock-command-group.menu-surface .attention:not(.active) {

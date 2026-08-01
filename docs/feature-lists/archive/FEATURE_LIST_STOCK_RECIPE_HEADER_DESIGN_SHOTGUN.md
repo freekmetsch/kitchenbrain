@@ -1,6 +1,6 @@
 # Stock and Recipe Header Design Shotgun
 
-**Status:** design comparison ready for household choice; no production implementation selected
+**Status:** Archived — superseded by the focused Joined Command Bar exploration
 **Date:** 2026-08-01
 **Scope:** `/inventory`, `/recipes`, and `/recipes/[slug]` headers only
 

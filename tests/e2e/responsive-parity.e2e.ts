@@ -499,7 +499,7 @@ for (const viewport of VIEWPORTS) {
 			await recipeFilters.click();
 			const recipePanel = page.getByRole('dialog', { name: 'Recipe filters' });
 			await expect(recipePanel).toBeVisible();
-			await recipePanel.getByLabel('Food class').selectOption('meat');
+			await recipePanel.getByLabel('Food type').selectOption('meat');
 			await expect(page).toHaveURL(/class=meat/);
 			await expect(recipeFilters).toContainText('Meat');
 			await recipePanel.getByRole('button', { name: 'Clear filters', exact: true }).click();
@@ -507,12 +507,12 @@ for (const viewport of VIEWPORTS) {
 		} else {
 			const desktopRecipes = recipeHeader.locator('.recipe-command-desktop');
 			await expect(desktopRecipes).toBeVisible();
-			await desktopRecipes.getByLabel('Food class').selectOption('vegetarian');
+			await desktopRecipes.getByLabel('Food type').selectOption('vegetarian');
 			await expect(page).toHaveURL(/class=vegetarian/);
 			const rowTops = await recipeHeader.evaluate((header) =>
 				Array.from(
 					header.querySelectorAll<HTMLElement>(
-						'.ui-kitchen-search, .recipe-quick-group, .recipe-type-selects, .recipe-sort-select'
+						'.recipe-quick-filters, .recipe-type-selects, .recipe-sort'
 					)
 				)
 					.filter((element) => element.offsetParent !== null)

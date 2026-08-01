@@ -1,6 +1,6 @@
 # Joined Command Bar — Responsive Refinement Shotgun
 
-_Status: In flight - Phase 1 of 1 (started 2026-08-01)_
+_Status: Shipped - 2026-08-01_
 **Date:** 2026-08-01
 **Scope:** `/inventory`, `/recipes`, and `/recipes/[slug]` header controls only
 **Selected parent direction:** B. Joined Command Bar from
@@ -132,3 +132,16 @@ This remains R2 presentation work. A later implementation may change only the th
 their local filter/view controls while preserving behavior. It must not change Meal Plan, Groceries,
 schema, auth, persisted data, provider behavior, Albert Heijn behavior, shopping derivation, or
 deployment state.
+
+## Shipped implementation
+
+- Stock, Recipes, and recipe detail now use one green command-header family with joined route actions.
+- Desktop keeps each filter family on one composed line; long labels truncate without widening it.
+- Mobile exposes filter/view state through a single combined menu and has no separate active-filter strip.
+- Recipe titles wrap to two lines, while existing search, sort, URL filters, translation recovery, and
+  conditional recipe actions remain intact.
+- Meal Plan and Groceries were not changed.
+
+Verification completed with zero Svelte diagnostics, 678 unit tests, all 34 runnable authenticated
+Playwright tests at the repository gate (one provider-dependent case skipped), manual visual review at
+393 px and 1280 px, and a successful production build against an isolated migrated database.

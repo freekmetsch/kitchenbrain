@@ -53,7 +53,7 @@ describe('stable app house-style source contract', () => {
 		expect(existsSync('src/lib/components/ui/KitchenHeaderActionRail.svelte')).toBe(false);
 	});
 
-	it('keeps Green Ribbon ownership compact and content-free', () => {
+	it('keeps Green Ribbon ownership compact and explicitly command-capable', () => {
 		const header = readFileSync('src/lib/components/ui/KitchenPageHeader.svelte', 'utf8');
 		const recipeDetail = readFileSync(
 			'src/lib/components/recipe-detail/RecipeHeader.svelte',
@@ -66,12 +66,16 @@ describe('stable app house-style source contract', () => {
 		expect(header).toContain('data-layout={layout}');
 		expect(header).toContain('leading?: Snippet');
 		expect(header).toContain('action?: Snippet');
-		expect(header).not.toContain('children');
+		expect(header).toContain("variant?: 'standard' | 'command'");
+		expect(header).toContain('actions?: Snippet');
+		expect(header).toContain('children?: Snippet');
+		expect(header).toContain("data-variant={variant}");
 		expect(header).not.toContain('linear-gradient');
 		expect(header).not.toContain('radial-gradient');
 		expect(header).not.toContain('::after');
 		expect(recipeDetail).toContain('layout="contextual"');
-		expect(recipeDetail).toContain('kitchen-page-header-action-label');
+		expect(recipeDetail).toContain('variant="command"');
+		expect(recipeDetail).toContain('CombinedFilterMenu');
 		expect(recipeEdit).toContain('layout="contextual"');
 		expect(recipeEdit).toContain('kitchen-page-header-action-label');
 		expect(recipeEdit).toContain(
@@ -147,14 +151,17 @@ describe('stable app house-style source contract', () => {
 		expect(mealPlan).toContain('rotation-lane-heading');
 		expect(mealPlan).not.toContain('plan-actions');
 
-		expect(recipes).toContain('recipe-status-filters');
-		expect(recipes).toContain('recipe-filter-select');
+		expect(recipes).toContain('recipe-command-toolbar');
+		expect(recipes).toContain('recipe-quick-filters');
+		expect(recipes).toContain('recipe-type-selects');
+		expect(recipes).toContain('CombinedFilterMenu');
 		expect(recipes).toContain('recipe-card-actions');
 		expect(recipes).not.toContain('ui-scroll-rail');
 		expect(recipes).not.toContain('scrollRail');
 
-		expect(inventory).toContain('stock-console');
-		expect(inventory).toContain('stock-filter-grid');
+		expect(inventory).toContain('stock-command-toolbar');
+		expect(inventory).toContain('stock-filter-selects');
+		expect(inventory).toContain('CombinedFilterMenu');
 		expect(inventory).not.toContain('FiltersSheet');
 		expect(inventoryController).not.toContain('filtersOpen');
 		expect(existsSync('src/lib/components/inventory/FiltersSheet.svelte')).toBe(false);

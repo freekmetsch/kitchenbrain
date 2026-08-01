@@ -1,6 +1,6 @@
 # Stock and Recipe Header Controls — Focused Design Shotgun
 
-**Status:** ten-direction comparison ready for selection or combination
+**Status:** Archived — Joined Command Bar selected and shipped on 2026-08-01
 **Date:** 2026-08-01
 **Scope:** `/inventory`, `/recipes`, and `/recipes/[slug]` header controls only
 **Supersedes:** the palette-varying header directions in

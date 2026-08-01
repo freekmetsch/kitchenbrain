@@ -12,6 +12,7 @@ const PAPER_RGB = 'rgb(248, 245, 237)';
 
 async function expectRouteFrame(page: Page, route: string, width: number): Promise<void> {
 	await page.goto(route);
+	await page.waitForLoadState('networkidle');
 	await expect(page.locator('h1')).toHaveCount(1);
 	expect(
 		await page.evaluate(
@@ -49,7 +50,11 @@ async function expectGreenRibbon(
 	const ribbon = page.locator('[data-house-style="green-ribbon"]');
 	await expect(ribbon).toBeVisible();
 	const ribbonHeight = (await ribbon.boundingBox())?.height ?? 0;
-	if (allowNarrowExpansion && width <= 320) {
+	const command = (await ribbon.getAttribute('data-variant')) === 'command';
+	if (command) {
+		expect(ribbonHeight).toBeGreaterThanOrEqual(width < 768 ? 144 : 104);
+		expect(ribbonHeight).toBeLessThanOrEqual(width < 768 ? 230 : 190);
+	} else if (allowNarrowExpansion && width <= 320) {
 		expect(ribbonHeight).toBeGreaterThanOrEqual(64);
 		expect(ribbonHeight).toBeLessThanOrEqual(120);
 	} else {
@@ -59,10 +64,15 @@ async function expectGreenRibbon(
 	expect(
 		await ribbon.locator('h1').evaluate((element) => getComputedStyle(element).fontFamily)
 	).not.toMatch(/Georgia|Times/i);
-	expect(await ribbon.locator('.kitchen-page-header-action .ui-action').count()).toBeLessThanOrEqual(
-		maxActions
-	);
-	await expect(ribbon.locator('.kitchen-page-header-payload')).toHaveCount(0);
+	if (command) {
+		await expect(ribbon.locator('.kitchen-page-header-actions')).toBeVisible();
+		await expect(ribbon.locator('.kitchen-page-header-payload')).toBeVisible();
+	} else {
+		expect(await ribbon.locator('.kitchen-page-header-action .ui-action').count()).toBeLessThanOrEqual(
+			maxActions
+		);
+		await expect(ribbon.locator('.kitchen-page-header-payload')).toHaveCount(0);
+	}
 	expect(await ribbon.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
 		GROVE_RGB
 	);
@@ -102,10 +112,23 @@ test('house-style roles hold across stable routes and target viewports', async (
 		expect(await inventoryCard.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
 			'none'
 		);
-		for (const label of ['Storage', 'Food class', 'Needs review']) {
-			await expect(page.getByRole('combobox', { name: label })).toBeVisible();
+		if (viewport.width < 1024) {
+			const stockFilterTrigger = page
+				.getByTestId('inventory-command-header')
+				.locator('.stock-command-mobile')
+				.getByRole('button', { name: /^Filters/ });
+			await stockFilterTrigger.press('Enter');
+			const stockFilters = page.getByRole('dialog', { name: 'Stock filters' });
+			await expect(stockFilters).toBeVisible();
+			for (const label of ['Storage', 'Food class', 'Needs review']) {
+				await expect(stockFilters.getByRole('combobox', { name: label })).toBeVisible();
+			}
+			await stockFilters.getByRole('button', { name: 'Show results' }).click();
+		} else {
+			for (const label of ['Storage', 'Food class', 'Needs review']) {
+				await expect(page.getByRole('combobox', { name: label })).toBeVisible();
+			}
 		}
-		await expect(page.getByRole('button', { name: 'Filters', exact: true })).toHaveCount(0);
 		await expect(inventoryCard.locator('.ui-status-dot')).toHaveCount(0);
 		const stockCards = page.locator('.stock-card');
 		if ((await stockCards.count()) > 1) {
@@ -136,7 +159,7 @@ test('house-style roles hold across stable routes and target viewports', async (
 		).toBe(2);
 
 		await expectRouteFrame(page, '/shopping', viewport.width);
-		await expectGreenRibbon(page, viewport.width);
+		await expectGreenRibbon(page, viewport.width, 1, true);
 		const shoppingUtility = page.locator('.ui-page-utility');
 		expect(await shoppingUtility.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
 			GROVE_RGB
@@ -168,11 +191,25 @@ test('house-style roles hold across stable routes and target viewports', async (
 		await expectGroveSurfaceContinuity(page, '.recipe-ledger');
 		const recipeCard = page.locator('.ui-recipe-card').first();
 		await expect(recipeCard).toBeVisible();
-		await expect(page.getByRole('group', { name: 'Recipe status filters' })).toBeVisible();
-		await expect(page.getByRole('combobox', { name: 'Food type' })).toBeVisible();
-		await expect(page.getByRole('combobox', { name: 'Dish type' })).toBeVisible();
+		if (viewport.width < 1024) {
+			const recipeFilterTrigger = page
+				.getByTestId('recipes-command-header')
+				.locator('.recipe-command-mobile')
+				.getByRole('button', { name: /^Filters/ });
+			await recipeFilterTrigger.press('Enter');
+			const recipeFilters = page.getByRole('dialog', { name: 'Recipe filters' });
+			await expect(recipeFilters).toBeVisible();
+			await expect(recipeFilters.getByRole('group', { name: 'Recipe status filters' })).toBeVisible();
+			await expect(recipeFilters.getByRole('combobox', { name: 'Food type' })).toBeVisible();
+			await expect(recipeFilters.getByRole('combobox', { name: 'Dish type' })).toBeVisible();
+			await recipeFilters.getByRole('button', { name: 'Show results' }).click();
+		} else {
+			await expect(page.getByRole('group', { name: 'Recipe status filters' })).toBeVisible();
+			await expect(page.getByRole('combobox', { name: 'Food type' })).toBeVisible();
+			await expect(page.getByRole('combobox', { name: 'Dish type' })).toBeVisible();
+		}
 		expect(
-			await page.locator('.recipe-console').evaluate((element) => element.scrollWidth - element.clientWidth)
+			await page.locator('.recipe-command-toolbar').evaluate((element) => element.scrollWidth - element.clientWidth)
 		).toBe(0);
 		expect(await recipeCard.evaluate((element) => getComputedStyle(element).borderRadius)).toBe(
 			'14px'
@@ -265,13 +302,20 @@ test('contextual Recipe ribbons keep the family geometry while fitting Back and 
 		const ribbon = page.locator('[data-house-style="green-ribbon"]');
 		await expect(ribbon).toHaveAttribute('data-layout', 'contextual');
 		const leading = ribbon.locator('.kitchen-page-header-leading');
-		const action = ribbon.locator('.kitchen-page-header-action');
+		const command = (await ribbon.getAttribute('data-variant')) === 'command';
+		const action = ribbon.locator(
+			command ? '.kitchen-page-header-actions' : '.kitchen-page-header-action'
+		);
 		await expect(leading).toBeVisible();
 		await expect(action).toBeVisible();
 
 		const leadingBox = await leading.boundingBox();
 		const actionBox = await action.boundingBox();
-		expect(Math.abs((leadingBox?.y ?? 0) - (actionBox?.y ?? 0))).toBeLessThan(1);
+		if (command) {
+			expect(actionBox?.y ?? 0).toBeGreaterThan(leadingBox?.y ?? 0);
+		} else {
+			expect(Math.abs((leadingBox?.y ?? 0) - (actionBox?.y ?? 0))).toBeLessThan(1);
+		}
 		expect(actionBox?.height ?? 0).toBeGreaterThanOrEqual(44);
 		expect(
 			await page.evaluate(
@@ -346,24 +390,22 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 	await page.goto('/recipes');
 	await page.waitForLoadState('networkidle');
 
-	const firstChip = page.locator('[data-house-style="filter-chip"]').first();
-	await firstChip.focus();
-	await expect(firstChip).toBeFocused();
+	const filterTrigger = page.getByRole('button', { name: /^Filters/ });
+	await filterTrigger.focus();
+	await filterTrigger.press('Enter');
+	const firstFilter = page
+		.getByRole('dialog', { name: 'Recipe filters' })
+		.getByRole('button', { name: 'Have all' });
+	await expect(firstFilter).toBeFocused();
 	expect(
-		await firstChip
-			.locator('.ui-filter-chip-visual')
-			.evaluate((element) => getComputedStyle(element).outlineStyle)
+		await firstFilter.evaluate((element) => getComputedStyle(element).outlineStyle)
 	).toBe('solid');
-	const beforePressed = await firstChip.getAttribute('aria-pressed');
-	await firstChip.press('Space');
-	await expect(firstChip).toHaveAttribute('aria-pressed', beforePressed === 'true' ? 'false' : 'true');
+	const beforePressed = await firstFilter.getAttribute('aria-pressed');
+	await firstFilter.press('Space');
+	await expect(firstFilter).toHaveAttribute('aria-pressed', beforePressed === 'true' ? 'false' : 'true');
 	if (beforePressed !== 'true') {
 		await expect
-			.poll(() =>
-				firstChip
-					.locator('.ui-filter-chip-visual')
-					.evaluate((element) => getComputedStyle(element).backgroundColor)
-			)
+			.poll(() => firstFilter.evaluate((element) => getComputedStyle(element).backgroundColor))
 			.toBe(GROVE_RGB);
 	}
 
