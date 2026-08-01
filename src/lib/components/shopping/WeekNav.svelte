@@ -16,6 +16,7 @@
 		isDefaultWeek: boolean;
 		deliveryDate?: string | null;
 		ahConnected: boolean;
+		addItemOpen: boolean;
 		onAddItem: () => void;
 	};
 
@@ -26,6 +27,7 @@
 		isDefaultWeek,
 		deliveryDate = null,
 		ahConnected,
+		addItemOpen,
 		onAddItem
 	}: Props = $props();
 
@@ -63,6 +65,8 @@
 			type="button"
 			class="ui-action ui-action-primary"
 			aria-label={m.shopping_additem_submit_aria()}
+			aria-haspopup="dialog"
+			aria-expanded={addItemOpen}
 			onclick={onAddItem}
 		>
 			<Icon name="plus" class="h-4 w-4" />

@@ -2,13 +2,13 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import CombinedFilterMenu from '$lib/components/ui/CombinedFilterMenu.svelte';
+	import HeaderActionMenu, {
+		type HeaderActionMenuItem
+	} from '$lib/components/ui/HeaderActionMenu.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
-	import { MOTION_MICRO_MS } from '$lib/motion';
 	import { m } from '$lib/paraglide/messages';
-	import { tick } from 'svelte';
-	import { fly } from 'svelte/transition';
 	import type { Recipe } from './types';
 
 	let {
@@ -22,6 +22,7 @@
 		onViewChange,
 		onLanguageChange,
 		onAddToPlan,
+		addToPlanOpen,
 		onEditRaw,
 		hasCookProgress,
 		onResetCookProgress,
@@ -38,6 +39,7 @@
 		onViewChange: (view: 'cook' | 'original') => void;
 		onLanguageChange: (language: 'en' | 'nl') => void;
 		onAddToPlan: () => void;
+		addToPlanOpen: boolean;
 		onEditRaw: () => void;
 		hasCookProgress: boolean;
 		onResetCookProgress: () => void;
@@ -45,68 +47,33 @@
 		onRetryTranslation: (force: boolean) => void;
 	} = $props();
 
-	let menuOpen = $state(false);
 	let viewMenuOpen = $state(false);
-	let menuButton: HTMLButtonElement | null = $state(null);
-	let menuPanel: HTMLElement | null = $state(null);
-	let editButton: HTMLButtonElement | null = $state(null);
+	let editButton = $state<HTMLButtonElement>();
 	let hasOverflow = $derived(hasCookProgress || !!recipe.imageUrl);
 	let viewSummary = $derived(
 		`${view === 'cook' ? m.benchsheet_view_cooking() : m.benchsheet_view_original()} · ${viewLang.toUpperCase()}`
 	);
-
-	function menuAction(fn: () => void) {
-		return () => {
-			menuOpen = false;
-			editButton?.focus();
-			fn();
-		};
-	}
-
-	async function toggleMenu() {
-		menuOpen = !menuOpen;
-		if (!menuOpen) return;
-		await tick();
-		menuPanel?.querySelector<HTMLElement>('[data-recipe-menu-item]')?.focus();
-	}
-
-	function handleMenuKeydown(event: KeyboardEvent) {
-		const items = Array.from(menuPanel?.querySelectorAll<HTMLElement>('[data-recipe-menu-item]') ?? []);
-		const index = items.indexOf(document.activeElement as HTMLElement);
-		if (event.key === 'Escape') {
-			event.preventDefault();
-			menuOpen = false;
-			menuButton?.focus();
-		} else if (event.key === 'ArrowDown') {
-			event.preventDefault();
-			items[(index + 1 + items.length) % items.length]?.focus();
-		} else if (event.key === 'ArrowUp') {
-			event.preventDefault();
-			items[(index - 1 + items.length) % items.length]?.focus();
-		} else if (event.key === 'Home') {
-			event.preventDefault();
-			items[0]?.focus();
-		} else if (event.key === 'End') {
-			event.preventDefault();
-			items[items.length - 1]?.focus();
+	let overflowItems = $derived.by(() => {
+		const items: HeaderActionMenuItem[] = [];
+		if (hasCookProgress) {
+			items.push({
+				id: 'reset-cook-progress',
+				label: m.recipes_header_reset_cook_progress(),
+				onselect: onResetCookProgress
+			});
 		}
-	}
-
-	function handleMenuButtonKeydown(event: KeyboardEvent) {
-		if (event.key !== 'ArrowDown') return;
-		event.preventDefault();
-		if (!menuOpen) void toggleMenu();
-		else menuPanel?.querySelector<HTMLElement>('[data-recipe-menu-item]')?.focus();
-	}
+		if (recipe.imageUrl) {
+			items.push({
+				id: 'remove-photo',
+				label: m.recipes_header_remove_photo(),
+				tone: 'danger',
+				separated: hasCookProgress,
+				onselect: onRemovePhoto
+			});
+		}
+		return items;
+	});
 </script>
-
-<svelte:window
-	onclick={(event) => {
-		if (!menuOpen) return;
-		const target = event.target as HTMLElement;
-		if (!target.closest('[data-recipe-menu]')) menuOpen = false;
-	}}
-/>
 
 {#snippet viewControls(menuSurface = false)}
 	<div class="recipe-view-controls" class:menu-surface={menuSurface}>
@@ -151,39 +118,17 @@
 			{m.recipes_edit_heading()}
 		</button>
 		{#if hasOverflow}
-			<div class="ui-action-segment" data-recipe-menu>
-				<button
-					bind:this={menuButton}
-					type="button"
-					class="ui-action ui-action-tertiary ui-action-on-dark"
-					aria-haspopup="menu"
-					aria-expanded={menuOpen}
-					aria-label={m.recipes_header_more_actions_aria()}
-					onkeydown={handleMenuButtonKeydown}
-					onclick={(event) => {
-						event.stopPropagation();
-						void toggleMenu();
-					}}
-				>{m.recipes_header_more_actions_button()}</button>
-				{#if menuOpen}
-					<ul
-						bind:this={menuPanel}
-						role="menu"
-						class="recipe-more-menu"
-						transition:fly={{ y: -4, duration: MOTION_MICRO_MS }}
-						onkeydown={handleMenuKeydown}
-					>
-						{#if hasCookProgress}
-							<li><button type="button" role="menuitem" data-recipe-menu-item onclick={menuAction(onResetCookProgress)}>{m.recipes_header_reset_cook_progress()}</button></li>
-						{/if}
-						{#if recipe.imageUrl}
-							<li class:separated={hasCookProgress}><button type="button" role="menuitem" data-recipe-menu-item class="danger" onclick={menuAction(onRemovePhoto)}>{m.recipes_header_remove_photo()}</button></li>
-						{/if}
-					</ul>
-				{/if}
-			</div>
+			<HeaderActionMenu
+				id="recipe-header-more"
+				triggerLabel={m.recipes_header_more_actions_aria()}
+				sheetTitle={m.recipes_header_more_actions_aria()}
+				triggerText={m.recipes_header_more_actions_button()}
+				wrapperClass="ui-action-segment"
+				focusAfterSelect={() => editButton?.focus()}
+				items={overflowItems}
+			/>
 		{/if}
-		<button type="button" class="ui-action ui-action-primary" onclick={onAddToPlan}>
+		<button type="button" class="ui-action ui-action-primary" aria-haspopup="dialog" aria-expanded={addToPlanOpen} onclick={onAddToPlan}>
 			<Icon name="plus" class="h-3.5 w-3.5" /> {m.recipes_header_plan_button()}
 		</button>
 	{/snippet}
@@ -198,6 +143,7 @@
 				summary={viewSummary}
 				panelLabel={m.recipes_header_view_panel()}
 				doneLabel={m.recipes_header_view_done()}
+				closeAt="48rem"
 			>
 				{@render viewControls(true)}
 			</CombinedFilterMenu>
@@ -324,43 +270,6 @@
 		border-color: var(--kitchen-olive);
 		background: var(--kitchen-olive);
 		color: white;
-	}
-
-	.recipe-more-menu {
-		position: absolute;
-		z-index: 50;
-		top: calc(100% + 0.35rem);
-		right: 0;
-		width: 14rem;
-		border: 1px solid var(--kitchen-line);
-		border-radius: 0.75rem;
-		padding-block: 0.25rem;
-		background: var(--kitchen-card);
-		color: var(--color-base-content);
-		box-shadow: 0 16px 36px rgb(20 28 23 / 26%);
-	}
-
-	.recipe-more-menu li.separated {
-		margin-top: 0.25rem;
-		border-top: 1px solid var(--kitchen-line);
-		padding-top: 0.25rem;
-	}
-
-	.recipe-more-menu button {
-		width: 100%;
-		min-height: 2.75rem;
-		padding: 0.5rem 0.75rem;
-		text-align: left;
-		font-size: 0.75rem;
-	}
-
-	.recipe-more-menu button:hover,
-	.recipe-more-menu button:focus-visible {
-		background: var(--kitchen-paper);
-	}
-
-	.recipe-more-menu button.danger {
-		color: var(--color-error);
 	}
 
 	.recipe-translation-status {

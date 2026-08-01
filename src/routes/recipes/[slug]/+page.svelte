@@ -296,6 +296,7 @@
 	onAddToPlan={() => {
 		addToPlanOpen = true;
 	}}
+	{addToPlanOpen}
 	onEditRaw={openEditRaw}
 	hasCookProgress={benchSheetController.hasProgress}
 	onResetCookProgress={resetCookProgress}

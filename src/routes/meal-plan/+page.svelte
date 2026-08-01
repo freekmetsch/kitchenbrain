@@ -10,6 +10,9 @@
 	import CompactPopover from '$lib/components/ui/CompactPopover.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import FilterChip from '$lib/components/ui/FilterChip.svelte';
+	import HeaderActionMenu, {
+		type HeaderActionMenuItem
+	} from '$lib/components/ui/HeaderActionMenu.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
@@ -63,6 +66,27 @@
 		});
 	}
 
+	function planHeaderMenuItems(weekStartDate: string): HeaderActionMenuItem[] {
+		const items: HeaderActionMenuItem[] = [];
+		if (data.hasPastWeeks || data.showPastWeeks) {
+			items.push({
+				id: 'past-weeks',
+				label: data.showPastWeeks
+					? m.mealplan_hide_past_weeks()
+					: m.mealplan_show_past_weeks(),
+				href: mealPlanWeekHref(base, weekStartDate, !data.showPastWeeks),
+				icon: 'clock'
+			});
+		}
+		items.push({
+			id: 'settings',
+			label: m.mealplan_settings_aria(),
+			href: `${base}/settings/meal-plan`,
+			icon: 'settings'
+		});
+		return items;
+	}
+
 </script>
 
 <svelte:head>
@@ -79,6 +103,8 @@
 					<button
 						type="button"
 						class="ui-action ui-action-primary"
+						aria-haspopup="dialog"
+						aria-expanded={controller.drawerOpen}
 						onclick={() => controller.openAddDrawer(headerWeek.weekStartDate)}
 					>
 						<Icon name="plus" class="h-4 w-4" />
@@ -103,40 +129,14 @@
 							<span>{m.mealplan_shopping_link()}</span>
 						{/if}
 					</a>
-					<details class="dropdown dropdown-end">
-						<summary
-							class="plan-more ui-action ui-action-tertiary ui-action-on-dark ui-action-icon"
-							aria-label={m.mealplan_more_options_aria()}
-						>
-							<span aria-hidden="true">⋯</span>
-						</summary>
-						<ul
-							class="menu dropdown-content right-0 z-30 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 text-base-content shadow-lg"
-						>
-							{#if data.hasPastWeeks || data.showPastWeeks}
-								<li>
-									<a
-										href={mealPlanWeekHref(
-											base,
-											headerWeek.weekStartDate,
-											!data.showPastWeeks
-										)}
-									>
-										<Icon name="clock" class="h-4 w-4" />
-										{data.showPastWeeks
-											? m.mealplan_hide_past_weeks()
-											: m.mealplan_show_past_weeks()}
-									</a>
-								</li>
-							{/if}
-							<li>
-								<a href="{base}/settings/meal-plan">
-									<Icon name="settings" class="h-4 w-4" />
-									{m.mealplan_settings_aria()}
-								</a>
-							</li>
-						</ul>
-					</details>
+					<HeaderActionMenu
+						id="meal-plan-header-more"
+						triggerLabel={m.mealplan_more_options_aria()}
+						sheetTitle={m.mealplan_more_options_aria()}
+						triggerClass="plan-more ui-action ui-action-tertiary ui-action-on-dark ui-action-icon"
+						iconOnly
+						items={planHeaderMenuItems(headerWeek.weekStartDate)}
+					/>
 				</div>
 			{/if}
 		{/snippet}
@@ -396,22 +396,11 @@
 		background: var(--kitchen-grove);
 	}
 
-	.plan-more {
-		list-style: none;
+	.plan-header-actions :global(.plan-more) {
 		padding-bottom: 0.2rem;
 		font-size: 1.45rem;
 		line-height: 1;
 		letter-spacing: 0;
-	}
-
-	.plan-more::marker,
-	.plan-more::-webkit-details-marker {
-		display: none;
-		content: '';
-	}
-
-	.plan-more + .menu a {
-		min-height: 2.75rem;
 	}
 
 	.plan-header-actions {

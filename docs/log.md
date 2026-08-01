@@ -1411,3 +1411,24 @@ provider turn, household mutation, AH lookup, AH push, authenticated body, cooki
 household content was retained or performed.
 
 Touched: docs/deploys/2026-08.md, docs/log.md
+
+## 2026-08-01 17:46 | implementation | Green Ribbon interaction polish
+
+Finished the shared Green Ribbon control family without adding a second drawer dependency. Stock,
+Recipes, and recipe-detail compact disclosures now use the existing modal bottom drawer. Meal Plan
+and Recipe overflow actions share one responsive component: a drawer below 768 px and a keyboard
+menu above it. Direct dialog buttons now report their open state, joined header actions have a quiet
+outer boundary, and filter drawers close when their compact trigger disappears at a breakpoint.
+
+Independent Opus review found stacking, menu-semantics, focus-return, style-leakage, breakpoint, and
+Recipe action-test gaps; all accepted findings were fixed. The exact staged patch passed 114 unit
+files / 680 tests, zero Svelte diagnostics, all 35 authenticated primary browser stories plus the
+expected connected-AH skip, and the production build. The successful gate used an in-memory SQLite
+database in a clean temporary worktree because the ignored local `dev.db` has the already documented
+timer migration mismatch and concurrent Portion and Removal work was active in the shared checkout.
+No dependency, schema, auth, provider, AH, household data, or configuration changed.
+
+Touched: docs/{ui-house-style.md,log.md},
+docs/feature-lists/archive/FEATURE_LIST_GREEN_HEADER_INTERACTION_POLISH.md,
+src/lib/components/{recipe-detail,shopping,ui}/, src/lib/ui_house_style_source.test.ts,
+src/routes/{inventory,meal-plan,recipes,shopping}/, tests/e2e/house-style.e2e.ts

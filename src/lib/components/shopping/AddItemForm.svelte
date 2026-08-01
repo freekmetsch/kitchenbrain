@@ -14,15 +14,15 @@
 	type Props = {
 		weekStart: string;
 		onAdded: (item: ShoppingListItem) => void | Promise<void>;
+		open?: boolean;
 	};
 
-	let { weekStart, onAdded }: Props = $props();
+	let { weekStart, onAdded, open = $bindable(false) }: Props = $props();
 	let addName = $state('');
 	let addAmount = $state('');
 	let addUnit = $state('');
 	let addSubmitting = $state(false);
 	let addError = $state('');
-	let open = $state(false);
 	let nameInput = $state<HTMLInputElement | null>(null);
 
 	export async function openAddModal() {

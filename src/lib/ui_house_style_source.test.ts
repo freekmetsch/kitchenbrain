@@ -55,6 +55,15 @@ describe('stable app house-style source contract', () => {
 
 	it('keeps Green Ribbon ownership compact and explicitly command-capable', () => {
 		const header = readFileSync('src/lib/components/ui/KitchenPageHeader.svelte', 'utf8');
+		const combinedFilter = readFileSync(
+			'src/lib/components/ui/CombinedFilterMenu.svelte',
+			'utf8'
+		);
+		const headerMenu = readFileSync(
+			'src/lib/components/ui/HeaderActionMenu.svelte',
+			'utf8'
+		);
+		const mealPlan = readFileSync('src/routes/meal-plan/+page.svelte', 'utf8');
 		const recipeDetail = readFileSync(
 			'src/lib/components/recipe-detail/RecipeHeader.svelte',
 			'utf8'
@@ -73,9 +82,21 @@ describe('stable app house-style source contract', () => {
 		expect(header).not.toContain('linear-gradient');
 		expect(header).not.toContain('radial-gradient');
 		expect(header).not.toContain('::after');
+		expect(combinedFilter).toContain('<BottomSheet');
+		expect(combinedFilter).toContain("closeAt = '64rem'");
+		expect(combinedFilter).toContain('if (query.matches) open = false');
+		expect(combinedFilter).not.toContain('combined-filter-panel');
+		expect(headerMenu).toContain("matchMedia('(max-width: 47.99rem)')");
+		expect(headerMenu).toContain("aria-haspopup={compact ? 'dialog' : 'menu'}");
+		expect(headerMenu).toContain("role={desktop ? 'none' : undefined}");
+		expect(headerMenu).toContain("tabindex={desktop ? -1 : undefined}");
+		expect(headerMenu).toContain("event.key === 'Tab'");
+		expect(mealPlan).toContain('<HeaderActionMenu');
+		expect(mealPlan).not.toContain('<details class="dropdown dropdown-end">');
 		expect(recipeDetail).toContain('layout="contextual"');
 		expect(recipeDetail).toContain('variant="command"');
 		expect(recipeDetail).toContain('<CombinedFilterMenu');
+		expect(recipeDetail).toContain('<HeaderActionMenu');
 		expect(recipeEdit).toContain('layout="contextual"');
 		expect(recipeEdit).toContain('kitchen-page-header-action-label');
 		expect(recipeEdit).toContain(

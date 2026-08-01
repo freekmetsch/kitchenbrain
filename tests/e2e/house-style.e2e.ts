@@ -64,12 +64,16 @@ async function expectGreenRibbon(
 		await ribbon.locator('h1').evaluate((element) => getComputedStyle(element).fontFamily)
 	).not.toMatch(/Georgia|Times/i);
 	if (command) {
-		await expect(ribbon.locator('.kitchen-page-header-actions')).toBeVisible();
+		const actions = ribbon.locator('.kitchen-page-header-actions');
+		await expect(actions).toBeVisible();
+		expect(await actions.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
+			'none'
+		);
 		await expect(ribbon.locator('.kitchen-page-header-payload')).toBeVisible();
 	} else {
-		expect(await ribbon.locator('.kitchen-page-header-action .ui-action').count()).toBeLessThanOrEqual(
-			maxActions
-		);
+		expect(
+			await ribbon.locator('.kitchen-page-header-action .ui-action:visible').count()
+		).toBeLessThanOrEqual(maxActions);
 		await expect(ribbon.locator('.kitchen-page-header-payload')).toHaveCount(0);
 	}
 	expect(await ribbon.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
@@ -100,6 +104,14 @@ test('house-style roles hold across stable routes and target viewports', async (
 		await expectRouteFrame(page, '/inventory', viewport.width);
 		await expectGreenRibbon(page, viewport.width);
 		await expectGroveSurfaceContinuity(page, '.stock-ledger');
+		await expect(page.getByRole('button', { name: 'Recent activity' })).toHaveAttribute(
+			'aria-haspopup',
+			'dialog'
+		);
+		await expect(page.getByRole('button', { name: 'Add', exact: true })).toHaveAttribute(
+			'aria-haspopup',
+			'dialog'
+		);
 		const inventoryCard = page.locator('.stock-card').first();
 		await expect(inventoryCard).toBeVisible();
 		expect(await inventoryCard.evaluate((element) => getComputedStyle(element).borderLeftWidth)).toBe(
@@ -145,6 +157,10 @@ test('house-style roles hold across stable routes and target viewports', async (
 		await expectGreenRibbon(page, viewport.width, 3, true);
 		await expectGroveSurfaceContinuity(page, '.plan-ledger');
 		await expect(page.getByRole('button', { name: 'Add meal', exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Add meal', exact: true })).toHaveAttribute(
+			'aria-haspopup',
+			'dialog'
+		);
 		await expect(page.getByRole('link', { name: /Delivery|Shopping/ })).toBeVisible();
 		await expect(page.locator('.plan-more[aria-label="More meal plan options"]')).toBeVisible();
 		const mealCards = page.locator('.plan-meal-list > li');
@@ -173,6 +189,11 @@ test('house-style roles hold across stable routes and target viewports', async (
 		await expect(
 			page.locator('.kitchen-page-header-action [data-house-style="status-badge"]')
 		).toHaveCount(1);
+		await expect(
+			page
+				.locator('.kitchen-page-header-action')
+				.getByRole('button', { name: 'Add item', exact: true })
+		).toHaveAttribute('aria-haspopup', 'dialog');
 		await expect(page.locator('.ui-page-utility [data-house-style="status-badge"]')).toHaveCount(0);
 		const shoppingFilters = page.getByRole('radiogroup', { name: 'Filter shopping list' });
 		await expect(shoppingFilters).toBeVisible();
@@ -189,6 +210,14 @@ test('house-style roles hold across stable routes and target viewports', async (
 		await expectRouteFrame(page, '/recipes', viewport.width);
 		await expectGreenRibbon(page, viewport.width);
 		await expectGroveSurfaceContinuity(page, '.recipe-ledger');
+		await expect(page.getByRole('button', { name: '+ Meal', exact: true })).toHaveAttribute(
+			'aria-haspopup',
+			'dialog'
+		);
+		await expect(page.getByRole('button', { name: 'Import', exact: true })).toHaveAttribute(
+			'aria-haspopup',
+			'dialog'
+		);
 		const recipeCard = page.locator('.ui-recipe-card').first();
 		await expect(recipeCard).toBeVisible();
 		if (viewport.width < 1024) {
@@ -314,6 +343,10 @@ test('contextual Recipe ribbons keep the family geometry while fitting Back and 
 		const actionBox = await action.boundingBox();
 		if (command) {
 			expect(actionBox?.y ?? 0).toBeGreaterThan(leadingBox?.y ?? 0);
+			await expect(page.getByRole('button', { name: 'Plan', exact: true })).toHaveAttribute(
+				'aria-haspopup',
+				'dialog'
+			);
 		} else {
 			expect(Math.abs((leadingBox?.y ?? 0) - (actionBox?.y ?? 0))).toBeLessThan(1);
 		}
@@ -395,6 +428,8 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 	await expect(filterTrigger).toHaveAttribute('data-ready', 'true');
 	await filterTrigger.focus();
 	await filterTrigger.press('Enter');
+	await expect(page.locator('dialog[open]')).toHaveJSProperty('open', true);
+	expect(await page.locator('dialog[open]').evaluate((dialog) => dialog.matches(':modal'))).toBe(true);
 	const firstFilter = page
 		.getByRole('dialog', { name: 'Recipe filters' })
 		.getByRole('button', { name: 'Have all' });
@@ -443,6 +478,100 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 	await expect(darkField).toBeVisible();
 	await darkField.focus();
 	expect(await darkField.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe('none');
+});
+
+test('Green Ribbon menus become drawers on phone and keyboard popovers on desktop', async ({
+	page
+}, testInfo) => {
+	test.setTimeout(90_000);
+
+	for (const viewport of [
+		{ width: 393, height: 900, compact: true },
+		{ width: 1280, height: 900, compact: false }
+	]) {
+		await page.setViewportSize(viewport);
+		await page.goto('/meal-plan');
+		const mealPlanMore = page.getByRole('button', {
+			name: 'More meal plan options',
+			exact: true
+		});
+		await expect(mealPlanMore).toHaveAttribute('data-ready', 'true');
+		await mealPlanMore.click();
+		if (viewport.compact) {
+			const sheet = page.getByRole('dialog', { name: 'More meal plan options' });
+			await expect(sheet).toBeVisible();
+			expect(await sheet.evaluate((dialog) => dialog.matches(':modal'))).toBe(true);
+			await expect(sheet.locator('[data-header-menu-item="sheet"]').first()).toBeFocused();
+		} else {
+			const menu = page.getByRole('menu');
+			await expect(menu).toBeVisible();
+			await expect(menu.getByRole('menuitem').first()).toBeFocused();
+			await page.keyboard.press('Tab');
+			await expect(mealPlanMore).toHaveAttribute('aria-expanded', 'false');
+			await mealPlanMore.press('ArrowDown');
+			await expect(menu).toBeVisible();
+			await mealPlanMore.focus();
+		}
+		await page.keyboard.press('Escape');
+		await expect(mealPlanMore).toHaveAttribute('aria-expanded', 'false');
+		await expect(mealPlanMore).toBeFocused();
+	}
+
+	const fixture = kitchenFixtureFor(testInfo);
+	const cookProgressKey = `cookmode-progress:${fixture.recipeSlug}:direct`;
+	const seedCookProgress = async () => {
+		await page.evaluate((key) => {
+			localStorage.setItem(
+				key,
+				JSON.stringify({
+					v: 5,
+					sig: 'e2e-header-menu',
+					frozenViewLang: 'en',
+					currentStepKey: null,
+					servings: 4,
+					frozenRecipe: {
+						signature: 'e2e-header-menu',
+						storedCookMode: null,
+						directions: ['Simmer until ready.', 'Serve the stew.'],
+						directionIds: ['e2e-step-1', 'e2e-step-2'],
+						ingredients: [],
+						canonicalIngredients: [],
+						baselineServings: 4
+					},
+					counterChecks: {},
+					sessionSwaps: {}
+				})
+			);
+		}, cookProgressKey);
+		await page.reload();
+	};
+	await page.setViewportSize({ width: 393, height: 900 });
+	await page.goto(`/recipes/${fixture.recipeSlug}`);
+	await seedCookProgress();
+	const recipeMore = page.getByRole('button', { name: 'More actions', exact: true });
+	await expect(recipeMore).toBeVisible({ timeout: 30_000 });
+	await recipeMore.click();
+	const recipeSheet = page.getByRole('dialog', { name: 'More actions' });
+	await expect(recipeSheet).toBeVisible();
+	await recipeSheet.getByRole('button', { name: 'Start cooking over' }).click();
+	await expect(recipeSheet).not.toBeVisible();
+	await expect(page.getByRole('button', { name: 'Edit recipe', exact: true })).toBeFocused();
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await seedCookProgress();
+	await expect(recipeMore).toBeVisible();
+	await recipeMore.click();
+	const recipeMenu = page.getByRole('menu');
+	await expect(recipeMenu).toBeVisible();
+	expect(
+		await recipeMenu.evaluate((menu) => {
+			const rect = menu.getBoundingClientRect();
+			const front = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+			return front === menu || (front instanceof Node && menu.contains(front));
+		})
+	).toBe(true);
+	await page.keyboard.press('Escape');
+	await expect(recipeMore).toBeFocused();
 });
 
 test('fresh recipe edits stay clean while recovered drafts remain explicit', async ({ page }, testInfo) => {
