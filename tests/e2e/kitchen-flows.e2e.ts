@@ -127,7 +127,7 @@ test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({
 	const fixture = kitchenFixtureFor(testInfo);
 	await page.goto(`/shopping?week=${fixture.weekStart}`);
 	await page.waitForLoadState('networkidle');
-	await page.getByRole('button', { name: 'Adjust plan' }).click();
+	await page.getByRole('button', { name: 'Shopping setup' }).click();
 	const setup = page.getByRole('dialog', { name: 'Shopping setup' });
 
 	const increase = setup.getByRole('button', {
@@ -157,7 +157,7 @@ test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({
 
 	await page.goto(`/shopping?week=${fixture.weekStart}`);
 	await expectAppHydrated(page);
-	await page.getByRole('button', { name: 'Adjust plan' }).click();
+	await page.getByRole('button', { name: 'Shopping setup' }).click();
 	const restoredSetup = page.getByRole('dialog', { name: 'Shopping setup' });
 	const decrease = restoredSetup.getByRole('button', {
 		name: `Decrease portions for ${fixture.recipeTitle}`

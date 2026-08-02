@@ -214,9 +214,11 @@ describe('stable app house-style source contract', () => {
 		expect(ahItem).toContain('compact?: boolean');
 		expect(ahItem).toContain('ah-compact-row');
 
-		expect(shoppingPage).toContain('shopping-readiness');
+		expect(shoppingPage).not.toContain('shopping-readiness');
+		expect(shoppingPage).not.toContain('shopping_readiness_');
+		expect(shoppingPage).toContain('market-setup-action');
 		expect(shoppingPage).toContain('--shopping-shelf-height');
-		expect(shoppingPage.indexOf('shopping-readiness')).toBeLessThan(
+		expect(shoppingPage.indexOf('market-setup-action')).toBeLessThan(
 			shoppingPage.indexOf('<ShoppingLists')
 		);
 		expect(shoppingHeader).not.toContain('onAddItem');

@@ -1591,3 +1591,26 @@ src/lib/components/shopping/ShoppingMealPortions.svelte,
 src/lib/components/shopping/WeekNav.svelte, src/lib/ui_house_style_source.test.ts,
 src/routes/shopping/+page.svelte, tests/e2e/house-style.e2e.ts,
 tests/e2e/kitchen-flows.e2e.ts, tests/e2e/responsive-parity.e2e.ts
+
+## 2026-08-02 23:13 | plan → run | Remove Shopping readiness strip
+
+Removed the repeated “Ready” strip from `/shopping`, including its derived presentation state,
+styles, translations, and obsolete assertions. Shopping setup remains one tap away as a direct
+Settings/Setup action in the existing shelf, preserving synchronized planned portions, saving
+protection, and the Manage weekly handoff without restoring a separate block above the list.
+
+Rendered checks at 320, 375, and 1280 px found no horizontal overflow or console errors. The first
+phone ledger section moved about 69 px upward, and Setup remains a 44 px target with an icon-only
+presentation at 320 px. Dutch dark mode, 200% text, keyboard focus, setup handoffs, and cross-page
+portion synchronization passed.
+
+Verification passed with zero Svelte diagnostics, all 705 Vitest tests, the production build, and
+40 authenticated Playwright cases for each isolated household account; the connected-AH case is
+intentionally skipped. One SQLite WAL lock, one closed browser context, and one secondary render
+timeout were runner transients; clean reruns passed. No live provider or AH request ran, and the
+isolated browser artifacts were deleted after verification.
+
+Touched: docs/SHOPPING_UX_UI_AUDIT.md, docs/ui-house-style.md, docs/log.md,
+docs/archive/2026-08/FEATURE_LIST_SHOPPING_REMOVE_READINESS.md, messages/en.json,
+messages/nl.json, src/lib/ui_house_style_source.test.ts, src/routes/shopping/+page.svelte,
+tests/e2e/house-style.e2e.ts, tests/e2e/kitchen-flows.e2e.ts

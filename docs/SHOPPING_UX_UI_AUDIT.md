@@ -1,30 +1,31 @@
-# Shopping UX/UI audit — ready-first refinement
+# Shopping UX/UI audit — compact in-store flow
 
 _Status: Implemented and verified — 2026-08-02_
 
-Date: 2026-08-01
-Companion workspace: `docs/artifacts/2026-08-01-ux-ui-shopping-ready-first.html`
+Date: 2026-08-02
+Predecessor workspace: `docs/artifacts/2026-08-01-ux-ui-shopping-ready-first.html`
 
 ## Outcome
 
-The in-store interaction is dependable, but the page does not lead with the in-store task. At a
-375 × 812 viewport, the first shopping item begins at y = 1,029 px. Planned-meal controls consume
-387 px and an unresolved Albert Heijn (AH) result consumes another 332 px before the filters and
-list. At 1280 × 900, the first row starts at y = 825 px and intersects the fixed action dock, which
-occupies y = 776–836 px.
+Before the ready-first work, the page did not lead with the in-store task. At a 375 × 812 viewport,
+the first shopping item began at y = 1,029 px. Planned-meal controls consumed 387 px and an
+unresolved Albert Heijn (AH) result consumed another 332 px before the filters and list. At
+1280 × 900, the first row started at y = 825 px and intersected the fixed action dock at
+y = 776–836 px.
 
-The recommended direction is **ready first**: show a compact preparation summary and any unresolved
-AH warning, then put filters and shopping items immediately on screen. Keep portions, weekly-item
-editing, lasting recipe defaults, and detailed AH history one tap away. This preserves the current
-data ownership and recovery behavior while removing preparation controls from the repeated
-in-store scan path.
+The durable direction is **list first**: show any unresolved AH warning, a compact action shelf,
+then filters and shopping items. Keep portions, weekly-item editing, lasting recipe defaults, and
+detailed AH history one tap away. A readiness summary is unnecessary because it repeats the list
+and AH action state while consuming about 68 px of the repeated in-store path.
 
 ## Implemented result
 
-`/shopping` now follows that ready-first order. A compact readiness row and unresolved AH warning
-lead into the action shelf, filters, and shopping ledger; planned portions, weekly-item editing,
-recipe choices, and detailed AH history open only when requested. The phone shelf reserves its own
-scroll space and keeps toasts above it, while desktop actions remain in normal document flow.
+`/shopping` now follows that list-first order. The readiness row is gone. A direct Setup action in
+the existing action shelf opens planned portions and the Manage weekly handoff without adding a
+second block above the list. The unresolved AH warning, filters, and shopping ledger keep their
+existing order; recipe choices and detailed AH history open only when requested. The phone shelf
+reserves its own scroll space and keeps toasts above it, while desktop actions remain in normal
+document flow.
 
 Rows expose a trash action directly when removal is their only available command. The three-dot
 menu remains only when a row actually offers recipe choices or more than one manual-source action.
@@ -32,7 +33,9 @@ Direct removal is limited to editable active rows and retains the existing immed
 completed, and read-only rows do not expose it.
 
 Verification passed with zero Svelte warnings, 705 unit tests, the production build, and all 40
-executed authenticated browser cases for each isolated household account. The single connected-AH
+executed authenticated browser cases for each isolated household account. At 375 × 812, removing
+the readiness row moved the first ledger section from about y = 532 to y = 463 while preserving a
+44 px Setup target and zero horizontal overflow at 320, 375, and 1280 px. The single connected-AH
 case remains intentionally skipped and no live AH request, provider call, or household data was
 used.
 
@@ -90,9 +93,10 @@ item at y = 825. The route renders `ShoppingMealPortions`, push history, and onl
 to re-read planning controls and an earlier handoff. A returning shopper must remember that the
 list exists below content that often has no action for the current moment.
 
-**Smallest durable direction:** replace the expanded planned-meals block with a one-line readiness
-summary and an Adjust action. Keep the unresolved AH outcome inline, as the house style requires,
-but compress it to one warning row with Open AH and Details. Put filters and items next.
+**Implemented direction:** remove the expanded planned-meals block and the later readiness summary.
+Keep a direct Setup action in the action shelf for planned portions and weekly items. Keep the
+unresolved AH outcome inline, as the house style requires, but compress it to one warning row with
+Open AH and Details. Put filters and items next.
 
 ### F2 — P2 UX/UI: lasting recipe defaults live inside the repeated in-store row
 
@@ -207,8 +211,8 @@ Suggested design targets for verification, not universal standards:
 
 The companion HTML defaults to these recommendations and generates a forward implementation prompt.
 
-1. **Page hierarchy:** ready-first progressive disclosure; alternative is an explicit Prepare/Shop
-   switch or the current all-in-one stack.
+1. **Page hierarchy:** list-first progressive disclosure with direct Setup access; alternative is an
+   explicit Prepare/Shop switch or a repeated readiness block.
 2. **Recipe-source controls:** item details by default; alternative is one preparation panel or the
    current inline controls.
 3. **Action shelf:** reserved mobile shelf plus in-flow/sticky desktop actions; alternatives keep a
@@ -225,8 +229,8 @@ The companion HTML defaults to these recommendations and generates a forward imp
 
 1. Characterize the current DOM order, shelf intersection, focus, Undo, and AH-warning behavior in
    focused tests.
-2. Introduce the readiness summary and preparation sheet while reusing the current planned-serving
-   and source-mutation controllers.
+2. Keep the preparation sheet and place its trigger directly in the action shelf while reusing the
+   current planned-serving and source-mutation controllers.
 3. Simplify default rows and move lasting controls without changing their server commands.
 4. Reserve shelf space, then align Add item and English terminology.
 5. Re-run the repository's complete authenticated gate and the route-specific narrow, desktop,

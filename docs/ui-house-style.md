@@ -82,8 +82,9 @@ Do not add a universal component whose variants reproduce page-local drift.
   leading urgency marker. Recipe relationships are summarized once and expanded into a focused
   review instead of repeated icon or dot chains on every row.
 - Shopping uses one centered 52 rem work column and leads with the current run: compact unresolved
-  AH attention, computed readiness, filters, then item rows. Planned-meal portions and weekly-item
-  definitions live behind deliberate setup actions. Recipe-source defaults live in item details,
+  AH attention, a direct Setup action in the Paper Shelf, filters, then item rows. Do not add a
+  readiness summary that repeats list state. Planned-meal portions and weekly-item definitions live
+  in the setup sheet. Recipe-source defaults live in item details,
   while active rows keep only name, quantity/source cue, completion, and their immediate action.
   The latest unresolved AH outcome remains inline; successful and previous sends live in the
   on-demand history sheet.

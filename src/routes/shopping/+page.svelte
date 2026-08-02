@@ -39,14 +39,6 @@
 	let pending = $derived(items.filter((item) => !item.bought));
 	let done = $derived(items.filter((item) => item.bought));
 	let visibleToBuyCount = $derived(pending.filter((item) => !item.covered).length);
-	let plannedPortions = $derived(data.plannedMeals.reduce((total, meal) => total + meal.servings, 0));
-	let readinessTitle = $derived(
-		plannedServingPending
-			? m.shopping_readiness_updating()
-			: visibleToBuyCount === 0
-				? m.shopping_readiness_complete()
-				: m.shopping_readiness_title()
-	);
 	let emptyState = $derived(data.emptyState === 'no_meals' ? ('no_meals' as const) : ('nothing_needed' as const));
 
 	$effect(() => {
@@ -245,43 +237,18 @@
 				</div>
 			{/if}
 
-			<section
-				class="shopping-readiness"
-				class:updating={plannedServingPending}
-				aria-labelledby="shopping-readiness-title"
-				aria-busy={plannedServingPending}
-				aria-live="polite"
-			>
-				<div class="shopping-readiness-icon" aria-hidden="true"><Icon name={plannedServingPending ? 'clock' : 'check'} /></div>
-				<div class="shopping-readiness-copy">
-					<h2 id="shopping-readiness-title">{readinessTitle}</h2>
-					<span>
-						{m.shopping_readiness_items({ count: visibleToBuyCount })}
-						{#if data.plannedMeals.length}
-							· {m.shopping_readiness_plan({ meals: data.plannedMeals.length, portions: plannedPortions })}
-						{:else}
-							· {m.shopping_readiness_without_meals()}
-						{/if}
-					</span>
-				</div>
-				{#if data.plannedMeals.length}
-					<button
-						type="button"
-						class="ui-action ui-action-tertiary"
-						aria-haspopup="dialog"
-						aria-expanded={preparationOpen}
-						onclick={() => (preparationOpen = true)}
-					>
-						{m.shopping_adjust_plan()}
-					</button>
-				{:else}
-					<button type="button" class="ui-action ui-action-tertiary" onclick={() => void shoppingLists?.openWeeklyEditor()}>
-						{m.shopping_manage_weekly()}
-					</button>
-				{/if}
-			</section>
-
 			<div class="shopping-market-dock" aria-label={m.shopping_heading()}>
+				<button
+					type="button"
+					class="market-setup-action ui-action ui-action-tertiary"
+					aria-label={m.shopping_preparation_title()}
+					aria-haspopup="dialog"
+					aria-expanded={preparationOpen}
+					onclick={() => (preparationOpen = true)}
+				>
+					<Icon name="settings" />
+					<span class="market-setup-label">{m.shopping_setup_short()}</span>
+				</button>
 				<button type="button" class="market-add-action ui-action ui-action-secondary" disabled={!data.isEditable} aria-haspopup="dialog" aria-expanded={addItemOpen} onclick={() => addItemForm?.openAddModal()}>
 					<Icon name="plus" />
 					{m.shopping_additem_submit_aria()}
@@ -477,75 +444,13 @@
 		margin-bottom: 0;
 	}
 
-	.shopping-readiness {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr) auto;
-		align-items: center;
-		gap: 0.6rem;
-		min-height: 3.5rem;
-		margin-bottom: 0.6rem;
-		border: 1px solid color-mix(in oklab, var(--color-success) 30%, var(--kitchen-line));
-		border-radius: var(--kitchen-surface-radius);
-		padding: 0.4rem 0.45rem 0.4rem 0.65rem;
-		background: color-mix(in oklab, var(--color-success) 7%, var(--kitchen-card));
-	}
-
-	.shopping-readiness-icon {
-		display: grid;
-		width: 1.75rem;
-		height: 1.75rem;
-		place-items: center;
-		border-radius: 999px;
-		background: color-mix(in oklab, var(--color-success) 18%, var(--kitchen-card));
-		color: var(--color-success);
-	}
-
-	.shopping-readiness-icon :global(svg) {
-		width: 0.9rem;
-		height: 0.9rem;
-	}
-
-	.shopping-readiness.updating {
-		border-color: color-mix(in oklab, var(--color-warning) 35%, var(--kitchen-line));
-		background: color-mix(in oklab, var(--color-warning) 8%, var(--kitchen-card));
-	}
-
-	.shopping-readiness.updating .shopping-readiness-icon {
-		background: color-mix(in oklab, var(--color-warning) 18%, var(--kitchen-card));
-		color: var(--color-warning);
-	}
-
-	.shopping-readiness-copy {
-		display: grid;
-		min-width: 0;
-		gap: 0.08rem;
-	}
-
-	.shopping-readiness-copy h2 {
-		margin: 0;
-		font-size: 0.75rem;
-		font-weight: 750;
-	}
-
-	.shopping-readiness-copy span {
-		color: var(--kitchen-muted);
-		font-size: 0.63rem;
-		line-height: 1.35;
-	}
-
-	.shopping-readiness > :global(.ui-action) {
-		min-height: 2.75rem;
-		padding-inline: 0.6rem;
-		font-size: 0.66rem;
-	}
-
 	.shopping-market-dock {
 		position: relative;
 		z-index: 20;
 		display: grid;
-		grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
+		grid-template-columns: minmax(2.75rem, 0.65fr) minmax(0, 0.9fr) minmax(0, 1.25fr);
 		gap: 0.5rem;
-		max-width: 24rem;
+		max-width: 30rem;
 		margin: 0 0 0.65rem auto;
 		border: 1px solid color-mix(in oklab, var(--market-olive) 18%, var(--color-base-300));
 		border-radius: 0.9rem;
@@ -577,6 +482,12 @@
 			border-radius: var(--kitchen-surface-radius) var(--kitchen-surface-radius) 0 0;
 			background: var(--kitchen-card);
 			box-shadow: 0 -8px 22px rgb(35 58 46 / 13%);
+		}
+	}
+
+	@media (max-width: 23rem) {
+		.market-setup-label {
+			display: none;
 		}
 	}
 

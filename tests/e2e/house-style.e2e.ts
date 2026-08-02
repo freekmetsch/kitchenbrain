@@ -3,6 +3,7 @@ import { kitchenFixtureFor } from './fixtures';
 
 const VIEWPORTS = [
 	{ width: 320, height: 900 },
+	{ width: 375, height: 900 },
 	{ width: 393, height: 900 },
 	{ width: 768, height: 900 },
 	{ width: 1280, height: 900 }
@@ -195,7 +196,13 @@ test('house-style roles hold across stable routes and target viewports', async (
 		await expect(
 			page.locator('.shopping-market-dock').getByRole('button', { name: 'Add item', exact: true })
 		).toHaveAttribute('aria-haspopup', 'dialog');
-		await expect(page.getByRole('heading', { name: 'Ready for this shop' })).toBeVisible();
+		const setupAction = page
+			.locator('.shopping-market-dock')
+			.getByRole('button', { name: 'Shopping setup' });
+		await expect(setupAction).toHaveAttribute('aria-haspopup', 'dialog');
+		await expect(setupAction).toHaveAttribute('aria-expanded', 'false');
+		expect((await setupAction.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+		await expect(page.locator('.shopping-readiness')).toHaveCount(0);
 		await expect(page.locator('.ui-page-utility [data-house-style="status-badge"]')).toHaveCount(0);
 		const shoppingFilters = page.getByRole('radiogroup', { name: 'Filter shopping list' });
 		await expect(shoppingFilters).toBeVisible();
@@ -373,7 +380,7 @@ test('Shopping hands one-off and plan setup into the inline weekly editor', asyn
 	await expect(page.getByRole('button', { name: 'Add weekly item', exact: true })).toBeFocused();
 
 	await page.getByRole('radio', { name: 'All', exact: true }).click();
-	await page.getByRole('button', { name: 'Adjust plan' }).click();
+	await page.getByRole('button', { name: 'Shopping setup' }).click();
 	const setupSheet = page.getByRole('dialog', { name: 'Shopping setup' });
 	await setupSheet.getByRole('button', { name: 'Manage weekly items' }).click();
 	await expect(setupSheet).toBeHidden();
@@ -536,11 +543,26 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 		document.documentElement.setAttribute('data-theme', 'dark');
 	});
 	await expect(page.getByRole('heading', { name: 'Boodschappen', level: 1 })).toBeVisible();
+	const setupAction = page.getByRole('button', { name: 'Boodschappen instellen' });
+	await expect(setupAction).toBeVisible();
+	await expect(setupAction).toHaveAttribute('aria-haspopup', 'dialog');
 	expect(
 		await page.evaluate(
 			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
 		)
 	).toBe(0);
+	await page.evaluate(() => {
+		document.documentElement.style.fontSize = '200%';
+	});
+	expect(
+		await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		)
+	).toBe(0);
+	expect((await setupAction.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+	await page.evaluate(() => {
+		document.documentElement.style.fontSize = '';
+	});
 	await page
 		.locator('.shopping-market-dock')
 		.getByRole('button', { name: 'Item toevoegen', exact: true })
