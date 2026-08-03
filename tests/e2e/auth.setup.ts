@@ -12,7 +12,7 @@ setup('authenticate the isolated test accounts', async ({ browser }) => {
 		await page.goto('/login');
 		await page.locator('input[name="username"]').fill(account.username);
 		await page.locator('input[name="password"]').fill(account.password);
-		await page.locator('form button[type="submit"]').click();
+		await page.locator('form:has(input[name="username"]) button[type="submit"]').click();
 
 		await expect(page.getByRole('navigation')).toBeVisible({ timeout: 60_000 });
 		expect(new URL(page.url()).pathname).toBe('/');

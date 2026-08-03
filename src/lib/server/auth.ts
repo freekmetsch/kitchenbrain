@@ -5,7 +5,8 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
 export async function validateCredentials(username: string, password: string) {
-	const user = db.select().from(users).where(eq(users.username, username)).get();
+	const normalizedUsername = username.trim().toLowerCase();
+	const user = db.select().from(users).where(eq(users.username, normalizedUsername)).get();
 	if (!user) return null;
 	const valid = await bcrypt.compare(password, user.passwordHash);
 	if (!valid) return null;

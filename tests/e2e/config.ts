@@ -15,10 +15,16 @@ export const E2E_DATA_DIR = path.resolve(
 export const E2E_DATABASE = path.join(E2E_DATA_DIR, 'e2e.db');
 export const E2E_AUTH_DIR = path.join(E2E_DATA_DIR, 'auth');
 
+export const TEST_LOGIN = {
+	username: 'azuriet33',
+	password: 'vanbergen',
+	label: 'Azuriet33'
+} as const;
+
 export const TEST_ACCOUNTS = {
 	primary: {
-		username: 'e2e-primary',
-		password: 'local-primary-password',
+		username: TEST_LOGIN.username,
+		password: TEST_LOGIN.password,
 		storageState: path.join(E2E_AUTH_DIR, 'primary.json')
 	},
 	secondary: {
@@ -41,5 +47,9 @@ export const E2E_SERVER_ENV = {
 	ORIGIN: E2E_ORIGIN,
 	RECIPE_IMAGES_DIR: path.join(E2E_DATA_DIR, 'recipe-images'),
 	AH_TOKEN_FILE: path.join(E2E_DATA_DIR, 'ah-tokens.json'),
-	LITESTREAM_ENABLED: '0'
+	LITESTREAM_ENABLED: '0',
+	TEST_LOGIN_ENABLED: '1',
+	TEST_LOGIN_USERNAME: TEST_LOGIN.username,
+	TEST_LOGIN_PASSWORD: TEST_LOGIN.password,
+	TEST_LOGIN_LABEL: TEST_LOGIN.label
 } satisfies Record<string, string>;
