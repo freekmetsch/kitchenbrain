@@ -7,17 +7,11 @@ import {
 import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
 
 type ImportRecipeBackground = {
-	kickCookModeGeneration?: (slug: string) => void;
 	getAutoTranslateOnImport?: () => boolean;
 	kickTranslateOnImport?: (slug: string) => void;
 };
 
 const APP_BACKGROUND: ImportRecipeBackground = {
-	kickCookModeGeneration(slug) {
-		void import('$lib/server/ai/cook_mode').then(({ kickCookModeGeneration }) => {
-			kickCookModeGeneration(slug);
-		});
-	},
 	getAutoTranslateOnImport,
 	kickTranslateOnImport(slug) {
 		void import('$lib/server/ai/translate_recipe').then(({ kickTranslateOnImport }) => {
@@ -34,7 +28,6 @@ export function createImportRecipeService(
 		save(data: ImportedRecipeInput) {
 			const { recipe, review } = db.transaction((tx) => createImportedRecipe(tx, data));
 
-			background.kickCookModeGeneration?.(recipe.slug);
 			if (background.getAutoTranslateOnImport?.()) {
 				background.kickTranslateOnImport?.(recipe.slug);
 			}

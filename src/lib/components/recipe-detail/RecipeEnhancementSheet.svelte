@@ -11,8 +11,8 @@
 	import type { Ingredient } from '$lib/recipe_ingredient';
 	import type { RecipePatchDisplay } from '$lib/tool_display';
 
-	type Props = { slug: string; ingredients: Ingredient[] };
-	let { slug, ingredients: _ingredients }: Props = $props();
+	type Props = { slug: string; ingredients: Ingredient[]; utility?: boolean };
+	let { slug, ingredients: _ingredients, utility = false }: Props = $props();
 	let open = $state(false);
 	let loading = $state(false);
 	let status = $state<'idle' | 'loading' | 'ready' | 'error'>('idle');
@@ -56,10 +56,10 @@
 	}
 </script>
 
-<div class="flex h-full min-w-0 flex-col rounded-2xl border border-primary/20 bg-primary/5 p-2 md:p-3">
+<div class="enhancement-trigger-shell flex h-full min-w-0 flex-col rounded-2xl border p-2 md:p-3" class:utility>
 	<button
 		type="button"
-		class="ui-action ui-action-secondary w-full min-w-0 whitespace-normal px-2 text-xs md:px-3 md:text-sm"
+		class="ui-action ui-action-secondary min-h-11 w-full min-w-0 whitespace-normal px-2 text-xs md:px-3 md:text-sm"
 		aria-haspopup={proposal ? 'dialog' : undefined}
 		disabled={loading}
 		onclick={openReview}
@@ -74,20 +74,32 @@
 			{m.recipe_enhance_button()}
 		{/if}
 	</button>
-	{#if loading}
+	{#if !utility && loading}
 		<KitchenNotice tone="info" class="mt-2 text-xs" role="status" aria-busy="true">
 			<Spinner size="xs" />{m.recipe_enhance_background_status()}
 		</KitchenNotice>
-	{:else if status === 'ready'}
+	{:else if !utility && status === 'ready'}
 		<KitchenNotice tone="success" class="mt-2 text-xs" role="status">
 			<span class="flex items-center gap-2"><Icon name="check" class="h-4 w-4 shrink-0 text-success" />{m.recipe_enhance_ready()}</span>
 		</KitchenNotice>
-	{:else if status === 'error'}
+	{:else if !utility && status === 'error'}
 		<KitchenNotice tone="error" class="mt-2 text-xs" role="status">
 			<span class="flex items-center gap-2"><Icon name="warn" class="h-4 w-4 shrink-0 text-error" />{m.recipe_enhance_failed()}</span>
 		</KitchenNotice>
 	{/if}
 </div>
+
+<style>
+	.enhancement-trigger-shell {
+		border-color: color-mix(in oklab, var(--color-primary) 20%, transparent);
+		background: color-mix(in oklab, var(--color-primary) 5%, transparent);
+	}
+
+	.enhancement-trigger-shell.utility {
+		border-color: rgb(255 255 255 / 24%);
+		background: rgb(255 255 255 / 7%);
+	}
+</style>
 
 <BottomSheet bind:open title={m.recipe_enhance_title()}>
 	{#if loading}

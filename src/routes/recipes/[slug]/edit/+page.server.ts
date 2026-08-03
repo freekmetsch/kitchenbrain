@@ -1,7 +1,6 @@
 import { fail, redirect, error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { base } from '$app/paths';
-import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 import {
 	recipeEditChangesCookingStructure,
 	recipeIngredientsEqual
@@ -176,10 +175,6 @@ export const actions: Actions = {
 			reconcileShopping: ingredientsChanged || current.servings !== payload.servings
 		});
 		if (!updated) return fail(409, { error: 'This recipe changed while you were editing it. Reload and try again.' });
-
-		if (semanticStructureChanged) {
-			kickCookModeGeneration(params.slug);
-		}
 
 		redirect(303, `${base}/recipes/${params.slug}`);
 	}

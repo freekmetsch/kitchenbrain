@@ -11,16 +11,13 @@ import {
 	updateCanonicalRecipe
 } from '$lib/server/domains/recipes';
 import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
-import { kickCookModeGeneration } from '$lib/server/ai/cook_mode';
 
 type MealCompositionDependencies = {
 	reconcileShopping: typeof reconcileShoppingAfterWrite;
-	kickCookModeGeneration: typeof kickCookModeGeneration;
 };
 
 const DEFAULT_DEPENDENCIES: MealCompositionDependencies = {
-	reconcileShopping: reconcileShoppingAfterWrite,
-	kickCookModeGeneration
+	reconcileShopping: reconcileShoppingAfterWrite
 };
 
 export function createMealCompositionService(
@@ -41,7 +38,6 @@ export function createMealCompositionService(
 					subRecipeIds: subs.map((recipe) => recipe.id)
 				})
 			);
-			dependencies.kickCookModeGeneration(meal.slug);
 			return { found: true as const, meal };
 		},
 
@@ -70,9 +66,6 @@ export function createMealCompositionService(
 				}
 				return { status: 'ok' as const, changed, mealId: meal.id };
 			});
-			if (result.status === 'ok' && result.changed) {
-				dependencies.kickCookModeGeneration(input.mealSlug);
-			}
 			return result;
 		},
 

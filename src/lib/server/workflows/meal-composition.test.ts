@@ -3,6 +3,16 @@ import * as schema from '$lib/server/db/schema';
 import { createTestDb } from '$lib/server/test_db';
 import { createMealCompositionService } from './meal-composition';
 
+const backgroundSpies = vi.hoisted(() => ({
+	kickCookModeGeneration: vi.fn()
+}));
+
+vi.mock('$lib/server/ai/cook_mode', () => backgroundSpies);
+vi.mock('$lib/server/db/index', async () => {
+	const { createTestDb } = await import('$lib/server/test_db');
+	return { db: createTestDb() };
+});
+
 function seedRecipe(
 	db: ReturnType<typeof createTestDb>,
 	slug: string,
@@ -26,12 +36,26 @@ function seedRecipe(
 
 function createService(db: ReturnType<typeof createTestDb>) {
 	return createMealCompositionService(db, {
-		reconcileShopping: vi.fn(),
-		kickCookModeGeneration: vi.fn()
+		reconcileShopping: vi.fn()
 	});
 }
 
 describe('meal-composition workflow', () => {
+	it('creates a composed meal without requesting cooking details', () => {
+		const db = createTestDb();
+		seedRecipe(db, 'soep');
+		seedRecipe(db, 'brood');
+		backgroundSpies.kickCookModeGeneration.mockClear();
+		const service = createMealCompositionService(db, {
+			reconcileShopping: vi.fn()
+		});
+
+		expect(
+			service.create({ title: 'Soep met brood', subRecipeSlugs: ['soep', 'brood'] })
+		).toMatchObject({ found: true });
+		expect(backgroundSpies.kickCookModeGeneration).not.toHaveBeenCalled();
+	});
+
 	it('does not create a meal when one of the requested sub-recipes is missing', () => {
 		const db = createTestDb();
 		seedRecipe(db, 'soep');
@@ -44,6 +68,31 @@ describe('meal-composition workflow', () => {
 		expect(db.select().from(schema.mealSubRecipes).all()).toHaveLength(0);
 	});
 
+	it('invalidates a changed composition without requesting cooking details', () => {
+		const db = createTestDb();
+		seedRecipe(db, 'soep');
+		seedRecipe(db, 'brood');
+		seedRecipe(db, 'salade');
+		backgroundSpies.kickCookModeGeneration.mockClear();
+		const service = createMealCompositionService(db, {
+			reconcileShopping: vi.fn()
+		});
+		const created = service.create({
+			title: 'Soepmaaltijd',
+			subRecipeSlugs: ['soep', 'brood']
+		});
+		if (!created.found) throw new Error('expected meal to be created');
+
+		expect(
+			service.change({
+				mealSlug: created.meal.slug,
+				targetSlug: 'salade',
+				action: 'add'
+			})
+		).toMatchObject({ status: 'ok', changed: true });
+		expect(backgroundSpies.kickCookModeGeneration).not.toHaveBeenCalled();
+	});
+
 	it('rolls back a composition change when shopping reconciliation fails', () => {
 		const db = createTestDb();
 		seedRecipe(db, 'soep');
@@ -54,12 +103,10 @@ describe('meal-composition workflow', () => {
 			subRecipeSlugs: ['soep', 'brood']
 		});
 		if (!created.found) throw new Error('expected meal to be created');
-		const kickCookModeGeneration = vi.fn();
 		const service = createMealCompositionService(db, {
 			reconcileShopping: () => {
 				throw new Error('injected reconciliation fault');
-			},
-			kickCookModeGeneration
+			}
 		});
 
 		expect(() =>
@@ -79,6 +126,5 @@ describe('meal-composition workflow', () => {
 			db.select().from(schema.recipes).all().find((recipe) => recipe.id === created.meal.id)
 				?.contentRevision
 		).toBe(created.meal.contentRevision);
-		expect(kickCookModeGeneration).not.toHaveBeenCalled();
 	});
 });

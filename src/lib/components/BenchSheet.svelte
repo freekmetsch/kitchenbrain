@@ -33,6 +33,9 @@
 	} from './cook-mode/cooking_steps';
 	import OriginalRecipeView from './OriginalRecipeView.svelte';
 	import ServingBatchPicker from './ServingBatchPicker.svelte';
+	import RecipePlanContext, {
+		type RecipePlanOccurrence
+	} from './recipe-detail/RecipePlanContext.svelte';
 	import { CookSessionStorageController } from './cook-mode/session-controller.svelte';
 	import { CookModeNetworkController } from './cook-mode/network-controller.svelte';
 	import { plannedServingsRegistryForScope } from '$lib/planned_servings_client';
@@ -65,12 +68,18 @@
 		recipeRevision: number;
 		recipeTitle: string;
 		initial: StoredCookModeRecipe | null;
-		requiresPlan: boolean;
 		progressSignature: string;
 		fallback: FallbackContext;
 		view: 'cook' | 'original';
 		viewLang: 'en' | 'nl';
-		onEdit: () => void;
+		languageSwitchable: boolean;
+		translationLoading: boolean;
+		translationMessage: string;
+		translationStatus: 'pending' | 'ready' | 'error';
+		planOccurrences: RecipePlanOccurrence[];
+		onViewChange: (view: 'cook' | 'original') => void;
+		onLanguageChange: (language: 'en' | 'nl') => void;
+		onRetryTranslation: (force: boolean) => void;
 		onCooked?: () => void;
 		planMealId?: number | null;
 		planMealEditable?: boolean;
@@ -82,21 +91,25 @@
 		recipeRevision,
 		recipeTitle,
 		initial,
-		requiresPlan,
 		progressSignature,
 		fallback,
 		view,
 		viewLang,
-		onEdit,
+		languageSwitchable,
+		translationLoading,
+		translationMessage,
+		translationStatus,
+		planOccurrences,
+		onViewChange,
+		onLanguageChange,
+		onRetryTranslation,
 		onCooked,
 		planMealId = null,
 		planMealEditable = true,
 		controller = $bindable<BenchSheetController>()
 	}: Props = $props();
 
-	let storedCookMode = $state<StoredCookModeRecipe | null>(
-		untrack(() => (requiresPlan ? initial : null))
-	);
+	let storedCookMode = $state<StoredCookModeRecipe | null>(untrack(() => initial));
 	let frozenRecipe = $state<FrozenCookRecipe | null>(null);
 	let frozenViewLang = $state<'en' | 'nl' | null>(null);
 	let sessionStarted = $state(false);
@@ -129,15 +142,13 @@
 				)
 			: null;
 	let localizedPlan = $derived(
-		requiresPlan
-			? localizeCookMode(activeStoredCookMode, activeViewLang, {
-					ingredients: activeIngredients,
-					baselineServings: activeBaselineServings,
-					targetServings: servingDraft,
-					directions: activeDirections,
-					directionIds: activeDirectionIds
-				})
-			: null
+		localizeCookMode(activeStoredCookMode, activeViewLang, {
+			ingredients: activeIngredients,
+			baselineServings: activeBaselineServings,
+			targetServings: servingDraft,
+			directions: activeDirections,
+			directionIds: activeDirectionIds
+		})
 	);
 
 	let deterministicCookMode = $derived(
@@ -150,7 +161,7 @@
 		})
 	);
 	let cookMode = $derived(
-		requiresPlan ? (preparationAsFirstStep(localizedPlan, activeIngredients) ?? deterministicCookMode) : deterministicCookMode
+		preparationAsFirstStep(localizedPlan, activeIngredients) ?? deterministicCookMode
 	);
 	let sessionNotice = $state('');
 
@@ -174,8 +185,7 @@
 		readGenerationContext: () => ({
 			viewLang,
 			servings: servingDraft,
-			sessionStarted,
-			hasPlan: localizedPlan != null
+			sessionStarted
 		}),
 		adoptCookMode,
 		reload: () => location.reload(),
@@ -225,12 +235,6 @@
 	let steps = $derived(
 		applySessionSwapsToSteps(cookMode?.steps ?? [], sessionSwaps, ingredientNamesById)
 	);
-
-	$effect(() => {
-		if (requiresPlan && !localizedPlan && !loading && !loadError) {
-			void network.loadCookMode();
-		}
-	});
 
 	function currentKeys(cm: CookModeDisplayRecipe | null = cookMode): string[] {
 		return (
@@ -482,125 +486,288 @@
 	});
 </script>
 
-{#if fallback.directions.length > 0 && view === 'original'}
-	<div class="flex min-h-11 items-center gap-2 px-3 py-1.5">
-		<div
-			class="inline-flex min-h-9 items-center rounded-lg border border-base-300 bg-base-100"
-			aria-label={servingLabel}
-		>
-			<span class="pl-2.5 pr-1 text-xs text-base-content/60">{servingLabel}</span>
-			<button
-				type="button"
-				class="btn btn-ghost btn-xs min-h-9 min-w-9 px-0 text-base"
-				aria-label={m.benchsheet_servings_decrease()}
-				disabled={servingInputDisabled || servingDraft <= 1}
-				onclick={() => changeServings(-1)}>−</button
-			>
-			<span class="w-7 text-center text-sm font-semibold tabular-nums">{servingDraft}</span>
-			<button
-				type="button"
-				class="btn btn-ghost btn-xs min-h-9 min-w-9 px-0 text-base"
-				aria-label={m.benchsheet_servings_increase()}
-				disabled={servingInputDisabled || servingDraft >= 99}
-				onclick={() => changeServings(1)}>+</button
-			>
-		</div>
-		<button type="button" class="btn btn-sm btn-ghost ml-auto min-h-9" onclick={onEdit}>
-			{m.recipes_edit_heading()}
-		</button>
-	</div>
-{/if}
+<section class="bench-sheet" aria-label={m.benchsheet_view_label()}>
+	<div class="prep-desk">
+		<aside class="prep-rail">
+			<RecipePlanContext
+				slug={recipeSlug}
+				selectedMealId={planMealId}
+				occurrences={planOccurrences}
+				embedded
+			/>
 
-{#if view === 'original'}
-	<OriginalRecipeView
-		directions={fallback.sourceDirections ?? fallback.directions}
-		ingredients={fallback.sourceIngredients ?? fallback.ingredients}
-		ingredientStock={fallback.ingredientStock}
-		viewLang={fallback.viewLang}
-		servings={fallback.sourceServings ?? fallback.baselineServings}
-		targetServings={servingDraft}
-		sourceUrl={fallback.sourceSnapshotUrl ?? fallback.sourceUrl}
-		provenance={fallback.sourceProvenance ?? null}
-	/>
-{:else if cookMode}
-	{#if sessionNotice}
-		<div class="mx-3 my-2 min-h-11 rounded-xl border border-info/25 bg-info/5 px-3 py-2 text-xs text-base-content/70" role="status">
-			{sessionNotice}
-		</div>
-	{/if}
-	{#if loading}
-		<div class="mx-3 my-2 flex min-h-11 items-center gap-2 rounded-xl border border-info/25 bg-info/5 px-3 py-2 text-xs text-base-content/65" role="status">
-			<Spinner size="xs" />
-			<span>{regenerating ? m.benchsheet_refreshing_label() : m.benchsheet_writing_label()} <span class="tabular-nums">{fmtClock(genElapsedSec)}</span></span>
-		</div>
-	{:else if loadError}
-		<div class="mx-3 my-2 flex min-h-11 items-center gap-2 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-xs">
-			<span class="min-w-0 flex-1">{loadError}</span>
-			{#if loadErrorRetryable}
-				<button class="btn btn-xs btn-ghost h-11 min-h-0 shrink-0" onclick={() => network.loadCookMode(false)}>{m.recipes_retry_cooking_view()}</button>
-			{/if}
-		</div>
-	{/if}
-	{#if steps.length}
-		<div class="mx-auto flex max-w-5xl flex-nowrap items-center gap-2 px-3 py-2">
-			<span class="shrink-0 text-xs font-semibold text-base-content/55">{servingLabel}</span>
-			<div class="inline-flex min-h-11 items-center rounded-lg border border-base-300 bg-base-100">
-				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_decrease()} disabled={servingInputDisabled || servingDraft <= 1} onclick={() => changeServings(-1)}>−</button>
-				<span class="w-8 text-center text-sm font-semibold tabular-nums">{servingDraft}</span>
-				<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_increase()} disabled={servingInputDisabled || servingDraft >= 99} onclick={() => changeServings(1)}>+</button>
-			</div>
-			{#if fallback.scalingMode !== 'fixed_batch'}
-				<ServingBatchPicker
-					baselineServings={activeBaselineServings ?? fallback.servings}
-					currentServings={servingDraft}
-					ariaLabel={m.benchsheet_batch_size_aria()}
-					menuLabel={m.benchsheet_batch_size_button()}
-					disabled={servingInputDisabled}
-					onselect={setServingMultiplier}
+			<section class="cooking-controls" aria-label={m.benchsheet_controls_label()}>
+				<div class="portion-row">
+					<span class="shrink-0 text-xs font-semibold text-base-content/60">{servingLabel}</span>
+					<div class="inline-flex min-h-11 items-center rounded-lg border border-base-300 bg-base-100">
+						<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_decrease()} disabled={servingInputDisabled || servingDraft <= 1} onclick={() => changeServings(-1)}>−</button>
+						<span class="w-8 text-center text-sm font-semibold tabular-nums">{servingDraft}</span>
+						<button type="button" class="btn btn-ghost btn-xs h-11 min-h-0 w-11 px-0 text-lg" aria-label={m.benchsheet_servings_increase()} disabled={servingInputDisabled || servingDraft >= 99} onclick={() => changeServings(1)}>+</button>
+					</div>
+					{#if fallback.scalingMode !== 'fixed_batch'}
+						<ServingBatchPicker
+							baselineServings={activeBaselineServings ?? fallback.servings}
+							currentServings={servingDraft}
+							ariaLabel={m.benchsheet_batch_size_aria()}
+							menuLabel={m.benchsheet_batch_size_button()}
+							disabled={servingInputDisabled}
+							onselect={setServingMultiplier}
+						/>
+					{/if}
+				</div>
+
+				<div class="projection-controls">
+					<div class="segmented" aria-label={m.benchsheet_view_label()}>
+						<button type="button" class:active={view === 'cook'} aria-pressed={view === 'cook'} onclick={() => onViewChange('cook')}>{m.benchsheet_view_cooking()}</button>
+						<button type="button" class:active={view === 'original'} aria-pressed={view === 'original'} onclick={() => onViewChange('original')}>{m.benchsheet_view_original()}</button>
+					</div>
+					{#if languageSwitchable}
+						<div class="segmented language" aria-label={m.recipes_language_label()}>
+							<button type="button" class:active={viewLang === 'nl'} aria-pressed={viewLang === 'nl'} onclick={() => onLanguageChange('nl')}>NL</button>
+							<button type="button" class:active={viewLang === 'en'} aria-pressed={viewLang === 'en'} onclick={() => onLanguageChange('en')}>EN</button>
+						</div>
+					{:else}
+						<span class="language-static">EN</span>
+					{/if}
+				</div>
+
+				{#if viewLang === 'en' && translationLoading}
+					<div class="control-status" role="status"><Spinner size="xs" /><span>{m.recipes_header_translating()}</span></div>
+				{:else if viewLang === 'en' && translationMessage}
+					<div class="control-status warning" role="status">
+						<span>{translationMessage}</span>
+						<button type="button" onclick={() => onRetryTranslation(false)}>{m.recipes_translation_retry_button()}</button>
+					</div>
+				{:else if viewLang === 'en' && translationStatus === 'error'}
+					<div class="control-status warning" role="status">
+						<span>{m.recipes_translation_failed_retry()}</span>
+						<button type="button" onclick={() => onRetryTranslation(true)}>{m.recipes_translation_retry_button()}</button>
+					</div>
+				{/if}
+
+				{#if view === 'cook'}
+					<div class="cooking-details">
+						{#if loading}
+							<div class="control-status" role="status">
+								<Spinner size="xs" />
+								<span>{regenerating ? m.benchsheet_refreshing_label() : m.benchsheet_writing_label()} <span class="tabular-nums">{fmtClock(genElapsedSec)}</span></span>
+							</div>
+						{:else if loadError}
+							<div class="control-status warning" role="alert">
+								<span>{loadError}</span>
+								{#if loadErrorRetryable}<button type="button" onclick={() => network.loadCookMode(false)}>{m.recipes_retry_cooking_view()}</button>{/if}
+							</div>
+						{:else if localizedPlan}
+							<div class="details-ready">
+								<div><strong>{m.benchsheet_cooking_details_ready()}</strong><span>{m.benchsheet_cooking_details_description()}</span></div>
+								<button type="button" class="ui-action ui-action-tertiary" onclick={() => network.loadCookMode(true)}>{m.benchsheet_refresh_cooking_details()}</button>
+							</div>
+						{:else}
+							<button type="button" class="ui-action ui-action-secondary w-full" onclick={() => network.loadCookMode(false)}>{m.benchsheet_add_cooking_details()}</button>
+							<p>{m.benchsheet_cooking_details_description()}</p>
+						{/if}
+					</div>
+				{/if}
+			</section>
+
+			{#if view === 'cook' && projectedIngredients.length}
+				<CounterBoard
+					ingredients={projectedIngredients}
+					canonicalIngredients={activeCanonicalIngredients}
+					checks={counterChecks}
+					swaps={sessionSwaps}
+					{streamLabelsByIngredient}
+					{paletteByIngredient}
+					onToggle={toggleCounter}
+					onSwap={selectSwap}
+					onSaveDefault={(ingredientId, substituteIndex) => void network.saveSwapDefault(ingredientId, substituteIndex)}
+					{savingIngredientId}
 				/>
 			{/if}
-		</div>
-	{/if}
-
-	<div class="mx-auto max-w-5xl px-3 py-3 md:grid md:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)] md:items-start md:gap-5">
-	{#if projectedIngredients.length}
-		<aside class="mb-3 md:mb-0">
-			<CounterBoard
-				ingredients={projectedIngredients}
-				canonicalIngredients={activeCanonicalIngredients}
-				checks={counterChecks}
-				swaps={sessionSwaps}
-				{streamLabelsByIngredient}
-				{paletteByIngredient}
-				onToggle={toggleCounter}
-				onSwap={selectSwap}
-				onSaveDefault={(ingredientId, substituteIndex) =>
-					void network.saveSwapDefault(ingredientId, substituteIndex)}
-				{savingIngredientId}
-			/>
 		</aside>
-	{/if}
 
-	<div class="min-w-0">
-	<ul class="space-y-3 pb-4">
-		{#each steps as step, index (cookStepKey(index, step.stream_id))}
-			<CookStepCard
-				{step}
-				{index}
-				palette={palettes[index]?.result ?? paletteFor(index)}
-				streamName={streamNames[step.stream_id] ?? null}
-				mergeNames={(step.merges_from ?? []).map((streamId) => streamNames[streamId]).filter(Boolean)}
-				current={currentStepKey === cookStepKey(index, step.stream_id, step.step_id ?? step.direction_id)}
-				onSelect={() => selectStep(index)}
-			/>
-		{/each}
-	</ul>
+		<div class="timeline-pane">
+			{#if view === 'original'}
+				<OriginalRecipeView
+					directions={fallback.sourceDirections ?? fallback.directions}
+					ingredients={fallback.sourceIngredients ?? fallback.ingredients}
+					ingredientStock={fallback.ingredientStock}
+					viewLang={fallback.viewLang}
+					servings={fallback.sourceServings ?? fallback.baselineServings}
+					targetServings={servingDraft}
+					sourceUrl={fallback.sourceSnapshotUrl ?? fallback.sourceUrl}
+					provenance={fallback.sourceProvenance ?? null}
+				/>
+			{:else if cookMode}
+				{#if sessionNotice}
+					<div class="mb-3 min-h-11 rounded-xl border border-info/25 bg-info/5 px-3 py-2 text-xs text-base-content/70" role="status">{sessionNotice}</div>
+				{/if}
+				<ul class="space-y-3 pb-4">
+					{#each steps as step, index (cookStepKey(index, step.stream_id))}
+						<CookStepCard
+							{step}
+							{index}
+							palette={palettes[index]?.result ?? paletteFor(index)}
+							incomingPalettes={palettes[index]?.sources ?? []}
+							streamName={streamNames[step.stream_id] ?? null}
+							mergeNames={[...new Set((step.merges_from ?? []).map((streamId) => streamNames[streamId]).filter(Boolean))]}
+							current={currentStepKey === cookStepKey(index, step.stream_id, step.step_id ?? step.direction_id)}
+							onSelect={() => selectStep(index)}
+						/>
+					{/each}
+				</ul>
 
-	<div class="mb-8 border-t border-base-200 pt-4">
-		<button class="btn btn-primary min-h-12 w-full" onclick={() => network.markCooked(planMealId)} disabled={cookedSubmitting || cookedDone}>
-			{#if cookedDone}{m.benchsheet_cooked_logged()}{:else if cookedSubmitting}…{:else}{m.cookmode_log_cooked()}{/if}
-		</button>
+				<div class="mb-8 border-t border-base-200 pt-4">
+					<button class="btn btn-primary min-h-12 w-full" onclick={() => network.markCooked(planMealId)} disabled={cookedSubmitting || cookedDone}>
+						{#if cookedDone}{m.benchsheet_cooked_logged()}{:else if cookedSubmitting}…{:else}{m.cookmode_log_cooked()}{/if}
+					</button>
+				</div>
+			{/if}
+		</div>
 	</div>
-	</div>
-	</div>
-{/if}
+</section>
+
+<style>
+	.bench-sheet {
+		padding: 0.75rem;
+	}
+
+	.prep-desk {
+		display: grid;
+		max-width: 72rem;
+		margin-inline: auto;
+		gap: 1rem;
+	}
+
+	.prep-rail,
+	.timeline-pane {
+		display: grid;
+		min-width: 0;
+		align-content: start;
+		gap: 0.75rem;
+	}
+
+	.cooking-controls {
+		display: grid;
+		gap: 0.7rem;
+		border: 1px solid var(--kitchen-line);
+		border-radius: 0.9rem;
+		padding: 0.75rem;
+		background: var(--kitchen-paper);
+	}
+
+	.portion-row,
+	.projection-controls,
+	.control-status,
+	.details-ready {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.portion-row {
+		flex-wrap: wrap;
+	}
+
+	.projection-controls {
+		align-items: stretch;
+	}
+
+	.segmented {
+		display: grid;
+		min-width: 0;
+		flex: 1;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.segmented.language {
+		flex: 0 0 5.5rem;
+	}
+
+	.segmented button,
+	.language-static {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid var(--kitchen-line);
+		padding: 0.35rem 0.55rem;
+		background: var(--kitchen-card);
+		font-size: 0.7rem;
+		font-weight: 750;
+		line-height: 1.1;
+	}
+
+	.segmented > :first-child {
+		border-radius: 0.625rem 0 0 0.625rem;
+	}
+
+	.segmented > :last-child {
+		margin-left: -1px;
+		border-radius: 0 0.625rem 0.625rem 0;
+	}
+
+	.segmented button.active {
+		position: relative;
+		z-index: 1;
+		border-color: var(--kitchen-olive);
+		background: var(--kitchen-olive);
+		color: white;
+	}
+
+	.language-static {
+		border-radius: 0.625rem;
+	}
+
+	.control-status,
+	.details-ready {
+		min-height: 2.75rem;
+		border-radius: 0.7rem;
+		padding: 0.45rem 0.6rem;
+		background: color-mix(in oklab, var(--color-info) 6%, var(--kitchen-card));
+		font-size: 0.72rem;
+	}
+
+	.control-status span,
+	.details-ready div {
+		min-width: 0;
+		flex: 1;
+	}
+
+	.control-status.warning {
+		background: color-mix(in oklab, var(--color-warning) 8%, var(--kitchen-card));
+	}
+
+	.control-status button {
+		min-height: 2.25rem;
+		font-weight: 750;
+	}
+
+	.cooking-details {
+		display: grid;
+		gap: 0.35rem;
+		border-top: 1px solid var(--kitchen-line);
+		padding-top: 0.7rem;
+	}
+
+	.cooking-details > p,
+	.details-ready span {
+		display: block;
+		color: var(--kitchen-muted);
+		font-size: 0.68rem;
+	}
+
+	@media (min-width: 48rem) {
+		.prep-desk {
+			grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
+			gap: 1.25rem;
+		}
+	}
+
+	@media (min-width: 64rem) and (min-height: 45rem) {
+		.prep-rail {
+			position: sticky;
+			top: 1rem;
+		}
+	}
+</style>

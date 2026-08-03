@@ -43,8 +43,7 @@ function dependencies(
 		readGenerationContext: () => ({
 			viewLang: 'en',
 			servings: 4,
-			sessionStarted: false,
-			hasPlan: false
+			sessionStarted: false
 		}),
 		adoptCookMode: vi.fn(),
 		reload: vi.fn(),
@@ -88,6 +87,30 @@ describe('CookModeNetworkController', () => {
 		expect(network.loadError).toBe('');
 	});
 
+	it('starts only one cooking-details request for a double click', async () => {
+		let finishRequest: ((response: Response) => void) | undefined;
+		const fetcher = vi.fn(
+			() =>
+				new Promise<Response>((resolve) => {
+					finishRequest = resolve;
+				})
+		);
+		const network = new CookModeNetworkController(dependencies({ fetcher }));
+
+		const first = network.loadCookMode();
+		const second = network.loadCookMode();
+
+		expect(fetcher).toHaveBeenCalledTimes(1);
+		finishRequest?.(
+			new Response(JSON.stringify({ cookMode: generatedCookMode, recipeRevision: 3 }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			})
+		);
+		await Promise.all([first, second]);
+		expect(fetcher).toHaveBeenCalledTimes(1);
+	});
+
 	it('surfaces a non-retryable generation limit without replacing the plan', async () => {
 		const fetcher = vi.fn().mockResolvedValue(
 			new Response(JSON.stringify({ reason: 'daily_cap_exceeded' }), {
@@ -106,8 +129,7 @@ describe('CookModeNetworkController', () => {
 		expect(network.loading).toBe(false);
 	});
 
-	it('recovers a thrown generation request through the bounded background retry', async () => {
-		let retry: (() => void) | null = null;
+	it('keeps a failed request idle until the user retries', async () => {
 		const fetcher = vi
 			.fn()
 			.mockRejectedValueOnce(new Error('offline'))
@@ -119,11 +141,7 @@ describe('CookModeNetworkController', () => {
 			);
 		const deps = dependencies({
 			fetcher,
-			setTimer: (callback, delay) => {
-				expect(delay).toBe(5_000);
-				retry = callback;
-				return 41;
-			},
+			setTimer: vi.fn(() => 41),
 			clearTimer: vi.fn()
 		});
 		const network = new CookModeNetworkController(deps);
@@ -132,36 +150,31 @@ describe('CookModeNetworkController', () => {
 
 		expect(network.loadError).toBe('connection failed');
 		expect(network.loadErrorRetryable).toBe(true);
-		expect(retry).not.toBeNull();
+		expect(deps.setTimer).not.toHaveBeenCalled();
+		expect(fetcher).toHaveBeenCalledTimes(1);
 
-		(retry as (() => void) | null)?.();
-		await vi.waitFor(() => expect(deps.adoptCookMode).toHaveBeenCalledWith(generatedCookMode));
+		await network.loadCookMode();
+		expect(deps.adoptCookMode).toHaveBeenCalledWith(generatedCookMode);
 		expect(fetcher).toHaveBeenCalledTimes(2);
 		expect(network.loadError).toBe('');
 	});
 
-	it('forces one regeneration for an ineligible cache without duplicating retry timers', async () => {
-		const fetcher = vi
-			.fn()
-			.mockResolvedValueOnce(
-				new Response(JSON.stringify({ cookMode: ineligibleCookMode }), {
-					status: 200,
-					headers: { 'Content-Type': 'application/json' }
-				})
-			)
-			.mockRejectedValueOnce(new Error('offline'));
+	it('requires a deliberate retry when a response is still ineligible', async () => {
+		const fetcher = vi.fn().mockResolvedValue(
+			new Response(JSON.stringify({ cookMode: ineligibleCookMode }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			})
+		);
 		const setTimer = vi.fn((_callback: () => void, _delay: number) => 51);
 		const network = new CookModeNetworkController(dependencies({ fetcher, setTimer }));
 
 		await network.loadCookMode();
 
-		expect(fetcher.mock.calls[1]).toEqual([
-			'/kitchen/api/recipes/bean-stew/cook-mode?lang=en&servings=4&force=true',
-			{ method: 'POST' }
-		]);
-		expect(setTimer).toHaveBeenCalledTimes(1);
-		expect(setTimer.mock.calls[0]?.[1]).toBe(5_000);
-		expect(network.loadError).toBe('connection failed');
+		expect(fetcher).toHaveBeenCalledTimes(1);
+		expect(setTimer).not.toHaveBeenCalled();
+		expect(network.loadError).toBe('load failed');
+		expect(network.loadErrorRetryable).toBe(true);
 	});
 
 	it('logs a direct recipe cook and resets the acknowledged session', async () => {

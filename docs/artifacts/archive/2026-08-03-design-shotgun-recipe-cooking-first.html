@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recipe cooking-first design shotgun</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --grove: #344f3e;
+      --grove-soft: #56705d;
+      --paper: #f8f5ed;
+      --card: #fffefa;
+      --ink: #27312b;
+      --muted: #647069;
+      --line: #ded8cc;
+      --terra: #aa5233;
+      --honey: #d8aa55;
+      --amber: #f59e0b;
+      --sky: #0ea5e9;
+      --emerald: #10b981;
+      --rose: #f43f5e;
+      --violet: #8b5cf6;
+      --shadow: 0 12px 32px rgba(35, 49, 40, .12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #e9eee9;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    button, input, textarea { font: inherit; }
+    button, label { -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; }
+    .shell { width: min(1540px, 100%); margin: 0 auto; padding: 20px; }
+    .topline {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, .7fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .brief, .recommendation, .decision, .handoff, .fixed {
+      border: 1px solid rgba(52,79,62,.18);
+      border-radius: 18px;
+      background: rgba(255,254,250,.92);
+      box-shadow: 0 8px 24px rgba(35,49,40,.06);
+    }
+    .brief { padding: 24px; }
+    .eyebrow { margin: 0 0 6px; color: var(--terra); font-size: 12px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { max-width: 18ch; margin: 0; font-size: clamp(30px, 4vw, 54px); line-height: .98; letter-spacing: -.045em; }
+    .lede { max-width: 78ch; margin: 16px 0 0; color: var(--muted); font-size: 16px; }
+    .recommendation { padding: 20px; background: var(--grove); color: #fffdf7; }
+    .recommendation h2, .fixed h2, .decision h2, .handoff h2 { margin: 0 0 8px; font-size: 18px; }
+    .recommendation p { margin: 0; color: #dce8de; }
+    .recommendation strong { color: #fff; }
+    .fixed { margin-bottom: 18px; padding: 18px 20px; }
+    .fixed ul { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; padding: 0; margin: 12px 0 0; list-style: none; }
+    .fixed li { border-left: 4px solid var(--grove); border-radius: 10px; background: var(--paper); padding: 10px 12px; font-size: 13px; }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: 26px 0 12px; }
+    .section-head h2 { margin: 0; font-size: clamp(23px, 3vw, 34px); letter-spacing: -.025em; }
+    .section-head p { max-width: 64ch; margin: 0; color: var(--muted); font-size: 14px; }
+    .variants { display: grid; gap: 18px; }
+    .variant {
+      overflow: hidden;
+      border: 1px solid rgba(52,79,62,.18);
+      border-radius: 20px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+    .variant-meta { display: grid; grid-template-columns: minmax(0,1.2fr) repeat(3,minmax(0,.7fr)); gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .variant-meta h3 { margin: 0 0 4px; font-size: 22px; }
+    .variant-meta p { margin: 0; color: var(--muted); font-size: 13px; }
+    .meta-bit { border-left: 1px solid var(--line); padding-left: 12px; }
+    .meta-bit b { display: block; margin-bottom: 3px; color: var(--grove); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .pick {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      border: 1px solid var(--grove);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: var(--grove);
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .pick:has(input:checked) { background: var(--grove); color: white; }
+    .mock-pair { display: grid; grid-template-columns: 390px minmax(0, 1fr); gap: 22px; align-items: start; padding: 20px; background: linear-gradient(135deg, #eef2ee, #e2e9e3); }
+    .device-label { margin: 0 0 7px; color: var(--grove); font-size: 11px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+    .device {
+      overflow: hidden;
+      border: 7px solid #243129;
+      border-radius: 25px;
+      background: var(--paper);
+      box-shadow: 0 16px 35px rgba(24,38,29,.18);
+    }
+    .phone .device { height: 690px; }
+    .desktop .device { min-height: 690px; border-radius: 16px; }
+    .screen { height: 100%; overflow: hidden; background: var(--paper); }
+    .ribbon { padding: 10px 12px; background: var(--grove); color: #fffdf7; }
+    .identity { display: flex; align-items: center; gap: 8px; }
+    .back { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border: 1px solid rgba(255,255,255,.25); border-radius: 9px; }
+    .title { min-width: 0; flex: 1; }
+    .title small { display: block; color: #dce8de; font-size: 8px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
+    .title strong { display: block; overflow: hidden; font-size: 15px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
+    .commands, .utility, .cook-row, .mode-row, .compact-row { display: flex; gap: 6px; align-items: center; }
+    .commands { margin-top: 8px; }
+    .cmd, .tool, .mode, .stepper, .enhance, .detail-chip {
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 10px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .cmd { flex: 1; }
+    .cmd.primary { border-color: var(--terra); background: var(--terra); color: white; }
+    .cmd.danger { color: #ffddd5; }
+    .utility { margin: 0 -12px -10px; padding: 8px 12px 9px; background: rgba(255,255,255,.055); }
+    .utility .tool { min-width: 0; flex: 1; color: #fffdf7; }
+    .paper { padding: 10px; }
+    .occasion { margin-bottom: 7px; color: var(--muted); font-size: 9px; font-weight: 700; }
+    .cook-controls { border: 1px solid var(--line); border-radius: 13px; padding: 9px; background: var(--card); }
+    .cook-row { justify-content: space-between; }
+    .servings { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 800; }
+    .stepper { min-width: 82px; border-color: var(--line); color: var(--ink); font-size: 11px; }
+    .mode-row { margin-top: 7px; }
+    .mode { min-height: 32px; flex: 1; border-color: var(--line); color: var(--muted); }
+    .mode.active { border-color: var(--grove); background: var(--grove); color: white; }
+    .lang { flex: 0 0 48px; }
+    .enhance { margin-top: 7px; width: 100%; border-color: rgba(170,82,51,.35); background: rgba(170,82,51,.07); color: var(--terra); }
+    .enhance small { margin-left: 5px; color: var(--muted); font-weight: 600; }
+    .work { display: grid; gap: 9px; margin-top: 9px; }
+    .counter { border: 1px solid var(--line); border-radius: 13px; padding: 9px; background: var(--card); }
+    .counter h4, .details h4 { margin: 0 0 7px; font-size: 10px; }
+    .ingredients { display: flex; flex-wrap: wrap; gap: 5px; }
+    .ingredient { border: 1px solid var(--line); border-radius: 999px; padding: 4px 7px; font-size: 8px; }
+    .timeline { display: grid; gap: 7px; }
+    .step {
+      position: relative;
+      overflow: hidden;
+      min-height: 82px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 10px 10px 9px 16px;
+      background: var(--card);
+      box-shadow: 0 4px 10px rgba(35,49,40,.05);
+    }
+    .step::before { position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--lane, var(--amber)); content: ""; }
+    .stephead { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .number { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--lane) 13%, white); color: color-mix(in srgb, var(--lane) 75%, #1f2e25); font-size: 9px; font-weight: 900; }
+    .lane { color: color-mix(in srgb, var(--lane) 72%, #27312b); font-size: 8px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+    .merge-label { margin-left: auto; color: var(--muted); font-size: 7px; }
+    .step p { margin: 0; font-size: 10px; line-height: 1.35; }
+    .step p b { font-weight: 900; }
+    .merge-band { position: absolute; inset: 0 0 auto 5px; display: flex; height: 5px; }
+    .merge-band span { flex: 1; }
+    .details { margin-top: 9px; border: 1px dashed var(--line); border-radius: 13px; padding: 9px; color: var(--muted); background: rgba(255,254,250,.6); }
+    .detail-chip { min-height: 28px; border-color: var(--line); color: var(--muted); font-size: 8px; }
+    .desktop .ribbon { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; padding: 13px 17px; }
+    .desktop .commands { min-width: 300px; margin-top: 0; }
+    .desktop .utility { grid-column: 1 / -1; margin: 0 -17px -13px; padding-inline: 17px; }
+    .desktop .paper { padding: 15px 17px; }
+    .desktop .work { grid-template-columns: minmax(170px, .72fr) minmax(0, 1.6fr); align-items: start; }
+    .desktop .details { grid-column: 1 / -1; }
+    .layout-b .ribbon { background: #2c4636; }
+    .layout-b .commands { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); }
+    .layout-b .utility { display: none; }
+    .layout-b .cook-controls { position: relative; border-radius: 9px; background: #fff; box-shadow: 0 8px 18px rgba(35,49,40,.12); }
+    .layout-b .mode-row { margin-top: 0; }
+    .layout-b .cook-row { display: grid; grid-template-columns: auto 1fr; gap: 6px; }
+    .layout-b .enhance { margin-top: 5px; }
+    .desktop .layout-b .cook-controls { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+    .desktop .layout-b .mode-row, .desktop .layout-b .enhance { margin: 0; }
+    .layout-c .commands .cmd:not(.primary) { display: none; }
+    .layout-c .utility .tool { border-style: dashed; }
+    .layout-c .work { margin-top: 5px; }
+    .layout-c .counter { border-width: 0; padding-inline: 2px; background: transparent; }
+    .layout-c .details { opacity: .72; }
+    .layout-d .paper { display: grid; gap: 10px; }
+    .desktop .layout-d .paper { grid-template-columns: 230px minmax(0,1fr); }
+    .desktop .layout-d .cook-controls { position: sticky; top: 10px; }
+    .desktop .layout-d .work { display: contents; }
+    .desktop .layout-d .counter { grid-column: 1; }
+    .desktop .layout-d .timeline { grid-column: 2; grid-row: 1 / span 3; }
+    .desktop .layout-d .details { grid-column: 1; }
+    .layout-e .mode-row { padding: 4px; border-radius: 12px; background: #e7ece7; }
+    .layout-e .mode { min-height: 42px; border-color: transparent; }
+    .layout-e .mode.active { box-shadow: 0 4px 11px rgba(35,49,40,.18); }
+    .layout-e .enhance { min-height: 52px; justify-content: flex-start; border-style: dashed; padding-inline: 12px; text-align: left; }
+    .layout-e .counter { margin-top: 4px; }
+    .decisions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+    .decision { padding: 18px; }
+    .decision p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+    .choices { display: grid; gap: 7px; }
+    .choice { display: flex; min-height: 44px; align-items: flex-start; gap: 9px; border: 1px solid var(--line); border-radius: 11px; padding: 9px 10px; cursor: pointer; }
+    .choice:has(input:checked) { border-color: var(--grove); background: rgba(52,79,62,.07); }
+    .choice b { display: block; font-size: 13px; }
+    .choice small { display: block; color: var(--muted); font-size: 11px; }
+    .notes { width: 100%; min-height: 82px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: white; color: var(--ink); }
+    .handoff { margin-top: 18px; padding: 18px; }
+    .handoff-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .action { min-height: 44px; border: 1px solid var(--grove); border-radius: 10px; padding: 8px 12px; background: var(--grove); color: white; font-weight: 850; cursor: pointer; }
+    .action.secondary { background: white; color: var(--grove); }
+    #prompt { width: 100%; min-height: 320px; resize: vertical; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #f2f5f2; color: #243129; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.5; }
+    .status { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    :focus-visible { outline: 3px solid var(--honey); outline-offset: 2px; }
+    @media (max-width: 1000px) {
+      .topline { grid-template-columns: 1fr; }
+      .fixed ul { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .mock-pair { grid-template-columns: 350px minmax(520px,1fr); overflow-x: auto; }
+      .variant-meta { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 720px) {
+      .shell { padding: 10px; }
+      .brief { padding: 18px; }
+      .fixed ul, .decisions { grid-template-columns: 1fr; }
+      .mock-pair { grid-template-columns: minmax(330px, 390px); justify-content: center; }
+      .desktop { display: none; }
+      .variant-meta { grid-template-columns: 1fr; }
+      .meta-bit { border-left: 0; border-top: 1px solid var(--line); padding: 9px 0 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="topline">
+      <div class="brief">
+        <p class="eyebrow">Design shotgun · 5 complete directions</p>
+        <h1>Get from recipe title to cooking, without stepping over maintenance.</h1>
+        <p class="lede">Every direction uses the same Keukenbrein content and the same fixed decisions: cooking details are opt-in, Edit and Archive stay together, Cooking / Original moves to the portions area, and merge steps show their incoming lane colors across the top.</p>
+      </div>
+      <aside class="recommendation">
+        <h2>Recommendation: Counter First</h2>
+        <p><strong>Why:</strong> it gets the counter and first step on screen earliest while keeping Routine & freezer and AI suggestions visible in a separate green utility row. It also preserves the house-style distinction between identity, commands, and working controls.</p>
+      </aside>
+    </section>
+
+    <section class="fixed">
+      <h2>Already decided</h2>
+      <ul>
+        <li>No automatic cooking-plan request on open, import, edit, chat write, or composition change.</li>
+        <li>Add cooking details writes a cache only; recipe text stays unchanged.</li>
+        <li>Edit and Archive remain adjacent; confirmation, Undo, and Restore remain.</li>
+        <li>Merged result stays on the left; incoming lane colors appear across the step top.</li>
+      </ul>
+    </section>
+
+    <div class="section-head">
+      <div><p class="eyebrow">Compare the whole first screen</p><h2>Five different page arrangements</h2></div>
+      <p>Phone and desktop use equivalent content. Choose a complete direction, then mix the smaller terminology and action decisions below.</p>
+    </div>
+
+    <section class="variants" id="variants"></section>
+
+    <div class="section-head">
+      <div><p class="eyebrow">Mix the details</p><h2>Four decisions that can cross variants</h2></div>
+      <p>The recommended choice is preselected. Your notes are saved in this browser and copied verbatim into the handoff prompt.</p>
+    </div>
+
+    <section class="decisions">
+      <div class="decision">
+        <h2>Name the current “Cooking rhythm” control</h2>
+        <p>It edits cadence, seasons, keep-stocked state, and freezer target.</p>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="rhythm" value="Routine & freezer" checked><span><b>Routine & freezer (recommended)</b><small>Names both repeat behavior and frozen stock.</small></span></label>
+          <label class="choice"><input type="radio" name="rhythm" value="Cooking rhythm"><span><b>Cooking rhythm</b><small>Friendly, but hides the freezer half.</small></span></label>
+          <label class="choice"><input type="radio" name="rhythm" value="Rotation & freezer"><span><b>Rotation & freezer</b><small>Compact, but sounds more like internal scheduling.</small></span></label>
+        </div>
+        <textarea class="notes" data-note="rhythm" placeholder="Notes on the name…"></textarea>
+      </div>
+
+      <div class="decision">
+        <h2>Where should AI suggestions live?</h2>
+        <p>This is the reviewed recipe-edit action, not cooking-details generation.</p>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="ai" value="Green utility row" checked><span><b>Green utility row (recommended)</b><small>Visible, secondary, and distinct from cooking controls.</small></span></label>
+          <label class="choice"><input type="radio" name="ai" value="Recipe details below cooking"><span><b>Recipe details below cooking</b><small>Cleaner header, but harder to discover.</small></span></label>
+          <label class="choice"><input type="radio" name="ai" value="Remove it"><span><b>Remove it</b><small>Manual Edit becomes the only recipe-improvement path.</small></span></label>
+        </div>
+        <textarea class="notes" data-note="ai" placeholder="Notes on AI suggestions…"></textarea>
+      </div>
+
+      <div class="decision">
+        <h2>Name the opt-in cooking action</h2>
+        <p>It links ingredients and arranges cooking lanes without editing recipe text.</p>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="enhance" value="Add cooking details" checked><span><b>Add cooking details (recommended)</b><small>Concrete result; supporting text discloses one AI use.</small></span></label>
+          <label class="choice"><input type="radio" name="enhance" value="Enhance cooking view"><span><b>Enhance cooking view</b><small>Familiar, but “enhance” is vague.</small></span></label>
+          <label class="choice"><input type="radio" name="enhance" value="Build AI cooking plan"><span><b>Build AI cooking plan</b><small>Transparent about AI, but sounds heavier than the result.</small></span></label>
+        </div>
+        <textarea class="notes" data-note="enhance" placeholder="Notes on the cooking-details action…"></textarea>
+      </div>
+
+      <div class="decision">
+        <h2>Place Cooking / Original</h2>
+        <p>The choice changes the meaning of the portions and language controls around it.</p>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="mode" value="Directly under portions" checked><span><b>Directly under portions (recommended)</b><small>Clear grouping and comfortable phone targets.</small></span></label>
+          <label class="choice"><input type="radio" name="mode" value="Beside portions"><span><b>Beside portions</b><small>More compact, but crowded with language and batch size.</small></span></label>
+          <label class="choice"><input type="radio" name="mode" value="Sticky cooking dock"><span><b>Sticky cooking dock</b><small>Always available, with more persistent chrome.</small></span></label>
+        </div>
+        <textarea class="notes" data-note="mode" placeholder="Notes on view placement…"></textarea>
+      </div>
+    </section>
+
+    <section class="handoff">
+      <h2>Forward-only handoff</h2>
+      <p class="status" id="storage-status" role="status">Selections save locally in this browser.</p>
+      <div class="handoff-actions">
+        <button class="action" id="copy">Copy decisions</button>
+        <button class="action secondary" id="reset">Reset recommendations</button>
+      </div>
+      <textarea id="prompt" readonly aria-label="Generated handoff prompt"></textarea>
+      <p class="status" id="copy-status" role="status"></p>
+    </section>
+  </main>
+
+  <script>
+    const sourcePath = 'docs/feature-lists/archive/FEATURE_LIST_RECIPE_COOKING_PROGRESSIVE_ENHANCEMENT.md';
+    const artifactPath = 'docs/artifacts/archive/2026-08-03-design-shotgun-recipe-cooking-first.html';
+    const storageKey = artifactPath + '::v1';
+    const variants = [
+      { id: 'A', slug: 'a', name: 'Counter First', thesis: 'Two-tier green header, then one paper cooking control block and the counter/timeline immediately.', strength: 'Shortest clear path to cooking.', tradeoff: 'Two secondary tools remain visible in green.', optimizes: 'Repeated phone cooking.' },
+      { id: 'B', slug: 'b', name: 'Kitchen Console', thesis: 'Dense command ribbon plus one sticky operational control deck.', strength: 'All active controls stay visible.', tradeoff: 'Busier and more compact.', optimizes: 'Fast switching mid-cook.' },
+      { id: 'C', slug: 'c', name: 'Quiet Cook', thesis: 'Minimal identity, dominant steps, and one compact Recipe tools disclosure.', strength: 'Lowest first-screen cognitive load.', tradeoff: 'Secondary commands need one extra tap.', optimizes: 'Hands-busy cooking.' },
+      { id: 'D', slug: 'd', name: 'Split Prep Desk', thesis: 'Sticky desktop control/counter rail with the timeline beside it; phone keeps the same order.', strength: 'Best use of a laptop or tablet.', tradeoff: 'Largest responsive change.', optimizes: 'Wide counter screens.' },
+      { id: 'E', slug: 'e', name: 'Recipe Dock', thesis: 'Prominent Cooking / Original dock and a contained optional-details card.', strength: 'Representation and enhancement are unmistakable.', tradeoff: 'More chrome before step one.', optimizes: 'Frequent source comparison.' }
+    ];
+
+    function header(v) {
+      const quiet = v.slug === 'c';
+      const allCommands = quiet
+        ? '<span class="cmd primary">Plan</span>'
+        : '<span class="cmd">Edit</span><span class="cmd danger">Archive</span><span class="cmd primary">Plan</span>';
+      const consoleExtras = v.slug === 'b' ? '<span class="cmd">Routine</span><span class="cmd">AI ideas</span>' : '';
+      const utility = quiet
+        ? '<div class="utility"><span class="tool">Recipe tools · Routine · AI · Edit · Archive</span></div>'
+        : '<div class="utility"><span class="tool">Monthly · keep 4 frozen</span><span class="tool">AI suggestions</span></div>';
+      return '<div class="ribbon"><div class="identity"><span class="back">‹</span><span class="title"><small>Recipe</small><strong>Chickpea curry with spinach</strong></span></div><div class="commands">' + allCommands + consoleExtras + '</div>' + (v.slug === 'b' ? '' : utility) + '</div>';
+    }
+
+    function cookingControls(v) {
+      const dock = v.slug === 'e';
+      return '<div class="cook-controls"><div class="occasion">Tuesday dinner · planned for 4 · synced</div><div class="cook-row"><span class="servings">Cooking portions <span class="stepper">− &nbsp; 4 &nbsp; +</span></span><span class="detail-chip">Batch 1×</span></div><div class="mode-row' + (dock ? ' dock' : '') + '"><span class="mode active">Cooking</span><span class="mode">Original</span><span class="mode lang">NL · EN</span></div><div class="enhance">＋ Add cooking details <small>Uses AI once · recipe text stays unchanged</small></div></div>';
+    }
+
+    function counter() {
+      return '<aside class="counter"><h4>On the counter</h4><div class="ingredients"><span class="ingredient">2 cans chickpeas</span><span class="ingredient">400 g spinach</span><span class="ingredient">1 onion</span><span class="ingredient">Coconut milk</span></div></aside>';
+    }
+
+    function steps() {
+      return '<div class="timeline">' +
+        '<div class="step" style="--lane:var(--amber)"><div class="stephead"><span class="number">1</span><span class="lane">Curry</span></div><p><b>Fry</b> the onion and spices until fragrant.</p></div>' +
+        '<div class="step" style="--lane:var(--sky)"><div class="stephead"><span class="number">2</span><span class="lane">Spinach</span></div><p><b>Wilt</b> the spinach in a separate pan.</p></div>' +
+        '<div class="step" style="--lane:var(--emerald)"><div class="merge-band" aria-label="Curry and spinach merge"><span style="background:var(--amber)"></span><span style="background:var(--sky)"></span></div><div class="stephead"><span class="number">3</span><span class="lane">Finish curry</span><span class="merge-label">← Curry + Spinach</span></div><p><b>Fold</b> the spinach into the curry and simmer for 5 minutes.</p></div>' +
+        '</div>';
+    }
+
+    function details() {
+      return '<section class="details"><h4>Recipe details after cooking</h4><div class="compact-row"><span class="detail-chip">Photo</span><span class="detail-chip">30 min</span><span class="detail-chip">Vegetarian</span><span class="detail-chip">Composition</span></div></section>';
+    }
+
+    function mock(v, size) {
+      return '<div class="' + size + '"><p class="device-label">' + (size === 'phone' ? '393 px phone' : '1280 px desktop') + '</p><div class="device"><div class="screen layout-' + v.slug + '">' + header(v) + '<div class="paper">' + cookingControls(v) + '<div class="work">' + counter() + steps() + details() + '</div></div></div></div></div>';
+    }
+
+    const variantsNode = document.getElementById('variants');
+    variantsNode.innerHTML = variants.map((v, index) => '<article class="variant"><div class="variant-meta"><div><h3>' + v.id + '. ' + v.name + '</h3><p>' + v.thesis + '</p><label class="pick"><input type="radio" name="variant" value="' + v.id + '. ' + v.name + '" ' + (index === 0 ? 'checked' : '') + '>Choose this direction</label></div><div class="meta-bit"><b>Main strength</b><p>' + v.strength + '</p></div><div class="meta-bit"><b>Main trade-off</b><p>' + v.tradeoff + '</p></div><div class="meta-bit"><b>Optimizes for</b><p>' + v.optimizes + '</p></div></div><div class="mock-pair">' + mock(v, 'phone') + mock(v, 'desktop') + '</div></article>').join('');
+
+    const decisionControls = [...document.querySelectorAll('input[type="radio"], textarea[data-note]')];
+    const prompt = document.getElementById('prompt');
+    const storageStatus = document.getElementById('storage-status');
+    const copyStatus = document.getElementById('copy-status');
+
+    function selected(name) {
+      return document.querySelector('input[name="' + name + '"]:checked')?.value || '';
+    }
+    function note(name) {
+      return document.querySelector('textarea[data-note="' + name + '"]')?.value || '';
+    }
+    function state() {
+      return { variant: selected('variant'), rhythm: selected('rhythm'), ai: selected('ai'), enhance: selected('enhance'), mode: selected('mode'), notes: { rhythm: note('rhythm'), ai: note('ai'), enhance: note('enhance'), mode: note('mode') } };
+    }
+    function save() {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(state()));
+        storageStatus.textContent = 'Selections saved locally in this browser.';
+      } catch {
+        storageStatus.textContent = 'Local saving is unavailable. Your current selections still work until this page closes.';
+      }
+    }
+    function setRadio(name, value) {
+      const input = [...document.querySelectorAll('input[name="' + name + '"]')].find(el => el.value === value);
+      if (input) input.checked = true;
+    }
+    function restore() {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        setRadio('variant', saved.variant);
+        setRadio('rhythm', saved.rhythm);
+        setRadio('ai', saved.ai);
+        setRadio('enhance', saved.enhance);
+        setRadio('mode', saved.mode);
+        for (const key of ['rhythm','ai','enhance','mode']) {
+          const area = document.querySelector('textarea[data-note="' + key + '"]');
+          if (area && typeof saved.notes?.[key] === 'string') area.value = saved.notes[key];
+        }
+      } catch {
+        storageStatus.textContent = 'Saved choices could not be restored. Recommended defaults are active.';
+      }
+    }
+    function renderPrompt() {
+      const s = state();
+      const variantsText = variants.map(v => v.id + '. ' + v.name + ': ' + v.thesis + ' Strength: ' + v.strength + ' Trade-off: ' + v.tradeoff).join('\n');
+      const notes = Object.entries(s.notes).map(([key, value]) => value ? key + ' note (verbatim):\n' + value : '').filter(Boolean).join('\n\n');
+      prompt.value = `Load ${sourcePath} and continue the $plan workflow for the cooking-first recipe page. Do not read or depend on the HTML artifact.\n\nSOURCE DECISION CONTEXT\nThe recipe page currently places photo, metadata, plan context, Archive, Routine/freezer, and AI suggestions before cooking. Cooking details currently generate automatically and may rewrite untouched imported directions. The revised fixed boundary is: no automatic cooking-plan request; explicit cooking-details generation is cache-only; Edit/Archive remain adjacent; Cooking/Original moves to portions; merge cards keep result color left and show incoming colors across the top.\n\nAVAILABLE LAYOUTS\n${variantsText}\n\nSELECTED LAYOUT\n${s.variant}\nRecommendation: A. Counter First. It best balances cooking-first order, visible requested commands, phone repetition, and the Green Ribbon house style. Practical consequence: Routine/freezer and AI remain visible in a separate green utility row instead of competing in the identity row.\n\nSELECTED TERMINOLOGY\nCooking-rhythm replacement: ${s.rhythm}\nRecommendation: Routine & freezer because the editor owns cadence, seasons, keep-stocked state, and freezer target. Uncertainty: Freek may prefer the warmer but less literal Cooking rhythm.\n\nAI SUGGESTIONS\nPlacement: ${s.ai}\nRecommendation: Green utility row because it remains the reviewed recipe-edit path after cooking details become cache-only. Practical consequence of removal: manual Edit becomes the only recipe-improvement path.\n\nOPT-IN COOKING ACTION\nLabel: ${s.enhance}\nRecommendation: Add cooking details with supporting copy “Uses AI once; your recipe text stays unchanged.” It distinguishes display structure from reviewed recipe suggestions and makes the paid call explicit.\n\nVIEW CONTROL\nPlacement: ${s.mode}\nRecommendation: directly under portions because these controls describe the same cooking projection and retain comfortable phone targets.\n\nFIXED MERGE CARD DECISION\nKeep the merged result stream color as the left bar and number accent. Render equal-width top segments for unique incoming streams in first-seen merges_from order. Keep incoming names and arrow text so color is redundant. Cover two/three sources, duplicates, unknown IDs, dark mode, current state, and focus outline.\n\nUSER NOTES\n${notes || '(none)'}\n\nUpdate the authoritative Markdown plan with these choices, preserve every fixed product and safety boundary above, run plan critique, and stop before implementation unless Freek explicitly requests $run.`;
+    }
+    function changed() { save(); renderPrompt(); }
+    restore();
+    decisionControls.forEach(control => control.addEventListener(control.tagName === 'TEXTAREA' ? 'input' : 'change', changed));
+    renderPrompt();
+
+    document.getElementById('reset').addEventListener('click', () => {
+      setRadio('variant', 'A. Counter First');
+      setRadio('rhythm', 'Routine & freezer');
+      setRadio('ai', 'Green utility row');
+      setRadio('enhance', 'Add cooking details');
+      setRadio('mode', 'Directly under portions');
+      document.querySelectorAll('textarea[data-note]').forEach(area => area.value = '');
+      try { localStorage.removeItem(storageKey); } catch {}
+      storageStatus.textContent = 'Recommendations restored.';
+      renderPrompt();
+    });
+    document.getElementById('copy').addEventListener('click', async () => {
+      renderPrompt();
+      try {
+        await navigator.clipboard.writeText(prompt.value);
+        copyStatus.textContent = 'Decisions copied.';
+      } catch {
+        prompt.focus();
+        prompt.select();
+        copyStatus.textContent = 'Clipboard access was unavailable. The full prompt is selected; use your browser or keyboard copy command.';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -8,11 +8,13 @@
 		slug,
 		title,
 		archived,
+		variant = 'panel',
 		onArchivedChange
 	}: {
 		slug: string;
 		title: string;
 		archived: boolean;
+		variant?: 'panel' | 'action';
 		onArchivedChange?: (archived: boolean) => void;
 	} = $props();
 
@@ -47,6 +49,16 @@
 	}
 </script>
 
+{#if variant === 'action'}
+	{#if !archived}
+		<button
+			type="button"
+			class="ui-action ui-action-tertiary ui-action-on-dark"
+			disabled={pending}
+			onclick={() => void archive()}
+		>{m.recipes_archive_button()}</button>
+	{/if}
+{:else}
 <div class:archived class="recipe-archive-control">
 	{#if archived}
 		<div>
@@ -69,6 +81,7 @@
 		>{m.recipes_archive_button()}</button>
 	{/if}
 </div>
+{/if}
 
 <style>
 	.recipe-archive-control {

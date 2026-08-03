@@ -260,16 +260,16 @@ test('Recipe rhythm creates a deterministic Cook shortlist without the old Sugge
 	await page.setViewportSize({ width: 393, height: 852 });
 	await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
 	await page.waitForLoadState('networkidle');
-	await page.getByRole('button', { name: 'Edit recipe rhythm and freezer target' }).click();
+	await page.getByRole('button', { name: 'Edit routine and freezer target' }).click();
 	const rhythmDialog = page.getByRole('dialog').filter({
-		has: page.getByRole('heading', { name: 'Rhythm & freezer' })
+		has: page.getByRole('heading', { name: 'Routine & freezer' })
 	});
 	await expect(rhythmDialog).toBeVisible();
-	await rhythmDialog.getByLabel('Cooking rhythm').selectOption('seasonal');
+	await rhythmDialog.getByLabel('How often to cook').selectOption('seasonal');
 	const seasonGroup = rhythmDialog.getByRole('group', { name: 'Only in these seasons' });
 	await seasonGroup.getByLabel('Winter').check();
-	await rhythmDialog.getByLabel('Cooking rhythm').selectOption('');
-	await rhythmDialog.getByLabel('Cooking rhythm').selectOption('weekly');
+	await rhythmDialog.getByLabel('How often to cook').selectOption('');
+	await rhythmDialog.getByLabel('How often to cook').selectOption('weekly');
 	await expect(seasonGroup.getByLabel('Winter')).not.toBeChecked();
 	await rhythmDialog.getByLabel('Keep stocked').check();
 	const saved = page.waitForResponse(
@@ -277,7 +277,7 @@ test('Recipe rhythm creates a deterministic Cook shortlist without the old Sugge
 			response.request().method() === 'PATCH' &&
 			response.url().endsWith(`/api/recipes/${fixture.cookRecipeSlug}`)
 	);
-	await rhythmDialog.getByRole('button', { name: 'Save rhythm' }).click();
+	await rhythmDialog.getByRole('button', { name: 'Save routine' }).click();
 	const savedResponse = await saved;
 	expect(savedResponse.ok()).toBe(true);
 	expect(savedResponse.request().postDataJSON()).toMatchObject({
@@ -717,7 +717,7 @@ test('Cook Mode resumes its active step and safely resets a broken session witho
 		.toBeNull();
 });
 
-test('Recipe portions stay interactive while cook guidance loads', async ({ page }, testInfo) => {
+test('Recipe cooking details are opt-in and portions stay interactive while they load', async ({ page }, testInfo) => {
 	const fixture = kitchenFixtureFor(testInfo);
 	const database = new Database(E2E_DATABASE);
 	const cached = database
@@ -735,9 +735,11 @@ test('Recipe portions stay interactive while cook guidance loads', async ({ page
 		releaseRequest = resolve;
 	});
 	const cookModePattern = `**/api/recipes/${fixture.cookRecipeSlug}/cook-mode?**`;
+	let requestCount = 0;
 
 	try {
 		await page.route(cookModePattern, async (route) => {
+			requestCount += 1;
 			markRequestStarted();
 			await heldRequest;
 			await route.abort().catch(() => {
@@ -745,7 +747,10 @@ test('Recipe portions stay interactive while cook guidance loads', async ({ page
 			});
 		});
 		await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
-		await requestStarted;
+		await expectAppHydrated(page);
+		const addCookingDetails = page.getByRole('button', { name: 'Add cooking details', exact: true });
+		await expect(addCookingDetails).toBeVisible();
+		expect(requestCount).toBe(0);
 
 		const decrease = page.getByRole('button', { name: 'Decrease servings' });
 		const increase = page.getByRole('button', { name: 'Increase servings' });
@@ -758,6 +763,11 @@ test('Recipe portions stay interactive while cook guidance loads', async ({ page
 		await expect(servings).toHaveText('3');
 		await increase.click();
 		await expect(servings).toHaveText('4');
+
+		await addCookingDetails.click();
+		await requestStarted;
+		expect(requestCount).toBe(1);
+		await expect(page.getByText(/Adding cooking details/)).toBeVisible();
 	} finally {
 		releaseRequest();
 		await page.unroute(cookModePattern);
@@ -765,6 +775,66 @@ test('Recipe portions stay interactive while cook guidance loads', async ({ page
 		restoreDatabase
 			.prepare('UPDATE recipes SET cook_mode_json = ? WHERE slug = ?')
 			.run(cached?.cookModeJson ?? null, fixture.cookRecipeSlug);
+		restoreDatabase.close();
+	}
+});
+
+test('Recipe merge steps keep the result color left and split incoming colors across the top', async ({
+	page
+}, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	const database = new Database(E2E_DATABASE);
+	const cached = database
+		.prepare('SELECT cook_mode_json AS cookModeJson FROM recipes WHERE slug = ?')
+		.get(fixture.cookRecipeSlug) as { cookModeJson: string };
+	const cookMode = JSON.parse(cached.cookModeJson) as {
+		version: number;
+		generation_id: string;
+		baseline_servings: number;
+		prep_tasks: unknown[];
+		streams: Array<{ id: string; name: { en: string; nl: string } }>;
+		steps: Array<Record<string, unknown>>;
+	};
+	const merged = {
+		...cookMode,
+		streams: [
+			{ id: 'pot', name: { en: 'Pot', nl: 'Pan' } },
+			{ id: 'garnish', name: { en: 'Garnish', nl: 'Garnering' } },
+			{ id: 'plate', name: { en: 'Finished dish', nl: 'Gerecht' } }
+		],
+		steps: [
+			{ ...cookMode.steps[0], stream_id: 'pot', merges_from: [] },
+			{ ...cookMode.steps[0], stream_id: 'garnish', ingredient_indexes: [1], merges_from: [] },
+			{ ...cookMode.steps[1], stream_id: 'plate', merges_from: ['pot', 'garnish'] }
+		]
+	};
+	database
+		.prepare('UPDATE recipes SET cook_mode_json = ? WHERE slug = ?')
+		.run(JSON.stringify(merged), fixture.cookRecipeSlug);
+	database.close();
+
+	try {
+		await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+		await expectAppHydrated(page);
+		const mergeStep = page.locator('#cook-step-2');
+		const incomingBand = mergeStep.getByTestId('merge-source-band');
+		await expect(incomingBand.locator('span')).toHaveCount(2);
+		await expect(mergeStep).toContainText('← Pot + Garnish');
+		await expect(mergeStep.getByTestId('result-stream-bar')).toBeVisible();
+		const widths = await incomingBand.locator('span').evaluateAll((segments) =>
+			segments.map((segment) => segment.getBoundingClientRect().width)
+		);
+		expect(Math.abs(widths[0] - widths[1])).toBeLessThanOrEqual(1);
+		const selectMerge = mergeStep.locator('button').first();
+		await selectMerge.click();
+		await expect(selectMerge).toHaveAttribute('aria-current', 'step');
+		await selectMerge.focus();
+		await expect(selectMerge).toBeFocused();
+	} finally {
+		const restoreDatabase = new Database(E2E_DATABASE);
+		restoreDatabase
+			.prepare('UPDATE recipes SET cook_mode_json = ? WHERE slug = ?')
+			.run(cached.cookModeJson, fixture.cookRecipeSlug);
 		restoreDatabase.close();
 	}
 });

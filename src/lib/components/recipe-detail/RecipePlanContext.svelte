@@ -21,11 +21,13 @@
 	let {
 		slug,
 		selectedMealId,
-		occurrences
+		occurrences,
+		embedded = false
 	}: {
 		slug: string;
 		selectedMealId: number | null;
 		occurrences: RecipePlanOccurrence[];
+		embedded?: boolean;
 	} = $props();
 
 	let removing = $state(false);
@@ -89,7 +91,7 @@
 </script>
 
 {#if occurrences.length > 0}
-	<section class="recipe-plan-context" aria-labelledby="recipe-plan-context-heading">
+	<section class="recipe-plan-context" class:embedded aria-labelledby="recipe-plan-context-heading">
 		<div>
 			<h2 id="recipe-plan-context-heading">{m.recipes_plan_context_heading()}</h2>
 			<p>{m.recipes_plan_context_description()}</p>
@@ -133,6 +135,11 @@
 		border-radius: 0.85rem;
 		padding: 0.75rem;
 		background: var(--kitchen-paper);
+	}
+
+	.recipe-plan-context.embedded {
+		margin: 0;
+		background: color-mix(in oklab, var(--kitchen-paper) 94%, var(--kitchen-cream));
 	}
 
 	.recipe-plan-context h2,

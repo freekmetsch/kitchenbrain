@@ -6,7 +6,6 @@ type GenerationContext = {
 	viewLang: 'en' | 'nl';
 	servings: number;
 	sessionStarted: boolean;
-	hasPlan: boolean;
 };
 
 type NetworkMessages = {
@@ -49,8 +48,6 @@ export class CookModeNetworkController {
 
 	readonly #dependencies: CookModeNetworkControllerDependencies;
 	#genStartedAt: number | null = null;
-	#autoRetries = 0;
-	#retryTimer: unknown | null = null;
 	#cookedAckTimer: unknown | null = null;
 	readonly #setTimer: (callback: () => void, delay: number) => unknown;
 	readonly #clearTimer: (timer: unknown) => void;
@@ -64,16 +61,15 @@ export class CookModeNetworkController {
 	}
 
 	async loadCookMode(force = false): Promise<void> {
-		this.#clearRetry();
+		if (this.loading) return;
 		this.loading = true;
 		this.loadError = '';
 		this.loadErrorRetryable = false;
+		this.regenerating = force;
 		if (this.#genStartedAt == null) {
 			this.#genStartedAt = Date.now();
 			this.genElapsedSec = 0;
 		}
-		let delegatedRegeneration = false;
-
 		try {
 			const context = this.#dependencies.readGenerationContext();
 			const params = new URLSearchParams({
@@ -107,17 +103,9 @@ export class CookModeNetworkController {
 						context.servings
 					)
 				) {
-					if (!force) {
-						this.regenerating = true;
-						this.loading = false;
-						delegatedRegeneration = true;
-						await this.loadCookMode(true);
-						return;
-					}
 					this.loadError = this.#dependencies.messages.loadFailed();
 					this.loadErrorRetryable = true;
 				} else {
-					this.#autoRetries = 0;
 					this.#dependencies.adoptCookMode(body.cookMode);
 				}
 			} else {
@@ -134,11 +122,9 @@ export class CookModeNetworkController {
 			this.loadError = this.#dependencies.messages.connectionFailed();
 			this.loadErrorRetryable = true;
 		} finally {
-			if (delegatedRegeneration) return;
 			this.loading = false;
 			this.regenerating = false;
 			this.#genStartedAt = null;
-			this.#scheduleRetry();
 		}
 	}
 
@@ -146,11 +132,6 @@ export class CookModeNetworkController {
 		if (this.#genStartedAt != null) {
 			this.genElapsedSec = Math.floor((now - this.#genStartedAt) / 1000);
 		}
-	}
-
-	retryAfterVisibility(): Promise<void> {
-		this.#autoRetries = 0;
-		return this.loadCookMode(false);
 	}
 
 	async markCooked(planMealId: number | null): Promise<void> {
@@ -215,31 +196,7 @@ export class CookModeNetworkController {
 	}
 
 	destroy(): void {
-		this.#clearRetry();
 		this.#clearCookedAck();
-	}
-
-	#scheduleRetry(): void {
-		if (!this.loadErrorRetryable || this.#autoRetries >= 2) return;
-		this.#autoRetries += 1;
-		this.#retryTimer = this.#setTimer(() => {
-			this.#retryTimer = null;
-			const context = this.#dependencies.readGenerationContext();
-			if (
-				!context.hasPlan &&
-				!this.loading &&
-				this.loadError &&
-				this.loadErrorRetryable
-			) {
-				void this.loadCookMode(false);
-			}
-		}, this.#autoRetries * 5_000);
-	}
-
-	#clearRetry(): void {
-		if (this.#retryTimer == null) return;
-		this.#clearTimer(this.#retryTimer);
-		this.#retryTimer = null;
 	}
 
 	#clearCookedAck(): void {

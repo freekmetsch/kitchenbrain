@@ -9,9 +9,7 @@
 	import ImportReviewBanner from '$lib/components/recipe-detail/ImportReviewBanner.svelte';
 	import RecipeMetaChips from '$lib/components/recipe-detail/RecipeMetaChips.svelte';
 	import RecipeArchiveControl from '$lib/components/recipe-detail/RecipeArchiveControl.svelte';
-	import RecipePlanContext, {
-		type RecipePlanOccurrence
-	} from '$lib/components/recipe-detail/RecipePlanContext.svelte';
+	import type { RecipePlanOccurrence } from '$lib/components/recipe-detail/RecipePlanContext.svelte';
 	import MealComposition from '$lib/components/recipe-detail/MealComposition.svelte';
 	import FreezerStockPanel from '$lib/components/recipe-detail/FreezerStockPanel.svelte';
 	import RoleCoverage from '$lib/components/recipe-detail/RoleCoverage.svelte';
@@ -292,13 +290,6 @@
 <RecipeHeader
 	{recipe}
 	{displayTitle}
-	view={recipeView}
-	{viewLang}
-	languageSwitchable={recipe.language !== 'en'}
-	{translationLoading}
-	{translationMessage}
-	onViewChange={(next) => (recipeView = next)}
-	onLanguageChange={setViewLanguage}
 	onAddToPlan={() => {
 		addToPlanOpen = true;
 	}}
@@ -307,39 +298,36 @@
 	hasCookProgress={benchSheetController.hasProgress}
 	onResetCookProgress={resetCookProgress}
 	onRemovePhoto={() => void deleteImage()}
-	onRetryTranslation={(force) => void requestTranslation(force)}
 	canPlan={recipe.archivedAt == null}
+	onArchivedChange={(archived) => {
+		recipe = { ...recipe, archivedAt: archived ? new Date() : null };
+	}}
 />
+
+<div class="ui-page-utility">
+	<div class="ui-page-utility-inner grid grid-cols-2 gap-2 md:gap-3">
+		<FreezerStockPanel
+			{recipe}
+			frozenPortions={data.frozenPortions}
+			utility
+			onSaved={(payload) => {
+				recipe = {
+					...recipe,
+					isFreezerStaple: payload.isFreezerStaple,
+					targetPortions: payload.targetPortions,
+					rotationPolicy: payload.rotationPolicy,
+					rotationSeasonsJson: payload.rotationSeasons
+				};
+			}}
+		/>
+		<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} utility />
+	</div>
+</div>
 
 <div
 	class="ui-grove-surface ui-page-shell !max-w-6xl"
 >
 <div class="overflow-x-clip">
-
-<RecipeHero
-	imageUrl={recipe.imageUrl}
-	title={displayTitle}
-	uploading={imageUploading}
-	uploadError={imageUploadError}
-	onPickPhoto={() => imageFileInput?.click()}
-/>
-
-<RecipeMetaChips {recipe} {displayNotes} />
-
-<RecipePlanContext
-	slug={recipe.slug}
-	selectedMealId={data.planMealId}
-	occurrences={data.plannedOccurrences}
-/>
-
-<RecipeArchiveControl
-	slug={recipe.slug}
-	title={displayTitle}
-	archived={recipe.archivedAt != null}
-	onArchivedChange={(archived) => {
-		recipe = { ...recipe, archivedAt: archived ? new Date() : null };
-	}}
-/>
 
 {#if recipe.needsReview}
 	<ImportReviewBanner
@@ -361,23 +349,6 @@
 	onchange={onImagePicked}
 />
 
-<div class="grid grid-cols-2 gap-2 px-3 pt-3 md:gap-4">
-	<FreezerStockPanel
-		{recipe}
-		frozenPortions={data.frozenPortions}
-		onSaved={(payload) => {
-				recipe = {
-					...recipe,
-					isFreezerStaple: payload.isFreezerStaple,
-					targetPortions: payload.targetPortions,
-					rotationPolicy: payload.rotationPolicy,
-					rotationSeasonsJson: payload.rotationSeasons
-				};
-		}}
-	/>
-	<RecipeEnhancementSheet slug={recipe.slug} ingredients={recipe.ingredients} />
-</div>
-
 {#key data.planMealId ?? 'direct'}
 	<BenchSheet
 		recipeSlug={recipe.slug}
@@ -388,12 +359,18 @@
 		initial={isCookModeEligibleForNewSession(recipe.cookModeJson, viewLang, cookingServings)
 			? recipe.cookModeJson
 			: null}
-		requiresPlan={true}
 		progressSignature={`${recipe.slug}:${recipe.updatedAt?.toString() ?? 'saved'}`}
 		fallback={benchSheetFallback}
 		view={recipeView}
 		viewLang={viewLang}
-		onEdit={openEditRaw}
+		languageSwitchable={recipe.language !== 'en'}
+		{translationLoading}
+		{translationMessage}
+		translationStatus={recipe.translationStatus}
+		planOccurrences={data.plannedOccurrences}
+		onViewChange={(next) => (recipeView = next)}
+		onLanguageChange={setViewLanguage}
+		onRetryTranslation={(force) => void requestTranslation(force)}
 		onCooked={() => {
 			void invalidateAll();
 			freezeOpen = true;
@@ -401,6 +378,27 @@
 		bind:controller={benchSheetController}
 	/>
 {/key}
+
+<RecipeHero
+	imageUrl={recipe.imageUrl}
+	title={displayTitle}
+	uploading={imageUploading}
+	uploadError={imageUploadError}
+	onPickPhoto={() => imageFileInput?.click()}
+/>
+
+<RecipeMetaChips {recipe} {displayNotes} />
+
+{#if recipe.archivedAt != null}
+	<RecipeArchiveControl
+		slug={recipe.slug}
+		title={displayTitle}
+		archived
+		onArchivedChange={(archived) => {
+			recipe = { ...recipe, archivedAt: archived ? new Date() : null };
+		}}
+	/>
+{/if}
 
 <MealComposition
 	slug={recipe.slug}

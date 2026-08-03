@@ -12,9 +12,10 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { Recipe } from './types';
 
-	let { recipe, frozenPortions, onSaved }: {
+	let { recipe, frozenPortions, utility = false, onSaved }: {
 		recipe: Recipe;
 		frozenPortions: number;
+		utility?: boolean;
 		onSaved: (state: RecipeRhythmState) => void;
 	} = $props();
 
@@ -28,7 +29,6 @@
 	let unsaved = $state(false);
 
 	let target = $derived(recipe.targetPortions ?? recipe.servings ?? 2);
-	let portionsShort = $derived(Math.max(0, target - frozenPortions));
 	let seasonRequired = $derived(draftPolicy === 'seasonal' && draftSeasons.length === 0);
 
 	const policyOptions: Array<{ value: RotationPolicy | null; label: () => string }> = [
@@ -123,10 +123,10 @@
 	}
 </script>
 
-<section class="h-full">
+<section class="h-full" class:utility>
 	<button
 		type="button"
-		class="flex min-h-full w-full min-w-0 items-center gap-2 rounded-2xl border border-base-200 bg-base-100 p-2 text-left transition-colors hover:bg-base-200/50 md:gap-3 md:p-3"
+		class="routine-trigger flex min-h-full w-full min-w-0 items-center gap-2 rounded-2xl border p-2 text-left transition-colors md:gap-3 md:p-3"
 		aria-label={m.recipes_rhythm_open_editor_aria()}
 		onclick={openEditor}
 	>
@@ -134,8 +134,9 @@
 			<Icon name="snowflake" class="h-3.5 w-3.5 md:h-4 md:w-4" />
 		</span>
 		<span class="min-w-0 flex-1">
-			<span class="block text-sm font-medium">{rhythmSummary(recipe.rotationPolicy)}</span>
-			<span class="mt-0.5 block text-xs {recipe.isFreezerStaple && portionsShort > 0 ? 'text-warning' : 'text-base-content/55'}">
+			<span class="block text-sm font-semibold">{m.recipes_rhythm_editor_title()}</span>
+			<span class="mt-0.5 block text-xs routine-summary">
+				{rhythmSummary(recipe.rotationPolicy)} ·
 				{recipe.isFreezerStaple
 					? m.recipes_freezer_portions_of_target({ frozen: frozenPortions, target })
 					: m.recipes_freezer_set_target()}
@@ -144,6 +145,35 @@
 		<Icon name="chevronRight" class="h-4 w-4 shrink-0 text-base-content/35" />
 	</button>
 </section>
+
+<style>
+	.routine-trigger {
+		border-color: var(--kitchen-line);
+		background: var(--kitchen-card);
+	}
+
+	.routine-trigger:hover {
+		background: color-mix(in oklab, var(--kitchen-card) 92%, var(--kitchen-olive));
+	}
+
+	.routine-summary {
+		color: color-mix(in oklab, var(--color-base-content) 58%, transparent);
+	}
+
+	.utility .routine-trigger {
+		border-color: rgb(255 255 255 / 24%);
+		background: rgb(255 255 255 / 7%);
+		color: var(--kitchen-ribbon-ink);
+	}
+
+	.utility .routine-trigger:hover {
+		background: rgb(255 255 255 / 13%);
+	}
+
+	.utility .routine-summary {
+		color: var(--kitchen-ribbon-muted);
+	}
+</style>
 
 <BottomSheet bind:open={editorOpen} title={m.recipes_rhythm_editor_title()} desktopCentered>
 	<form class="space-y-5" onsubmit={(event) => { event.preventDefault(); void saveRhythm(); }}>

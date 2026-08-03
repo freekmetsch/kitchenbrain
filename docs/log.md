@@ -823,6 +823,41 @@ Touched: docs/feature-lists/archive/FEATURE_LIST_SHOPPING_INTERACTION_STABILITY.
 docs/artifacts/archive/2026-07-29-plan-shopping-interaction-stability.html,
 tests/e2e/kitchen-flows.e2e.ts, tests/e2e/responsive-parity.e2e.ts
 
+## 2026-08-03 12:35 | design-shotgun → plan | Cooking-first recipe page
+
+Compared five complete recipe-page directions and recommended Counter First: recipe identity and
+adjacent Edit/Archive actions in the first green row, Routine & freezer plus AI suggestions in a
+second green utility row, then portions, view/language controls, and the counter/timeline before
+reference material. Structured cooking details become an explicit cache-only AI action; all
+automatic callers are removed and generated details never rewrite recipe directions. Merge steps
+retain their result-colored left edge and gain ordered incoming-color segments across the top.
+
+The isolated authenticated phone/desktop header story passed. No production source, provider,
+household data, schema, or dependency changed, and the comparison artifact was not rendered after
+its one-pass write.
+
+Touched: docs/artifacts/2026-08-03-design-shotgun-recipe-cooking-first.html,
+docs/feature-lists/FEATURE_LIST_RECIPE_COOKING_PROGRESSIVE_ENHANCEMENT.md,
+docs/known_issues/current/ISSUE_RECIPE_COOKING_VIEW_PREPARING_OVERLAY_20260803-1211.md,
+docs/log.md
+
+## 2026-08-03 12:42 | html-artifact | Repair recipe design-shotgun visuals
+
+Fixed a duplicate JavaScript identifier that prevented the five recipe-page mockups from being
+inserted. Renamed the mockup builder and decision-control collection without changing selections,
+copy, layout, storage meaning, or the authoritative Markdown plan.
+
+Touched: docs/artifacts/2026-08-03-design-shotgun-recipe-cooking-first.html, docs/log.md
+
+## 2026-08-03 12:47 | plan | Select Split Prep Desk recipe layout
+
+Recorded Freek's Split Prep Desk selection and the four supporting decisions in the authoritative
+recipe plan. The execution design now uses one phone-first document order, a conditional sticky
+prep rail on suitable wide/tall screens, a readable Original view, and no unresolved product
+decision. The refreshed critique remains GO at R2; no production code or household data changed.
+
+Touched: docs/feature-lists/FEATURE_LIST_RECIPE_COOKING_PROGRESSIVE_ENHANCEMENT.md, docs/log.md
+
 ## [2026-07-29 14:44] archive-scan | 1 feature list, 1 HTML archived
 
 Moved the completed Shopping interaction-stability feature list and its linked decision workspace
@@ -1591,3 +1626,20 @@ src/lib/components/shopping/ShoppingMealPortions.svelte,
 src/lib/components/shopping/WeekNav.svelte, src/lib/ui_house_style_source.test.ts,
 src/routes/shopping/+page.svelte, tests/e2e/house-style.e2e.ts,
 tests/e2e/kitchen-flows.e2e.ts, tests/e2e/responsive-parity.e2e.ts
+
+## 2026-08-03 13:50 | run | Cooking-first recipe page
+
+Implemented the selected Split Prep Desk. Recipe pages now begin with portions, representation,
+optional cooking details, counter ingredients, and steps; reference material follows. Edit/Archive
+are adjacent, Routine & freezer and AI suggestions share the green utility row, and merge cards show
+ordered incoming colors across the top while preserving the result color on the left.
+
+Cooking-details generation is now explicit and cache-only. Page load, import, edit, chat writes, and
+meal composition no longer request it, and canonical recipe text remains unchanged. All 713 unit
+tests passed. Every runnable primary browser case passed across the complete run plus one isolated
+Chromium-flake rerun; the six changed journeys also passed for the secondary account. The isolated
+production build passed. No provider request, household mutation, AH lookup, or AH push occurred.
+
+Touched: archived recipe cooking feature plan, solved preparation-overlay issue, archived design
+workspace, recipe detail/cook-mode components and workflows, bilingual messages, focused unit and
+Playwright tests, source-contract tests, docs/log.md

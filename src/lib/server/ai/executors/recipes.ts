@@ -26,23 +26,13 @@ import { getAutoTranslateOnImport } from '$lib/server/recipes/prefs';
 import type { DB, ExecutorFn } from './shared';
 import { NewIngredientSchema } from '$lib/recipe_ingredient';
 import { reconcileShoppingAfterWrite } from '$lib/server/workflows/reconcile-shopping';
-import {
-	kickCookModeForDb,
-	kickTranslationForDb
-} from '$lib/server/workflows/recipe-background';
+import { kickTranslationForDb } from '$lib/server/workflows/recipe-background';
 import {
 	RecipePatchContractError,
 	stageRecipePatch
 } from '$lib/server/ai/recipe_patch';
 import { PreconditionConflictError } from '$lib/server/domains/inventory/commands';
 import { ContractError } from '$lib/server/ai/turn_safety';
-
-// Pre-generate a bench sheet after a chat-side recipe write, so the recipe is
-// ready by the time it's opened. generateCookMode reads the module-level app
-// DB — skip when the executor runs against a different (test) database.
-function kickCookModeIfAppDb(db: DB, slug: string) {
-	kickCookModeForDb(db, slug);
-}
 
 // Same app-db guard, for the auto-translate-on-import toggle (Phase 4) —
 // translateRecipe also reads the module-level app DB.
@@ -148,7 +138,6 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 				title: input.title,
 				subRecipeIds: subs.map((s) => s.id)
 			});
-			kickCookModeIfAppDb(db, meal.slug);
 			return {
 				created: true,
 				slug: meal.slug,
@@ -196,8 +185,7 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			reviewReason: review.reviewReason
 		});
 		// Ordinary cooking steps are projected directly from the saved directions.
-		// Semantic planning and translation are both non-blocking caches.
-		kickCookModeIfAppDb(db, recipe.slug);
+		// Translation remains an optional non-blocking cache; cooking details are explicit.
 		if (getAutoTranslateOnImport()) kickTranslateIfAppDb(db, recipe.slug);
 		return { ok: true, slug: recipe.slug, title: recipe.title, needs_review: review.needsReview };
 	},

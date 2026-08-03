@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import type { Ingredient } from '$lib/recipe_ingredient';
@@ -6,6 +6,13 @@ import { createTestDb, type TestDb } from '$lib/server/test_db';
 import { executeToolCall, isOk } from './index';
 import type { TurnExecutionContext } from '../commit_risk';
 import { createTurnSafetyState } from '../turn_safety';
+
+const backgroundSpies = vi.hoisted(() => ({
+	kickCookModeForDb: vi.fn(),
+	kickTranslationForDb: vi.fn()
+}));
+
+vi.mock('$lib/server/workflows/recipe-background', () => backgroundSpies);
 
 function turnCtx(): TurnExecutionContext {
 	return {
@@ -49,6 +56,7 @@ async function readRecipe(db: TestDb, slug: string, context = turnCtx()) {
 describe('recipe agent writes', () => {
 	it('creates a recipe with server-minted stable ingredient IDs', async () => {
 		const db = createTestDb();
+		backgroundSpies.kickCookModeForDb.mockClear();
 		const result = await executeToolCall(
 			'add_recipe',
 			{
@@ -77,6 +85,31 @@ describe('recipe agent writes', () => {
 		const recipe = recipeBySlug(db, 'nieuwe-soep');
 		expect((recipe.ingredients as Ingredient[])[0].id).toMatch(/^ing_/);
 		expect(recipe.directionIdsJson).toHaveLength(2);
+		expect(backgroundSpies.kickCookModeForDb).not.toHaveBeenCalled();
+	});
+
+	it('creates a composed meal without requesting cooking details', async () => {
+		const db = createTestDb();
+		seedRecipe(db, 'soep', []);
+		seedRecipe(db, 'brood', []);
+		const context = turnCtx();
+		await readRecipe(db, 'soep', context);
+		await readRecipe(db, 'brood', context);
+		backgroundSpies.kickCookModeForDb.mockClear();
+
+		const result = await executeToolCall(
+			'create_meal_recipe',
+			{
+				title: 'Soep met brood',
+				sub_recipe_slugs: ['soep', 'brood']
+			},
+			db,
+			1,
+			context
+		);
+
+		expect(result).toMatchObject({ created: true });
+		expect(backgroundSpies.kickCookModeForDb).not.toHaveBeenCalled();
 	});
 
 	it('sets roles by ingredient ID even when names are duplicated', async () => {

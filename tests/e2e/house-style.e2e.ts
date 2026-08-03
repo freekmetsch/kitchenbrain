@@ -44,14 +44,15 @@ async function expectGreenRibbon(
 	page: Page,
 	width: number,
 	maxActions = 1,
-	allowNarrowExpansion = false
+	allowNarrowExpansion = false,
+	compactCommand = false
 ): Promise<void> {
 	const ribbon = page.locator('[data-house-style="green-ribbon"]');
 	await expect(ribbon).toBeVisible();
 	const ribbonHeight = (await ribbon.boundingBox())?.height ?? 0;
 	const command = (await ribbon.getAttribute('data-variant')) === 'command';
 	if (command) {
-		expect(ribbonHeight).toBeGreaterThanOrEqual(width < 768 ? 144 : 104);
+		expect(ribbonHeight).toBeGreaterThanOrEqual(width < 768 && !compactCommand ? 144 : 104);
 		expect(ribbonHeight).toBeLessThanOrEqual(width < 768 ? 230 : 190);
 	} else if (allowNarrowExpansion && width <= 320) {
 		expect(ribbonHeight).toBeGreaterThanOrEqual(64);
@@ -69,7 +70,11 @@ async function expectGreenRibbon(
 		expect(await actions.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
 			'none'
 		);
-		await expect(ribbon.locator('.kitchen-page-header-payload')).toBeVisible();
+		if (compactCommand) {
+			await expect(ribbon.locator('.kitchen-page-header-payload')).toHaveCount(0);
+		} else {
+			await expect(ribbon.locator('.kitchen-page-header-payload')).toBeVisible();
+		}
 	} else {
 		expect(
 			await ribbon.locator('.kitchen-page-header-action .ui-action:visible').count()
@@ -392,7 +397,7 @@ test('contextual Recipe ribbons keep the family geometry while fitting Back and 
 	]) {
 		await page.goto(route);
 		await page.waitForLoadState('networkidle');
-		await expectGreenRibbon(page, 320);
+		await expectGreenRibbon(page, 320, 1, false, !route.endsWith('/edit'));
 
 		const ribbon = page.locator('[data-house-style="green-ribbon"]');
 		await expect(ribbon).toHaveAttribute('data-layout', 'contextual');

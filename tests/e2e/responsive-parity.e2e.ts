@@ -525,16 +525,15 @@ for (const viewport of VIEWPORTS) {
 		await expectResponsiveSurface(page, '/recipes command header', viewport.width);
 
 		await page.goto(`/recipes/${fixture.cookRecipeSlug}`);
+		await expect(page.locator('.app-shell[data-hydrated="true"]')).toBeVisible({ timeout: 30_000 });
 		const detailHeader = page.getByTestId('recipe-detail-command-header');
 		await expect(detailHeader).toBeVisible();
-		const viewFilterTrigger = detailHeader
-			.locator('.recipe-view-mobile')
-			.locator('.combined-filter-trigger');
-		await expect(viewFilterTrigger).toHaveAttribute('data-ready', 'true', {
-			timeout: 15_000
-		});
 		await expect(page.getByRole('button', { name: 'Edit recipe', exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Archive recipe', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Plan', exact: true })).toBeVisible();
+		await expect(detailHeader.getByRole('button', { name: 'Cooking view', exact: true })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Edit routine and freezer target' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'AI suggestions', exact: true })).toBeVisible();
 		const detailTitleLayout = await page.getByRole('heading', { level: 1 }).evaluate((heading) => {
 			const style = getComputedStyle(heading);
 			const parsedLineHeight = Number.parseFloat(style.lineHeight);
@@ -550,24 +549,11 @@ for (const viewport of VIEWPORTS) {
 		expect(detailTitleLayout.whiteSpace).not.toBe('nowrap');
 		expect(detailTitleLayout.height).toBeLessThanOrEqual(detailTitleLayout.maxTwoLines);
 
-		if (viewport.name === 'phone') {
-			const viewFilters = detailHeader
-				.locator('.recipe-view-mobile')
-				.getByRole('button', { name: /^View/ });
-			await expect(viewFilters).toContainText('Cooking view');
-			await viewFilters.click();
-			const viewPanel = page.getByRole('dialog', { name: 'Recipe view and language' });
-			await viewPanel.getByRole('button', { name: 'Original recipe', exact: true }).click();
-			await expect(viewFilters).toContainText('Original recipe');
-			await viewPanel.getByRole('button', { name: 'Done', exact: true }).click();
-		} else {
-			const desktopView = detailHeader.locator('.recipe-view-desktop');
-			await desktopView.getByRole('button', { name: 'Original recipe', exact: true }).click();
-			await expect(desktopView.getByRole('button', { name: 'Original recipe', exact: true })).toHaveAttribute(
-				'aria-pressed',
-				'true'
-			);
-		}
+		const cookingSetup = page.getByLabel('Cooking setup');
+		const originalRecipe = cookingSetup.getByRole('button', { name: 'Original recipe', exact: true });
+		await expect(originalRecipe).toBeVisible();
+		await originalRecipe.click();
+		await expect(originalRecipe).toHaveAttribute('aria-pressed', 'true');
 		await expectResponsiveSurface(page, '/recipes/[slug] command header', viewport.width);
 	});
 

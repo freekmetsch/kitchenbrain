@@ -161,11 +161,9 @@ export async function translateRecipe(slug: string, opts: { force?: boolean } = 
 }
 
 // Fire-and-forget translation for import paths, gated on the auto-translate
-// household pref (default off). Same non-fatal pattern as cook_mode.ts's
-// kickCookModeGeneration: translateRecipe can reject (DailyCapExceeded is
-// thrown before its own try/catch), so this must swallow that rejection
-// itself — an import must never fail because the translation didn't fit
-// under the background cap.
+// household pref (default off). translateRecipe can reject before its own
+// try/catch, so this must swallow that rejection itself — an import must never
+// fail because the translation did not fit under the background cap.
 export function kickTranslateOnImport(slug: string) {
 	translateRecipe(slug).catch((err) => {
 		console.warn(

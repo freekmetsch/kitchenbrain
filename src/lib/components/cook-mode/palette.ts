@@ -76,7 +76,9 @@ export function cookPaletteGraph(
 ): CookPaletteAssignment[] {
 	const current = streamPalette(streams);
 	return steps.map((step) => {
-		const sources = (step.merges_from ?? []).map((id) => current[id]).filter(Boolean);
+		const sources = [...new Set(step.merges_from ?? [])]
+			.map((id) => current[id])
+			.filter(Boolean);
 		if (sources.length >= 2) current[step.stream_id] = blendedPalette(sources, Object.values(current));
 		return { result: current[step.stream_id] ?? PALETTES[0], sources };
 	});

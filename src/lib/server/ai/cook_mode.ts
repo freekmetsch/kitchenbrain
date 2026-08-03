@@ -24,7 +24,7 @@ import {
 	violatesActionState
 } from '$lib/components/cook-mode/staleness';
 import { inaccessibleCookModeTerm } from '$lib/components/cook-mode/plain-language';
-import { updateCanonicalRecipe, updateCookModeCache } from '$lib/server/domains/recipes';
+import { updateCookModeCache } from '$lib/server/domains/recipes';
 
 const LocalizedTextSchema = z.object({
 	en: z.string().min(1),
@@ -272,14 +272,6 @@ export async function generateCookMode(slug: string, opts: GenerateOptions = {})
 	return promise;
 }
 
-export function kickCookModeGeneration(slug: string) {
-	generateCookMode(slug).catch((error) => {
-		console.warn(
-			`[cook-mode] background pre-generation failed for ${slug}: ${error instanceof Error ? error.message : error}`
-		);
-	});
-}
-
 export function generationFingerprint(
 	recipe: typeof recipes.$inferSelect,
 	subRows: Array<typeof recipes.$inferSelect>
@@ -344,16 +336,6 @@ function directionPayload(
 			source_language: row.language,
 			component: row.title
 		}))
-	);
-}
-
-function canPromoteImportedDirections(recipe: typeof recipes.$inferSelect, subRows: unknown[]): boolean {
-	const snapshot = recipe.sourceSnapshotJson;
-	return (
-		subRows.length === 0 &&
-		recipe.contentRevision === 1 &&
-		snapshot?.provenance === 'imported_source' &&
-		JSON.stringify(snapshot.directions) === JSON.stringify(recipe.directions)
 	);
 }
 
@@ -450,43 +432,22 @@ async function generateCookModeUncached(
 		return generateCookModeUncached(slug, opts, freshnessRetry + 1);
 	}
 
-	const promote = canPromoteImportedDirections(currentRecipe, currentSubRows);
-	const instructions = new Map(
-		generated.instructions.map((instruction) => [instruction.direction_id, instruction.text])
-	);
-	const nextDirections = currentRecipe.directionIdsJson.map(
-		(id) => instructions.get(id)?.[currentRecipe.language === 'en' ? 'en' : 'nl'] ?? ''
-	);
 	const cookMode: LocalizedCookModeRecipeV5 = {
 		version: 5,
 		generation_id: randomUUID(),
 		baseline_servings: sourceServings,
-		content_revision: currentRecipe.contentRevision + (promote ? 1 : 0),
+		content_revision: currentRecipe.contentRevision,
 		structure_fingerprint: structureFingerprint(currentRecipe, currentSubRows),
 		streams: generated.streams,
 		steps: generated.steps
 	};
 
-	const updated = promote
-		? updateCanonicalRecipe(db, {
-				recipeId: currentRecipe.id,
-				expectedRevision: currentRecipe.contentRevision,
-				changes: {
-					directions: nextDirections,
-					directionIdsJson: currentRecipe.directionIdsJson,
-					directionsEn: currentRecipe.directionIdsJson.map(
-						(id) => instructions.get(id)?.en ?? ''
-					),
-					cookModeJson: cookMode,
-					cookModeGeneratedAt: new Date()
-				}
-			})
-		: updateCookModeCache(db, {
-				recipeId: currentRecipe.id,
-				expectedRevision: currentRecipe.contentRevision,
-				cookModeJson: cookMode,
-				cookModeGeneratedAt: new Date()
-			});
+	const updated = updateCookModeCache(db, {
+		recipeId: currentRecipe.id,
+		expectedRevision: currentRecipe.contentRevision,
+		cookModeJson: cookMode,
+		cookModeGeneratedAt: new Date()
+	});
 	if (!updated) {
 		if (freshnessRetry >= 1) throw new Error('Recipe changed during cooking-view write');
 		return generateCookModeUncached(slug, opts, freshnessRetry + 1);

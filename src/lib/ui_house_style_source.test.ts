@@ -72,6 +72,8 @@ describe('stable app house-style source contract', () => {
 			'src/lib/components/recipe-detail/RecipeHeader.svelte',
 			'utf8'
 		);
+		const benchSheet = readFileSync('src/lib/components/BenchSheet.svelte', 'utf8');
+		const recipePage = readFileSync('src/routes/recipes/[slug]/+page.svelte', 'utf8');
 		const recipeEdit = readFileSync('src/routes/recipes/[slug]/edit/+page.svelte', 'utf8');
 
 		expect(header).toContain('data-house-style="green-ribbon"');
@@ -105,8 +107,11 @@ describe('stable app house-style source contract', () => {
 		expect(shopping).toContain('aria-expanded={addItemOpen}');
 		expect(recipeDetail).toContain('layout="contextual"');
 		expect(recipeDetail).toContain('variant="command"');
-		expect(recipeDetail).toContain('<CombinedFilterMenu');
+		expect(recipeDetail).not.toContain('<CombinedFilterMenu');
 		expect(recipeDetail).toContain('<HeaderActionMenu');
+		expect(benchSheet).toContain('class="projection-controls"');
+		expect(benchSheet).toContain('aria-label={m.benchsheet_view_label()}');
+		expect(recipePage).toContain('class="ui-page-utility"');
 		expect(recipeEdit).toContain('layout="contextual"');
 		expect(recipeEdit).toContain('kitchen-page-header-action-label');
 		expect(recipeEdit).toContain(
