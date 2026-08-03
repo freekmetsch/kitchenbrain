@@ -7,7 +7,10 @@
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import PendingButton from '$lib/components/ui/PendingButton.svelte';
 
-	let { form } = $props<{ form: { error?: 'invalid_credentials' } | null }>();
+	let { data, form } = $props<{
+		data: { testLogin: { label: string } | null };
+		form: { error?: 'invalid_credentials' } | null;
+	}>();
 
 	let submitting = $state(false);
 </script>
@@ -81,6 +84,15 @@
 					>{m.login_signin_button()}</PendingButton
 				>
 			</form>
+
+			{#if data.testLogin}
+				<form method="POST" action="{base}/login" class="mt-3">
+					<input type="hidden" name="test_login" value="1" />
+					<button type="submit" class="ui-action ui-action-secondary w-full">
+						Test: {data.testLogin.label}
+					</button>
+				</form>
+			{/if}
 		</div>
 	</main>
 </div>

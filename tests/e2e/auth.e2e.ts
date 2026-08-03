@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { E2E_ORIGIN, TEST_ACCOUNTS, type TestAccountName } from './config';
+import { E2E_ORIGIN, TEST_ACCOUNTS, TEST_LOGIN, type TestAccountName } from './config';
 
 test.describe('logged-out login boundary', () => {
 	test.use({ storageState: { cookies: [], origins: [] } });
@@ -16,7 +16,7 @@ test.describe('logged-out login boundary', () => {
 		await page.goto('/login');
 		await page.locator('input[name="username"]').fill(TEST_ACCOUNTS.primary.username);
 		await page.locator('input[name="password"]').fill('not-the-test-password');
-		await page.locator('form button[type="submit"]').click();
+		await page.locator('form:has(input[name="username"]) button[type="submit"]').click();
 
 		await expect(page).toHaveURL(new URL('/login', E2E_ORIGIN).toString(), {
 			timeout: 30_000
@@ -31,7 +31,7 @@ test.describe('logged-out login boundary', () => {
 		await page.goto('/login');
 		await page.locator('input[name="username"]').fill(TEST_ACCOUNTS.primary.username);
 		await page.locator('input[name="password"]').fill('nog-steeds-onjuist');
-		await page.locator('form button[type="submit"]').click();
+		await page.locator('form:has(input[name="username"]) button[type="submit"]').click();
 		await expect(page.getByRole('alert')).toHaveText(
 			'Die gebruikersnaam of dat wachtwoord klopt niet.',
 			{ timeout: 30_000 }
@@ -39,6 +39,24 @@ test.describe('logged-out login boundary', () => {
 		expect((await context.cookies(E2E_ORIGIN)).some((cookie) => cookie.name === 'session_id')).toBe(
 			false
 		);
+	});
+
+	test('accepts the test username with mixed case and surrounding spaces', async ({ page }) => {
+		await page.goto('/login');
+		await page.locator('input[name="username"]').fill(`  ${TEST_LOGIN.label}  `);
+		await page.locator('input[name="password"]').fill(TEST_LOGIN.password);
+		await page.locator('form:has(input[name="username"]) button[type="submit"]').click();
+
+		await expect(page.getByRole('navigation')).toBeVisible();
+		expect(new URL(page.url()).pathname).toBe('/');
+	});
+
+	test('offers one-click sign-in for the isolated test account', async ({ page }) => {
+		await page.goto('/login');
+		await page.getByRole('button', { name: `Test: ${TEST_LOGIN.label}` }).click();
+
+		await expect(page.getByRole('navigation')).toBeVisible();
+		expect(new URL(page.url()).pathname).toBe('/');
 	});
 });
 
