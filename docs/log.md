@@ -1643,3 +1643,10 @@ production build passed. No provider request, household mutation, AH lookup, or 
 Touched: archived recipe cooking feature plan, solved preparation-overlay issue, archived design
 workspace, recipe detail/cook-mode components and workflows, bilingual messages, focused unit and
 Playwright tests, source-contract tests, docs/log.md
+
+## [2026-08-03 13:51] archive-scan | 1 feature list, 1 HTML archived
+
+Moved the completed cooking-first recipe feature list and its linked design-shotgun workspace into
+their archive lanes. The resolved preparation-overlay issue moved from `current` to `solved` in the
+same run. The repository has no shared `scripts/archive-scan.ps1`, so this pass used the documented
+inline fallback.

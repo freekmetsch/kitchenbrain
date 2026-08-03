@@ -1,6 +1,6 @@
 # Feature List: Cooking-First Recipe Page and Optional Cooking Details
 
-_Status: Implemented and verified on `codex/recipe-cooking-first` (2026-08-03)_
+_Status: Shipped - 2026-08-03 (implemented, verified, and pushed on `codex/recipe-cooking-first`)_
 
 ## Outcome
 
