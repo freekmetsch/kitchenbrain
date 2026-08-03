@@ -62,6 +62,17 @@ This repo is the canonical dev repo for the app — it's what Railway (or any ot
   delivery uses the configured GitHub source, never `railway up`.
 - Do not retain authenticated screenshots, HAR files, cookies, `Set-Cookie` headers, response
   bodies, or household list contents as public evidence.
+- **Production delivery is the default in this repo.** No per-change deployment confirmation is
+  needed. Once a change passes the full `npm test` gate, deliver it to `main`, supervise the Railway
+  deployment to `SUCCESS` for the remote `main` tip via
+  `node scripts/production/railway-deployment-truth.mjs`, run the authenticated production canary,
+  and report the deployed commit and canary result.
+- **Stop before `main`** when Freek opts out for that change, the gate fails or was not run, an R3
+  decision (schema, auth, destructive data) is unresolved, or the branch carries commits beyond this
+  task's work on top of remote `main`.
+- **If the deployment or canary fails, stop and report.** Do not retry with `railway up`, do not
+  force-push `main`, and do not relax the verification, secret-handling, deployment-truth, or canary
+  requirements to complete a delivery.
 
 ## Architecture invariants
 
