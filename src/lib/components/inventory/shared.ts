@@ -24,26 +24,36 @@ export type StockRadarItem = {
 	name: string;
 	qtyNum: number | null;
 	kind: Item['kind'];
-	expiryDate: string | null;
 	createdAt: string | Date;
 };
 
 export type StockRadarLink = {
 	isFreezerStaple: boolean;
 	targetPortions: number | null;
+	slug?: string;
 };
 
 export type StockAttention =
-	| { kind: 'expiry'; daysUntil: number }
 	| { kind: 'below_target'; portionsBelow: number }
 	| { kind: 'low_stock'; portions: number }
-	| { kind: 'aging'; daysOld: number };
+	| { kind: 'aging'; daysOld: number }
+	| { kind: 'cook_again' };
 
-export type MealStockGroups<T> = {
-	useNext: Array<{ item: T; attention: StockAttention }>;
-	stillPlenty: T[];
-	cookAgain: T[];
-};
+export type MealLedgerEntry<TItem, TGhost> =
+	| {
+			kind: 'item';
+			key: `item-${number}`;
+			name: string;
+			item: TItem;
+			attention: StockAttention | null;
+	  }
+	| {
+			kind: 'ghost';
+			key: `ghost-${string}`;
+			name: string;
+			ghost: TGhost;
+			attention: { kind: 'cook_again' };
+	  };
 
 export type HistoryEvent = {
 	id: number;
@@ -66,7 +76,6 @@ export type EditDraft = {
 	kind: Kind | '';
 	section: Section;
 	foodClass: string;
-	expiry: string;
 	staple: boolean;
 	keepStocked: boolean;
 	target: number | null;
@@ -90,11 +99,6 @@ export function daysOldOn(
 	return Math.max(0, Math.floor((isoDayNumber(todayIso) - isoDayNumber(createdIso)) / 86_400_000));
 }
 
-function daysUntil(expiryDate: string | null, todayIso: string): number | null {
-	if (!expiryDate) return null;
-	return Math.ceil((isoDayNumber(expiryDate) - isoDayNumber(todayIso)) / 86_400_000);
-}
-
 export function stockAttention(
 	item: StockRadarItem,
 	link: StockRadarLink | null,
@@ -102,11 +106,6 @@ export function stockAttention(
 ): StockAttention | null {
 	const portions = item.qtyNum ?? 0;
 	if (item.kind !== 'leftover' || portions <= 0) return null;
-
-	const expiryDays = daysUntil(item.expiryDate, todayIso);
-	if (expiryDays !== null && expiryDays <= 7) {
-		return { kind: 'expiry', daysUntil: expiryDays };
-	}
 
 	if (
 		link?.isFreezerStaple &&
@@ -151,43 +150,54 @@ export function matchesInventoryQuickView(
 	);
 }
 
-export function groupMealStock<T extends StockRadarItem>(
-	items: T[],
-	linkFor: (item: T) => StockRadarLink | null,
-	todayIso: string
-): MealStockGroups<T> {
-	const useNext: MealStockGroups<T>['useNext'] = [];
-	const stillPlenty: T[] = [];
-	const cookAgain: T[] = [];
+export function buildMealLedger<
+	TItem extends StockRadarItem & { id: number },
+	TGhost extends { slug: string; title: string }
+>(
+	items: TItem[],
+	ghosts: TGhost[],
+	linkFor: (item: TItem) => StockRadarLink | null,
+	todayIso: string,
+	includeEmptyMeals = false
+): Array<MealLedgerEntry<TItem, TGhost>> {
+	const entries: Array<MealLedgerEntry<TItem, TGhost>> = [];
+	const itemIds = new Set<number>();
+	const liveRecipeSlugs = new Set<string>();
 
 	for (const item of items) {
-		if (item.kind !== 'leftover') continue;
-		const portions = item.qtyNum ?? 0;
+		if (item.kind !== 'leftover' || itemIds.has(item.id)) continue;
 		const link = linkFor(item);
-		if (portions <= 0) {
-			if (link?.isFreezerStaple) cookAgain.push(item);
-			continue;
-		}
-		const attention = stockAttention(item, link, todayIso);
-		if (attention) useNext.push({ item, attention });
-		else stillPlenty.push(item);
+		if ((item.qtyNum ?? 0) <= 0 && !link?.isFreezerStaple && !includeEmptyMeals) continue;
+		itemIds.add(item.id);
+		if (link?.slug) liveRecipeSlugs.add(link.slug);
+		entries.push({
+			kind: 'item',
+			key: `item-${item.id}`,
+			name: item.name,
+			item,
+			attention:
+				(item.qtyNum ?? 0) <= 0 && link?.isFreezerStaple
+					? { kind: 'cook_again' }
+					: stockAttention(item, link, todayIso)
+		});
 	}
 
-	const expirySortValue = (item: T) => daysUntil(item.expiryDate, todayIso) ?? Number.POSITIVE_INFINITY;
-	useNext.sort(
-		(a, b) =>
-			(a.item.qtyNum ?? 0) - (b.item.qtyNum ?? 0) ||
-			expirySortValue(a.item) - expirySortValue(b.item) ||
-			daysOldOn(b.item, todayIso) - daysOldOn(a.item, todayIso) ||
-			a.item.name.localeCompare(b.item.name)
-	);
-	stillPlenty.sort(
-		(a, b) => (a.qtyNum ?? 0) - (b.qtyNum ?? 0) || a.name.localeCompare(b.name)
-	);
-	cookAgain.sort((a, b) => a.name.localeCompare(b.name));
+	const ghostSlugs = new Set<string>();
+	for (const ghost of ghosts) {
+		if (ghostSlugs.has(ghost.slug) || liveRecipeSlugs.has(ghost.slug)) continue;
+		ghostSlugs.add(ghost.slug);
+		entries.push({
+			kind: 'ghost',
+			key: `ghost-${ghost.slug}`,
+			name: ghost.title,
+			ghost,
+			attention: { kind: 'cook_again' }
+		});
+	}
 
-	return { useNext, stillPlenty, cookAgain };
+	return entries.sort((a, b) => a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
 }
+
 export function aging(item: Item): 'fresh' | 'soon' | 'old' {
 	const [soon, old] = item.kind === 'leftover' ? [21, 35] : [90, 180];
 	const d = daysOld(item);

@@ -42,9 +42,11 @@ test('Stock quantity, delete, and undo stay recoverable', async ({ page }, testI
 		(response) =>
 			response.request().method() === 'PATCH' && response.url().includes('/api/inventory/')
 	);
-	await page.getByRole('button', { name: `Increase ${fixture.inventoryName}` }).click();
+	const increase = page.getByRole('button', { name: `Increase ${fixture.inventoryName}` });
+	await increase.click();
 	expect((await quantitySaved).ok()).toBe(true);
 	await expect(quantity).toHaveText(/3/);
+	await expect(increase).toBeFocused();
 
 	await page.getByRole('button', { name: `Edit ${fixture.inventoryName}` }).click();
 	await page.getByRole('button', { name: 'Remove', exact: true }).click();

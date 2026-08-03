@@ -1650,3 +1650,69 @@ Moved the completed cooking-first recipe feature list and its linked design-shot
 their archive lanes. The resolved preparation-overlay issue moved from `current` to `solved` in the
 same run. The repository has no shared `scripts/archive-scan.ps1`, so this pass used the documented
 inline fallback.
+
+## 2026-08-03 14:42 | plan | Stock page task-first hierarchy
+
+Pressure-tested the Stock page as a repeated household journey and compared five complete
+phone/desktop compositions. The plan recommends Use Next First: Green Ribbon identity with
+Activity/Add, one paper scope/search/filter deck, the actionable Stock Radar groups, then quiet
+recipe upkeep. It preserves every inventory rule, write, recovery path, and house-style boundary.
+
+Recorded the implementation-ready R2 plan, failure-mode critique, rollback, verification tickets,
+and a self-contained decision workspace. Five current isolated Chromium Stock cases passed across
+phone and desktop before planning. No application code, household data, provider call, AH request,
+Shopping derivation, schema, auth, or production configuration changed.
+
+Touched: docs/feature-lists/FEATURE_LIST_STOCK_PAGE_TASK_HIERARCHY.md,
+docs/artifacts/2026-08-03-plan-stock-page.html, docs/log.md
+
+## 2026-08-03 14:43 | plan-correction | Remove Stock best-before tracking
+
+Confirmed that the repository has a nullable expiry field, but Add does not collect it while Edit,
+row metadata, and Use next depend on it. Revised the Stock plan and every visual direction so the
+page does not ask for, show, write, or rank best-before dates. Existing stored values remain
+untouched; no schema migration or production code change was made.
+
+Touched: docs/feature-lists/FEATURE_LIST_STOCK_PAGE_TASK_HIERARCHY.md,
+docs/artifacts/2026-08-03-plan-stock-page.html, docs/log.md
+
+## 2026-08-03 14:44 | plan-selection | Shelf Ledger and Stock motion polish
+
+Recorded Freek's Shelf Ledger selection with use-and-adjust as the primary job, recipe upkeep after
+the Meals ledger, and quick views in the paper control deck. The implementation plan now keeps rows
+alphabetically stable, expresses attention inline, removes the colored left-edge marker, and
+integrates live and ghost Meals without duplicate entries.
+
+Added a bounded motion contract using the app's existing segmented control, 150/240 ms timings,
+sheet transitions, and reduced-motion guard. Ledger entrances stagger only through a capped delay;
+quantity writes, busy/error feedback, and controls remain immediate. Plan critique is GO with six
+execution tickets. No application code, stored data, schema, provider, AH, or production state
+changed.
+
+Touched: docs/feature-lists/FEATURE_LIST_STOCK_PAGE_TASK_HIERARCHY.md, docs/log.md
+
+## 2026-08-03 15:37 | run | Stock Shelf Ledger
+
+Implemented the selected date-free Shelf Ledger. Stock now keeps identity, Recent activity, and Add
+in the Green Ribbon; scope, search, quick views, and Filters live in a paper control deck; each scope
+uses one alphabetically stable ledger; Recipe upkeep follows Meals. Live and ghost Meals share the
+same row order without duplicates, and best-before data is neither collected, shown, written, nor
+ranked while existing stored values remain untouched.
+
+Removed the colored left-edge marker and added capped row motion, quantity micro-feedback, and
+explicit reduced-motion behavior. All 718 Vitest tests passed with an isolated in-memory database;
+Svelte diagnostics, the production build, and `git diff --check` passed. Complete primary and
+secondary Playwright projects passed with one allowed retry for an intermittent Chromium startup
+closure; each retained only the intentionally skipped connected-AH case. No schema, API, AI,
+Albert Heijn, Shopping derivation, auth, production configuration, deployment, or household-data
+change occurred.
+
+Touched: archived Stock feature plan and decision workspace, bilingual messages, Stock route and
+inventory components/controllers, shared filter tone, source-contract tests, and focused unit and
+Playwright coverage
+
+## [2026-08-03 15:37] archive-scan | 1 feature list, 1 HTML archived
+
+Moved the shipped Stock plan and its linked decision workspace into their archive lanes. The
+repository has no shared `scripts/archive-scan.ps1`, so this pass used the documented inline
+fallback.

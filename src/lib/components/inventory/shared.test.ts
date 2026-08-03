@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+	buildMealLedger,
 	displayQuantity,
-	groupMealStock,
 	matchesInventoryQuickView,
 	matchesInventoryScope,
 	matchesInventoryQuery,
@@ -64,13 +64,11 @@ describe('stock radar attention', () => {
 	const meal = (
 		name: string,
 		qtyNum: number,
-		createdAt = '2026-07-20',
-		expiryDate: string | null = null
+		createdAt = '2026-07-20'
 	): StockRadarItem => ({
 		name,
 		qtyNum,
 		kind: 'leftover',
-		expiryDate,
 		createdAt
 	});
 	const staple = (targetPortions: number | null): StockRadarLink => ({
@@ -78,9 +76,10 @@ describe('stock radar attention', () => {
 		targetPortions
 	});
 
-	it('uses expiry, below-target, low-stock, then aging precedence', () => {
-		expect(stockAttention(meal('Expires', 1, '2026-06-01', '2026-07-26'), staple(8), todayIso))
-			.toEqual({ kind: 'expiry', daysUntil: 1 });
+	it('ignores expiry and uses below-target, low-stock, then aging precedence', () => {
+		const dated = { ...meal('Expires', 1, '2026-06-01'), expiryDate: '2026-07-26' };
+		expect(stockAttention(dated, staple(8), todayIso))
+			.toEqual({ kind: 'below_target', portionsBelow: 7 });
 		expect(stockAttention(meal('Target', 4), staple(8), todayIso))
 			.toEqual({ kind: 'below_target', portionsBelow: 4 });
 		expect(stockAttention(meal('Low', 2), null, todayIso))
@@ -90,22 +89,44 @@ describe('stock radar attention', () => {
 		expect(stockAttention(meal('Settled', 4), null, todayIso)).toBeNull();
 	});
 
-	it('groups and sorts positive meals while keeping zero-stock staples recoverable', () => {
+	it('does not use expiry dates to rank meals', () => {
 		const items = [
-			meal('Plenty', 6),
-			meal('Later expiry', 2, '2026-07-10', '2026-07-29'),
-			meal('Sooner expiry', 2, '2026-07-19', '2026-07-27'),
-			meal('Cook again', 0)
+			{ ...meal('Later expiry', 2, '2026-07-10'), id: 1, expiryDate: '2026-07-29' },
+			{ ...meal('Sooner expiry', 2, '2026-07-19'), id: 2, expiryDate: '2026-07-27' }
 		];
-		const groups = groupMealStock(
-			items,
-			(item) => (item.name === 'Cook again' ? staple(6) : null),
+		const entries = buildMealLedger(items, [], () => null, todayIso);
+
+		expect(entries.map(({ name }) => name)).toEqual(['Later expiry', 'Sooner expiry']);
+	});
+
+	it('builds one alphabetic meal ledger from unique live and ghost rows', () => {
+		const apple = meal('Apple stew', 2);
+		const banana = meal('Banana curry', 0);
+		const entries = buildMealLedger(
+			[
+				{ ...banana, id: 2 },
+				{ ...apple, id: 1 },
+				{ ...apple, id: 1 },
+				{ ...meal('Carrot soup', 0), id: 3 }
+			],
+			[
+				{ slug: 'date-tagine', title: 'Date tagine' },
+				{ slug: 'date-tagine', title: 'Date tagine' }
+			],
+			(item) => (item.id === 2 ? { ...staple(6), slug: 'banana-curry' } : null),
 			todayIso
 		);
 
-		expect(groups.useNext.map(({ item }) => item.name)).toEqual(['Sooner expiry', 'Later expiry']);
-		expect(groups.stillPlenty.map((item) => item.name)).toEqual(['Plenty']);
-		expect(groups.cookAgain.map((item) => item.name)).toEqual(['Cook again']);
+		expect(entries.map((entry) => [entry.kind, entry.name])).toEqual([
+			['item', 'Apple stew'],
+			['item', 'Banana curry'],
+			['ghost', 'Date tagine']
+		]);
+		expect(entries.map((entry) => entry.key)).toEqual([
+			'item-1',
+			'item-2',
+			'ghost-date-tagine'
+		]);
 	});
 
 	it('keeps Meals, Ingredients, and All stock scopes explicit', () => {

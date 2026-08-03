@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stock page task hierarchy — decision workspace</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --olive: #334638;
+      --olive-2: #26372d;
+      --olive-soft: #dfe7de;
+      --paper: #f7f2e8;
+      --card: #fffdf8;
+      --ink: #233029;
+      --muted: #69746d;
+      --line: #d8d4c8;
+      --honey: #d3a046;
+      --terra: #a84d2a;
+      --shadow: 0 16px 44px rgba(41, 51, 43, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: #e9ede7;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, textarea { font: inherit; }
+    a { color: inherit; }
+
+    .page {
+      display: grid;
+      min-height: 100vh;
+      grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr);
+    }
+
+    .decision-rail {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 1.25rem;
+      border-right: 1px solid rgba(255,255,255,.14);
+      background: linear-gradient(160deg, var(--olive), var(--olive-2));
+      color: #f8f5ec;
+    }
+    .decision-rail .eyebrow,
+    .ribbon .eyebrow {
+      margin: 0 0 .2rem;
+      color: #e2bd6d;
+      font-size: .67rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .decision-rail h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.85rem;
+      line-height: 1.04;
+    }
+    .decision-rail > p {
+      margin: .75rem 0 1rem;
+      color: rgba(255,255,255,.78);
+      font-size: .88rem;
+      line-height: 1.5;
+    }
+    .source-link {
+      display: block;
+      margin-bottom: 1rem;
+      color: #f3cf82;
+      font-size: .76rem;
+      overflow-wrap: anywhere;
+    }
+    fieldset {
+      display: grid;
+      gap: .45rem;
+      margin: 0 0 .8rem;
+      padding: .75rem;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: .8rem;
+      background: rgba(255,255,255,.06);
+    }
+    legend {
+      padding: 0 .25rem;
+      color: #fff;
+      font-size: .76rem;
+      font-weight: 800;
+    }
+    .choice {
+      display: grid;
+      grid-template-columns: 1rem minmax(0,1fr);
+      gap: .45rem;
+      align-items: start;
+      font-size: .76rem;
+      line-height: 1.35;
+      cursor: pointer;
+    }
+    .choice small { display: block; color: rgba(255,255,255,.62); }
+    .choice input { margin-top: .12rem; accent-color: var(--honey); }
+    .notes {
+      width: 100%;
+      min-height: 4.25rem;
+      resize: vertical;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: .65rem;
+      padding: .6rem;
+      background: rgba(255,255,255,.08);
+      color: white;
+    }
+    .notes::placeholder { color: rgba(255,255,255,.5); }
+    .decision-actions { display: grid; grid-template-columns: 1fr auto; gap: .5rem; }
+    .rail-button {
+      min-height: 2.7rem;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: .7rem;
+      padding: .55rem .7rem;
+      background: rgba(255,255,255,.09);
+      color: white;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .rail-button.primary { border-color: #c86b47; background: var(--terra); }
+    .save-state { min-height: 1rem; margin: .45rem 0 0; color: #d8e6d7; font-size: .68rem; }
+
+    main { min-width: 0; padding: clamp(1rem, 3vw, 2.4rem); }
+    .intro, .variant {
+      width: min(100%, 84rem);
+      margin-inline: auto;
+    }
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0,1.45fr) minmax(16rem,.8fr);
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+    }
+    .intro-card, .boundary-card {
+      border: 1px solid rgba(51,70,56,.15);
+      border-radius: 1rem;
+      padding: 1.1rem;
+      background: rgba(255,253,248,.88);
+      box-shadow: 0 8px 28px rgba(41,51,43,.07);
+    }
+    .intro h2 { margin: 0 0 .35rem; font-family: Georgia, serif; font-size: 1.55rem; }
+    .intro p, .intro li { font-size: .86rem; line-height: 1.5; }
+    .intro p { margin: .35rem 0; }
+    .intro ul { margin: .55rem 0 0; padding-left: 1.15rem; }
+    .recommendation {
+      display: inline-flex;
+      margin-top: .55rem;
+      border-radius: 999px;
+      padding: .35rem .65rem;
+      background: var(--olive-soft);
+      color: var(--olive);
+      font-size: .75rem;
+      font-weight: 800;
+    }
+
+    .variant {
+      margin-bottom: 1.4rem;
+      border: 1px solid rgba(51,70,56,.16);
+      border-radius: 1.15rem;
+      overflow: hidden;
+      background: rgba(255,253,248,.84);
+      box-shadow: var(--shadow);
+    }
+    .variant-head {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      gap: 1rem;
+      align-items: start;
+      padding: 1.1rem 1.2rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .variant-head h2 { margin: 0; font-family: Georgia, serif; font-size: 1.5rem; }
+    .variant-head p { max-width: 52rem; margin: .3rem 0 0; color: var(--muted); font-size: .83rem; line-height: 1.45; }
+    .tag {
+      border-radius: 999px;
+      padding: .35rem .65rem;
+      background: #ece8de;
+      color: var(--olive);
+      font-size: .69rem;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+    .tag.recommended { background: var(--honey); color: #3c2d13; }
+    .comparison {
+      display: grid;
+      grid-template-columns: minmax(17rem, 24rem) minmax(35rem, 1fr);
+      gap: 1rem;
+      align-items: start;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    .preview-label {
+      margin: 0 0 .35rem;
+      color: var(--muted);
+      font-size: .68rem;
+      font-weight: 850;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .frame {
+      overflow: hidden;
+      border: 1px solid #c7c8c0;
+      border-radius: .9rem;
+      background: var(--paper);
+      box-shadow: 0 12px 30px rgba(45,54,46,.12);
+    }
+    .phone-frame { width: 100%; min-height: 36rem; }
+    .desktop-frame { min-height: 36rem; }
+
+    .ribbon {
+      display: grid;
+      gap: .55rem;
+      padding: .72rem .8rem;
+      background: linear-gradient(145deg, var(--olive), var(--olive-2));
+      color: white;
+    }
+    .ribbon-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+    .ribbon h3 { margin: 0; font-family: Georgia, serif; font-size: 1.25rem; }
+    .actions { display: flex; gap: .35rem; }
+    .action {
+      min-height: 2.35rem;
+      border: 1px solid rgba(255,255,255,.23);
+      border-radius: .55rem;
+      padding: .42rem .62rem;
+      background: rgba(255,255,255,.08);
+      color: white;
+      font-size: .68rem;
+      font-weight: 800;
+    }
+    .action.primary { border-color: #c86b47; background: var(--terra); }
+    .paper { padding: .65rem; }
+    .control-deck {
+      display: grid;
+      gap: .45rem;
+      margin-bottom: .65rem;
+      border: 1px solid var(--line);
+      border-radius: .75rem;
+      padding: .55rem;
+      background: rgba(255,255,255,.7);
+    }
+    .control-row { display: flex; gap: .35rem; align-items: center; min-width: 0; }
+    .segments { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); flex: 1; }
+    .segment, .filter, .search {
+      min-height: 2.25rem;
+      border: 1px solid var(--line);
+      padding: .4rem .5rem;
+      background: #fffdf8;
+      color: var(--ink);
+      font-size: .66rem;
+      font-weight: 760;
+    }
+    .segments .segment:first-child { border-radius: .5rem 0 0 .5rem; }
+    .segments .segment:last-child { border-radius: 0 .5rem .5rem 0; }
+    .segments .segment + .segment { margin-left: -1px; }
+    .segment.active { position: relative; border-color: var(--olive); background: var(--olive); color: white; }
+    .search { flex: 1; border-radius: .5rem; color: var(--muted); font-weight: 600; }
+    .filter { border-radius: .5rem; white-space: nowrap; }
+    .quick { display: flex; gap: .3rem; }
+    .quick .filter { background: #f3e3b9; border-color: #dfc37a; color: #4a3618; }
+    .group-title { display: flex; align-items: baseline; justify-content: space-between; margin: .55rem .15rem .35rem; }
+    .group-title h4 { margin: 0; font-family: Georgia, serif; font-size: 1rem; }
+    .group-title span { color: var(--terra); font-size: .62rem; font-weight: 750; }
+    .stock-list { display: grid; gap: .36rem; }
+    .stock-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      gap: .35rem .65rem;
+      align-items: center;
+      border: 1px solid #dad8cf;
+      border-radius: .65rem;
+      padding: .5rem .58rem .45rem .72rem;
+      background: var(--card);
+      box-shadow: 0 4px 12px rgba(35,58,46,.06);
+    }
+    .stock-row.attention::before { position: absolute; inset: .4rem auto .4rem .2rem; width: .18rem; border-radius: 9px; background: var(--honey); content: ""; }
+    .item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .75rem; font-weight: 780; }
+    .meta { grid-column: 1 / -1; color: var(--muted); font-size: .58rem; }
+    .meta strong { color: #8b5b17; }
+    .qty { display: grid; grid-auto-flow: column; align-items: center; border: 1px solid var(--line); border-radius: .52rem; overflow: hidden; }
+    .qty span { min-width: 2.9rem; padding: .35rem .35rem; text-align: center; font-size: .65rem; font-weight: 800; }
+    .qty i { display: grid; place-items: center; width: 1.8rem; min-height: 1.95rem; background: #f2eee5; font-style: normal; }
+    .upkeep {
+      margin-top: .7rem;
+      border-top: 1px solid var(--line);
+      padding: .55rem .2rem .15rem;
+      color: var(--muted);
+      font-size: .64rem;
+    }
+    .upkeep strong { color: var(--ink); }
+    .desktop-body { display: grid; gap: .8rem; padding: .8rem; }
+    .desktop-controls { display: grid; grid-template-columns: 1fr 1.25fr 1.15fr; gap: .45rem; }
+    .desktop-columns { display: grid; grid-template-columns: minmax(0,1.65fr) minmax(15rem,.85fr); gap: .8rem; }
+    .secondary { display: grid; align-content: start; gap: .7rem; }
+
+    /* Variant B */
+    .ledger-tabs { display: grid; grid-template-columns: repeat(3,1fr); border-bottom: 2px solid var(--olive); }
+    .ledger-tabs span { padding: .65rem; text-align: center; font-size: .69rem; font-weight: 800; }
+    .ledger-tabs .active { background: var(--olive); color: white; }
+    .alpha-bar { margin: .45rem 0; padding: .35rem .55rem; border-radius: .45rem; background: #ebe5d9; color: var(--muted); font-size: .61rem; font-weight: 800; letter-spacing: .12em; }
+    .ledger-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; min-height: 2.8rem; border-bottom: 1px solid var(--line); padding: .35rem .2rem; }
+    .ledger-row .item-name { white-space: normal; }
+    .signal { display: inline-block; margin-top: .15rem; color: #8b5b17; font-size: .58rem; }
+
+    /* Variant C */
+    .dashboard { display: grid; grid-template-columns: repeat(3,1fr); gap: .4rem; }
+    .stat { border: 1px solid rgba(255,255,255,.18); border-radius: .6rem; padding: .5rem; background: rgba(255,255,255,.08); }
+    .stat strong { display: block; color: #f1c96f; font-family: Georgia, serif; font-size: 1.25rem; }
+    .stat span { font-size: .57rem; color: rgba(255,255,255,.75); }
+    .summary-board { display: grid; grid-template-columns: repeat(3,1fr); gap: .45rem; margin-bottom: .65rem; }
+    .summary-tile { min-height: 4.2rem; border: 1px solid var(--line); border-radius: .7rem; padding: .55rem; background: white; }
+    .summary-tile strong { display: block; color: var(--olive); font-family: Georgia, serif; font-size: 1.3rem; }
+    .summary-tile span { color: var(--muted); font-size: .61rem; }
+
+    /* Variant D */
+    .split-desk { display: grid; grid-template-columns: 13rem minmax(0,1fr); min-height: 31rem; }
+    .side-desk { border-right: 1px solid var(--line); padding: .65rem; background: rgba(255,255,255,.62); }
+    .side-desk .control-row { flex-direction: column; align-items: stretch; }
+    .side-desk .segments { grid-auto-flow: row; }
+    .side-desk .segments .segment { border-radius: 0; }
+    .side-desk .segments .segment:first-child { border-radius: .5rem .5rem 0 0; }
+    .side-desk .segments .segment:last-child { border-radius: 0 0 .5rem .5rem; }
+    .side-desk .segments .segment + .segment { margin: -1px 0 0; }
+    .desk-content { padding: .7rem; }
+
+    /* Variant E */
+    .mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; margin-bottom: .55rem; }
+    .mode { min-height: 3rem; border: 1px solid var(--line); border-radius: .65rem; padding: .5rem; background: white; text-align: left; }
+    .mode strong { display: block; color: var(--olive); font-size: .74rem; }
+    .mode span { color: var(--muted); font-size: .57rem; }
+    .mode.active { border-color: var(--olive); box-shadow: inset 0 0 0 1px var(--olive); background: var(--olive-soft); }
+    .mode-panels { display: grid; grid-template-columns: 1.25fr .9fr; gap: .7rem; }
+    .count-sheet { border: 1px solid var(--line); border-radius: .7rem; padding: .55rem; background: rgba(255,255,255,.58); }
+
+    .decision-summary {
+      width: min(100%, 84rem);
+      margin: 0 auto 2rem;
+      border: 1px solid rgba(51,70,56,.2);
+      border-radius: 1rem;
+      padding: 1rem;
+      background: var(--card);
+    }
+    .decision-summary h2 { margin: 0 0 .45rem; font-family: Georgia, serif; }
+    #prompt-output { width: 100%; min-height: 13rem; border: 1px solid var(--line); border-radius: .7rem; padding: .7rem; background: #f2eee5; color: var(--ink); font: .72rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    @media (max-width: 72rem) {
+      .page { grid-template-columns: 1fr; }
+      .decision-rail { position: relative; height: auto; }
+      .comparison { grid-template-columns: 20rem minmax(35rem,1fr); }
+    }
+    @media (max-width: 48rem) {
+      main { padding: .75rem; }
+      .intro { grid-template-columns: 1fr; }
+      .variant-head { grid-template-columns: 1fr; }
+      .comparison { grid-template-columns: 19rem minmax(34rem,1fr); padding: .75rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="decision-rail" aria-label="Planning choices">
+      <p class="eyebrow">Keukenbrein · planning</p>
+      <h1>Stock page task hierarchy</h1>
+      <p>Choose what Stock should optimize for. These controls save locally and generate a source-complete prompt; the Markdown plan remains authoritative.</p>
+      <a class="source-link" href="../feature-lists/FEATURE_LIST_STOCK_PAGE_TASK_HIERARCHY.md">Open authoritative plan</a>
+
+      <fieldset>
+        <legend>Layout direction</legend>
+        <label class="choice"><input type="radio" name="layout" value="A. Use Next First" checked><span>A. Use Next First <small>Recommended: food and quantity actions arrive earliest.</small></span></label>
+        <label class="choice"><input type="radio" name="layout" value="B. Shelf Ledger"><span>B. Shelf Ledger <small>Best for complete counting and correction.</small></span></label>
+        <label class="choice"><input type="radio" name="layout" value="C. Household Dashboard"><span>C. Household Dashboard <small>Best for status at a glance.</small></span></label>
+        <label class="choice"><input type="radio" name="layout" value="D. Split Stock Desk"><span>D. Split Stock Desk <small>Best use of wide counter screens.</small></span></label>
+        <label class="choice"><input type="radio" name="layout" value="E. Task Switcher"><span>E. Task Switcher <small>Separates using stock from counting it.</small></span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Primary Stock job</legend>
+        <label class="choice"><input type="radio" name="job" value="Use and adjust what we have" checked><span>Use and adjust <small>Recommended: decide, then change quantity.</small></span></label>
+        <label class="choice"><input type="radio" name="job" value="Maintain a complete inventory"><span>Maintain inventory <small>Favors a dense ledger and fewer group changes.</small></span></label>
+        <label class="choice"><input type="radio" name="job" value="See household stock status"><span>See status <small>Favors prominent outcome summaries.</small></span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Recipe upkeep</legend>
+        <label class="choice"><input type="radio" name="upkeep" value="After the meal groups" checked><span>After stock groups <small>Recommended: maintenance follows food.</small></span></label>
+        <label class="choice"><input type="radio" name="upkeep" value="Unresolved count before groups; full coverage after"><span>Unresolved first <small>Only the actionable count remains prominent.</small></span></label>
+        <label class="choice"><input type="radio" name="upkeep" value="Inside Filters only"><span>Filters only <small>Lowest clutter, weakest discoverability.</small></span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Quick views</legend>
+        <label class="choice"><input type="radio" name="quick" value="Paper control deck" checked><span>Paper control deck <small>Recommended: close to rows, outside identity.</small></span></label>
+        <label class="choice"><input type="radio" name="quick" value="Green Ribbon"><span>Green Ribbon <small>Keeps outcomes prominent but restores density.</small></span></label>
+        <label class="choice"><input type="radio" name="quick" value="Filters sheet"><span>Filters sheet <small>Calmest header, one extra tap.</small></span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Notes</legend>
+        <textarea class="notes" id="notes" placeholder="What feels right or wrong? What would you use Stock for most often?"></textarea>
+      </fieldset>
+
+      <div class="decision-actions">
+        <button class="rail-button primary" id="copy-prompt" type="button">Copy plan choices</button>
+        <button class="rail-button" id="reset-choices" type="button">Reset</button>
+      </div>
+      <p class="save-state" id="save-state" aria-live="polite">Recommended defaults selected.</p>
+    </aside>
+
+    <main>
+      <section class="intro">
+        <div class="intro-card">
+          <h2>The design question</h2>
+          <p>Stock already works. The unresolved choice is what should dominate the first screen: food to use, a complete quantity ledger, or household status.</p>
+          <p>The recommendation keeps the Meals-first model, removes best-before tracking and its manual upkeep, and moves recipe curation behind the actual stock groups.</p>
+          <span class="recommendation">Recommendation · A. Use Next First</span>
+        </div>
+        <div class="boundary-card">
+          <strong>Fixed in every direction</strong>
+          <ul>
+            <li>Green Ribbon identity</li>
+            <li>Activity + Add stay visible</li>
+            <li>Immediate quantity controls</li>
+            <li>No best-before tracking</li>
+            <li>Search, filters, review, Undo</li>
+            <li>No schema, AI, AH, or Shopping change</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="variant" id="variant-a">
+        <header class="variant-head">
+          <div><h2>A. Use Next First</h2><p>Identity and page commands stay green. One calm paper deck owns scope, search, outcomes, and Filters. The actionable meal groups precede recipe upkeep.</p></div>
+          <span class="tag recommended">Recommended</span>
+        </header>
+        <div class="comparison">
+          <div><p class="preview-label">Phone · 393 px</p><div class="frame phone-frame">
+            <div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock</h3></div><div class="actions"><button class="action">Activity</button><button class="action primary">+ Add</button></div></div></div>
+            <div class="paper">
+              <div class="control-deck"><div class="control-row"><div class="segments"><button class="segment active">Meals</button><button class="segment">Ingredients</button><button class="segment">All</button></div></div><div class="control-row"><div class="search">Search stock…</div><button class="filter">Filters</button></div><div class="quick"><button class="filter">8 ready</button><button class="filter">2 below target</button></div></div>
+              <div class="group-title"><h4>Use next</h4><span>needs attention</span></div>
+              <div class="stock-list"><div class="stock-row attention"><div class="item-name">Pumpkin soup</div><div class="qty"><i>−</i><span>1 / 4</span><i>+</i></div><div class="meta"><strong>1 portion left</strong> · Freezer · Linked</div></div><div class="stock-row attention"><div class="item-name">Lentil stew</div><div class="qty"><i>−</i><span>2</span><i>+</i></div><div class="meta"><strong>2 below target</strong> · Freezer · Linked</div></div></div>
+              <div class="group-title"><h4>Still plenty</h4><span>2 visible</span></div><div class="stock-list"><div class="stock-row"><div class="item-name">Vegetable curry</div><div class="qty"><i>−</i><span>5</span><i>+</i></div><div class="meta">Freezer · Linked</div></div></div>
+              <div class="upkeep"><strong>Stock upkeep</strong> · 5 linked · 1 to decide →</div>
+            </div>
+          </div></div>
+          <div><p class="preview-label">Desktop · 1280 px</p><div class="frame desktop-frame">
+            <div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock</h3></div><div class="actions"><button class="action">Recent activity</button><button class="action primary">+ Add</button></div></div></div>
+            <div class="desktop-body"><div class="control-deck desktop-controls"><div class="segments"><button class="segment active">Meals</button><button class="segment">Ingredients</button><button class="segment">All stock</button></div><div class="search">Search stock…</div><div class="quick"><button class="filter">8 ready</button><button class="filter">2 below target</button><button class="filter">Filters</button></div></div>
+              <div class="desktop-columns"><section><div class="group-title"><h4>Use next</h4><span>needs attention</span></div><div class="stock-list"><div class="stock-row attention"><div class="item-name">Pumpkin soup</div><div class="qty"><i>−</i><span>1 / 4 portions</span><i>+</i></div><div class="meta"><strong>1 portion left</strong> · Freezer · Linked to Pumpkin soup</div></div><div class="stock-row attention"><div class="item-name">Lentil stew</div><div class="qty"><i>−</i><span>2 / 4 portions</span><i>+</i></div><div class="meta"><strong>2 below target</strong> · Freezer · Linked to Lentil stew</div></div></div></section><div class="secondary"><section><div class="group-title"><h4>Still plenty</h4><span>2 visible</span></div><div class="stock-list"><div class="stock-row"><div class="item-name">Vegetable curry</div><div class="qty"><i>−</i><span>5</span><i>+</i></div><div class="meta">Freezer · Linked</div></div><div class="stock-row"><div class="item-name">Lasagna</div><div class="qty"><i>−</i><span>6</span><i>+</i></div><div class="meta">Freezer · Linked</div></div></div></section><section><div class="group-title"><h4>Cook again</h4><span>1 visible</span></div><div class="stock-list"><div class="stock-row"><div class="item-name">Tomato soup</div><div class="qty"><span>0 / 4</span></div><div class="meta">Keep stocked · View recipe</div></div></div></section></div></div>
+              <div class="upkeep"><strong>Stock upkeep</strong> · Recipe coverage: 5 linked · 1 planned · 1 to decide →</div>
+            </div>
+          </div></div>
+        </div>
+      </section>
+
+      <section class="variant" id="variant-b">
+        <header class="variant-head"><div><h2>B. Shelf Ledger</h2><p>Scope becomes the dominant navigation. Meals, ingredients, and all stock use one dense alphabetic ledger; attention stays inside each row.</p></div><span class="tag">Counting</span></header>
+        <div class="comparison">
+          <div><p class="preview-label">Phone · 393 px</p><div class="frame phone-frame"><div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock</h3></div><div class="actions"><button class="action">Activity</button><button class="action primary">+ Add</button></div></div></div><div class="ledger-tabs"><span class="active">Meals · 8</span><span>Ingredients</span><span>All</span></div><div class="paper"><div class="control-row"><div class="search">Search meals…</div><button class="filter">Filters</button></div><div class="alpha-bar">A — M</div><div class="ledger-row"><div><div class="item-name">Lentil stew</div><span class="signal">2 below target · Freezer</span></div><div class="qty"><i>−</i><span>2 / 4</span><i>+</i></div></div><div class="ledger-row"><div><div class="item-name">Lasagna</div><span class="signal">Freezer · Linked</span></div><div class="qty"><i>−</i><span>6</span><i>+</i></div></div><div class="ledger-row"><div><div class="item-name">Pumpkin soup</div><span class="signal">Use tomorrow · Freezer</span></div><div class="qty"><i>−</i><span>1 / 4</span><i>+</i></div></div><div class="alpha-bar">N — Z</div><div class="ledger-row"><div><div class="item-name">Tomato soup</div><span class="signal">Cook again</span></div><div class="qty"><span>0 / 4</span></div></div><div class="ledger-row"><div><div class="item-name">Vegetable curry</div><span class="signal">Freezer · Linked</span></div><div class="qty"><i>−</i><span>5</span><i>+</i></div></div></div></div></div>
+          <div><p class="preview-label">Desktop · 1280 px</p><div class="frame desktop-frame"><div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock ledger</h3></div><div class="actions"><button class="action">Recent activity</button><button class="action primary">+ Add</button></div></div></div><div class="ledger-tabs"><span class="active">Meals · 8 ready</span><span>Ingredients · 24</span><span>All stock · 39</span></div><div class="desktop-body"><div class="control-row"><div class="search">Search stock…</div><button class="filter">Storage: All</button><button class="filter">Food class: All</button><button class="filter">Needs review</button></div><div class="alpha-bar">MEALS · ALPHABETICAL</div><div class="ledger-row"><div><div class="item-name">Lasagna</div><span class="signal">Freezer · Linked</span></div><div class="qty"><i>−</i><span>6 portions</span><i>+</i></div></div><div class="ledger-row"><div><div class="item-name">Lentil stew</div><span class="signal">2 below target · Freezer · Linked</span></div><div class="qty"><i>−</i><span>2 / 4 portions</span><i>+</i></div></div><div class="ledger-row"><div><div class="item-name">Pumpkin soup</div><span class="signal">1 portion left · Freezer · Linked</span></div><div class="qty"><i>−</i><span>1 / 4 portion</span><i>+</i></div></div><div class="ledger-row"><div><div class="item-name">Tomato soup</div><span class="signal">Cook again · Keep stocked</span></div><div class="qty"><span>0 / 4 portions</span></div></div><div class="ledger-row"><div><div class="item-name">Vegetable curry</div><span class="signal">Freezer · Linked</span></div><div class="qty"><i>−</i><span>5 portions</span><i>+</i></div></div><div class="upkeep"><strong>Recipe upkeep</strong> · 1 to decide →</div></div></div></div>
+        </div>
+      </section>
+
+      <section class="variant" id="variant-c">
+        <header class="variant-head"><div><h2>C. Household Dashboard</h2><p>Outcomes are the hero: what is ready, what is below target, and what needs review. The grouped ledger follows as supporting detail.</p></div><span class="tag">Overview</span></header>
+        <div class="comparison">
+          <div><p class="preview-label">Phone · 393 px</p><div class="frame phone-frame"><div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock</h3></div><div class="actions"><button class="action">Activity</button><button class="action primary">+ Add</button></div></div><div class="dashboard"><div class="stat"><strong>8</strong><span>meals ready</span></div><div class="stat"><strong>2</strong><span>below target</span></div><div class="stat"><strong>1</strong><span>to decide</span></div></div></div><div class="paper"><div class="control-row"><div class="search">Search stock…</div><button class="filter">Meals · Filters</button></div><div class="summary-board"><div class="summary-tile"><strong>2</strong><span>use next</span></div><div class="summary-tile"><strong>2</strong><span>still plenty</span></div><div class="summary-tile"><strong>1</strong><span>cook again</span></div></div><div class="group-title"><h4>Use next</h4><span>see all</span></div><div class="stock-list"><div class="stock-row attention"><div class="item-name">Pumpkin soup</div><div class="qty"><i>−</i><span>1 / 4</span><i>+</i></div><div class="meta"><strong>1 portion left</strong> · Freezer</div></div><div class="stock-row attention"><div class="item-name">Lentil stew</div><div class="qty"><i>−</i><span>2 / 4</span><i>+</i></div><div class="meta"><strong>2 below target</strong> · Freezer</div></div></div></div></div></div>
+          <div><p class="preview-label">Desktop · 1280 px</p><div class="frame desktop-frame"><div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock overview</h3></div><div class="actions"><button class="action">Recent activity</button><button class="action primary">+ Add</button></div></div><div class="dashboard"><div class="stat"><strong>8</strong><span>ready meals</span></div><div class="stat"><strong>2</strong><span>below target</span></div><div class="stat"><strong>1</strong><span>recipe decision</span></div></div></div><div class="desktop-body"><div class="control-deck desktop-controls"><div class="segments"><button class="segment active">Meals</button><button class="segment">Ingredients</button><button class="segment">All stock</button></div><div class="search">Search stock…</div><button class="filter">Filters</button></div><div class="summary-board"><div class="summary-tile"><strong>2</strong><span>meals to use next</span></div><div class="summary-tile"><strong>2</strong><span>meals still plentiful</span></div><div class="summary-tile"><strong>1</strong><span>meal to cook again</span></div></div><div class="desktop-columns"><section><div class="group-title"><h4>Use next</h4><span>needs attention</span></div><div class="stock-list"><div class="stock-row attention"><div class="item-name">Pumpkin soup</div><div class="qty"><i>−</i><span>1 / 4 portions</span><i>+</i></div><div class="meta"><strong>1 portion left</strong> · Freezer</div></div><div class="stock-row attention"><div class="item-name">Lentil stew</div><div class="qty"><i>−</i><span>2 / 4 portions</span><i>+</i></div><div class="meta"><strong>2 below target</strong> · Freezer</div></div></div></section><section><div class="group-title"><h4>Household status</h4><span>details</span></div><div class="stock-list"><div class="stock-row"><div class="item-name">Recipe upkeep</div><div class="qty"><span>1 to decide</span></div><div class="meta">5 linked · 1 planned</div></div><div class="stock-row"><div class="item-name">Still plenty</div><div class="qty"><span>2 meals</span></div><div class="meta">Vegetable curry · Lasagna</div></div></div></section></div></div></div></div>
+        </div>
+      </section>
+
+      <section class="variant" id="variant-d">
+        <header class="variant-head"><div><h2>D. Split Stock Desk</h2><p>Desktop puts a stable stock-control rail beside the meal ledger. Phone keeps controls above content in the same order, without a second state tree.</p></div><span class="tag">Wide screens</span></header>
+        <div class="comparison">
+          <div><p class="preview-label">Phone · 393 px</p><div class="frame phone-frame"><div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock</h3></div><div class="actions"><button class="action">Activity</button><button class="action primary">+ Add</button></div></div></div><div class="paper"><div class="control-deck"><div class="segments"><button class="segment active">Meals</button><button class="segment">Ingredients</button><button class="segment">All</button></div><div class="search">Search stock…</div><div class="quick"><button class="filter">8 ready</button><button class="filter">2 below</button><button class="filter">Filters</button></div></div><div class="group-title"><h4>Use next</h4><span>needs attention</span></div><div class="stock-list"><div class="stock-row attention"><div class="item-name">Pumpkin soup</div><div class="qty"><i>−</i><span>1 / 4</span><i>+</i></div><div class="meta"><strong>1 portion left</strong> · Freezer</div></div><div class="stock-row attention"><div class="item-name">Lentil stew</div><div class="qty"><i>−</i><span>2 / 4</span><i>+</i></div><div class="meta"><strong>2 below target</strong> · Freezer</div></div></div><div class="group-title"><h4>Still plenty</h4><span>2 visible</span></div><div class="stock-list"><div class="stock-row"><div class="item-name">Vegetable curry</div><div class="qty"><i>−</i><span>5</span><i>+</i></div><div class="meta">Freezer · Linked</div></div></div></div></div></div>
+          <div><p class="preview-label">Desktop · 1280 px</p><div class="frame desktop-frame"><div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock</h3></div><div class="actions"><button class="action">Recent activity</button><button class="action primary">+ Add</button></div></div></div><div class="split-desk"><aside class="side-desk"><p class="preview-label">Stock controls</p><div class="control-row"><div class="segments"><button class="segment active">Meals</button><button class="segment">Ingredients</button><button class="segment">All stock</button></div><div class="search">Search stock…</div><div class="quick"><button class="filter">8 ready</button><button class="filter">2 below target</button></div><button class="filter">Filters · 0 active</button></div><div class="upkeep"><strong>Stock upkeep</strong><br>5 linked · 1 to decide →</div></aside><div class="desk-content"><div class="desktop-columns"><section><div class="group-title"><h4>Use next</h4><span>needs attention</span></div><div class="stock-list"><div class="stock-row attention"><div class="item-name">Pumpkin soup</div><div class="qty"><i>−</i><span>1 / 4</span><i>+</i></div><div class="meta"><strong>1 portion left</strong> · Freezer</div></div><div class="stock-row attention"><div class="item-name">Lentil stew</div><div class="qty"><i>−</i><span>2 / 4</span><i>+</i></div><div class="meta"><strong>2 below target</strong> · Freezer</div></div></div></section><div class="secondary"><section><div class="group-title"><h4>Still plenty</h4><span>2</span></div><div class="stock-list"><div class="stock-row"><div class="item-name">Vegetable curry</div><div class="qty"><i>−</i><span>5</span><i>+</i></div><div class="meta">Freezer</div></div><div class="stock-row"><div class="item-name">Lasagna</div><div class="qty"><i>−</i><span>6</span><i>+</i></div><div class="meta">Freezer</div></div></div></section><section><div class="group-title"><h4>Cook again</h4><span>1</span></div><div class="stock-list"><div class="stock-row"><div class="item-name">Tomato soup</div><div class="qty"><span>0 / 4</span></div><div class="meta">View recipe</div></div></div></section></div></div></div></div></div></div>
+        </div>
+      </section>
+
+      <section class="variant" id="variant-e">
+        <header class="variant-head"><div><h2>E. Task Switcher</h2><p>The page explicitly distinguishes deciding what to use from counting everything. It is the clearest conceptual split and the only direction that introduces a new page mode.</p></div><span class="tag">Two jobs</span></header>
+        <div class="comparison">
+          <div><p class="preview-label">Phone · 393 px</p><div class="frame phone-frame"><div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock</h3></div><div class="actions"><button class="action">Activity</button><button class="action primary">+ Add</button></div></div></div><div class="paper"><div class="mode-switch"><button class="mode active"><strong>Use stock</strong><span>What should go next?</span></button><button class="mode"><strong>Count stock</strong><span>Check every quantity</span></button></div><div class="control-row"><div class="search">Search meals…</div><button class="filter">Filters</button></div><div class="group-title"><h4>Use next</h4><span>2 meals</span></div><div class="stock-list"><div class="stock-row attention"><div class="item-name">Pumpkin soup</div><div class="qty"><i>−</i><span>1 / 4</span><i>+</i></div><div class="meta"><strong>1 portion left</strong> · Freezer</div></div><div class="stock-row attention"><div class="item-name">Lentil stew</div><div class="qty"><i>−</i><span>2 / 4</span><i>+</i></div><div class="meta"><strong>2 below target</strong> · Freezer</div></div></div><div class="group-title"><h4>Cook again</h4><span>1 meal</span></div><div class="stock-list"><div class="stock-row"><div class="item-name">Tomato soup</div><div class="qty"><span>0 / 4</span></div><div class="meta">Keep stocked · View recipe</div></div></div></div></div></div>
+          <div><p class="preview-label">Desktop · 1280 px</p><div class="frame desktop-frame"><div class="ribbon"><div class="ribbon-row"><div><p class="eyebrow">Household</p><h3>Stock workspace</h3></div><div class="actions"><button class="action">Recent activity</button><button class="action primary">+ Add</button></div></div></div><div class="desktop-body"><div class="mode-switch"><button class="mode active"><strong>Use stock</strong><span>Decide what to eat and refill</span></button><button class="mode"><strong>Count stock</strong><span>Review every item and quantity</span></button></div><div class="mode-panels"><section><div class="control-row"><div class="search">Search meals…</div><button class="filter">Meals · Filters</button></div><div class="group-title"><h4>Use next</h4><span>needs attention</span></div><div class="stock-list"><div class="stock-row attention"><div class="item-name">Pumpkin soup</div><div class="qty"><i>−</i><span>1 / 4</span><i>+</i></div><div class="meta"><strong>1 portion left</strong> · Freezer</div></div><div class="stock-row attention"><div class="item-name">Lentil stew</div><div class="qty"><i>−</i><span>2 / 4</span><i>+</i></div><div class="meta"><strong>2 below target</strong> · Freezer</div></div></div></section><aside class="count-sheet"><p class="preview-label">Count-stock preview</p><div class="ledger-row"><div><div class="item-name">Lasagna</div><span class="signal">Freezer</span></div><div class="qty"><span>6</span></div></div><div class="ledger-row"><div><div class="item-name">Tomato soup</div><span class="signal">Cook again</span></div><div class="qty"><span>0 / 4</span></div></div><div class="ledger-row"><div><div class="item-name">Vegetable curry</div><span class="signal">Freezer</span></div><div class="qty"><span>5</span></div></div><div class="upkeep"><strong>Switch mode to edit the full ledger</strong></div></aside></div></div></div></div>
+        </div>
+      </section>
+
+      <section class="decision-summary">
+        <h2>Forward-only planning prompt</h2>
+        <p>The copied prompt points back to the Markdown plan and contains the selected decisions. The next agent does not need this HTML file.</p>
+        <textarea id="prompt-output" readonly></textarea>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const storageKey = 'keukenbrein-stock-plan-2026-08-03';
+      const fields = ['layout', 'job', 'upkeep', 'quick'];
+      const notes = document.getElementById('notes');
+      const output = document.getElementById('prompt-output');
+      const stateText = document.getElementById('save-state');
+
+      function selected(name) {
+        const element = document.querySelector(`input[name="${name}"]:checked`);
+        return element ? element.value : '';
+      }
+
+      function currentState() {
+        return {
+          layout: selected('layout'),
+          job: selected('job'),
+          upkeep: selected('upkeep'),
+          quick: selected('quick'),
+          notes: notes.value.trim()
+        };
+      }
+
+      function promptText(state) {
+        const userNotes = state.notes || '(none)';
+        return `Load docs/feature-lists/FEATURE_LIST_STOCK_PAGE_TASK_HIERARCHY.md and continue the $plan workflow for the Stock page. Do not read or depend on the HTML artifact.\n\nSOURCE DECISION CONTEXT\nThe page remains Meals-first and keeps the Green Ribbon, Activity/Add, immediate quantity controls, date-free Stock Radar grouping, search, filters, review, Add/Edit/Delete/Undo, history, deep links, recipe relationships, staples, ghost meals, bilingual/dark/responsive behavior, and all failure recovery. Stock does not ask for, show, filter by, write, or rank best-before dates; any existing stored values remain untouched. No schema, API, AI, Albert Heijn, Shopping-derivation, auth, or production-config changes.\n\nSELECTED LAYOUT\n${state.layout}\n\nPRIMARY STOCK JOB\n${state.job}\n\nRECIPE UPKEEP PLACEMENT\n${state.upkeep}\n\nQUICK-VIEW PLACEMENT\n${state.quick}\n\nUSER NOTES\n${userNotes}\n\nUpdate the authoritative Markdown plan with these choices, preserve every fixed boundary above, run plan critique, and stop before implementation unless Freek explicitly requests $run.`;
+      }
+
+      function render(save = true) {
+        const state = currentState();
+        output.value = promptText(state);
+        if (save) {
+          localStorage.setItem(storageKey, JSON.stringify(state));
+          stateText.textContent = 'Choices saved in this browser.';
+        }
+      }
+
+      function applyState(state) {
+        fields.forEach((name) => {
+          const value = state && state[name];
+          if (!value) return;
+          const candidates = document.querySelectorAll(`input[name="${name}"]`);
+          candidates.forEach((candidate) => { candidate.checked = candidate.value === value; });
+        });
+        notes.value = state && state.notes ? state.notes : '';
+      }
+
+      document.querySelectorAll('input[type="radio"]').forEach((input) => input.addEventListener('change', () => render(true)));
+      notes.addEventListener('input', () => render(true));
+
+      document.getElementById('copy-prompt').addEventListener('click', async () => {
+        render(true);
+        try {
+          await navigator.clipboard.writeText(output.value);
+          stateText.textContent = 'Planning prompt copied.';
+        } catch (error) {
+          output.focus();
+          output.select();
+          stateText.textContent = 'Select and copy the prompt below.';
+        }
+      });
+
+      document.getElementById('reset-choices').addEventListener('click', () => {
+        localStorage.removeItem(storageKey);
+        document.querySelector('input[name="layout"][value="A. Use Next First"]').checked = true;
+        document.querySelector('input[name="job"][value="Use and adjust what we have"]').checked = true;
+        document.querySelector('input[name="upkeep"][value="After the meal groups"]').checked = true;
+        document.querySelector('input[name="quick"][value="Paper control deck"]').checked = true;
+        notes.value = '';
+        render(false);
+        stateText.textContent = 'Recommended defaults restored.';
+      });
+
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+        if (saved) applyState(saved);
+      } catch (error) {
+        localStorage.removeItem(storageKey);
+      }
+      render(false);
+    })();
+  </script>
+</body>
+</html>

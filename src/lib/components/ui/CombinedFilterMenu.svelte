@@ -12,6 +12,7 @@
 		panelLabel,
 		doneLabel,
 		closeAt = '64rem',
+		tone = 'ribbon',
 		children
 	}: {
 		id: string;
@@ -22,6 +23,7 @@
 		panelLabel: string;
 		doneLabel: string;
 		closeAt?: '48rem' | '64rem';
+		tone?: 'ribbon' | 'paper';
 		children: Snippet;
 	} = $props();
 
@@ -32,12 +34,13 @@
 	});
 </script>
 
-<div class="combined-filter" data-combined-filter={id}>
+<div class="combined-filter" data-combined-filter={id} data-tone={tone}>
 	<button
 		bind:this={trigger}
 		type="button"
 		class="combined-filter-trigger"
 		class:active={activeCount > 0}
+		class:paper={tone === 'paper'}
 		aria-expanded={open}
 		aria-controls={`${id}-sheet`}
 		aria-haspopup="dialog"
@@ -94,6 +97,24 @@
 	.combined-filter-trigger[aria-expanded='true'] {
 		border-color: rgb(255 255 255 / 45%);
 		background: rgb(255 255 255 / 16%);
+	}
+
+	.combined-filter-trigger.paper {
+		border-color: var(--kitchen-line);
+		background: var(--kitchen-card);
+		color: var(--color-base-content);
+	}
+
+	.combined-filter-trigger.paper:hover,
+	.combined-filter-trigger.paper:focus-visible,
+	.combined-filter-trigger.paper.active,
+	.combined-filter-trigger.paper[aria-expanded='true'] {
+		border-color: color-mix(in oklab, var(--kitchen-olive) 48%, var(--kitchen-line));
+		background: color-mix(in oklab, var(--kitchen-olive-soft) 58%, var(--kitchen-card));
+	}
+
+	.combined-filter-trigger.paper .combined-filter-summary {
+		color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
 	}
 
 	.combined-filter-label {

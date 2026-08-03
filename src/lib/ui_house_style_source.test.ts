@@ -175,6 +175,14 @@ describe('stable app house-style source contract', () => {
 			'src/lib/components/inventory/FacetChips.svelte',
 			'utf8'
 		);
+		const stockEditor = readFileSync(
+			'src/lib/components/inventory/ItemEditor.svelte',
+			'utf8'
+		);
+		const stockQuantity = readFileSync(
+			'src/lib/components/inventory/QtyControl.svelte',
+			'utf8'
+		);
 		const ahSheet = readFileSync('src/lib/components/shopping/AhSheet.svelte', 'utf8');
 		const ahItem = readFileSync('src/lib/components/shopping/AhPreviewItem.svelte', 'utf8');
 		const shoppingPage = readFileSync('src/routes/shopping/+page.svelte', 'utf8');
@@ -204,13 +212,26 @@ describe('stable app house-style source contract', () => {
 		expect(recipes).not.toContain('ui-scroll-rail');
 		expect(recipes).not.toContain('scrollRail');
 
-		expect(inventory).toContain('stock-command-toolbar');
+		expect(inventory).toContain('stock-control-deck');
+		expect(inventory).toContain('<SegmentedControl');
+		expect(inventory).toContain('tone="paper"');
+		expect(inventory).toContain('controller.mealLedger');
+		expect(inventory).not.toContain('controller.mealGroups');
+		expect(inventory).not.toContain('<GhostRows');
+		expect(inventory).not.toContain('stock-card-attention');
 		expect(inventory).toContain('stock-filter-selects');
 		expect(inventory).toContain('<CombinedFilterMenu');
 		expect(inventory).not.toContain('FiltersSheet');
 		expect(inventoryController).not.toContain('filtersOpen');
 		expect(existsSync('src/lib/components/inventory/FiltersSheet.svelte')).toBe(false);
 		expect(stockFacets).not.toContain('StatusBadge');
+		expect(stockFacets).not.toContain('expiryDate');
+		expect(stockEditor).not.toContain('type="date"');
+		expect(inventoryController).not.toContain('expiry_date');
+		expect(inventory).toContain('Math.min(index, 8) * 24');
+		expect(inventory).toContain('@media (prefers-reduced-motion: reduce)');
+		expect(stockQuantity).toContain('{#key item.qtyNum}');
+		expect(stockQuantity).toContain('stock-qty-value');
 		expect(stockFacets).not.toMatch(/[🧊🥫🍲🥩🐟🫘🥚🥛🫙🍚]/u);
 
 		expect(ahSheet).toContain('attentionItems');

@@ -52,7 +52,9 @@ async function expectGreenRibbon(
 	const ribbonHeight = (await ribbon.boundingBox())?.height ?? 0;
 	const command = (await ribbon.getAttribute('data-variant')) === 'command';
 	if (command) {
-		expect(ribbonHeight).toBeGreaterThanOrEqual(width < 768 && !compactCommand ? 144 : 104);
+		expect(ribbonHeight).toBeGreaterThanOrEqual(
+			compactCommand ? (width < 768 ? 96 : 60) : width < 768 ? 144 : 104
+		);
 		expect(ribbonHeight).toBeLessThanOrEqual(width < 768 ? 230 : 190);
 	} else if (allowNarrowExpansion && width <= 320) {
 		expect(ribbonHeight).toBeGreaterThanOrEqual(64);
@@ -86,6 +88,29 @@ async function expectGreenRibbon(
 	);
 }
 
+test('Stock row motion stays capped and disappears for reduced motion', async ({ page }) => {
+	await page.setViewportSize({ width: 393, height: 900 });
+	await page.goto('/inventory');
+	const rows = page.locator('.stock-ledger-row');
+	await expect(rows.first()).toBeVisible();
+	const delays = await rows.evaluateAll((elements) =>
+		elements.map((element) => Number.parseFloat(getComputedStyle(element).animationDelay) || 0)
+	);
+	expect(delays[0]).toBe(0);
+	expect(delays.every((delay) => delay <= 0.192)).toBe(true);
+	expect(delays.every((delay, index) => index === 0 || delay >= delays[index - 1])).toBe(true);
+
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.reload();
+	await expect(rows.first()).toBeVisible();
+	expect(
+		await rows.first().evaluate((element) => ({
+			name: getComputedStyle(element).animationName,
+			delay: getComputedStyle(element).animationDelay
+		}))
+	).toEqual({ name: 'none', delay: '0s' });
+});
+
 test('house-style roles hold across stable routes and target viewports', async ({ page }) => {
 	test.setTimeout(120_000);
 
@@ -107,7 +132,7 @@ test('house-style roles hold across stable routes and target viewports', async (
 		).toBe(PAPER_RGB);
 
 		await expectRouteFrame(page, '/inventory', viewport.width);
-		await expectGreenRibbon(page, viewport.width);
+		await expectGreenRibbon(page, viewport.width, 2, false, true);
 		await expectGroveSurfaceContinuity(page, '.stock-ledger');
 		await expect(page.getByRole('button', { name: 'Recent activity' })).toHaveAttribute(
 			'aria-haspopup',
@@ -117,21 +142,23 @@ test('house-style roles hold across stable routes and target viewports', async (
 			'aria-haspopup',
 			'dialog'
 		);
-		const inventoryCard = page.locator('.stock-card').first();
-		await expect(inventoryCard).toBeVisible();
-		expect(await inventoryCard.evaluate((element) => getComputedStyle(element).borderLeftWidth)).toBe(
-			'1px'
-		);
-		expect(await inventoryCard.evaluate((element) => getComputedStyle(element).borderRadius)).toBe(
-			'12px'
-		);
-		expect(await inventoryCard.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
+		const inventoryList = page.locator('.stock-ledger-list').first();
+		const inventoryRow = inventoryList.locator('.stock-ledger-row').first();
+		await expect(inventoryRow).toBeVisible();
+		const listBorders = await inventoryList.evaluate((element) => {
+			const style = getComputedStyle(element);
+			return [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth];
+		});
+		expect(new Set(listBorders)).toEqual(new Set(['1px']));
+		expect(Number.parseFloat(await inventoryList.evaluate((element) => getComputedStyle(element).borderRadius))).toBeGreaterThanOrEqual(12);
+		expect(await inventoryList.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
 			'none'
 		);
+		expect(await inventoryRow.evaluate((element) => getComputedStyle(element, '::before').content)).toBe('none');
 		if (viewport.width < 1024) {
 			const stockFilterTrigger = page
-				.getByTestId('inventory-command-header')
-				.locator('.stock-command-mobile')
+				.getByTestId('inventory-control-deck')
+				.locator('.stock-control-mobile')
 				.getByRole('button', { name: /^Filters/ });
 			await expect(stockFilterTrigger).toHaveAttribute('data-ready', 'true');
 			await stockFilterTrigger.press('Enter');
@@ -146,12 +173,10 @@ test('house-style roles hold across stable routes and target viewports', async (
 				await expect(page.getByRole('combobox', { name: label })).toBeVisible();
 			}
 		}
-		await expect(inventoryCard.locator('.ui-status-dot')).toHaveCount(0);
-		const stockCards = page.locator('.stock-card');
-		if ((await stockCards.count()) > 1) {
-			const first = await stockCards.nth(0).boundingBox();
-			const second = await stockCards.nth(1).boundingBox();
-			expect((second?.y ?? 0) - ((first?.y ?? 0) + (first?.height ?? 0))).toBeGreaterThan(0);
+		await expect(inventoryRow.locator('.ui-status-dot')).toHaveCount(0);
+		const stockRows = inventoryList.locator('.stock-ledger-row');
+		if ((await stockRows.count()) > 1) {
+			expect(await stockRows.nth(1).evaluate((element) => getComputedStyle(element).borderTopWidth)).toBe('1px');
 		}
 		if (viewport.width === 1280) {
 			const focusedContent = page.locator('.stock-ledger > *').first();
@@ -554,6 +579,21 @@ test('selection, language, theme, and keyboard states remain explicit', async ({
 	await expect(darkField).toBeVisible();
 	await darkField.focus();
 	expect(await darkField.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe('none');
+
+	await page.goto('/inventory');
+	await expect(page.locator('.app-shell[data-hydrated="true"]')).toBeVisible();
+	await page.evaluate(() => {
+		document.documentElement.setAttribute('data-theme', 'dark');
+	});
+	await expect(page.getByRole('heading', { name: 'Voorraad', level: 1 })).toBeVisible();
+	await expect(page.getByRole('radiogroup', { name: 'Bereik' })).toBeVisible();
+	await expect(page.getByRole('searchbox', { name: 'Voorraad doorzoeken' })).toBeVisible();
+	await expect(page.locator('.stock-ledger-row').first()).toBeVisible();
+	expect(
+		await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		)
+	).toBe(0);
 });
 
 test('Green Ribbon menus become drawers on phone and keyboard popovers on desktop', async ({

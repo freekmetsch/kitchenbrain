@@ -84,7 +84,9 @@
 		onclick={() => onOpenEdit()}
 		aria-label={m.inventory_qty_edit_aria({ name: item.name })}
 	>
-		{displayQuantity(item.qtyNum, item.unit)}
+		{#key item.qtyNum}
+			<span class="stock-qty-value">{displayQuantity(item.qtyNum, item.unit)}</span>
+		{/key}
 	</button>
 {:else}
 	<div
@@ -105,11 +107,15 @@
 			onclick={() => onOpenEdit()}
 			aria-label={m.inventory_qty_edit_aria({ name: item.name })}
 		>
-			{#if target != null}
-				{item.qtyNum}<span class="text-xs font-normal text-base-content/50">/{target}</span>
-			{:else}
-				{displayQuantity(item.qtyNum, item.unit)}
-			{/if}
+			{#key item.qtyNum}
+				<span class="stock-qty-value">
+					{#if target != null}
+						{item.qtyNum}<span class="text-xs font-normal text-base-content/50">/{target}</span>
+					{:else}
+						{displayQuantity(item.qtyNum, item.unit)}
+					{/if}
+				</span>
+			{/key}
 		</button>
 		<button
 			type="button"
@@ -119,3 +125,27 @@
 		>
 	</div>
 {/if}
+
+<style>
+	.stock-qty-value {
+		display: inline-block;
+		animation: stock-qty-feedback var(--motion-micro) var(--ease-emphasized);
+	}
+
+	@keyframes stock-qty-feedback {
+		from {
+			opacity: 0.68;
+			transform: translateY(-1px) scale(0.94);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.stock-qty-value {
+			animation: none;
+		}
+	}
+</style>

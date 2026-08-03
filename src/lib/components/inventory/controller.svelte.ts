@@ -7,8 +7,8 @@ import { captureRemoval, restoreRemoval, type RemovedListItem } from '$lib/inven
 import { m } from '$lib/paraglide/messages';
 import { toast } from '$lib/stores/toast.svelte';
 import {
+	buildMealLedger,
 	composeQty,
-	groupMealStock,
 	matchesInventoryQuery,
 	matchesInventoryQuickView,
 	matchesInventoryScope,
@@ -103,7 +103,6 @@ export class InventoryController {
 		kind: '',
 		section: 'freezer',
 		foodClass: '',
-		expiry: '',
 		staple: false,
 		keepStocked: false,
 		target: null
@@ -188,10 +187,6 @@ export class InventoryController {
 		);
 	}
 
-	get mealGroups() {
-		return groupMealStock(this.filtered, (item) => this.linkFor(item), this.data.todayIso);
-	}
-
 	get visibleMealItems(): Item[] {
 		return this.filtered.filter((item) => item.kind === 'leftover');
 	}
@@ -209,10 +204,7 @@ export class InventoryController {
 	}
 
 	get stockRows(): Item[] {
-		return [...this.filtered].sort(
-			(a, b) =>
-				Number(b.needsReview) - Number(a.needsReview) || a.name.localeCompare(b.name)
-		);
+		return [...this.filtered].sort((a, b) => a.name.localeCompare(b.name));
 	}
 
 	get alternateScopeMatch(): boolean {
@@ -266,11 +258,16 @@ export class InventoryController {
 	}
 
 	get visibleMealResultCount(): number {
-		return (
-			this.mealGroups.useNext.length +
-			this.mealGroups.stillPlenty.length +
-			this.mealGroups.cookAgain.length +
-			this.ghostsVisible.length
+		return this.mealLedger.length;
+	}
+
+	get mealLedger() {
+		return buildMealLedger(
+			this.filtered,
+			this.ghostsVisible,
+			(item) => this.linkFor(item),
+			this.data.todayIso,
+			this.relationshipReviewOnly
 		);
 	}
 
@@ -650,7 +647,6 @@ export class InventoryController {
 			kind: (item.kind ?? '') as Kind | '',
 			section: item.section,
 			foodClass: item.foodClass ?? '',
-			expiry: item.expiryDate ?? '',
 			staple: item.isStaple,
 			keepStocked: link?.isFreezerStaple ?? false,
 			target: link?.targetPortions ?? null
@@ -705,9 +701,6 @@ export class InventoryController {
 		if (this.editDraft.section !== item.section) payload.section = this.editDraft.section;
 		if ((this.editDraft.foodClass || null) !== (item.foodClass ?? null)) {
 			payload.food_class = this.editDraft.foodClass || null;
-		}
-		if ((this.editDraft.expiry || null) !== (item.expiryDate ?? null)) {
-			payload.expiry_date = this.editDraft.expiry || null;
 		}
 		if (this.editDraft.staple !== item.isStaple) {
 			payload.is_staple = this.editDraft.staple;
@@ -910,20 +903,13 @@ export class InventoryController {
 	}
 
 	attentionText(attention: StockAttention): string {
-		if (attention.kind === 'expiry') {
-			if (attention.daysUntil < 0) {
-				return m.inventory_attention_expired({ days: Math.abs(attention.daysUntil) });
-			}
-			if (attention.daysUntil === 0) return m.inventory_attention_today();
-			if (attention.daysUntil === 1) return m.inventory_attention_tomorrow();
-			return m.inventory_attention_expiry({ days: attention.daysUntil });
-		}
 		if (attention.kind === 'below_target') {
 			return m.inventory_attention_below_target({ count: attention.portionsBelow });
 		}
 		if (attention.kind === 'low_stock') {
 			return m.inventory_attention_low_stock({ count: attention.portions });
 		}
+		if (attention.kind === 'cook_again') return m.inventory_cook_again_badge();
 		return m.inventory_attention_aging({ days: attention.daysOld });
 	}
 

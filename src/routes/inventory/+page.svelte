@@ -1,16 +1,13 @@
 
-<!--
-	Inventory — a meals-first Stock Radar. The full-width olive outcome band and
-	responsive Use next / Still plenty ledger are shared across breakpoints;
-	quantity writes, recipe relationships, editing, review, history, undo, and
-	ghost-row recovery are coordinated by one page-local controller.
--->
+<!-- Meals-first Shelf Ledger: identity and actions stay in the Green Ribbon;
+     stock scope, search, quick views, and filters live in the paper control deck. -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import ActivitySheet from '$lib/components/inventory/ActivitySheet.svelte';
 	import AddItemForm from '$lib/components/inventory/AddItemForm.svelte';
-	import GhostRows from '$lib/components/inventory/GhostRows.svelte';
+	import GhostRow from '$lib/components/inventory/GhostRow.svelte';
 	import ItemEditor from '$lib/components/inventory/ItemEditor.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
@@ -27,22 +24,25 @@
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import CombinedFilterMenu from '$lib/components/ui/CombinedFilterMenu.svelte';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
+	import { MOTION_MICRO_MS } from '$lib/motion';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	const controller = new InventoryController(() => data);
 	const SCOPES: InventoryScope[] = ['meals', 'ingredients', 'all'];
+	let scopeOptions = $derived(
+		SCOPES.map((value) => ({ value, label: controller.scopeLabel(value) }))
+	);
 	let stockFilterMenuOpen = $state(false);
 	let stockFilterCount = $derived(
-		Number(controller.scope !== 'meals') +
-			Number(controller.quickView !== null) +
+		Number(controller.quickView !== null) +
 			Number(controller.sectionFilter !== 'all') +
 			Number(controller.classFilter !== null) +
 			Number(controller.reviewOnly)
 	);
 	let stockFilterSummary = $derived(
 		[
-			controller.scopeLabel(controller.scope),
 			controller.quickView === 'ready'
 				? m.inventory_radar_meals_label()
 				: controller.quickView === 'below_target'
@@ -57,7 +57,7 @@
 			controller.reviewOnly ? m.inventory_filters_review_label() : null
 		]
 			.filter(Boolean)
-			.join(' · ')
+			.join(' · ') || m.inventory_more_filters_button()
 	);
 
 	onMount(() => controller.mount());
@@ -78,11 +78,12 @@
 
 <svelte:head><title>{m.inventory_title()}</title></svelte:head>
 
-{#snippet stockRow(item: Item, signalLabel: string | null)}
+{#snippet stockRow(item: Item, signalLabel: string | null, index: number)}
 	<li
 		id="inventory-item-{item.id}"
-		class="stock-card relative min-w-0 overflow-hidden"
-		class:stock-card-attention={Boolean(signalLabel || item.needsReview)}
+		class="stock-ledger-row relative min-w-0 overflow-hidden"
+		style:--stock-row-delay={`${Math.min(index, 8) * 24}ms`}
+		out:fade={{ duration: MOTION_MICRO_MS }}
 	>
 		<ItemRow
 			{item}
@@ -109,6 +110,16 @@
 			onCommitPortionEdit={() => controller.commitPortionEdit(item)}
 			onCancelPortionEdit={() => (controller.portionEditId = null)}
 		/>
+	</li>
+{/snippet}
+
+{#snippet stockGhostRow(ghost: (typeof controller.ghostsVisible)[number], index: number)}
+	<li
+		class="stock-ledger-row relative min-w-0 overflow-hidden"
+		style:--stock-row-delay={`${Math.min(index, 8) * 24}ms`}
+		out:fade={{ duration: MOTION_MICRO_MS }}
+	>
+		<GhostRow {ghost} flashToast={(message) => controller.flashToast(message)} />
 	</li>
 {/snippet}
 
@@ -141,8 +152,8 @@
 	</label>
 {/snippet}
 
-{#snippet stockQuickViews(menuSurface = false)}
-	<div class="stock-command-group stock-quick-group" class:menu-surface={menuSurface} role="group" aria-label={m.inventory_quick_filters_label()}>
+{#snippet stockQuickViews()}
+	<div class="stock-quick-group" role="group" aria-label={m.inventory_quick_filters_label()}>
 		{#if controller.readyMealCount > 0}
 			<button type="button" class:active={controller.quickView === 'ready'} aria-pressed={controller.quickView === 'ready'} aria-label={m.inventory_radar_ready_aria({ count: controller.readyMealCount })} onclick={() => controller.toggleQuickView('ready')}>
 				<strong>{controller.readyMealCount}</strong><span>{m.inventory_radar_meals_label()}</span>
@@ -157,16 +168,6 @@
 		{:else}
 			<span class="stock-command-zero"><Icon name="check" class="h-3.5 w-3.5" />{m.inventory_radar_below_target_zero()}</span>
 		{/if}
-	</div>
-{/snippet}
-
-{#snippet stockScopes(menuSurface = false)}
-	<div class="stock-command-group stock-scope-group" class:menu-surface={menuSurface} role="group" aria-label={m.inventory_scope_label()}>
-		{#each SCOPES as scope}
-			<button type="button" class:active={controller.scope === scope} aria-pressed={controller.scope === scope} onclick={() => controller.setScope(scope)}>
-				{controller.scopeLabel(scope)}
-			</button>
-		{/each}
 	</div>
 {/snippet}
 
@@ -214,14 +215,26 @@
 			</button>
 		{/snippet}
 
-		<div class="stock-command-toolbar" data-testid="inventory-command-header">
+	</KitchenPageHeader>
+
+	<main class="stock-ledger ui-grove-surface ui-kitchen-content">
+		<section class="stock-control-deck" data-testid="inventory-control-deck" aria-label={m.inventory_scope_filters()}>
+			<div class="stock-control-scope">
+				<span class="ui-field-label">{m.inventory_scope_label()}</span>
+				<SegmentedControl
+					options={scopeOptions}
+					value={controller.scope}
+					onchange={(scope) => controller.setScope(scope)}
+					ariaLabel={m.inventory_scope_label()}
+					cols={3}
+				/>
+			</div>
 			{@render stockSearch()}
-			<div class="stock-command-desktop">
-				{@render stockQuickViews()}
-				{@render stockScopes()}
+			{@render stockQuickViews()}
+			<div class="stock-control-desktop">
 				{@render stockFilterSelects()}
 			</div>
-			<div class="stock-command-mobile">
+			<div class="stock-control-mobile">
 				<CombinedFilterMenu
 					id="inventory-combined-filters"
 					bind:open={stockFilterMenuOpen}
@@ -230,117 +243,42 @@
 					activeCount={stockFilterCount}
 					panelLabel={m.inventory_filters_title()}
 					doneLabel={m.inventory_filters_done()}
+					tone="paper"
 				>
-					<section class="stock-menu-section"><h2>{m.inventory_quick_filters_label()}</h2>{@render stockQuickViews(true)}</section>
-					<section class="stock-menu-section"><h2>{m.inventory_scope_label()}</h2>{@render stockScopes(true)}</section>
 					{@render stockFilterSelects(true)}
 				</CombinedFilterMenu>
 			</div>
-		</div>
-	</KitchenPageHeader>
-
-	<main class="stock-ledger ui-grove-surface ui-kitchen-content">
-		{#if controller.scope === 'meals' && (controller.visibleMealItems.length > 0 || controller.relationshipReviewOnly)}
-			<div class="stock-coverage" aria-label={m.inventory_recipe_coverage_label()}>
-				<strong>{m.inventory_recipe_coverage_label()}</strong>
-				{#if !controller.relationshipReviewOnly}
-					<RecipeRelationshipStatus
-						relationship="linked"
-						label={m.inventory_recipe_coverage_linked({ count: controller.visibleRecipeCoverage.linked })}
-					/>
-					<RecipeRelationshipStatus
-						relationship="planned"
-						label={m.inventory_recipe_coverage_planned({ count: controller.visibleRecipeCoverage.planned })}
-					/>
-					<RecipeRelationshipStatus
-						relationship="not_needed"
-						label={m.inventory_recipe_coverage_not_needed({ count: controller.visibleRecipeCoverage.not_needed })}
-					/>
-				{/if}
-				{#if controller.unresolvedRelationshipCount > 0 || controller.relationshipReviewOnly}
-					<button
-						type="button"
-						class="ui-action ui-action-tertiary stock-recipe-review"
-						aria-expanded={controller.relationshipReviewOnly}
-						onclick={() =>
-							controller.relationshipReviewOnly
-								? controller.closeRelationshipReview()
-								: controller.openRelationshipReview()}
-					>
-						<Icon name={controller.relationshipReviewOnly ? 'x' : 'chevronRight'} class="h-3.5 w-3.5" />
-						{controller.relationshipReviewOnly
-							? m.inventory_recipe_review_close()
-							: m.inventory_recipe_coverage_unresolved({
-									count: controller.unresolvedRelationshipCount
-								})}
-					</button>
-				{/if}
-			</div>
-		{/if}
+		</section>
 
 		{#if controller.scope === 'meals' && controller.visibleMealResultCount > 0}
-			<div class="stock-columns">
-				<section class="stock-group stock-attention">
-					<div class="stock-group-head">
-						<h2 class="ui-section-title">{m.inventory_group_use_next()}</h2>
-						<span>{m.inventory_group_use_next_hint()}</span>
-					</div>
-					{#if controller.mealGroups.useNext.length > 0}
-						<ul class="stock-list stock-card-list stock-priority">
-							{#each controller.mealGroups.useNext as entry (entry.item.id)}
-								{@render stockRow(entry.item, controller.attentionText(entry.attention))}
-							{/each}
-						</ul>
-					{:else}
-						<div class="stock-quiet">{m.inventory_group_caught_up()}</div>
-					{/if}
-				</section>
-
-				<div class="stock-secondary-groups">
-					{#if controller.mealGroups.stillPlenty.length > 0}
-						<section class="stock-group">
-							<div class="stock-group-head">
-								<h2 class="ui-section-title">{m.inventory_group_still_plenty()}</h2>
-								<span>{m.inventory_group_visible_count({ count: controller.mealGroups.stillPlenty.length })}</span>
-							</div>
-							<ul class="stock-list stock-card-list">
-								{#each controller.mealGroups.stillPlenty as item (item.id)}
-									{@render stockRow(item, null)}
-								{/each}
-							</ul>
-						</section>
-					{/if}
-
-					{#if controller.mealGroups.cookAgain.length > 0 || controller.ghostsVisible.length > 0}
-						<section class="stock-group">
-							<div class="stock-group-head">
-								<h2 class="ui-section-title">{m.inventory_group_cook_again()}</h2>
-								<span>{m.inventory_group_visible_count({
-									count: controller.mealGroups.cookAgain.length + controller.ghostsVisible.length
-								})}</span>
-							</div>
-							<ul class="stock-list stock-card-list stock-cook-again">
-								{#each controller.mealGroups.cookAgain as item (item.id)}
-									{@render stockRow(item, m.inventory_group_cook_again())}
-								{/each}
-								<GhostRows
-									ghosts={controller.ghostsVisible}
-									flashToast={(message) => controller.flashToast(message)}
-								/>
-							</ul>
-						</section>
-					{/if}
+			<section class="stock-group stock-primary-ledger">
+				<div class="stock-group-head">
+					<h2 class="ui-section-title">{controller.scopeLabel(controller.scope)}</h2>
+					<span>{m.inventory_group_visible_count({ count: controller.mealLedger.length })}</span>
 				</div>
-			</div>
+				<ul class="stock-ledger-list" aria-label={controller.scopeLabel(controller.scope)}>
+					{#each controller.mealLedger as entry, index (entry.key)}
+						{#if entry.kind === 'item'}
+							{@render stockRow(
+								entry.item,
+								entry.attention ? controller.attentionText(entry.attention) : null,
+								index
+							)}
+						{:else}
+							{@render stockGhostRow(entry.ghost, index)}
+						{/if}
+					{/each}
+				</ul>
+			</section>
 		{:else if controller.scope !== 'meals' && controller.filtered.length > 0}
 			<section class="stock-group stock-all">
 				<div class="stock-group-head">
 					<h2 class="ui-section-title">{controller.scopeLabel(controller.scope)}</h2>
 					<span>{m.inventory_group_visible_count({ count: controller.stockRows.length })}</span>
 				</div>
-				<ul class="stock-list stock-card-list">
-					{#each controller.stockRows as item (item.id)}
-						{@render stockRow(item, null)}
+				<ul class="stock-ledger-list" aria-label={controller.scopeLabel(controller.scope)}>
+					{#each controller.stockRows as item, index (item.id)}
+						{@render stockRow(item, null, index)}
 					{/each}
 				</ul>
 			</section>
@@ -383,6 +321,28 @@
 							</div>
 						{/snippet}
 					</EmptyState>
+				{/if}
+			</div>
+		{/if}
+
+		{#if controller.scope === 'meals' && controller.visibleMealItems.length > 0}
+			<div class="stock-coverage" aria-label={m.inventory_recipe_coverage_label()}>
+				<strong>{m.inventory_recipe_coverage_label()}</strong>
+				{#if !controller.relationshipReviewOnly}
+					<RecipeRelationshipStatus relationship="linked" label={m.inventory_recipe_coverage_linked({ count: controller.visibleRecipeCoverage.linked })} />
+					<RecipeRelationshipStatus relationship="planned" label={m.inventory_recipe_coverage_planned({ count: controller.visibleRecipeCoverage.planned })} />
+					<RecipeRelationshipStatus relationship="not_needed" label={m.inventory_recipe_coverage_not_needed({ count: controller.visibleRecipeCoverage.not_needed })} />
+				{/if}
+				{#if controller.unresolvedRelationshipCount > 0 || controller.relationshipReviewOnly}
+					<button
+						type="button"
+						class="ui-action ui-action-tertiary stock-recipe-review"
+						aria-expanded={controller.relationshipReviewOnly}
+						onclick={() => controller.relationshipReviewOnly ? controller.closeRelationshipReview() : controller.openRelationshipReview()}
+					>
+						<Icon name={controller.relationshipReviewOnly ? 'x' : 'chevronRight'} class="h-3.5 w-3.5" />
+						{controller.relationshipReviewOnly ? m.inventory_recipe_review_close() : m.inventory_recipe_coverage_unresolved({ count: controller.unresolvedRelationshipCount })}
+					</button>
 				{/if}
 			</div>
 		{/if}
@@ -451,18 +411,44 @@
 		background: var(--kitchen-grove);
 		color: var(--color-base-content);
 	}
+	.stock-ledger {
+		padding-block: 0.9rem max(6.5rem, var(--ui-overlay-bottom));
+	}
 
-
-	.stock-command-toolbar {
+	.stock-control-deck {
 		display: grid;
-		gap: 0.45rem;
+		gap: 0.65rem;
+		margin-bottom: 1rem;
+		padding: 0.8rem;
+		border: 1px solid color-mix(in oklab, var(--stock-olive) 17%, var(--kitchen-line));
+		border-radius: 0.9rem;
+		background: color-mix(in oklab, var(--stock-paper) 82%, var(--stock-card));
+		box-shadow: 0 8px 24px rgb(35 58 46 / 7%);
+	}
+
+	.stock-control-scope {
+		display: grid;
+		gap: 0.3rem;
+		min-width: 0;
+	}
+
+	.stock-control-scope :global(.ui-segmented-control) {
+		width: 100%;
 	}
 
 	.stock-command-search {
 		min-height: 2.75rem;
-		border-color: rgb(255 255 255 / 24%);
-		background: rgb(255 255 255 / 9%);
-		color: var(--kitchen-ribbon-ink);
+		border-color: var(--kitchen-line);
+		background: var(--stock-card);
+		color: var(--color-base-content);
+		transition:
+			border-color var(--motion-micro) var(--ease-standard),
+			box-shadow var(--motion-micro) var(--ease-standard);
+	}
+
+	.stock-command-search:focus-within {
+		border-color: var(--stock-olive);
+		box-shadow: 0 0 0 3px color-mix(in oklab, var(--stock-olive) 16%, transparent);
 	}
 
 	.stock-command-search button,
@@ -473,7 +459,7 @@
 		align-items: center;
 		justify-content: center;
 		border-radius: 0.55rem;
-		color: var(--kitchen-ribbon-muted);
+		color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
 	}
 
 	.stock-command-search kbd {
@@ -482,23 +468,22 @@
 		font-size: 0.68rem;
 	}
 
-	.stock-command-desktop {
+	.stock-control-desktop {
 		display: none;
 	}
 
-	.stock-command-mobile {
+	.stock-control-mobile {
 		min-width: 0;
 	}
 
-	.stock-command-group {
+	.stock-quick-group {
 		display: grid;
 		min-width: 0;
-		grid-auto-flow: column;
-		grid-auto-columns: minmax(0, 1fr);
-		gap: 0;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.35rem;
 	}
 
-	.stock-command-group > button,
+	.stock-quick-group > button,
 	.stock-command-zero {
 		display: inline-flex;
 		min-width: 0;
@@ -506,43 +491,41 @@
 		align-items: center;
 		justify-content: center;
 		gap: 0.35rem;
-		border: 1px solid rgb(255 255 255 / 22%);
-		border-radius: 0;
+		border: 1px solid var(--kitchen-line);
+		border-radius: 0.68rem;
 		padding: 0.35rem 0.55rem;
-		background: rgb(255 255 255 / 8%);
-		color: var(--kitchen-ribbon-ink);
+		background: var(--stock-card);
+		color: color-mix(in oklab, var(--color-base-content) 78%, transparent);
 		font-size: 0.66rem;
 		font-weight: 750;
 		line-height: 1.05;
 		text-align: center;
 		white-space: nowrap;
+		transition:
+			transform var(--motion-micro) var(--ease-standard),
+			border-color var(--motion-micro) var(--ease-standard),
+			background var(--motion-micro) var(--ease-standard),
+			color var(--motion-micro) var(--ease-standard);
 	}
 
-	.stock-command-group > :first-child {
-		border-radius: 0.625rem 0 0 0.625rem;
+	.stock-quick-group > button:hover {
+		border-color: color-mix(in oklab, var(--stock-olive) 42%, var(--kitchen-line));
+		background: color-mix(in oklab, var(--stock-olive-soft) 52%, var(--stock-card));
 	}
 
-	.stock-command-group > :last-child {
-		border-radius: 0 0.625rem 0.625rem 0;
+	.stock-quick-group > button:active {
+		transform: translateY(1px);
 	}
 
-	.stock-command-group > :not(:first-child) {
-		margin-left: -1px;
+	.stock-quick-group > button.active {
+		border-color: var(--stock-olive);
+		background: var(--stock-olive);
+		color: white;
 	}
 
-	.stock-command-group > button.active {
-		position: relative;
-		z-index: 1;
-		border-color: var(--kitchen-ribbon-ink);
-		background: var(--kitchen-paper);
-		color: var(--stock-olive);
-	}
-
-	.stock-command-group > button:focus-visible {
-		position: relative;
-		z-index: 2;
-		outline: 2px solid white;
-		outline-offset: -3px;
+	.stock-quick-group > button:focus-visible {
+		outline: 2px solid var(--stock-olive);
+		outline-offset: 2px;
 	}
 
 	.stock-quick-group strong {
@@ -551,52 +534,13 @@
 	}
 
 	.stock-quick-group .attention:not(.active) {
-		border-color: transparent;
-		background: var(--stock-honey);
-		color: #332613;
+		border-color: color-mix(in oklab, var(--stock-honey) 62%, var(--kitchen-line));
+		background: color-mix(in oklab, var(--stock-honey) 25%, var(--stock-card));
+		color: var(--stock-honey-ink);
 	}
 
 	.stock-command-zero {
-		color: var(--kitchen-ribbon-muted);
-	}
-
-	.stock-menu-section {
-		display: grid;
-		gap: 0.4rem;
-	}
-
-	.stock-menu-section h2,
-	.stock-filter-selects label > span {
-		font-size: 0.625rem;
-		font-weight: 800;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: color-mix(in oklab, var(--color-base-content) 66%, transparent);
-	}
-
-	.stock-command-group.menu-surface > button,
-	.stock-command-group.menu-surface .stock-command-zero {
-		border-color: var(--kitchen-line);
-		background: var(--kitchen-paper);
-		color: color-mix(in oklab, var(--color-base-content) 78%, transparent);
-		white-space: normal;
-	}
-
-	.stock-command-group.menu-surface > button.active {
-		border-color: var(--stock-olive);
-		background: var(--stock-olive);
-		color: white;
-	}
-
-	.stock-command-group.menu-surface > button:focus-visible {
-		outline-color: var(--stock-olive);
-		outline-offset: 2px;
-	}
-
-	.stock-command-group.menu-surface .attention:not(.active) {
-		border-color: color-mix(in oklab, var(--stock-honey) 64%, var(--kitchen-line));
-		background: color-mix(in oklab, var(--stock-honey) 22%, var(--kitchen-card));
-		color: var(--stock-honey-ink);
+		color: color-mix(in oklab, var(--color-base-content) 58%, transparent);
 	}
 
 	.stock-filter-selects {
@@ -612,18 +556,21 @@
 		gap: 0.25rem;
 	}
 
+	.stock-filter-selects label > span {
+		font-size: 0.625rem;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: color-mix(in oklab, var(--color-base-content) 66%, transparent);
+	}
+
 	.stock-filter-selects .ui-field {
 		width: 100%;
 		min-width: 0;
 		min-height: 2.75rem;
-		border-color: rgb(255 255 255 / 24%);
-		background: rgb(255 255 255 / 9%);
-		color: var(--kitchen-ribbon-ink);
-	}
-
-	.stock-filter-selects .ui-field option {
+		border-color: var(--kitchen-line);
 		background: var(--stock-card);
-		color: var(--kitchen-ink);
+		color: var(--color-base-content);
 	}
 
 	.stock-filter-selects.menu-surface {
@@ -641,17 +588,13 @@
 		border: 1px solid currentColor;
 		border-radius: 0.625rem;
 		padding-inline: 0.6rem;
-		color: var(--kitchen-ribbon-ink);
+		color: var(--kitchen-terra);
 		font-size: 0.68rem;
 		font-weight: 750;
 	}
 
 	.stock-filter-selects.menu-surface .stock-clear-filters {
 		color: var(--kitchen-terra);
-	}
-
-	.stock-ledger {
-		padding-block: 0.9rem max(6.5rem, var(--ui-overlay-bottom));
 	}
 
 	.stock-coverage {
@@ -673,21 +616,8 @@
 		text-transform: uppercase;
 	}
 
-	.stock-columns {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 1rem;
-		margin-top: 0.85rem;
-	}
-
 	.stock-group {
 		min-width: 0;
-	}
-
-	.stock-secondary-groups {
-		display: grid;
-		align-content: start;
-		gap: 1rem;
 	}
 
 	.stock-group-head {
@@ -705,59 +635,44 @@
 		font-weight: 650;
 	}
 
-	.stock-list {
+	.stock-ledger-list {
 		--stock-row-bg: var(--stock-card);
-	}
-
-	.stock-card-list {
-		display: grid;
-		gap: 0.5rem;
 		margin: 0;
 		padding: 0;
+		border: 1px solid color-mix(in oklab, var(--stock-olive) 16%, var(--kitchen-line));
+		border-radius: 0.8rem;
+		overflow: clip;
+		background: var(--stock-card);
+		box-shadow: 0 5px 16px rgb(35 58 46 / 7%);
 		list-style: none;
 	}
 
-	.stock-card {
+	.stock-ledger-row {
 		position: relative;
-		border: 1px solid color-mix(in oklab, var(--stock-olive) 15%, var(--kitchen-line));
-		border-radius: 0.75rem;
+		border: 0;
 		background: var(--stock-card);
-		box-shadow: 0 4px 12px rgb(35 58 46 / 7%);
+		animation: stock-row-enter var(--motion-content) var(--ease-emphasized) both;
+		animation-delay: var(--stock-row-delay, 0ms);
 	}
 
-	.stock-card-attention::before {
-		position: absolute;
+	.stock-ledger-row + .stock-ledger-row {
+		border-top: 1px solid color-mix(in oklab, var(--stock-olive) 11%, var(--kitchen-line));
+	}
+
+	.stock-ledger-row:focus-within {
 		z-index: 1;
-		inset-block: 0.55rem;
-		inset-inline-start: 0.22rem;
-		width: 0.2rem;
-		border-radius: 99px;
-		background: var(--stock-honey);
-		content: '';
-		pointer-events: none;
+		box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--stock-olive) 70%, transparent);
 	}
 
-	.stock-card-attention :global(.stock-item-row) {
-		padding-inline-start: 1rem;
-	}
-
-	.stock-quiet {
-		border-block: 1px solid color-mix(in oklab, var(--stock-olive) 13%, var(--color-base-300));
-		background: color-mix(in oklab, var(--stock-card) 72%, transparent);
-	}
-
-	.stock-priority {
-		--stock-row-bg: var(--stock-card);
-	}
-
-	.stock-cook-again {
-		border-color: color-mix(in oklab, var(--stock-terra) 18%, var(--color-base-300));
-	}
-
-	.stock-quiet {
-		padding: 1rem;
-		color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
-		font-size: 0.78rem;
+	@keyframes stock-row-enter {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	.stock-all,
@@ -771,43 +686,34 @@
 		--stock-honey-ink: #f0c569;
 	}
 
-
-	@media (min-width: 64rem) {
-		.stock-command-toolbar {
-			grid-template-columns: minmax(12rem, 0.62fr) minmax(0, 2.75fr);
-			align-items: center;
-		}
-
-		.stock-command-mobile {
-			display: none;
-		}
-
-		.stock-command-desktop {
-			display: grid;
-			min-width: 0;
-			grid-template-columns: minmax(13rem, 0.95fr) minmax(13rem, 0.9fr) minmax(17rem, 1.15fr);
-			align-items: stretch;
-			gap: 0.4rem;
-		}
-	}
-
 	@media (min-width: 64rem) {
 		.stock-ledger {
 			padding-block: 1.15rem max(6.5rem, var(--ui-overlay-bottom));
 		}
 
-		.stock-columns {
-			grid-template-columns: minmax(0, 2fr) minmax(19rem, 0.9fr);
-			gap: 1.5rem;
+		.stock-control-deck {
+			grid-template-columns: minmax(13rem, 0.8fr) minmax(14rem, 1.2fr) minmax(15rem, 1fr);
+			align-items: end;
 		}
 
-		.stock-columns:not(:has(.stock-secondary-groups > *)) {
-			width: min(100%, 50rem);
-			grid-template-columns: minmax(0, 1fr);
+		.stock-control-mobile {
+			display: none;
 		}
 
-		.stock-attention .stock-list :global(.btn) {
-			padding-inline: 0.45rem;
+		.stock-control-desktop {
+			display: block;
+			grid-column: 1 / -1;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.stock-ledger-row {
+			animation: none;
+			animation-delay: 0ms !important;
+		}
+
+		.stock-quick-group > button {
+			transform: none;
 		}
 	}
 </style>

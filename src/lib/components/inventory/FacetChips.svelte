@@ -8,7 +8,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import { RULE_REVIEW_CODES, reasonTokens } from '$lib/review_reasons';
 	import type { Item } from './shared';
-	import { formatDate } from '$lib/i18n';
 
 	function reviewReasonLabel(key: string): string | undefined {
 		switch (key) {
@@ -31,21 +30,6 @@
 				return reviewReasonLabel(key) ?? key.replace(/_/g, ' ');
 			})
 			.join(' · ');
-	}
-
-	function expiryBadge(expiry: string | null): { label: string; cls: string } | null {
-		if (!expiry) return null;
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		const diff = Math.ceil((new Date(expiry).getTime() - today.getTime()) / 86400000);
-		const cls = diff < 3 ? 'text-error' : diff < 7 ? 'text-warning' : 'text-base-content/65';
-		let label: string;
-		if (diff < 0) label = m.inventory_expiry_days_over({ days: Math.abs(diff) });
-		else if (diff === 0) label = m.inventory_expiry_today_label();
-		else if (diff === 1) label = m.inventory_expiry_tomorrow_label();
-		else if (diff < 8) label = m.inventory_expiry_days_left({ days: diff });
-		else label = formatDate(expiry, { day: 'numeric', month: 'short' });
-		return { label, cls };
 	}
 
 	function reviewFix(item: Item): 'portions' | 'edit' | 'resolve' {
@@ -109,7 +93,6 @@
 		onAddStaple: () => void;
 	} = $props();
 
-	const exp = $derived(expiryBadge(item.expiryDate));
 	const relationship = $derived(recipeRelationshipKind(item, link));
 	const sectionLabel = $derived(
 		item.section === 'freezer' ? m.inventory_section_freezer() : m.inventory_section_pantry()
@@ -176,10 +159,6 @@
 				{stapleAdded ? m.inventory_staples_on_list() : m.inventory_staples_add_button()}
 			</button>
 		{/if}
-	{/if}
-
-	{#if exp}
-		<span class="font-medium {exp.cls}">{m.inventory_best_before_label({ label: exp.label })}</span>
 	{/if}
 
 	{#if matches.length > 0}

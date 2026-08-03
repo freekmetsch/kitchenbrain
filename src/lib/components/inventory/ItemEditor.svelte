@@ -83,10 +83,6 @@
 					{/each}
 				</select>
 			</label>
-			<label class="flex flex-col gap-1">
-				<span class="ui-field-label">{m.inventory_editor_expiry_label()}</span>
-				<input type="date" class="ui-field w-full" bind:value={draft.expiry} />
-			</label>
 			{#if draft.kind === 'leftover'}
 				{#if link}
 					<!-- Same control as the recipe page: patches the recipe; off

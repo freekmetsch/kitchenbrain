@@ -436,51 +436,66 @@ for (const viewport of VIEWPORTS) {
 		await expect(editor).toBeVisible({ timeout: 15_000 });
 		await expect(editor.getByRole('heading', { name: mutationTarget })).toBeVisible();
 		await expect(editor.getByLabel('Name')).toHaveValue(mutationTarget);
+		await expect(editor.getByLabel('Best before')).toHaveCount(0);
 		await expect(row).toBeVisible();
 		await expectResponsiveSurface(page, '/inventory?item=…', viewport.width);
 	});
 
-	test(`Joined Stock and Recipe headers stay compact and complete at ${viewport.name}`, async ({
+	test(`Stock control deck and Recipe header stay compact and complete at ${viewport.name}`, async ({
 		page
 	}, testInfo) => {
 		const fixture = kitchenFixtureFor(testInfo);
 
 		await page.setViewportSize(viewport);
 		await page.goto('/inventory');
-		const stockHeader = page.getByTestId('inventory-command-header');
-		await expect(stockHeader).toBeVisible();
-		const stockFilterTrigger = stockHeader
-			.locator('.stock-command-mobile')
+		const stockHeader = page.locator('.kitchen-page-header');
+		const stockDeck = page.getByTestId('inventory-control-deck');
+		await expect(stockDeck).toBeVisible();
+		await expect(stockHeader.getByRole('searchbox', { name: 'Search stock' })).toHaveCount(0);
+		await expect(stockDeck.getByRole('searchbox', { name: 'Search stock' })).toBeVisible();
+		await expect(stockDeck.getByRole('radiogroup', { name: 'Scope' })).toBeVisible();
+		const stockFilterTrigger = stockDeck
+			.locator('.stock-control-mobile')
 			.locator('.combined-filter-trigger');
 		await expect(stockFilterTrigger).toHaveAttribute('data-ready', 'true', {
 			timeout: 15_000
 		});
+		await expect(stockFilterTrigger.locator('..')).toHaveAttribute('data-tone', 'paper');
 		await expect(page.getByRole('button', { name: 'Recent activity', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Add', exact: true })).toBeVisible();
-		await expect(page.locator('.stock-quick-view')).toHaveCount(0);
+		await expect(stockDeck.locator('.stock-quick-group')).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Use next' })).toHaveCount(0);
+		await expect(page.getByRole('heading', { name: 'Still plenty' })).toHaveCount(0);
+		const mealLedger = page.locator('.stock-ledger-list');
+		await expect(mealLedger).toHaveCount(1);
+		const recipeUpkeep = page.getByLabel('Recipe upkeep');
+		if (await recipeUpkeep.count()) {
+			const ledgerBox = await mealLedger.boundingBox();
+			const upkeepBox = await recipeUpkeep.boundingBox();
+			expect(upkeepBox?.y ?? 0).toBeGreaterThanOrEqual(
+				(ledgerBox?.y ?? 0) + (ledgerBox?.height ?? 0)
+			);
+		}
+		const ingredientsScope = stockDeck.getByRole('radio', { name: 'Ingredients', exact: true });
+		const mealsScope = stockDeck.getByRole('radio', { name: 'Meals', exact: true });
+		await ingredientsScope.click();
+		await expect(ingredientsScope).toHaveAttribute('aria-checked', 'true');
+		await mealsScope.click();
 
 		if (viewport.name === 'phone') {
 			const stockFilters = stockFilterTrigger;
-			await expect(stockFilters).toContainText('Meals');
 			await stockFilters.click();
 			const stockPanel = page.getByRole('dialog', { name: 'Stock filters' });
 			await expect(stockPanel).toBeVisible();
-			await stockPanel.getByRole('button', { name: 'Ingredients', exact: true }).click();
-			await expect(stockFilters).toContainText('Ingredients');
-			await stockPanel.getByRole('button', { name: 'Meals', exact: true }).click();
+			await expect(stockPanel.getByRole('combobox', { name: 'Storage' })).toBeVisible();
 			await stockPanel.getByRole('button', { name: 'Show results', exact: true }).click();
 			await expect(stockFilters).toHaveAttribute('aria-expanded', 'false');
 		} else {
-			const desktopStock = stockHeader.locator('.stock-command-desktop');
+			const desktopStock = stockDeck.locator('.stock-control-desktop');
 			await expect(desktopStock).toBeVisible();
-			await desktopStock.getByRole('button', { name: 'Ingredients', exact: true }).click();
-			await expect(desktopStock.getByRole('button', { name: 'Ingredients', exact: true })).toHaveAttribute(
-				'aria-pressed',
-				'true'
-			);
-			await desktopStock.getByRole('button', { name: 'Meals', exact: true }).click();
+			await expect(desktopStock.getByRole('combobox', { name: 'Storage' })).toBeVisible();
 		}
-		await expectResponsiveSurface(page, '/inventory command header', viewport.width);
+		await expectResponsiveSurface(page, '/inventory control deck', viewport.width);
 
 		await page.goto('/recipes');
 		const recipeHeader = page.getByTestId('recipes-command-header');
@@ -491,6 +506,7 @@ for (const viewport of VIEWPORTS) {
 		await expect(recipeFilterTrigger).toHaveAttribute('data-ready', 'true', {
 			timeout: 15_000
 		});
+		await expect(recipeFilterTrigger.locator('..')).toHaveAttribute('data-tone', 'ribbon');
 		await expect(page.getByRole('button', { name: '+ Meal', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
 		await expect(page.locator('.recipe-filter-shell')).toHaveCount(0);

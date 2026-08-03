@@ -106,6 +106,66 @@ describe('InventoryController', () => {
 		expect(controller.visibleMealItems.map(({ id }) => id)).toEqual([1, 2]);
 	});
 
+	it('keeps an empty unresolved meal visible while reviewing recipe upkeep', () => {
+		const controller = new InventoryController(data([item(1, 0)]), dependencies(vi.fn()));
+
+		expect(controller.mealLedger).toEqual([]);
+		controller.openRelationshipReview();
+		expect(controller.mealLedger.map((entry) => entry.name)).toEqual(['Item 1']);
+	});
+
+	it('projects live and cook-again meals into one alphabetic ledger', () => {
+		const banana = {
+			...item(2, 0),
+			name: 'Banana curry',
+			madeFromRecipeId: 7
+		};
+		const apple = { ...item(1, 2), name: 'Apple stew' };
+		const hidden = { ...item(3, 0), name: 'Carrot soup' };
+		const source = data([banana, apple, hidden]);
+		source.recipeLinks[7] = {
+			title: 'Banana curry',
+			titleNl: 'Bananencurry',
+			slug: 'banana-curry',
+			isFreezerStaple: true,
+			targetPortions: 6,
+			onHandPortions: 0
+		};
+		source.stapleGhosts = [
+			{ recipeId: 8, slug: 'date-tagine', title: 'Date tagine', target: 4 }
+		];
+		const controller = new InventoryController(source, dependencies(vi.fn()));
+
+		expect(controller.mealLedger.map((entry) => [entry.kind, entry.name])).toEqual([
+			['item', 'Apple stew'],
+			['item', 'Banana curry'],
+			['ghost', 'Date tagine']
+		]);
+	});
+
+	it('keeps non-meal rows alphabetic when review state changes', () => {
+		const zucchini = {
+			...item(1),
+			name: 'Zucchini',
+			kind: 'ingredient' as const,
+			category: 'ingredient'
+		};
+		const apple = {
+			...item(2),
+			name: 'Apple',
+			kind: 'ingredient' as const,
+			category: 'ingredient',
+			needsReview: true
+		};
+		const controller = new InventoryController(data([zucchini, apple]), dependencies(vi.fn()));
+		controller.setScope('ingredients');
+
+		expect(controller.stockRows.map(({ name }) => name)).toEqual(['Apple', 'Zucchini']);
+		controller.items[0].needsReview = true;
+		controller.items[1].needsReview = false;
+		expect(controller.stockRows.map(({ name }) => name)).toEqual(['Apple', 'Zucchini']);
+	});
+
 	it('coalesces rapid quantity taps and rolls back to the last confirmed value', async () => {
 		const firstResponse = deferred<Response>();
 		const requests: Array<{ qty_num: number; qty_text: string }> = [];
@@ -155,6 +215,24 @@ describe('InventoryController', () => {
 
 		expect(undoBody).toEqual({ item_id: 1 });
 		expect(controller.items.map(({ id }) => id)).toEqual([1, 2]);
+	});
+
+	it('keeps stored expiry untouched when another field is edited', async () => {
+		const dated = { ...item(1), expiryDate: '2026-08-14' };
+		let editBody: Record<string, unknown> | undefined;
+		const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+			editBody = JSON.parse(String(init?.body));
+			return response({ item: { ...dated, name: 'Renamed meal' } });
+		});
+		const controller = new InventoryController(data([dated]), dependencies(fetchMock));
+
+		controller.openEdit(controller.items[0]);
+		expect(controller.editDraft).not.toHaveProperty('expiry');
+		controller.editDraft.name = 'Renamed meal';
+		await controller.saveEdit(controller.items[0]);
+
+		expect(editBody).toEqual({ name: 'Renamed meal' });
+		expect(controller.items[0].expiryDate).toBe('2026-08-14');
 	});
 
 	it('keeps activity and undo request failures recoverable', async () => {
