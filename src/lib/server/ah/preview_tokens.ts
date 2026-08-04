@@ -145,6 +145,14 @@ export function peekAhPreviewToken(
 	return value ? clonePreview(value) : null;
 }
 
+/** Extends an active review without replacing its token or mutable product authorization. */
+export function refreshAhPreviewToken(token: string, userId: number, now = Date.now()): boolean {
+	const value = validPreview(token, userId, now);
+	if (!value) return false;
+	value.expiresAt = now + TTL_MS;
+	return true;
+}
+
 /** Adds products discovered by a manual search to one bound row, up to a fixed cap. */
 export function offerAhPreviewProducts(
 	token: string,
@@ -169,6 +177,7 @@ export function offerAhPreviewProducts(
 		existing.add(product.id);
 		authorized.add(product.id);
 	}
+	value.expiresAt = now + TTL_MS;
 	return [...authorized];
 }
 

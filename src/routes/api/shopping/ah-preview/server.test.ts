@@ -36,7 +36,7 @@ vi.mock('$lib/server/ah/client', () => ({
 	AH_NOT_CONNECTED: 'not_connected'
 }));
 
-import { POST } from './+server';
+import { PATCH, POST } from './+server';
 
 const WEEK = '2026-07-22';
 
@@ -135,5 +135,38 @@ describe('AH preview projection', () => {
 			incompatibleQuantities: true,
 			quantitySummary: '2 stuks + 1 blik'
 		});
+	});
+
+	it('renews only an authenticated current preview', async () => {
+		const previewResponse = await POST({
+			request: new Request('http://localhost/api/shopping/ah-preview', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ weekStart: WEEK, entryIds: [11, 12] })
+			}),
+			locals: { user: { id: 7, username: 'test' } }
+		} as never);
+		const { previewToken } = await previewResponse.json();
+
+		const renewed = await PATCH({
+			request: new Request('http://localhost/api/shopping/ah-preview', {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ previewToken })
+			}),
+			locals: { user: { id: 7, username: 'test' } }
+		} as never);
+		expect(await renewed.json()).toEqual({ ok: true });
+
+		await expect(
+			PATCH({
+				request: new Request('http://localhost/api/shopping/ah-preview', {
+					method: 'PATCH',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ previewToken })
+				}),
+				locals: { user: { id: 8, username: 'other' } }
+			} as never)
+		).rejects.toMatchObject({ status: 409 });
 	});
 });
