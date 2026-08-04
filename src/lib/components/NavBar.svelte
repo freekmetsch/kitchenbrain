@@ -9,7 +9,7 @@
 	here" survives on sub-pages (Krug trunk test). aria-current exposes it to AT.
 -->
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { base } from '$app/paths';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import type { IconName } from '$lib/components/ui/icons/paths';
@@ -28,14 +28,14 @@
 	];
 
 	const isActive = (path: string) => {
-		const here = $page.url.pathname;
+		const here = page.url.pathname;
 		const target = base + path;
 		return path === '/' ? here === target : here === target || here.startsWith(target + '/');
 	};
 
 	function tabHref(path: string): string {
-		const here = $page.url.pathname;
-		const selectedWeek = $page.url.searchParams.get('week');
+		const here = page.url.pathname;
+		const selectedWeek = page.url.searchParams.get('week');
 		const carriesWeek =
 			selectedWeek &&
 			[`${base}/meal-plan`, `${base}/shopping`].includes(here) &&

@@ -94,4 +94,29 @@ describe('PlannedServingsRegistry', () => {
 			lastWriteSucceeded: false
 		});
 	});
+
+	it('does not settle a write started by a listener with the previous result', async () => {
+		const firstWrite = deferred<PlannedServingMeal>();
+		const secondWrite = deferred<PlannedServingMeal>();
+		const write = vi
+			.fn<(mealId: number, servings: number) => Promise<PlannedServingMeal>>()
+			.mockImplementationOnce(() => firstWrite.promise)
+			.mockImplementationOnce(() => secondWrite.promise);
+		const registry = new PlannedServingsRegistry({ write });
+		let listenerWrite: Promise<boolean> | null = null;
+		registry.subscribe({ id: 7, servings: 4 }, (snapshot) => {
+			if (!snapshot.pending && snapshot.lastWriteSucceeded === true && !listenerWrite) {
+				listenerWrite = registry.change(7, 1);
+			}
+		});
+
+		const initialWrite = registry.change(7, 1);
+		firstWrite.resolve({ id: 7, servings: 5 });
+
+		await expect(initialWrite).resolves.toBe(true);
+		await vi.waitFor(() => expect(write).toHaveBeenCalledTimes(2));
+		expect(listenerWrite).not.toBeNull();
+		secondWrite.reject(new Error('later save failed'));
+		await expect(listenerWrite).resolves.toBe(false);
+	});
 });

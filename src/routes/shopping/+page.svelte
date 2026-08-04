@@ -376,17 +376,20 @@
 	restoreFocus={!weeklyHandoffAfterPreparation}
 	onclose={handlePreparationClose}
 >
-	<a
-		href="{base}/meal-plan?week={data.weekStart}"
-		class="shopping-edit-plan ui-action ui-action-primary"
-		aria-disabled={plannedServingPending}
-		onclick={(event) => {
-			if (plannedServingPending) event.preventDefault();
-		}}
-	>
-		<Icon name="calendar" />
-		{m.shopping_edit_meal_plan()}
-	</a>
+	{#if plannedServingPending}
+		<span class="shopping-edit-plan ui-action ui-action-primary" aria-disabled="true">
+			<Icon name="calendar" />
+			{m.shopping_edit_meal_plan()}
+		</span>
+	{:else}
+		<a
+			href="{base}/meal-plan?week={data.weekStart}"
+			class="shopping-edit-plan ui-action ui-action-primary"
+		>
+			<Icon name="calendar" />
+			{m.shopping_edit_meal_plan()}
+		</a>
+	{/if}
 	<ShoppingMealPortions
 		meals={data.plannedMeals}
 		editable={data.isEditable}

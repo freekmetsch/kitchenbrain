@@ -220,7 +220,7 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 	return db.transaction((tx) => {
 		initializeShoppingSourceData(tx);
 		materializeShoppingWeek(tx, weekStart, { weekStartDay: prefs.weekStartDay });
-		const meals = listMealsForWeekUnordered(tx, weekStart);
+		const meals = listMealsForWeekInSourceOrder(tx, weekStart);
 		const recipesBySlug = new Map(
 			getRecipesBySlugs(
 				tx,

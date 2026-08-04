@@ -276,14 +276,20 @@ test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({
 	expect(recipeHref).toMatch(/\?plan=\d+$/);
 	await expect(setup.getByText('Unplanned · Fresh meal', { exact: true }).first()).toBeVisible();
 
+	let releaseFailedWrite!: () => void;
+	const failedWriteHeld = new Promise<void>((resolve) => {
+		releaseFailedWrite = resolve;
+	});
 	await page.route(
 		'**/api/meal-plan/*',
-		(route) =>
-			route.fulfill({
+		async (route) => {
+			await failedWriteHeld;
+			await route.fulfill({
 				status: 500,
 				contentType: 'application/json',
 				body: '{"message":"intentional serving failure"}'
-			}),
+			});
+		},
 		{ times: 1 }
 	);
 	const failed = page.waitForResponse(
@@ -291,6 +297,12 @@ test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({
 			response.request().method() === 'PUT' && /\/api\/meal-plan\/\d+$/.test(response.url())
 	);
 	await increase.click();
+	await expect(setup.getByRole('link', { name: 'Edit meal plan' })).toHaveCount(0);
+	await expect(setup.getByText('Edit meal plan', { exact: true })).toHaveAttribute(
+		'aria-disabled',
+		'true'
+	);
+	releaseFailedWrite();
 	expect((await failed).status()).toBe(500);
 	await expect(shoppingCount).toHaveText(`${before} portions`);
 	await expect(setup.getByRole('alert').filter({ hasText: 'Could not update the portions.' })).toBeVisible();
