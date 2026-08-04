@@ -18,6 +18,11 @@ import {
 	PlannedServingsRegistry,
 	type PlannedServingsSnapshot
 } from '$lib/planned_servings_registry';
+import {
+	foodCategoryLabel,
+	foodCategoryMatches,
+	presentFoodCategories
+} from '$lib/food_categories';
 
 export type MealPlanMeal = {
 	id: number;
@@ -64,6 +69,7 @@ export type MealPlanControllerData = {
 	currentWeekStart: string;
 	focusWeek: string | null;
 	recipeList: MealPlanRecipe[];
+	recipeLang: 'en' | 'nl';
 	showPastWeeks: boolean;
 	hasPastWeeks: boolean;
 	rotationShortlists: Record<
@@ -106,6 +112,7 @@ export class MealPlanController {
 	currentWeekStart = $state('');
 	focusWeek = $state<string | null>(null);
 	recipeList = $state<MealPlanRecipe[]>([]);
+	recipeLang = $state<'en' | 'nl'>('en');
 	showPastWeeks = $state(false);
 	hasPastWeeks = $state(false);
 	rotationShortlists = $state<MealPlanControllerData['rotationShortlists']>({});
@@ -120,6 +127,7 @@ export class MealPlanController {
 	drawerWeek = $state('');
 	drawerSearch = $state('');
 	drawerCategory = $state('');
+	drawerFiltersOpen = $state(false);
 	drawerSubmitting = $state(false);
 
 	pendingAdds = $state<Record<string, boolean>>({});
@@ -160,6 +168,7 @@ export class MealPlanController {
 		this.currentWeekStart = data.currentWeekStart;
 		this.focusWeek = data.focusWeek;
 		this.recipeList = [...data.recipeList];
+		this.recipeLang = data.recipeLang;
 		this.showPastWeeks = data.showPastWeeks;
 		this.hasPastWeeks = data.hasPastWeeks;
 		this.rotationShortlists = structuredClone(data.rotationShortlists);
@@ -195,18 +204,33 @@ export class MealPlanController {
 		return this.prefs.dayPlanning;
 	}
 
+	get drawerCategories(): string[] {
+		return presentFoodCategories(this.recipeList.map((recipe) => recipe.category));
+	}
+
 	recipeDisplayTitle(recipe: MealPlanRecipe): string {
-		return recipe.titleEn ?? recipe.title;
+		return this.recipeLang === 'nl' ? recipe.title : (recipe.titleEn ?? recipe.title);
 	}
 
 	recipeDisplayCategory(recipe: MealPlanRecipe): string | null {
-		return recipe.categoryEn ?? recipe.category;
+		return foodCategoryLabel(recipe.category);
 	}
 
 	recipeForMeal(meal: MealPlanMeal): MealPlanRecipe | undefined {
 		return meal.recipeSlug
 			? this.recipeList.find((recipe) => recipe.slug === meal.recipeSlug)
 			: undefined;
+	}
+
+	mealDisplayTitle(meal: MealPlanMeal): string {
+		const recipe = this.recipeForMeal(meal);
+		return recipe ? this.recipeDisplayTitle(recipe) : meal.dinner;
+	}
+
+	rotationCandidateDisplayTitle(candidate: RotationShortlistCandidate): string {
+		const recipe = this.recipeList.find((row) => row.slug === candidate.slug);
+		if (recipe) return this.recipeDisplayTitle(recipe);
+		return this.recipeLang === 'nl' ? candidate.title : (candidate.titleEn ?? candidate.title);
 	}
 
 	frozenPortionsFor(meal: MealPlanMeal): number {
@@ -247,9 +271,7 @@ export class MealPlanController {
 			(recipe.titleEn?.toLowerCase().includes(query) ?? false);
 		const category = this.drawerCategory.toLowerCase();
 		const matchesCategory =
-			!this.drawerCategory ||
-			(recipe.category?.toLowerCase().includes(category) ?? false) ||
-			(recipe.categoryEn?.toLowerCase().includes(category) ?? false);
+			!category || foodCategoryMatches(recipe.category, category);
 		return matchesSearch && matchesCategory;
 	}
 
@@ -368,6 +390,7 @@ export class MealPlanController {
 		this.drawerWeek = weekStartDate;
 		this.drawerSearch = '';
 		this.drawerCategory = '';
+		this.drawerFiltersOpen = false;
 		this.drawerOpen = true;
 	};
 
@@ -748,7 +771,7 @@ export class MealPlanController {
 	): Promise<void> => {
 		await this.addMealOptimistic({
 			weekStartDate: this.drawerWeek,
-			dinner: this.recipeDisplayTitle(recipe),
+			dinner: recipe.titleEn ?? recipe.title,
 			recipeSlug: recipe.slug,
 			servings: defaultServingsForMealSource(
 				source,

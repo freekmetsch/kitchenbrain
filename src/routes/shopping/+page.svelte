@@ -39,14 +39,6 @@
 	let pending = $derived(items.filter((item) => !item.bought));
 	let done = $derived(items.filter((item) => item.bought));
 	let visibleToBuyCount = $derived(pending.filter((item) => !item.covered).length);
-	let plannedPortions = $derived(data.plannedMeals.reduce((total, meal) => total + meal.servings, 0));
-	let readinessTitle = $derived(
-		plannedServingPending
-			? m.shopping_readiness_updating()
-			: visibleToBuyCount === 0
-				? m.shopping_readiness_complete()
-				: m.shopping_readiness_title()
-	);
 	let emptyState = $derived(data.emptyState === 'no_meals' ? ('no_meals' as const) : ('nothing_needed' as const));
 
 	$effect(() => {
@@ -141,6 +133,19 @@
 		return result.status;
 	}
 
+	async function setSourceIncluded(
+		source: ShoppingListSource,
+		included: boolean
+	): Promise<SourceMutationStatus> {
+		const result = await postMutation<unknown>('/api/shopping', {
+			action: 'update_source',
+			entryId: source.id,
+			expectedRevision: source.revision,
+			included
+		});
+		return result.status;
+	}
+
 	function addItem(_item: Item) {
 		return invalidateAll();
 	}
@@ -221,6 +226,12 @@
 		isDefaultWeek={data.isDefaultWeek}
 		deliveryDate={data.deliveryDate}
 		ahConnected={data.ah.connected}
+		onAdjustPlan={() =>
+			data.plannedMeals.length
+				? (preparationOpen = true)
+				: void shoppingLists?.openWeeklyEditor()}
+		adjustPlanOpen={preparationOpen}
+		adjustPlanDialog={data.plannedMeals.length > 0}
 	/>
 
 	<div class="shopping-market-layout ui-grove-surface">
@@ -233,53 +244,10 @@
 						compact
 						showHeading={false}
 						headingId="shopping-push-attention"
+						onOpenHistory={() => (historyOpen = true)}
 					/>
-					<button
-						type="button"
-						class="shopping-history-trigger ui-action ui-action-tertiary"
-						onclick={() => (historyOpen = true)}
-					>
-						<Icon name="clock" />
-						{m.shopping_sent_to_ah_heading()}
-					</button>
 				</div>
 			{/if}
-
-			<section
-				class="shopping-readiness"
-				class:updating={plannedServingPending}
-				aria-labelledby="shopping-readiness-title"
-				aria-busy={plannedServingPending}
-				aria-live="polite"
-			>
-				<div class="shopping-readiness-icon" aria-hidden="true"><Icon name={plannedServingPending ? 'clock' : 'check'} /></div>
-				<div class="shopping-readiness-copy">
-					<h2 id="shopping-readiness-title">{readinessTitle}</h2>
-					<span>
-						{m.shopping_readiness_items({ count: visibleToBuyCount })}
-						{#if data.plannedMeals.length}
-							· {m.shopping_readiness_plan({ meals: data.plannedMeals.length, portions: plannedPortions })}
-						{:else}
-							· {m.shopping_readiness_without_meals()}
-						{/if}
-					</span>
-				</div>
-				{#if data.plannedMeals.length}
-					<button
-						type="button"
-						class="ui-action ui-action-tertiary"
-						aria-haspopup="dialog"
-						aria-expanded={preparationOpen}
-						onclick={() => (preparationOpen = true)}
-					>
-						{m.shopping_adjust_plan()}
-					</button>
-				{:else}
-					<button type="button" class="ui-action ui-action-tertiary" onclick={() => void shoppingLists?.openWeeklyEditor()}>
-						{m.shopping_manage_weekly()}
-					</button>
-				{/if}
-			</section>
 
 			<div class="shopping-market-dock" aria-label={m.shopping_heading()}>
 				<button type="button" class="market-add-action ui-action ui-action-secondary" disabled={!data.isEditable} aria-haspopup="dialog" aria-expanded={addItemOpen} onclick={() => addItemForm?.openAddModal()}>
@@ -332,6 +300,7 @@
 					mutateSource(source, { action: 'term', term })}
 				onChangeSourceNeed={(source, need) =>
 					mutateSource(source, { action: 'need', need })}
+				onSetSourceIncluded={setSourceIncluded}
 				onAddRecurring={(input) =>
 					mutateReturning<{ id: number }>(
 						{ action: 'add_recurring', startWeek: data.weekStart, ...input },
@@ -466,77 +435,8 @@
 		margin-bottom: 0.65rem;
 	}
 
-	.shopping-history-trigger {
-		justify-self: end;
-		min-height: 2.75rem;
-		padding-inline: 0.65rem;
-		font-size: 0.68rem;
-	}
-
 	.shopping-history-tools :global(.push-history) {
 		margin-bottom: 0;
-	}
-
-	.shopping-readiness {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr) auto;
-		align-items: center;
-		gap: 0.6rem;
-		min-height: 3.5rem;
-		margin-bottom: 0.6rem;
-		border: 1px solid color-mix(in oklab, var(--color-success) 30%, var(--kitchen-line));
-		border-radius: var(--kitchen-surface-radius);
-		padding: 0.4rem 0.45rem 0.4rem 0.65rem;
-		background: color-mix(in oklab, var(--color-success) 7%, var(--kitchen-card));
-	}
-
-	.shopping-readiness-icon {
-		display: grid;
-		width: 1.75rem;
-		height: 1.75rem;
-		place-items: center;
-		border-radius: 999px;
-		background: color-mix(in oklab, var(--color-success) 18%, var(--kitchen-card));
-		color: var(--color-success);
-	}
-
-	.shopping-readiness-icon :global(svg) {
-		width: 0.9rem;
-		height: 0.9rem;
-	}
-
-	.shopping-readiness.updating {
-		border-color: color-mix(in oklab, var(--color-warning) 35%, var(--kitchen-line));
-		background: color-mix(in oklab, var(--color-warning) 8%, var(--kitchen-card));
-	}
-
-	.shopping-readiness.updating .shopping-readiness-icon {
-		background: color-mix(in oklab, var(--color-warning) 18%, var(--kitchen-card));
-		color: var(--color-warning);
-	}
-
-	.shopping-readiness-copy {
-		display: grid;
-		min-width: 0;
-		gap: 0.08rem;
-	}
-
-	.shopping-readiness-copy h2 {
-		margin: 0;
-		font-size: 0.75rem;
-		font-weight: 750;
-	}
-
-	.shopping-readiness-copy span {
-		color: var(--kitchen-muted);
-		font-size: 0.63rem;
-		line-height: 1.35;
-	}
-
-	.shopping-readiness > :global(.ui-action) {
-		min-height: 2.75rem;
-		padding-inline: 0.6rem;
-		font-size: 0.66rem;
 	}
 
 	.shopping-market-dock {

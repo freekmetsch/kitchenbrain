@@ -1716,3 +1716,78 @@ Playwright coverage
 Moved the shipped Stock plan and its linked decision workspace into their archive lanes. The
 repository has no shared `scripts/archive-scan.ps1`, so this pass used the documented inline
 fallback.
+
+## 2026-08-03 16:18 | plan | Shopping and Meal Plan completion
+
+Audited the current Shopping and Meal Plan pages with isolated authenticated fixtures and selected
+a targeted completion pass instead of another redesign. Shopping will compact unresolved AH
+recovery, integrate History, and put active items before `Not this run`. Meal Plan will honor the
+recipe-language preference, derive localized present-only categories, and close the freezer-portions
+issue with an isolated 16-fresh/6-frozen browser proof. The shared segmented control will lose its
+recurring Svelte binding warning without changing its behavior.
+
+Updated repository delivery policy so routine test, deployment, and canary failures are resolved and
+retried automatically; a live bad task commit is recovered through `git revert` and the same GitHub
+source path. Independent Opus review approved automatic delivery and supplied the rollback gap. No
+application code, household data, schema, provider, AI, AH request, Shopping derivation, auth, secret,
+or production configuration changed. No HTML workspace was created because the audit left no product
+decision open for review.
+
+Touched: AGENTS.md,
+docs/feature-lists/FEATURE_LIST_SHOPPING_AND_MEAL_PLAN_COMPLETION.md, docs/log.md
+
+## 2026-08-03 20:30 | prototype-refinement | Shopping Split and neutral canvas
+
+Recorded Freek's rejection of the combined `Not this run` model and the first prototype verdict:
+desktop uses the Split/Two Aisles composition, Required leads, explicit recipe optionals stay visible
+with a week-only Add action, stocked sources remain In stock, and manually removed items stay in a
+collapsed final recovery. Removed the `Ready to shop` card from every refinement and limited green
+to desktop side rails, the top ribbon, and bottom navigation around a neutral paper center.
+
+Replaced the original three-way spread with a focused comparison for the only remaining taste
+decision: Quiet Setup after the ledgers, Header Tool, or Paper Deck. Quiet Setup is recommended
+because planning information is not part of the in-store task. The isolated `npm run dev:test`
+server and one-click Azuriet33 login render all three at 375 and 1280 px with zero Svelte diagnostics,
+console errors, warnings, or horizontal overflow. No Shopping/AH mutation or household data changed.
+
+Touched: Shopping completion plan, development-only Shopping prototype and variant gate, prototype
+README, docs/log.md
+
+## 2026-08-03 20:45 | prototype-selection | Shopping Header Tool
+
+Freek selected Header Tool for the final Shopping refinement. Adjust plan stays as a compact action
+in the top green ribbon, while the neutral central canvas contains no readiness card or planning
+summary. The accessible action remains `Adjust plan`; a narrow-phone label may compact to `Plan`.
+
+Updated the authoritative plan to GO with no open product questions and removed the disposable
+prototype component, README, and development-only variant gate after the verdict. Production
+Shopping behavior, household data, schema, API, AI, AH requests, auth, and configuration remain
+unchanged. The next authorized step is `$run`.
+
+Touched: Shopping completion plan, Shopping route cleanup, removed prototype files, docs/log.md
+
+## 2026-08-04 05:17 | run | Shopping and Meal Plan completion
+
+Shipped the selected Shopping Split ledger and Header Tool without the readiness card. Required,
+Optional, In stock, and final Removed recovery now have distinct meanings; explicit recipe
+optionals use the existing week-only Add/Undo command and remain optional in later weeks. AH
+attention and History share one compact strip. Meal Plan now honors the recipe-language preference,
+shows localized present-only category filters, and proves both planning callers persist 6 freezer
+servings versus 16 fresh servings. The shared segmented control no longer uses non-reactive indexed
+bindings.
+
+The complete release gate passed: zero Svelte diagnostics, 120 Vitest files / 724 tests, primary
+Playwright 48 passed / 1 intentionally skipped, and a production build. A focused second-account
+Playwright pass added 5 passes across compact Shopping, language/categories, freezer/fresh callers,
+and Optional Add/Undo. No schema, AI, AH API, auth, production configuration, or household-data
+change occurred.
+
+Touched: archived Shopping and Meal Plan plan, solved freezer-portions issue, bilingual messages,
+Shopping and Meal Plan routes/components/controllers, shared category and segmented-control code,
+test configuration, unit coverage, and isolated browser fixtures
+
+## [2026-08-04 05:17] archive-scan | 1 feature list, 0 HTML archived
+
+Moved the shipped Shopping and Meal Plan completion plan into its archive lane. No HTML decision
+workspace was linked to this plan; the repository has no shared `scripts/archive-scan.ps1`, so this
+pass used the documented inline fallback.

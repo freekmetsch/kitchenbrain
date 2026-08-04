@@ -22,13 +22,15 @@
 		headingId?: string;
 		mode?: 'all' | 'attention' | 'history';
 		showHeading?: boolean;
+		onOpenHistory?: () => void;
 	};
 	let {
 		pushHistory,
 		compact = false,
 		headingId = 'push-history-heading',
 		mode = 'all',
-		showHeading = true
+		showHeading = true,
+		onOpenHistory
 	}: Props = $props();
 
 	let visibleHistory = $derived.by(() => {
@@ -189,16 +191,24 @@
 			{#if mode === 'attention'}
 				<div class="push-attention-body">
 					{#if latestHelp}
-						<KitchenNotice tone="warning" class="push-attention-notice" role="alert">
-							{latestHelp}
-						</KitchenNotice>
+						<p class="push-attention-help" role="alert">{latestHelp}</p>
 					{/if}
 					<div class="push-attention-actions">
 						{#if latest.items.length}
 							<details class="push-details">
-								<summary>{m.shopping_pushhistory_view_items({ count: latest.items.length })}</summary>
+								<summary aria-label={m.shopping_pushhistory_view_items({ count: latest.items.length })}>{m.shopping_ah_review_details()}</summary>
 								{@render attemptItems(latest)}
 							</details>
+						{/if}
+						{#if onOpenHistory}
+							<button
+								type="button"
+								class="push-history-action"
+								onclick={() => onOpenHistory?.()}
+							>
+								<Icon name="clock" />
+								{m.shopping_pushhistory_history_button()}
+							</button>
 						{/if}
 						<a class="push-open-ah" href="https://www.ah.nl" target="_blank" rel="noopener noreferrer">
 							{m.shopping_ah_open_button()}
@@ -265,7 +275,7 @@
 	}
 
 	.push-history.compact {
-		margin: 0.65rem 0 0;
+		margin: 0.3rem 0 0;
 	}
 
 	.push-history > h2 {
@@ -286,7 +296,12 @@
 		position: relative;
 		border: 1px solid color-mix(in oklab, var(--color-warning) 38%, var(--color-base-300));
 		border-radius: 0.75rem;
-		padding: 0.55rem 0.65rem;
+		padding: 0.3rem 0.65rem;
+	}
+
+	.push-history.compact .push-status-icon {
+		width: 1.5rem;
+		height: 1.5rem;
 	}
 
 	.push-latest.pending,
@@ -446,12 +461,12 @@
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: center;
 		gap: 0.4rem 0.65rem;
-		margin-top: 0.35rem;
+		margin-top: 0.15rem;
 	}
 
-	.push-attention-body :global(.push-attention-notice) {
+	.push-attention-help {
 		margin: 0;
-		padding: 0.4rem 0.55rem;
+		color: color-mix(in oklab, var(--color-base-content) 78%, transparent);
 		font-size: 0.65rem;
 		font-weight: 650;
 		line-height: 1.35;
@@ -466,15 +481,31 @@
 	}
 
 	.push-attention-actions .push-details,
-	.push-attention-actions .push-open-ah {
+	.push-attention-actions .push-open-ah,
+	.push-attention-actions .push-history-action {
 		margin-top: 0;
 	}
 
 	.push-attention-actions .push-details summary,
-	.push-attention-actions .push-open-ah {
+	.push-attention-actions .push-open-ah,
+	.push-attention-actions .push-history-action {
 		min-height: 2.75rem;
 		padding-inline: 0.6rem;
 		font-size: 0.64rem;
+	}
+
+	.push-history-action {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		border-radius: 0.55rem;
+		color: var(--market-olive-ink, #304b3a);
+		font-weight: 800;
+	}
+
+	.push-history-action :global(svg) {
+		width: 0.85rem;
+		height: 0.85rem;
 	}
 
 	.push-attention-actions .push-details[open] {

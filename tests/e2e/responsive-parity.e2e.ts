@@ -80,7 +80,7 @@ test('Shopping keeps source order, focus, and singleton reflow local', async ({ 
 		window.scrollTo({ top: 0 });
 	});
 	const beforeScrollTop = await appMain.evaluate((element) => element.scrollTop);
-	expect(beforeScrollTop).toBeGreaterThanOrEqual(600);
+	expect(beforeScrollTop).toBeGreaterThanOrEqual(400);
 	const visibleKey = await visibleTarget.getAttribute('data-shopping-key');
 	expect(visibleKey).not.toBeNull();
 	const visibleTargetHit = visibleTarget.locator('xpath=ancestor::label[1]');
@@ -709,7 +709,7 @@ for (const viewport of VIEWPORTS) {
 		await expect(visibleHistory).toContainText('AH may have received these items');
 		await expect(visibleHistory.getByRole('link', { name: 'Open AH' })).toBeVisible();
 		await expect(visibleHistory.getByRole('button', { name: /retry/i })).toHaveCount(0);
-		const moreProductDetails = visibleHistory.getByText(/View sent items \(\d+\)/);
+		const moreProductDetails = visibleHistory.getByText('Details', { exact: true });
 		await expect(moreProductDetails).toBeVisible();
 		await expect(visibleHistory.getByText(/E2E AH almonds/)).toBeHidden();
 		const previousSends = visibleHistory.getByText('Previous sends (1)', { exact: true });
@@ -746,7 +746,7 @@ for (const viewport of VIEWPORTS) {
 		await moreProductDetails.focus();
 		await moreProductDetails.press('Enter');
 		await expect(visibleHistory.getByText(/E2E AH almonds/)).toBeVisible();
-		await page.getByRole('button', { name: 'Sent to AH', exact: true }).click();
+		await page.getByRole('button', { name: 'History', exact: true }).click();
 		const historySheet = page.getByRole('dialog', { name: 'Sent to AH' });
 		await expect(historySheet).toBeVisible();
 		await expect(historySheet.getByText('Previous sends (1)', { exact: true })).toBeVisible();
@@ -758,10 +758,10 @@ for (const viewport of VIEWPORTS) {
 		const itemDetails = page.locator('dialog[open]');
 		const needPill = needCombobox(
 			itemDetails,
-			`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitle}`
+			`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitleNl}`
 		);
 		const buyPill = itemDetails.getByRole('combobox', {
-			name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
+			name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitleNl} this run`
 		});
 		await expect(needPill).toBeVisible();
 		await expect(buyPill).toBeVisible();
@@ -790,31 +790,29 @@ for (const viewport of VIEWPORTS) {
 		).toBeVisible();
 		await expect(buyPill).toHaveValue(fixture.shoppingName);
 		await itemDetails.getByRole('button', { name: 'Close' }).click();
-		await page.locator('details.not-this-run > summary').click();
-		await expect(
-			page.getByRole('combobox', {
-				name: `Choose future-list need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}`,
-				exact: true
-			})
-		).toHaveCount(1);
+		const optionalLedger = page.getByRole('region', { name: /^Optional/ });
+		await expect(optionalLedger).toBeVisible();
 		await expect(
 			page.getByRole('combobox', {
 				name: new RegExp(`^Choose what to buy for ${fixture.shoppingSibling}`)
 			})
 		).toHaveCount(0);
 		await expect(
-			needCombobox(
-				page,
-				`Choose future-list need for ${fixture.shoppingSibling} · ${fixture.recipeTitle}`
-			)
+			optionalLedger
+				.getByRole('listitem')
+				.filter({ hasText: fixture.recipeTitleNl })
+				.getByRole('button', {
+					name: `Add ${fixture.shoppingSibling} to this week`,
+					exact: true
+				})
 		).toBeVisible();
 		await filterRail.getByRole('radio', { name: fixture.recipeTitle, exact: true }).click();
-		await expect(page.getByText('Not this run (1)', { exact: true })).toBeVisible();
+		await expect(page.getByRole('region', { name: 'Optional · 1', exact: true })).toBeVisible();
 		await filterRail.getByRole('radio', { name: 'All', exact: true }).click();
 
 		const weeklyFilter = filterRail.getByRole('radio', { name: 'Weekly items', exact: true });
 		await weeklyFilter.click();
-		await expect(page.getByText(/^Not this run/)).toHaveCount(0);
+		await expect(page.locator('.shopping-optional-ledger')).toHaveCount(0);
 		await expect(page.getByText('No weekly items are included in this run.')).toBeVisible();
 		const editWeekly = page.getByRole('button', { name: 'Edit weekly', exact: true });
 		await editWeekly.click();
@@ -990,10 +988,10 @@ test('Shopping keeps list rows compact and item details legible at 320, 768, and
 	const itemDetails = page.getByRole('dialog', { name: fixture.shoppingName });
 	const needPill = needCombobox(
 		itemDetails,
-		`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitle}`
+		`Choose future-list need for ${fixture.shoppingName} · ${fixture.recipeTitleNl}`
 	);
 	const buyPill = itemDetails.getByRole('combobox', {
-		name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitle} this run`
+		name: `Choose what to buy for ${fixture.shoppingName} · ${fixture.recipeTitleNl} this run`
 	});
 	await expect(needPill).toBeVisible();
 	await expect(buyPill).toBeVisible();
@@ -1037,10 +1035,10 @@ test('Shopping source controls remain legible in Dutch dark mode', async ({ page
 	const itemDetails = page.getByRole('dialog', { name: fixture.shoppingName });
 	const needPill = needCombobox(
 		itemDetails,
-		`Kies behoefte voor toekomstige lijsten voor ${fixture.shoppingName} · ${fixture.recipeTitle}`
+		`Kies behoefte voor toekomstige lijsten voor ${fixture.shoppingName} · ${fixture.recipeTitleNl}`
 	);
 	const buyPill = itemDetails.getByRole('combobox', {
-		name: `Kies wat je deze ronde koopt voor ${fixture.shoppingName} · ${fixture.recipeTitle}`
+		name: `Kies wat je deze ronde koopt voor ${fixture.shoppingName} · ${fixture.recipeTitleNl}`
 	});
 	await expect(needPill).toBeVisible();
 	await expect(buyPill).toBeVisible();
@@ -1052,7 +1050,7 @@ test('Shopping source controls remain legible in Dutch dark mode', async ({ page
 	await expect(
 		page
 			.getByRole('region', { name: 'Verstuurd naar AH' })
-			.getByText(/Bekijk verstuurde items \(\d+\)/)
+			.getByText('Details', { exact: true })
 	).toBeVisible();
 	expect(await needPill.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
 	expect(await buyPill.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');

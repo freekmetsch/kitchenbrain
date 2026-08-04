@@ -113,6 +113,10 @@ test('Stock row motion stays capped and disappears for reduced motion', async ({
 
 test('house-style roles hold across stable routes and target viewports', async ({ page }) => {
 	test.setTimeout(120_000);
+	const runtimeWarnings: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() === 'warning') runtimeWarnings.push(message.text());
+	});
 
 	for (const viewport of VIEWPORTS) {
 		await page.setViewportSize(viewport);
@@ -221,11 +225,15 @@ test('house-style roles hold across stable routes and target viewports', async (
 		).toHaveCount(1);
 		await expect(
 			page.locator('.kitchen-page-header-action').getByRole('button')
-		).toHaveCount(0);
+		).toHaveCount(1);
+		await expect(
+			page.locator('.kitchen-page-header-action').getByRole('button', { name: 'Adjust plan' })
+		).toBeVisible();
 		await expect(
 			page.locator('.shopping-market-dock').getByRole('button', { name: 'Add item', exact: true })
 		).toHaveAttribute('aria-haspopup', 'dialog');
-		await expect(page.getByRole('heading', { name: 'Ready for this shop' })).toBeVisible();
+		await expect(page.locator('.shopping-readiness')).toHaveCount(0);
+		await expect(page.getByRole('heading', { name: /^Optional/ })).toBeVisible();
 		await expect(page.locator('.ui-page-utility [data-house-style="status-badge"]')).toHaveCount(0);
 		const shoppingFilters = page.getByRole('radiogroup', { name: 'Filter shopping list' });
 		await expect(shoppingFilters).toBeVisible();
@@ -237,7 +245,19 @@ test('house-style roles hold across stable routes and target viewports', async (
 			const layout = await page.locator('.shopping-market-layout').boundingBox();
 			expect(Math.abs((layout?.x ?? 0) + (layout?.width ?? 0) / 2 - 640)).toBeLessThan(1);
 			expect(layout?.width ?? 0).toBeLessThanOrEqual(832);
+			const required = await page.locator('.shopping-required-ledger').boundingBox();
+			const optional = await page.locator('.shopping-optional-ledger').boundingBox();
+			expect(required?.width ?? 0).toBeGreaterThan(optional?.width ?? Number.POSITIVE_INFINITY);
+		} else {
+			expect(
+				await page
+					.locator('.shopping-ledger-workspace')
+					.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length)
+			).toBe(1);
 		}
+		expect(
+			runtimeWarnings.filter((warning) => warning.includes('binding_property_non_reactive'))
+		).toEqual([]);
 
 		await expectRouteFrame(page, '/recipes', viewport.width);
 		await expectGreenRibbon(page, viewport.width);
@@ -381,6 +401,52 @@ test('phone chassis joins the paper work surface to the Shopping action shelf', 
 	);
 	await toast.getByRole('button', { name: 'Undo' }).click();
 	expect((await restored).ok()).toBe(true);
+});
+
+test('Shopping keeps compact AH recovery above a neutral split ledger', async ({ page }) => {
+	const consoleProblems: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() === 'warning' || message.type() === 'error') {
+			consoleProblems.push(message.text());
+		}
+	});
+
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.goto('/shopping');
+	await page.waitForLoadState('networkidle');
+	const attention = page.locator('.push-history .push-latest').first();
+	await expect(attention.getByText('Details', { exact: true })).toBeVisible();
+	await expect(attention.getByRole('link', { name: 'Open AH', exact: true })).toBeVisible();
+	const history = attention.getByRole('button', { name: 'History', exact: true });
+	await expect(history).toBeVisible();
+	await history.click();
+	const historySheet = page.getByRole('dialog', { name: 'Sent to AH' });
+	await expect(historySheet).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(history).toBeFocused();
+	await expect(page.locator('.shopping-history-trigger')).toHaveCount(0);
+	await expect(page.locator('.shopping-readiness')).toHaveCount(0);
+
+	const firstRequired = page.locator('.shopping-required-ledger .market-run-row').first();
+	await expect(firstRequired).toBeVisible();
+	expect((await firstRequired.boundingBox())?.y ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(360);
+	expect(
+		await page
+			.locator('.shopping-ledger-workspace')
+			.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length)
+	).toBe(1);
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.reload();
+	const required = await page.locator('.shopping-required-ledger').boundingBox();
+	const optional = await page.locator('.shopping-optional-ledger').boundingBox();
+	expect(required?.width ?? 0).toBeGreaterThan(optional?.width ?? Number.POSITIVE_INFINITY);
+	expect(
+		await page
+			.locator('.shopping-market-layout')
+			.evaluate((element) => getComputedStyle(element, '::before').backgroundColor)
+	).toBe(PAPER_RGB);
+	expect(consoleProblems).toEqual([]);
 });
 
 test('Shopping hands one-off and plan setup into the inline weekly editor', async ({ page }) => {
@@ -715,7 +781,7 @@ test('fresh recipe edits stay clean while recovered drafts remain explicit', asy
 
 	await page.getByRole('button', { name: 'Discard draft' }).click();
 	await expect(save).toBeDisabled();
-	await expect(title).toHaveValue(fixture.recipeTitle);
+	await expect(title).toHaveValue(fixture.recipeTitleNl);
 	await expect.poll(() => page.evaluate((draftKey) => sessionStorage.getItem(draftKey), key)).toBeNull();
 });
 

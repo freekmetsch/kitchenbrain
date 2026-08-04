@@ -15,8 +15,13 @@ export type KitchenFixture = {
 	longInventoryNames: string[];
 	cookRecipeSlug: string;
 	cookRecipeTitle: string;
+	cookRecipeTitleNl: string;
 	recipeSlug: string;
 	recipeTitle: string;
+	recipeTitleNl: string;
+	portionRecipeSlug: string;
+	portionRecipeTitle: string;
+	portionRecipeTitleNl: string;
 	shoppingName: string;
 	shoppingSibling: string;
 	longShoppingNames: string[];
@@ -38,8 +43,13 @@ function fixtureForAccount(account: TestAccountName): KitchenFixture {
 		),
 		cookRecipeSlug: `e2e-${account}-cook-mode`,
 		cookRecipeTitle: `E2E ${label} Cook Mode`,
+		cookRecipeTitleNl: `E2E ${dutchLabel} kookmodus`,
 		recipeSlug: `e2e-${account}-stew`,
 		recipeTitle: `E2E ${label} Stew`,
+		recipeTitleNl: `E2E ${dutchLabel} stoofpot`,
+		portionRecipeSlug: `e2e-${account}-portion-proof`,
+		portionRecipeTitle: `E2E ${label} Portion Proof`,
+		portionRecipeTitleNl: `E2E ${dutchLabel} portieproef`,
 		shoppingName: `E2E ${dutchLabel} tomaten`,
 		shoppingSibling: 'E2E gedeelde basilicum',
 		longShoppingNames: [
@@ -216,6 +226,16 @@ export function seedKitchenFixtures(databasePath: string): void {
 			'main', 0, 0, '[]', @now, @now
 		)
 	`);
+	const insertLinkedInventory = sqlite.prepare(`
+		INSERT INTO inventory_items (
+			name, qty_text, qty_num, unit, section, category, kind, food_class,
+			made_from_recipe_id, recipe_status, needs_review, is_staple, tags,
+			created_at, updated_at
+		) VALUES (
+			@inventoryName, '6 portions', 6, 'portions', 'freezer', 'meal', 'leftover',
+			'main', @recipeId, 'linked', 0, 0, '[]', @now, @now
+		)
+	`);
 	const insertRecipe = sqlite.prepare(`
 		INSERT INTO recipes (
 			slug, title, category, category_en, servings, structure_version, content_revision, total_time_min,
@@ -223,7 +243,7 @@ export function seedKitchenFixtures(databasePath: string): void {
 			ingredients_en, directions_en, translation_status, cook_mode_json, cooked_count,
 			is_freezer_staple, freezer_staple_opt_out, needs_review, created_at, updated_at
 		) VALUES (
-			@recipeSlug, @recipeTitle, 'soup', 'soup', 4, 2, 1, 30,
+			@recipeSlug, @recipeTitleNl, 'soup', 'soup', @servings, 2, 1, 30,
 			@ingredients, @directions, @directionIds, 'nl', @recipeTitle,
 			@ingredientsEn, @directionsEn, 'ready', @cookModeJson, 0, 0, 0, 0, @now, @now
 		)
@@ -389,6 +409,8 @@ export function seedKitchenFixtures(databasePath: string): void {
 			insertRecipe.run({
 				recipeSlug: fixture.recipeSlug,
 				recipeTitle: fixture.recipeTitle,
+				recipeTitleNl: fixture.recipeTitleNl,
+				servings: 4,
 				ingredients: JSON.stringify(ingredients),
 				directions: JSON.stringify(directions),
 				directionIds: JSON.stringify(directionIds),
@@ -400,6 +422,8 @@ export function seedKitchenFixtures(databasePath: string): void {
 			insertRecipe.run({
 				recipeSlug: fixture.cookRecipeSlug,
 				recipeTitle: fixture.cookRecipeTitle,
+				recipeTitleNl: fixture.cookRecipeTitleNl,
+				servings: 4,
 				ingredients: JSON.stringify(ingredients),
 				directions: JSON.stringify(directions),
 				directionIds: JSON.stringify(directionIds),
@@ -409,6 +433,26 @@ export function seedKitchenFixtures(databasePath: string): void {
 					...cookModeJson,
 					generation_id: `e2e-${fixture.account}-cook-mode-generation`
 				}),
+				now
+			});
+			const portionRecipeId = Number(
+				insertRecipe.run({
+					recipeSlug: fixture.portionRecipeSlug,
+					recipeTitle: fixture.portionRecipeTitle,
+					recipeTitleNl: fixture.portionRecipeTitleNl,
+					servings: 16,
+					ingredients: JSON.stringify(ingredients),
+					directions: JSON.stringify(directions),
+					directionIds: JSON.stringify(directionIds),
+					ingredientsEn: JSON.stringify(ingredientsEn),
+					directionsEn: JSON.stringify(directionsEn),
+					cookModeJson: JSON.stringify({ ...cookModeJson, baseline_servings: 16 }),
+					now
+				}).lastInsertRowid
+			);
+			insertLinkedInventory.run({
+				inventoryName: `${fixture.portionRecipeTitle} frozen portions`,
+				recipeId: portionRecipeId,
 				now
 			});
 			insertMeal.run({

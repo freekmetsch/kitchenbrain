@@ -16,6 +16,7 @@ function data(weekStartDate: string): MealPlanControllerData {
 		currentWeekStart: weekStartDate,
 		focusWeek: null,
 		recipeList: [],
+		recipeLang: 'en',
 		showPastWeeks: false,
 		hasPastWeeks: false,
 		rotationShortlists: { [weekStartDate]: { due: [], freezerLow: [] } },
@@ -29,6 +30,92 @@ function data(weekStartDate: string): MealPlanControllerData {
 }
 
 describe('MealPlanController', () => {
+	it('projects linked titles by recipe preference while keeping custom meal text unchanged', () => {
+		const initial = data('2026-07-01');
+		initial.recipeLang = 'nl';
+		initial.recipeList = [
+			{
+				id: 1,
+				slug: 'stoofpot',
+				title: 'Stoofpot',
+				titleEn: 'Stew',
+				category: 'vlees',
+				categoryEn: 'meat',
+				rating: null,
+				servings: 4,
+				scalingMode: 'scalable',
+				targetPortions: null,
+				isFreezerStaple: false,
+				onHandPortions: 0,
+				rotationPolicy: null,
+				rotationSeasons: []
+			}
+		];
+		initial.weeks[0].meals = [
+			{
+				id: 1,
+				weekNumber: 31,
+				weekStartDate: '2026-07-01',
+				dinner: 'Stored snapshot',
+				recipeSlug: 'stoofpot',
+				servings: 4,
+				status: 'planned',
+				source: 'fresh',
+				cookedDate: null,
+				plannedDate: null,
+				note: null,
+				sortOrder: 0,
+				createdAt: new Date('2026-07-01T10:00:00Z')
+			},
+			{
+				id: 2,
+				weekNumber: 31,
+				weekStartDate: '2026-07-01',
+				dinner: 'Leftovers',
+				recipeSlug: null,
+				servings: null,
+				status: 'planned',
+				source: 'fresh',
+				cookedDate: null,
+				plannedDate: null,
+				note: null,
+				sortOrder: 1,
+				createdAt: new Date('2026-07-01T11:00:00Z')
+			}
+		];
+
+		const controller = new MealPlanController(initial);
+
+		expect(controller.recipeDisplayTitle(initial.recipeList[0])).toBe('Stoofpot');
+		expect(controller.mealDisplayTitle(initial.weeks[0].meals[0])).toBe('Stoofpot');
+		expect(controller.mealDisplayTitle(initial.weeks[0].meals[1])).toBe('Leftovers');
+	});
+
+	it('derives drawer categories from normalized categories present in the recipe library', () => {
+		const initial = data('2026-07-01');
+		initial.recipeList = ['Dessert', 'vlees', 'seafood', 'fusion'].map((category, index) => ({
+			id: index + 1,
+			slug: `recipe-${index}`,
+			title: `Recept ${index}`,
+			titleEn: `Recipe ${index}`,
+			category,
+			categoryEn: null,
+			rating: null,
+			servings: 4,
+			scalingMode: 'scalable' as const,
+			targetPortions: null,
+			isFreezerStaple: false,
+			onHandPortions: 0,
+			rotationPolicy: null,
+			rotationSeasons: []
+		}));
+		const controller = new MealPlanController(initial);
+
+		expect(controller.drawerCategories).toEqual(['meat', 'fish', 'dessert', 'fusion']);
+		controller.drawerCategory = 'fish';
+		expect(controller.filteredRecipes.map((recipe) => recipe.slug)).toEqual(['recipe-2']);
+	});
+
 	it('keeps state isolated across component instances', () => {
 		const first = new MealPlanController(data('2026-07-01'));
 		const second = new MealPlanController(data('2026-07-08'));

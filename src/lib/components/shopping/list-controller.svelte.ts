@@ -63,7 +63,8 @@ type ShoppingListMessages = {
 	choiceFailed: () => string;
 	choiceMoved: (name: string, destination: string) => string;
 	filterAll: () => string;
-	notThisRun: () => string;
+	optional: () => string;
+	inStock: () => string;
 };
 
 export type ShoppingListControllerDependencies = {
@@ -80,6 +81,10 @@ export type ShoppingListControllerDependencies = {
 	onChangeSourceNeed: (
 		source: ShoppingListSource,
 		need: ShoppingNeed
+	) => Promise<SourceMutationStatus>;
+	onSetSourceIncluded: (
+		source: ShoppingListSource,
+		included: boolean
 	) => Promise<SourceMutationStatus>;
 	focus: (intent: ShoppingFocusIntent) => Promise<void>;
 	focusSource: (sourceKey: string) => Promise<void>;
@@ -98,7 +103,6 @@ class ShoppingListController {
 	basketOpen = $state(false);
 	shoppingStatus = $state('');
 	lockedItemKeys = $state<string[]>([]);
-	offListOpen = $state(false);
 	#pendingSourceKeys = $state<string[]>([]);
 	#pendingRecipeIds = $state<number[]>([]);
 
@@ -167,8 +171,14 @@ class ShoppingListController {
 		return this.#dependencies.sources().filter((source) => source.sourceKind === 'recipe');
 	}
 
-	get excludedRecipeSources() {
-		return this.recipeSources.filter((source) => !source.included);
+	get optionalRecipeSources() {
+		return this.recipeSources.filter(
+			(source) => !source.included && source.optional && !source.staple
+		);
+	}
+
+	get stockedRecipeSources() {
+		return this.recipeSources.filter((source) => !source.included && source.staple);
 	}
 
 	get filterHasResults() {
@@ -361,11 +371,12 @@ class ShoppingListController {
 		let movedMessage = '';
 		try {
 			if (result === 'saved') {
-				if (need !== 'required') this.offListOpen = true;
 				const destination =
 					need === 'required'
 						? this.#dependencies.messages.filterAll()
-						: this.#dependencies.messages.notThisRun();
+						: need === 'optional'
+							? this.#dependencies.messages.optional()
+							: this.#dependencies.messages.inStock();
 				movedMessage = this.#dependencies.messages.choiceMoved(source.name, destination);
 				this.shoppingStatus = movedMessage;
 				if ((previous === 'required') !== (need === 'required')) {
@@ -387,6 +398,47 @@ class ShoppingListController {
 					.sources()
 					.find((candidate) => candidate.sourceKey === source.sourceKey);
 				if (current) await this.changeNeed(current, previous, false);
+			});
+		} else {
+			this.#dependencies.notifySuccess(this.#dependencies.messages.choiceSaved());
+		}
+		return true;
+	}
+
+	async setSourceIncluded(
+		source: ShoppingListSource,
+		included: boolean,
+		offerUndo = true
+	): Promise<boolean> {
+		if (source.included === included || this.sourcePending(source.sourceKey)) return true;
+		this.#setSourcePending(source.sourceKey, true);
+		const result = await this.#runSourceMutation(() =>
+			this.#dependencies.onSetSourceIncluded(source, included)
+		);
+		let movedMessage = '';
+		try {
+			if (result === 'saved') {
+				const destination = included
+					? this.#dependencies.messages.filterAll()
+					: this.#dependencies.messages.optional();
+				movedMessage = this.#dependencies.messages.choiceMoved(source.name, destination);
+				this.shoppingStatus = movedMessage;
+				await this.#dependencies.waitForMotion();
+			} else {
+				this.#notifySourceError(result);
+			}
+		} finally {
+			this.#setSourcePending(source.sourceKey, false);
+		}
+
+		await this.#dependencies.focusSource(source.sourceKey);
+		if (result !== 'saved') return false;
+		if (offerUndo) {
+			this.#dependencies.notifyUndo(movedMessage, async () => {
+				const current = this.#dependencies
+					.sources()
+					.find((candidate) => candidate.sourceKey === source.sourceKey);
+				if (current) await this.setSourceIncluded(current, !included, false);
 			});
 		} else {
 			this.#dependencies.notifySuccess(this.#dependencies.messages.choiceSaved());

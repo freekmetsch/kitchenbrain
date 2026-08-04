@@ -23,6 +23,8 @@ const RECIPE_TYPE_OPTIONS = [
 	{ value: 'other' }
 ] as const;
 
+export const RECIPE_FOOD_CATEGORY_ORDER = RECIPE_TYPE_OPTIONS.map(({ value }) => value);
+
 const CATEGORY_ALIASES = new Map<string, string>([
 	['veg', 'vegetarian'],
 	['veggie', 'vegetarian'],
@@ -71,6 +73,18 @@ export function normalizeFoodCategory(value: string | null | undefined): string 
 	const cleaned = value ? cleanCategory(value) : '';
 	if (!cleaned) return null;
 	return CATEGORY_ALIASES.get(cleaned) ?? cleaned;
+}
+
+export function presentFoodCategories(
+	values: Iterable<string | null | undefined>
+): string[] {
+	const present = new Set<string>();
+	for (const value of values) {
+		const normalized = normalizeFoodCategory(value);
+		if (normalized) present.add(normalized);
+	}
+	const known = RECIPE_FOOD_CATEGORY_ORDER.filter((category) => present.delete(category));
+	return [...known, ...[...present].sort((left, right) => left.localeCompare(right))];
 }
 
 export function foodCategoryLabel(

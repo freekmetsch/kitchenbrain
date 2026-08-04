@@ -47,9 +47,10 @@
 	// that's why the household stocked them. Re-evaluated each time the sheet opens.
 	$effect(() => {
 		if (open) {
-			addToPlanSource = frozenPortions > 0 ? 'freezer' : 'fresh';
+			const defaultSource: MealSource = frozenPortions > 0 ? 'freezer' : 'fresh';
+			addToPlanSource = defaultSource;
 			servings = defaultServingsForMealSource(
-				addToPlanSource,
+				defaultSource,
 				baselineServings,
 				frozenPortions
 			);

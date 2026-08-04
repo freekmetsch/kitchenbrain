@@ -58,6 +58,10 @@
 			source: ShoppingListSource,
 			need: ShoppingNeed
 		) => Promise<SourceMutationStatus>;
+		onSetSourceIncluded: (
+			source: ShoppingListSource,
+			included: boolean
+		) => Promise<SourceMutationStatus>;
 		onAddRecurring: (input: RecurringInput) => Promise<{ id: number } | null>;
 		onEditRecurring: (
 			item: RecurringShoppingItem,
@@ -94,6 +98,7 @@
 		onRestoreThisWeek,
 		onChangeSourceTerm,
 		onChangeSourceNeed,
+		onSetSourceIncluded,
 		onAddRecurring,
 		onEditRecurring,
 		onSetRecurringIncluded,
@@ -161,7 +166,18 @@
 		const candidates = inOpenDialog.length
 			? inOpenDialog
 			: [...document.querySelectorAll<HTMLElement>('[data-source-key]')];
-		const target = candidates.find((element) => element.dataset.sourceKey === sourceKey);
+		let target = candidates.find((element) => element.dataset.sourceKey === sourceKey);
+		if (!target) {
+			const item = [...pending, ...done].find((candidate) =>
+				candidate.sources?.some((source) => source.sourceKey === sourceKey)
+			);
+			if (item) {
+				const key = shoppingItemKey(item);
+				target = [...document.querySelectorAll<HTMLElement>('[data-shopping-key]')].find(
+					(element) => element.dataset.shoppingKey === key
+				);
+			}
+		}
 		target?.focus();
 	}
 
@@ -184,6 +200,7 @@
 		onRestoreManual: (source) => onRestoreManual(source),
 		onChangeSourceTerm: (source, term) => onChangeSourceTerm(source, term),
 		onChangeSourceNeed: (source, need) => onChangeSourceNeed(source, need),
+		onSetSourceIncluded: (source, included) => onSetSourceIncluded(source, included),
 		focus: focusShoppingKey,
 		focusSource: focusSourceKey,
 		waitForMotion: waitForListMotion,
@@ -201,7 +218,8 @@
 			choiceMoved: (name, destination) =>
 				m.shopping_choice_moved({ name, destination }),
 			filterAll: () => m.shopping_filter_all(),
-			notThisRun: () => m.shopping_not_this_run()
+			optional: () => m.shopping_optional_heading(),
+			inStock: () => m.shopping_in_stock_chip({ count: 1 })
 		}
 	});
 
@@ -241,13 +259,21 @@
 		target?.focus({ preventScroll: true });
 	}
 
-	let visibleExcludedSources = $derived(
-		controller.excludedRecipeSources.filter((source) => {
+	let visibleOptionalSources = $derived(
+		controller.optionalRecipeSources.filter((source) => {
 			if (controller.filter.kind === 'weekly') return false;
 			if (controller.filter.kind === 'all') return true;
 			return source.mealNames.includes(controller.filter.mealName);
 		})
 	);
+	let visibleStockedSources = $derived(
+		controller.stockedRecipeSources.filter((source) => {
+			if (controller.filter.kind === 'weekly') return false;
+			if (controller.filter.kind === 'all') return true;
+			return source.mealNames.includes(controller.filter.mealName);
+		})
+	);
+	let inStockCount = $derived(controller.coveredPending.length + visibleStockedSources.length);
 	let shoppingFilterValue = $derived(
 		controller.filter.kind === 'meal'
 			? `meal:${controller.filter.mealName}`
@@ -378,53 +404,24 @@
 	</div>
 </div>
 
-{#if visibleExcludedSources.length}
-	<details class="not-this-run ui-list-group" bind:open={controller.offListOpen}>
-		<summary>{m.shopping_not_this_run_count({ count: visibleExcludedSources.length })}</summary>
-		<ul>
-			{#each visibleExcludedSources as source (source.sourceKey)}
-				<li>
-					{@render sourceQuickControls(source)}
-				</li>
-			{/each}
-		</ul>
-	</details>
-{/if}
-
-{#if excludedWeekItems.length}
-	<details class="not-this-run ui-list-group">
-		<summary>{m.shopping_not_this_run_count({ count: excludedWeekItems.length })}</summary>
-		<ul>
-			{#each excludedWeekItems as item (item.nameKey)}
-				<li class="flex min-h-11 items-center justify-between gap-2 px-3 py-1.5">
-					<strong>{item.name}</strong>
-					<button
-						type="button"
-						class="ui-action ui-action-secondary"
-						onclick={() => void onRestoreThisWeek(item)}
-					>{m.shopping_restore_button()}</button>
-				</li>
-			{/each}
-		</ul>
-	</details>
-{/if}
-
 {#if notices}{@render notices()}{/if}
 <LegacyShoppingReview items={controller.legacy} onResolve={onResolveLegacy} />
 <p class="sr-only" aria-live="polite">{controller.shoppingStatus}</p>
 
-{#if controller.coveredPending.length}
+{#if inStockCount}
 	<div class="market-covered-toggle">
 		<FilterChip
 			selected={showCovered}
 			tone="success"
 			onclick={() => (showCovered = !showCovered)}
 		>
-			{m.shopping_in_stock_chip({ count: controller.coveredPending.length })}
+			{m.shopping_in_stock_chip({ count: inStockCount })}
 		</FilterChip>
 	</div>
 {/if}
 
+<div class:with-optional={visibleOptionalSources.length > 0} class="shopping-ledger-workspace">
+	<div class="shopping-required-ledger">
 {#if controller.viewMode === 'empty'}
 	<EmptyState
 		iconName={controller.emptyState === 'no_meals' ? 'calendar' : 'jar'}
@@ -561,9 +558,42 @@
 {:else}
 	<EmptyState mini title={m.shopping_empty_stock_covers()} />
 {/if}
+	</div>
 
-{#if showCovered && controller.coveredPending.length}
-	<ul class="market-run-list market-covered-list" aria-label={m.shopping_in_stock_chip({ count: controller.coveredPending.length })}>
+	{#if visibleOptionalSources.length}
+		<section class="shopping-optional-ledger ui-list-group" aria-labelledby="shopping-optional-heading">
+			<header class="shopping-section-header optional">
+				<h2 id="shopping-optional-heading" class="ui-section-title">
+					{m.shopping_optional_heading()} <span>· {visibleOptionalSources.length}</span>
+				</h2>
+			</header>
+			<ul class="market-optional-list">
+				{#each visibleOptionalSources as source (source.sourceKey)}
+					<li class:busy={controller.sourcePending(source.sourceKey)}>
+						<div class="market-row-copy">
+							<strong title={source.name}>{source.name}</strong>
+							<span>{[itemLabel(source), source.recipeTitle].filter(Boolean).join(' · ')}</span>
+						</div>
+						<button
+							type="button"
+							class="ui-action ui-action-secondary"
+							data-source-key={source.sourceKey}
+							disabled={!editable || controller.sourcePending(source.sourceKey)}
+							aria-label={m.shopping_optional_add_aria({ name: source.name })}
+							onclick={() => void controller.setSourceIncluded(source, true)}
+						>
+							<Icon name="plus" />
+							{m.shopping_optional_add_button()}
+						</button>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+</div>
+
+{#if showCovered && inStockCount}
+	<ul class="market-run-list market-covered-list" aria-label={m.shopping_in_stock_chip({ count: inStockCount })}>
 		{#each controller.coveredPending as item (shoppingItemKey(item))}
 			<li class="market-run-row covered">
 				<div class="market-covered-marker" aria-hidden="true"><Icon name="check" /></div>
@@ -573,6 +603,11 @@
 				<div class="market-row-trailing">
 					<StatusBadge tone="success">{m.shopping_covered_badge()}</StatusBadge>
 				</div>
+			</li>
+		{/each}
+		{#each visibleStockedSources as source (source.sourceKey)}
+			<li class="market-stocked-source">
+				{@render sourceQuickControls(source)}
 			</li>
 		{/each}
 	</ul>
@@ -620,6 +655,24 @@
 			</li>
 		{/each}
 	</ul>
+{/if}
+
+{#if excludedWeekItems.length}
+	<details class="removed-this-week ui-list-group">
+		<summary>{m.shopping_removed_this_week_count({ count: excludedWeekItems.length })}</summary>
+		<ul>
+			{#each excludedWeekItems as item (item.nameKey)}
+				<li class="flex min-h-11 items-center justify-between gap-2 px-3 py-1.5">
+					<strong>{item.name}</strong>
+					<button
+						type="button"
+						class="ui-action ui-action-secondary"
+						onclick={() => void onRestoreThisWeek(item)}
+					>{m.shopping_restore_button()}</button>
+				</li>
+			{/each}
+		</ul>
+	</details>
 {/if}
 
 <BottomSheet
@@ -703,11 +756,11 @@
 		display: none;
 	}
 
-	.not-this-run {
-		margin: 0 0 0.55rem;
+	.removed-this-week {
+		margin: 0.65rem 0 0;
 	}
 
-	.not-this-run summary {
+	.removed-this-week summary {
 		min-height: 2.75rem;
 		padding: 0.75rem;
 		color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
@@ -716,20 +769,83 @@
 		font-weight: 800;
 	}
 
-	.not-this-run ul {
+	.removed-this-week ul {
 		margin: 0;
 		padding: 0;
 		border-top: 1px solid var(--color-base-200);
 		list-style: none;
 	}
 
-	.not-this-run li {
+	.removed-this-week li {
 		padding: 0.4rem 0.55rem;
 		border-bottom: 1px solid var(--color-base-200);
 	}
 
-	.not-this-run li:last-child {
+	.removed-this-week li:last-child {
 		border-bottom: 0;
+	}
+
+	.shopping-ledger-workspace {
+		display: grid;
+		gap: 0.65rem;
+		align-items: start;
+	}
+
+	.shopping-required-ledger,
+	.shopping-optional-ledger {
+		min-width: 0;
+	}
+
+	.shopping-optional-ledger {
+		overflow: hidden;
+		border: 1px solid color-mix(in oklab, var(--market-honey, #d8aa55) 38%, var(--kitchen-line));
+		border-radius: var(--kitchen-surface-radius);
+		background: var(--kitchen-card);
+		box-shadow: 0 8px 20px rgb(35 58 46 / 7%);
+	}
+
+	.shopping-section-header.optional {
+		background: color-mix(in oklab, var(--market-honey, #d8aa55) 13%, var(--color-base-100));
+	}
+
+	.market-optional-list {
+		margin: 0;
+		padding: 0;
+		border-top: 1px solid var(--color-base-200);
+		list-style: none;
+	}
+
+	.market-optional-list > li {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.5rem;
+		min-height: 3.125rem;
+		padding: 0 0.4rem 0 0.75rem;
+		border-bottom: 1px solid var(--color-base-200);
+	}
+
+	.market-optional-list > li:last-child {
+		border-bottom: 0;
+	}
+
+	.market-optional-list > li.busy {
+		opacity: 0.68;
+	}
+
+	.market-optional-list .market-row-copy {
+		padding-right: 0;
+	}
+
+	.market-optional-list :global(.ui-action) {
+		min-height: 2.75rem;
+		padding-inline: 0.65rem;
+		font-size: 0.66rem;
+	}
+
+	.market-optional-list :global(.ui-action svg) {
+		width: 0.85rem;
+		height: 0.85rem;
 	}
 
 	.shopping-filter-rail :global(.ui-segmented-control) {
@@ -1005,6 +1121,12 @@
 		margin-top: 0.45rem;
 	}
 
+	.market-stocked-source {
+		min-height: 3.125rem;
+		padding: 0.4rem 0.55rem;
+		border-bottom: 1px solid var(--color-base-200);
+	}
+
 	.market-done-list .market-row-copy strong {
 		opacity: 0.62;
 		text-decoration: line-through;
@@ -1107,6 +1229,12 @@
 	@media (prefers-reduced-motion: reduce) {
 		.market-check-hit span {
 			transition: none;
+		}
+	}
+
+	@media (min-width: 64rem) {
+		.shopping-ledger-workspace.with-optional {
+			grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 0.9fr);
 		}
 	}
 </style>

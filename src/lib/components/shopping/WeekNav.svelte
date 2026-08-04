@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import KitchenPageHeader from '$lib/components/ui/KitchenPageHeader.svelte';
 	import KitchenWeekNavigator from '$lib/components/ui/KitchenWeekNavigator.svelte';
+	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
@@ -15,6 +16,9 @@
 		isDefaultWeek: boolean;
 		deliveryDate?: string | null;
 		ahConnected: boolean;
+		onAdjustPlan: () => void;
+		adjustPlanOpen?: boolean;
+		adjustPlanDialog?: boolean;
 	};
 
 	let {
@@ -23,7 +27,10 @@
 		nextWeek,
 		isDefaultWeek,
 		deliveryDate = null,
-		ahConnected
+		ahConnected,
+		onAdjustPlan,
+		adjustPlanOpen = false,
+		adjustPlanDialog = true
 	}: Props = $props();
 
 	function locale(): string {
@@ -53,9 +60,23 @@
 
 <KitchenPageHeader eyebrow={m.shopping_header_context()} title={m.shopping_heading()}>
 	{#snippet action()}
-		<StatusBadge tone={ahConnected ? 'success' : 'warning'} onDark>
-			{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
-		</StatusBadge>
+		<div class="shopping-header-actions">
+			<button
+				type="button"
+				class="shopping-adjust-plan ui-action ui-action-secondary ui-action-on-dark"
+				aria-label={m.shopping_adjust_plan()}
+				aria-haspopup={adjustPlanDialog ? 'dialog' : undefined}
+				aria-expanded={adjustPlanDialog ? adjustPlanOpen : undefined}
+				onclick={onAdjustPlan}
+			>
+				<Icon name="clipboard" />
+				<span class="shopping-adjust-plan-full">{m.shopping_adjust_plan()}</span>
+				<span class="shopping-adjust-plan-short" aria-hidden="true">{m.shopping_adjust_plan_short()}</span>
+			</button>
+			<StatusBadge tone={ahConnected ? 'success' : 'warning'} onDark>
+				{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
+			</StatusBadge>
+		</div>
 	{/snippet}
 </KitchenPageHeader>
 
@@ -89,6 +110,36 @@
 	.market-run-state {
 		min-width: 0;
 		width: 100%;
+	}
+
+	.shopping-header-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+
+	.shopping-adjust-plan {
+		min-height: 2.75rem;
+		padding-inline: 0.65rem;
+	}
+
+	.shopping-adjust-plan :global(svg) {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.shopping-adjust-plan-short {
+		display: none;
+	}
+
+	@media (max-width: 30rem) {
+		.shopping-adjust-plan-full {
+			display: none;
+		}
+
+		.shopping-adjust-plan-short {
+			display: inline;
+		}
 	}
 
 	.ui-page-utility-inner.market-run-state {

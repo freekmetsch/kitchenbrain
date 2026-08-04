@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { foodCategoryAccent } from './food_categories';
+import { foodCategoryAccent, presentFoodCategories } from './food_categories';
 
 describe('foodCategoryAccent', () => {
 	it('projects known categories to stable semantic accents', () => {
@@ -21,5 +21,17 @@ describe('foodCategoryAccent', () => {
 		expect(foodCategoryAccent('')).toBe('neutral');
 		expect(foodCategoryAccent(null)).toBe('neutral');
 		expect(foodCategoryAccent(undefined)).toBe('neutral');
+	});
+});
+
+describe('presentFoodCategories', () => {
+	it('normalizes, deduplicates, and canonically orders only categories that exist', () => {
+		expect(
+			presentFoodCategories(['Dessert', 'vlees', 'seafood', 'Vlees', null, 'fusion', 'brunch'])
+		).toEqual(['meat', 'fish', 'dessert', 'brunch', 'fusion']);
+	});
+
+	it('drops blank categories without inventing filter choices', () => {
+		expect(presentFoodCategories([null, undefined, '', '   '])).toEqual([]);
 	});
 });

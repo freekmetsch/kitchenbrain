@@ -240,14 +240,18 @@ describe('stable app house-style source contract', () => {
 		expect(ahItem).toContain('compact?: boolean');
 		expect(ahItem).toContain('ah-compact-row');
 
-		expect(shoppingPage).toContain('shopping-readiness');
+		expect(shoppingPage).not.toContain('shopping-readiness');
+		expect(shoppingPage).toContain('shopping-history-tools');
 		expect(shoppingPage).toContain('--shopping-shelf-height');
-		expect(shoppingPage.indexOf('shopping-readiness')).toBeLessThan(
+		expect(shoppingPage.indexOf('shopping-history-tools')).toBeLessThan(
 			shoppingPage.indexOf('<ShoppingLists')
 		);
-		expect(shoppingHeader).not.toContain('onAddItem');
+		expect(shoppingHeader).toContain('onAdjustPlan');
 		expect(shoppingList).toContain('hasItemMenu');
 		expect(shoppingList).toContain('shopping_remove_item_this_week_aria');
+		expect(shoppingList).toContain('shopping-optional-ledger');
+		expect(shoppingList).toContain('removed-this-week');
+		expect(shoppingList).not.toContain('not-this-run');
 		expect(shoppingList).not.toContain('source-quick-stack');
 	});
 });

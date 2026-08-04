@@ -88,6 +88,7 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 		onRestoreManual: async () => true,
 		onChangeSourceTerm: async () => 'saved',
 		onChangeSourceNeed: async () => 'saved',
+		onSetSourceIncluded: async () => 'saved',
 		focus,
 		focusSource: async () => {},
 		waitForMotion,
@@ -104,7 +105,8 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 			choiceFailed: () => 'failed',
 			choiceMoved: (name, destination) => `${name}:${destination}`,
 			filterAll: () => 'all',
-			notThisRun: () => 'not-this-run'
+			optional: () => 'optional',
+			inStock: () => 'in-stock'
 		}
 	};
 	const controller = createShoppingListController(dependencies);
@@ -129,6 +131,46 @@ function harness(initialPending: ShoppingListItem[] = [], initialDone: ShoppingL
 }
 
 describe('shopping list controller', () => {
+	it('keeps optional and stocked recipe sources in separate destinations', () => {
+		const optional = source(1, 'recipe', { included: false, optional: true });
+		const stocked = source(2, 'recipe', { included: false, staple: true });
+		const manuallyExcluded = source(3, 'recipe', { included: false });
+		const test = harness();
+		test.setSources([optional, stocked, manuallyExcluded]);
+
+		expect(test.controller.optionalRecipeSources).toEqual([optional]);
+		expect(test.controller.stockedRecipeSources).toEqual([stocked]);
+	});
+
+	it('adds an optional source for this week and undoes with the refreshed revision', async () => {
+		const optional = source(1, 'recipe', {
+			included: false,
+			optional: true,
+			name: 'basil'
+		});
+		const refreshed = { ...optional, included: true, revision: 2 };
+		const test = harness();
+		test.setSources([optional]);
+		const setIncluded = vi.fn(async () => {
+			if (setIncluded.mock.calls.length === 1) test.setSources([refreshed]);
+			return 'saved' as const;
+		});
+		const focusSource = vi.fn<(sourceKey: string) => Promise<void>>(async () => {});
+		const controller = createShoppingListController({
+			...test.dependencies,
+			onSetSourceIncluded: setIncluded,
+			focusSource
+		});
+
+		await expect(controller.setSourceIncluded(optional, true)).resolves.toBe(true);
+		expect(setIncluded).toHaveBeenNthCalledWith(1, optional, true);
+		expect(focusSource).toHaveBeenCalledWith(optional.sourceKey);
+		expect(test.undo).toHaveBeenCalledTimes(1);
+
+		await test.undo.mock.calls[0][1]();
+		expect(setIncluded).toHaveBeenNthCalledWith(2, refreshed, false);
+	});
+
 	it('keeps filters isolated per instance and resets an invalidated meal filter', () => {
 		const soupSource = source(1, 'recipe', { mealNames: ['Soup'] });
 		const soup = item('tomatoes', 1, [soupSource]);
@@ -386,8 +428,7 @@ describe('shopping list controller', () => {
 		finishMutation('saved');
 		await Promise.resolve();
 		await Promise.resolve();
-		expect(controller.offListOpen).toBe(true);
-		expect(controller.shoppingStatus).toBe('tomatoes:not-this-run');
+		expect(controller.shoppingStatus).toBe('tomatoes:optional');
 		expect(controller.sourcePending(original.sourceKey)).toBe(true);
 		expect(focusSource).not.toHaveBeenCalled();
 		expect(test.undo).not.toHaveBeenCalled();
@@ -459,8 +500,8 @@ describe('shopping list controller', () => {
 		await expect(movingTomatoes).resolves.toBe(true);
 
 		expect(test.undo.mock.calls.map(([message]) => message)).toEqual([
-			'basil:not-this-run',
-			'tomatoes:not-this-run'
+			'basil:optional',
+			'tomatoes:optional'
 		]);
 	});
 

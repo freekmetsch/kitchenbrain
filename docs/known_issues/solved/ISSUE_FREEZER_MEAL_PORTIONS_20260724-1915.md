@@ -1,6 +1,6 @@
 # Issue: Freezer meal plans use the recipe yield instead of frozen portions
 Created: 2026-07-24 19:15
-Status: AWAITING VERIFICATION
+Status: RESOLVED
 
 ## Symptom
 
@@ -24,6 +24,7 @@ Choosing `Cook fresh` should continue to default to the recipe's 16-portion yiel
 | 2026-07-24 19:15 | Searched existing unit coverage. | Shopping/cooking tests cover stored servings, but no test owns the freezer-versus-fresh default chosen by the meal drawer. | Add the missing correct-seam regression test before changing the drawer. |
 | 2026-07-24 19:18 | Checked the recipe-detail `Plan` path for a sibling caller. | `AddToPlanSheet.svelte` defaults the source to freezer when stock exists but independently resets `servings` to the recipe baseline, reproducing the same contradiction. | Put both callers behind one source-aware choice helper and shared control. |
 | 2026-07-24 21:01 | Implemented one shared source-aware helper/control and exercised both planning callers against a disposable database. | The freezer action showed and persisted 6 portions, the fresh action showed the recipe yield, and the reloaded meal matched the selected source. Unit, type, build, mobile/wide, and English/Dutch checks passed. | Await confirmation with the household fixture before moving this issue to resolved. |
+| 2026-08-03 23:05 | Added an isolated 16-serving recipe with 6 linked freezer portions and exercised Meal Plan Add plus recipe-detail Plan. | All four choices posted and persisted the selected source and count after reload: freezer 6 and fresh 16 in both callers. The proof uses only the isolated Playwright database. | Resolved; retain the browser regression test. |
 
 ## Hypotheses
 

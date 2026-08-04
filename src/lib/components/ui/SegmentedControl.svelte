@@ -24,7 +24,8 @@
 	} = $props();
 
 	let track: HTMLDivElement;
-	let optionElements: HTMLButtonElement[] = [];
+	let optionElements = new Map<T, HTMLButtonElement>();
+	let resizeObserver: ResizeObserver | null = null;
 	let indicator = $state({ left: 0, width: 0, visible: false });
 
 	function selectedIndex(): number {
@@ -38,8 +39,7 @@
 
 	async function measureIndicator() {
 		await tick();
-		const index = selectedIndex();
-		const selected = optionElements[index];
+		const selected = value == null ? undefined : optionElements.get(value);
 		if (!track || !selected) {
 			indicator = { ...indicator, visible: false };
 			return;
@@ -54,6 +54,32 @@
 			left: optionRect.left - trackRect.left,
 			width: optionRect.width,
 			visible: true
+		};
+	}
+
+	function registerOption(node: HTMLButtonElement, initialValue: T) {
+		let registeredValue = initialValue;
+		optionElements.set(registeredValue, node);
+		resizeObserver?.observe(node);
+		queueMicrotask(() => void measureIndicator());
+
+		return {
+			update(nextValue: T) {
+				if (nextValue === registeredValue) return;
+				if (optionElements.get(registeredValue) === node) {
+					optionElements.delete(registeredValue);
+				}
+				registeredValue = nextValue;
+				optionElements.set(registeredValue, node);
+				queueMicrotask(() => void measureIndicator());
+			},
+			destroy() {
+				resizeObserver?.unobserve(node);
+				if (optionElements.get(registeredValue) === node) {
+					optionElements.delete(registeredValue);
+				}
+				queueMicrotask(() => void measureIndicator());
+			}
 		};
 	}
 
@@ -99,7 +125,7 @@
 	});
 
 	onMount(() => {
-		const observer = new ResizeObserver(() => void measureIndicator());
+		resizeObserver = new ResizeObserver(() => void measureIndicator());
 		const handleTrackKeydown = (event: KeyboardEvent) => {
 			const buttons = Array.from(
 				track.querySelectorAll<HTMLButtonElement>(':scope > button[role="radio"]')
@@ -110,14 +136,15 @@
 		let mounted = true;
 		queueMicrotask(() => {
 			if (!mounted || !track) return;
-			observer.observe(track);
-			for (const option of optionElements) observer.observe(option);
+			resizeObserver?.observe(track);
+			for (const option of optionElements.values()) resizeObserver?.observe(option);
 			track.addEventListener('keydown', handleTrackKeydown, true);
 			void measureIndicator();
 		});
 		return () => {
 			mounted = false;
-			observer.disconnect();
+			resizeObserver?.disconnect();
+			resizeObserver = null;
 			track?.removeEventListener('keydown', handleTrackKeydown, true);
 		};
 	});
@@ -140,7 +167,7 @@
 	></span>
 	{#each options as option, index (option.value)}
 		<button
-			bind:this={optionElements[index]}
+			use:registerOption={option.value}
 			type="button"
 			role="radio"
 			aria-checked={value === option.value}

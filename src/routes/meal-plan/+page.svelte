@@ -32,6 +32,7 @@
 	import { mealPlanWeekHref } from '$lib/meal_plan_navigation';
 	import MealSourceChoice from '$lib/components/meal-plan/MealSourceChoice.svelte';
 	import { MealPlanController } from '$lib/components/meal-plan/controller.svelte';
+	import { foodCategoryLabel } from '$lib/food_categories';
 
 	let { data }: { data: PageData } = $props();
 	const controller = new MealPlanController(
@@ -43,8 +44,6 @@
 		untrack(() => controller.syncData(nextData));
 	});
 	onDestroy(() => controller.destroy());
-
-	const DRAWER_CATEGORIES = ['meat', 'vegetarian', 'vegan', 'fish', 'pasta', 'soup', 'dessert'];
 
 	function formatWeekRange(weekStartDate: string): string {
 		const start = new Date(weekStartDate + 'T00:00:00');
@@ -198,6 +197,7 @@
 					<ul class="plan-meal-list">
 						{#each controller.displayMeals(week) as meal (meal.id)}
 							{@const linkedRecipe = controller.recipeForMeal(meal)}
+							{@const mealTitle = controller.mealDisplayTitle(meal)}
 							<li
 								class="meal-row"
 								transition:slide={{ duration: MOTION_MICRO_MS }}
@@ -209,7 +209,7 @@
 										class="checkbox checkbox-md"
 										checked={meal.status === 'cooked'}
 										disabled={!!controller.pendingToggles[meal.id]}
-										aria-label={m.mealplan_mark_cooked_aria({ dinner: meal.dinner })}
+										aria-label={m.mealplan_mark_cooked_aria({ dinner: mealTitle })}
 										onchange={() => controller.toggleCooked(meal)}
 									/>
 								</label>
@@ -218,11 +218,11 @@
 										href="{base}/recipes/{meal.recipeSlug}?plan={meal.id}{meal.servings ? `&servings=${meal.servings}` : ''}"
 										class="meal-title {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}"
 									>
-										{meal.dinner}
+										{mealTitle}
 									</a>
 								{:else}
 									<span class="meal-title {meal.status === 'cooked' ? 'text-base-content/40 line-through' : ''}">
-										{meal.dinner}
+										{mealTitle}
 									</span>
 								{/if}
 								{#if meal.status !== 'cooked' && meal.recipeSlug && meal.servings}
@@ -235,7 +235,7 @@
 											type="button"
 											disabled={meal.servings <= 1 || !!controller.pendingSourceToggles[meal.id]}
 											aria-disabled={meal.servings <= 1 || !!controller.pendingSourceToggles[meal.id]}
-											aria-label={m.mealplan_decrease_servings_aria({ dinner: meal.dinner })}
+											aria-label={m.mealplan_decrease_servings_aria({ dinner: mealTitle })}
 											onclick={() => controller.changeServings(meal, -1)}
 										>−</button>
 										<span class="meal-serving-count-short" aria-hidden="true">{meal.servings}</span>
@@ -244,7 +244,7 @@
 											type="button"
 											disabled={meal.servings >= 99 || !!controller.pendingSourceToggles[meal.id]}
 											aria-disabled={meal.servings >= 99 || !!controller.pendingSourceToggles[meal.id]}
-											aria-label={m.mealplan_increase_servings_aria({ dinner: meal.dinner })}
+											aria-label={m.mealplan_increase_servings_aria({ dinner: mealTitle })}
 											onclick={() => controller.changeServings(meal, 1)}
 										>+</button>
 									</div>
@@ -255,7 +255,7 @@
 											class="meal-day ui-field {meal.plannedDate ? '' : 'text-base-content/40'}"
 											value={meal.plannedDate ?? ''}
 											disabled={!!controller.pendingToggles[meal.id] || meal.id < 0}
-											aria-label={m.mealplan_day_picker_aria({ dinner: meal.dinner })}
+											aria-label={m.mealplan_day_picker_aria({ dinner: mealTitle })}
 											onchange={(e) => controller.setPlannedDate(meal, e.currentTarget.value || null)}
 										>
 											<option value="">{m.mealplan_day_unplanned()}</option>
@@ -268,7 +268,7 @@
 											{#if linkedRecipe && meal.source !== 'freezer'}
 												{@const selectedBatch = batchServingMultiplier(linkedRecipe.servings, meal.servings)}
 												<CompactPopover
-													ariaLabel={m.mealplan_batch_size_aria({ dinner: meal.dinner })}
+													ariaLabel={m.mealplan_batch_size_aria({ dinner: mealTitle })}
 													disabled={!!controller.pendingSourceToggles[meal.id]}
 												>
 													{#snippet trigger()}
@@ -329,7 +329,7 @@
 										class="meal-remove ui-action ui-action-tertiary ui-action-icon"
 										onclick={() => controller.removeMeal(meal)}
 										disabled={!!controller.pendingDeletes[meal.id]}
-										aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
+									aria-label={m.mealplan_remove_meal_aria({ dinner: mealTitle })}
 									>
 										<Icon name="trash" />
 									</button>
@@ -365,7 +365,7 @@
 										{#each lane.rows as candidate (candidate.key)}
 											<li class="rotation-row">
 												<div class="min-w-0">
-											<strong>{candidate.titleEn ?? candidate.title}</strong>
+											<strong>{controller.rotationCandidateDisplayTitle(candidate)}</strong>
 											<p>
 													{lane.kind === 'freezerLow' && candidate.targetPortions !== null
 															? m.mealplan_rotation_stock_reason({ onHand: candidate.onHandPortions, target: candidate.targetPortions })
@@ -749,45 +749,61 @@
 </style>
 
 <BottomSheet bind:open={controller.drawerOpen} title={m.mealplan_add_meal_sheet_title()}>
-	<form
-		onsubmit={(event) => {
-			// Enter only dismisses the keyboard — planning the typed text as a
-			// custom dinner stays an explicit tap on the dashed row below (H5).
-			event.preventDefault();
-		}}
-	>
-		<input
-			type="search"
-			class="ui-field w-full"
-			placeholder={m.mealplan_search_recipes_placeholder()}
-			aria-label={m.mealplan_search_recipes_aria()}
-			autocomplete="off"
-			bind:value={controller.drawerSearch}
-		/>
-	</form>
-
-	<div class="mt-3 flex flex-wrap gap-1.5">
-		{#each DRAWER_CATEGORIES as cat}
-			<FilterChip
-				selected={controller.drawerCategory === cat}
-				onclick={() => (controller.drawerCategory = controller.drawerCategory === cat ? '' : cat)}
-			>
-				{cat}
-			</FilterChip>
-		{/each}
-	</div>
-
-	{#if controller.drawerSearch.trim()}
+	<div class="flex items-stretch gap-2">
+		<form
+			class="min-w-0 flex-1"
+			onsubmit={(event) => {
+				// Enter only dismisses the keyboard — planning the typed text as a
+				// custom dinner stays an explicit tap on the dashed row below (H5).
+				event.preventDefault();
+			}}
+		>
+			<input
+				type="search"
+				class="ui-field h-full w-full"
+				placeholder={m.mealplan_search_recipes_placeholder()}
+				aria-label={m.mealplan_search_recipes_aria()}
+				autocomplete="off"
+				bind:value={controller.drawerSearch}
+			/>
+		</form>
 		<button
 			type="button"
-			class="ui-action ui-action-secondary mt-3 w-full justify-between text-left"
-			onclick={controller.addCustomFromSearch}
-			disabled={controller.drawerSubmitting}
-			transition:slide={{ duration: MOTION_MICRO_MS }}
+			class="ui-action ui-action-secondary"
+			aria-expanded={controller.drawerFiltersOpen}
+			onclick={() => (controller.drawerFiltersOpen = !controller.drawerFiltersOpen)}
 		>
-			<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: controller.drawerSearch.trim() })}</span>
-			<StatusBadge class="shrink-0">{m.mealplan_custom_chip()}</StatusBadge>
+			{m.recipes_filters_button()}
+			{#if controller.drawerCategory}<span class="badge badge-sm">1</span>{/if}
 		</button>
+	</div>
+
+	{#if controller.drawerFiltersOpen}
+		<div class="mt-3 flex flex-wrap gap-1.5" transition:slide={{ duration: MOTION_MICRO_MS }}>
+			{#each controller.drawerCategories as category}
+				<FilterChip
+					selected={controller.drawerCategory === category}
+					onclick={() =>
+						(controller.drawerCategory = controller.drawerCategory === category ? '' : category)}
+				>
+					{foodCategoryLabel(category)}
+				</FilterChip>
+			{/each}
+		</div>
+	{/if}
+
+	{#if controller.drawerSearch.trim()}
+		<div class="mt-3" transition:slide={{ duration: MOTION_MICRO_MS }}>
+			<button
+				type="button"
+				class="ui-action ui-action-secondary w-full justify-between text-left"
+				onclick={() => controller.addCustomFromSearch()}
+				disabled={controller.drawerSubmitting}
+			>
+				<span class="min-w-0 flex-1 truncate text-sm">{m.mealplan_plan_custom_button({ query: controller.drawerSearch.trim() })}</span>
+				<StatusBadge class="shrink-0">{m.mealplan_custom_chip()}</StatusBadge>
+			</button>
+		</div>
 	{/if}
 
 	<section class="mt-5">

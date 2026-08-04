@@ -58,7 +58,7 @@
 		<SegmentedControl
 			options={sourceOptions.map((option) => ({ ...option, disabled }))}
 			value={source}
-			onchange={onselect}
+			onchange={(nextSource) => onselect(nextSource)}
 			cols={2}
 			ariaLabel={m.meal_source_group_label()}
 		/>
