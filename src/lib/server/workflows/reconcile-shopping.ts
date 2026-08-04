@@ -38,6 +38,7 @@ import {
 } from '$lib/week';
 import { deriveWeekNeeds } from './shopping-needs';
 import { getRecipesBySlugs } from '$lib/server/domains/recipes';
+import { frozenPortionsByRecipe } from '$lib/server/domains/inventory/freezer';
 import { normalize as normalizeAhDutchTerm } from '$lib/server/ah/matching';
 import { getAHStatus } from '$lib/server/ah/client';
 
@@ -203,6 +204,7 @@ export function isShoppingWeekEditable(input: {
 export function loadShoppingPageData(db: Db, weekParam: string | null) {
 	const prefs = getMealPlanPrefs(db);
 	const today = todayIso();
+	const currentWeekStart = weekStartFor(today, prefs.weekStartDay);
 	const defaultWeek = resolveShoppingWeek({
 		requestedWeek: null,
 		today,
@@ -225,6 +227,7 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 				[...new Set(meals.flatMap((meal) => (meal.recipeSlug ? [meal.recipeSlug] : [])))]
 			).map((recipe) => [recipe.slug, recipe])
 		);
+		const frozenByRecipe = frozenPortionsByRecipe(tx);
 		const needs = deriveWeekNeeds(tx, meals);
 		const shopping = getShoppingWeekView(tx, weekStart);
 		const activeMealIds = new Set(
@@ -235,6 +238,7 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 		const pushHistory = listRecentShoppingPushes(tx, weekStart, 5);
 		return {
 			weekStart,
+			currentWeekStart,
 			prevWeek: addDays(weekStart, -7),
 			nextWeek: addDays(weekStart, 7),
 			isDefaultWeek: weekStart === defaultWeek,
@@ -263,6 +267,7 @@ export function loadShoppingPageData(db: Db, weekParam: string | null) {
 								recipeSlug: meal.recipeSlug,
 								servings: meal.servings,
 								baselineServings: recipe.servings ?? 4,
+								frozenPortions: frozenByRecipe.get(recipe.id) ?? 0,
 								scalingMode: recipe.scalingMode,
 								status: meal.status,
 								source: meal.source,

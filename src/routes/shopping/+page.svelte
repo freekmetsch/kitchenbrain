@@ -195,11 +195,9 @@
 		});
 	}
 
-	function handleServingsSettled() {
+	function handleServingsSettled(_mealId: number, saved: boolean) {
+		if (!saved) return;
 		shoppingListRevision += 1;
-		if (data.pushHistory.length) {
-			toast.success(m.shopping_portions_changed_after_push());
-		}
 	}
 
 	function handoffPreparationToWeeklyItems() {
@@ -221,17 +219,14 @@
 <div class="shopping-market ui-grove-page">
 	<WeekNav
 		weekStart={data.weekStart}
+		currentWeekStart={data.currentWeekStart}
 		prevWeek={data.prevWeek}
 		nextWeek={data.nextWeek}
 		isDefaultWeek={data.isDefaultWeek}
 		deliveryDate={data.deliveryDate}
 		ahConnected={data.ah.connected}
-		onAdjustPlan={() =>
-			data.plannedMeals.length
-				? (preparationOpen = true)
-				: void shoppingLists?.openWeeklyEditor()}
-		adjustPlanOpen={preparationOpen}
-		adjustPlanDialog={data.plannedMeals.length > 0}
+		onOpenSetup={() => (preparationOpen = true)}
+		setupOpen={preparationOpen}
 	/>
 
 	<div class="shopping-market-layout ui-grove-surface">
@@ -281,6 +276,7 @@
 
 			<ShoppingLists
 				bind:this={shoppingLists}
+				weekStart={data.weekStart}
 				{pending}
 				{done}
 				sources={data.sources}
@@ -375,15 +371,28 @@
 <BottomSheet
 	bind:open={preparationOpen}
 	title={m.shopping_preparation_title()}
-	desktopSide
+	desktopCentered
 	dismissible={!plannedServingPending}
 	restoreFocus={!weeklyHandoffAfterPreparation}
 	onclose={handlePreparationClose}
 >
+	<a
+		href="{base}/meal-plan?week={data.weekStart}"
+		class="shopping-edit-plan ui-action ui-action-primary"
+		aria-disabled={plannedServingPending}
+		onclick={(event) => {
+			if (plannedServingPending) event.preventDefault();
+		}}
+	>
+		<Icon name="calendar" />
+		{m.shopping_edit_meal_plan()}
+	</a>
 	<ShoppingMealPortions
 		meals={data.plannedMeals}
 		editable={data.isEditable}
 		weekStart={data.weekStart}
+		hasPriorPush={data.pushHistory.length > 0}
+		active={preparationOpen}
 		onpendingchange={(value) => (plannedServingPending = value)}
 		onservingssettled={handleServingsSettled}
 	/>
@@ -505,5 +514,15 @@
 	.shopping-manage-weekly {
 		width: 100%;
 		margin-top: 0.75rem;
+	}
+
+	.shopping-edit-plan {
+		width: 100%;
+		margin-bottom: 0.75rem;
+	}
+
+	.shopping-edit-plan[aria-disabled='true'] {
+		cursor: wait;
+		opacity: 0.55;
 	}
 </style>

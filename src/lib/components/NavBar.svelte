@@ -32,6 +32,18 @@
 		const target = base + path;
 		return path === '/' ? here === target : here === target || here.startsWith(target + '/');
 	};
+
+	function tabHref(path: string): string {
+		const here = $page.url.pathname;
+		const selectedWeek = $page.url.searchParams.get('week');
+		const carriesWeek =
+			selectedWeek &&
+			[`${base}/meal-plan`, `${base}/shopping`].includes(here) &&
+			['/meal-plan', '/shopping'].includes(path);
+		return carriesWeek
+			? `${base}${path}?week=${encodeURIComponent(selectedWeek)}`
+			: `${base}${path}`;
+	}
 </script>
 
 <nav
@@ -42,7 +54,7 @@
 	{#each TABS as tab (tab.path)}
 		{@const active = isActive(tab.path)}
 		<a
-			href="{base}{tab.path}"
+			href={tabHref(tab.path)}
 			aria-current={active ? 'page' : undefined}
 			class:active={active}
 			class="app-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 no-underline transition-colors"

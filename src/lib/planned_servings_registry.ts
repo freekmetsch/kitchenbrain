@@ -8,6 +8,7 @@ export type PlannedServingsSnapshot = {
 	confirmed: number;
 	desired: number;
 	pending: boolean;
+	lastWriteSucceeded: boolean | null;
 };
 
 type RegistryDependencies = {
@@ -42,6 +43,7 @@ export class PlannedServingsRegistry {
 		if (current) {
 			current.confirmed = servings;
 			current.desired = servings;
+			current.lastWriteSucceeded = null;
 			current.generation += 1;
 			this.#notify(current);
 			return;
@@ -51,6 +53,7 @@ export class PlannedServingsRegistry {
 			confirmed: servings,
 			desired: servings,
 			pending: false,
+			lastWriteSucceeded: null,
 			generation: 0,
 			running: null,
 			listeners: new Set(),
@@ -81,6 +84,7 @@ export class PlannedServingsRegistry {
 		if (target == null || !entry || target === entry.desired) return Promise.resolve(false);
 		entry.desired = target;
 		entry.pending = true;
+		entry.lastWriteSucceeded = null;
 		this.#notify(entry);
 		const settled = new Promise<boolean>((resolve) => entry.waiters.push(resolve));
 		if (mealId >= 0) this.#start(entry);
@@ -142,6 +146,7 @@ export class PlannedServingsRegistry {
 		} finally {
 			if (this.#entries.get(entry.mealId) === entry && entry.generation === generation) {
 				entry.pending = false;
+				entry.lastWriteSucceeded = ok;
 				entry.running = null;
 				this.#notify(entry);
 				for (const resolve of entry.waiters.splice(0)) resolve(ok);
@@ -155,7 +160,8 @@ export class PlannedServingsRegistry {
 			mealId: entry.mealId,
 			confirmed: entry.confirmed,
 			desired: entry.desired,
-			pending: entry.pending
+			pending: entry.pending,
+			lastWriteSucceeded: entry.lastWriteSucceeded
 		};
 	}
 

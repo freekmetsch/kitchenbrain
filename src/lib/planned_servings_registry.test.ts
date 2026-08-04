@@ -36,7 +36,12 @@ describe('PlannedServingsRegistry', () => {
 
 		await expect(first).resolves.toBe(true);
 		await expect(second).resolves.toBe(true);
-		expect(registry.snapshot(7)).toMatchObject({ desired: 6, confirmed: 6, pending: false });
+		expect(registry.snapshot(7)).toMatchObject({
+			desired: 6,
+			confirmed: 6,
+			pending: false,
+			lastWriteSucceeded: true
+		});
 	});
 
 	it('can unsubscribe, resync, and write in the opposite direction after navigation', async () => {
@@ -69,5 +74,24 @@ describe('PlannedServingsRegistry', () => {
 
 		await expect(changed).resolves.toBe(false);
 		expect(registry.snapshot(7)).toBeNull();
+	});
+
+	it('exposes a failed settlement after reverting to the confirmed value', async () => {
+		const onError = vi.fn();
+		const registry = new PlannedServingsRegistry({
+			write: () => Promise.reject(new Error('save failed')),
+			onError
+		});
+		registry.sync({ id: 7, servings: 4 });
+
+		await expect(registry.change(7, 1)).resolves.toBe(false);
+
+		expect(onError).toHaveBeenCalledOnce();
+		expect(registry.snapshot(7)).toMatchObject({
+			desired: 4,
+			confirmed: 4,
+			pending: false,
+			lastWriteSucceeded: false
+		});
 	});
 });

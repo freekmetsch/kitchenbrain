@@ -37,6 +37,7 @@
 		pending: ShoppingListItem[];
 		done: ShoppingListItem[];
 		sources: ShoppingListSource[];
+		weekStart: string;
 		recurring: RecurringShoppingItem[];
 		legacy: LegacyShoppingItem[];
 		excludedWeekItems: ExcludedWeekItem[];
@@ -83,6 +84,7 @@
 		pending,
 		done,
 		sources,
+		weekStart,
 		recurring,
 		legacy,
 		excludedWeekItems,
@@ -431,7 +433,9 @@
 		{#snippet action()}
 			<a
 				class="ui-action ui-action-primary"
-				href={controller.emptyState === 'no_meals' ? `${base}/meal-plan` : `${base}/inventory`}
+				href={controller.emptyState === 'no_meals'
+					? `${base}/meal-plan?week=${weekStart}`
+					: `${base}/inventory`}
 			>
 				{controller.emptyState === 'no_meals' ? m.shopping_plan_meals_button() : m.shopping_view_stock_button()}
 			</a>

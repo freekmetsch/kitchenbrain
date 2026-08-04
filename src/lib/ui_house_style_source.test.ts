@@ -246,7 +246,7 @@ describe('stable app house-style source contract', () => {
 		expect(shoppingPage.indexOf('shopping-history-tools')).toBeLessThan(
 			shoppingPage.indexOf('<ShoppingLists')
 		);
-		expect(shoppingHeader).toContain('onAdjustPlan');
+		expect(shoppingHeader).toContain('onOpenSetup');
 		expect(shoppingList).toContain('hasItemMenu');
 		expect(shoppingList).toContain('shopping_remove_item_this_week_aria');
 		expect(shoppingList).toContain('shopping-optional-ledger');

@@ -75,7 +75,8 @@ describe('shopping reconciliation workflow', () => {
 		vi.setSystemTime(new Date('2026-07-29T10:00:00.000Z'));
 		const db = createTestDb();
 		const now = new Date();
-		db.insert(schema.recipes)
+		const recipe = db
+			.insert(schema.recipes)
 			.values({
 				slug: 'pantry-soup',
 				title: 'Pantry soup',
@@ -85,7 +86,8 @@ describe('shopping reconciliation workflow', () => {
 				createdAt: now,
 				updatedAt: now
 			})
-			.run();
+			.returning()
+			.get();
 		const meal = db
 			.insert(schema.mealPlanMeals)
 			.values({
@@ -94,8 +96,21 @@ describe('shopping reconciliation workflow', () => {
 				dinner: 'Pantry soup',
 				recipeSlug: 'pantry-soup',
 				servings: 4,
+				source: 'freezer',
 				sortOrder: 0,
 				createdAt: now
+			})
+			.returning()
+			.get();
+		db.insert(schema.inventoryItems)
+			.values({
+				name: 'Pantry soup portions',
+				qtyNum: 3,
+				section: 'freezer',
+				kind: 'leftover',
+				madeFromRecipeId: recipe.id,
+				createdAt: now,
+				updatedAt: now
 			})
 			.returning()
 			.get();
@@ -107,9 +122,10 @@ describe('shopping reconciliation workflow', () => {
 				recipeSlug: 'pantry-soup',
 				servings: 4,
 				baselineServings: 4,
+				frozenPortions: 3,
 				scalingMode: 'scalable',
 				status: 'planned',
-				source: 'fresh',
+				source: 'freezer',
 				plannedDate: null,
 				note: null,
 				contributesActiveItems: false
