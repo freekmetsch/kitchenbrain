@@ -435,6 +435,18 @@ html[data-theme='dark'] .ui-action-secondary:not(.ui-action-on-dark) {
 	color: white;
 }
 
+.ui-action-on-dark.ui-action-secondary {
+	border-color: rgb(255 255 255 / 32%);
+	background: rgb(255 255 255 / 8%);
+	color: white;
+}
+
+.ui-action-on-dark.ui-action-secondary:hover:not(:disabled, [aria-disabled='true']),
+.ui-action-on-dark.ui-action-secondary:focus-visible {
+	border-color: rgb(255 255 255 / 52%);
+	background: rgb(255 255 255 / 16%);
+}
+
 .ui-action-on-dark:focus-visible {
 	outline-color: white;
 }

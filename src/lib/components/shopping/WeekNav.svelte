@@ -11,26 +11,26 @@
 
 	type Props = {
 		weekStart: string;
+		currentWeekStart: string;
 		prevWeek: string;
 		nextWeek: string;
 		isDefaultWeek: boolean;
 		deliveryDate?: string | null;
 		ahConnected: boolean;
-		onAdjustPlan: () => void;
-		adjustPlanOpen?: boolean;
-		adjustPlanDialog?: boolean;
+		onOpenSetup: () => void;
+		setupOpen?: boolean;
 	};
 
 	let {
 		weekStart,
+		currentWeekStart,
 		prevWeek,
 		nextWeek,
 		isDefaultWeek,
 		deliveryDate = null,
 		ahConnected,
-		onAdjustPlan,
-		adjustPlanOpen = false,
-		adjustPlanDialog = true
+		onOpenSetup,
+		setupOpen = false
 	}: Props = $props();
 
 	function locale(): string {
@@ -56,22 +56,29 @@
 			timeZone: APP_TIME_ZONE
 		});
 	}
+
+	function headerContext(): string {
+		if (weekStart === currentWeekStart) return m.shopping_header_context();
+		return weekStart > currentWeekStart
+			? m.shopping_header_upcoming_context()
+			: m.shopping_header_past_context();
+	}
 </script>
 
-<KitchenPageHeader eyebrow={m.shopping_header_context()} title={m.shopping_heading()}>
+<KitchenPageHeader eyebrow={headerContext()} title={m.shopping_heading()}>
 	{#snippet action()}
 		<div class="shopping-header-actions">
 			<button
 				type="button"
-				class="shopping-adjust-plan ui-action ui-action-secondary ui-action-on-dark"
-				aria-label={m.shopping_adjust_plan()}
-				aria-haspopup={adjustPlanDialog ? 'dialog' : undefined}
-				aria-expanded={adjustPlanDialog ? adjustPlanOpen : undefined}
-				onclick={onAdjustPlan}
+				class="shopping-setup-action ui-action ui-action-secondary ui-action-on-dark"
+				aria-label={m.shopping_open_setup()}
+				aria-haspopup="dialog"
+				aria-expanded={setupOpen}
+				onclick={onOpenSetup}
 			>
 				<Icon name="clipboard" />
-				<span class="shopping-adjust-plan-full">{m.shopping_adjust_plan()}</span>
-				<span class="shopping-adjust-plan-short" aria-hidden="true">{m.shopping_adjust_plan_short()}</span>
+				<span class="shopping-setup-full">{m.shopping_open_setup()}</span>
+				<span class="shopping-setup-short" aria-hidden="true">{m.shopping_open_setup_short()}</span>
 			</button>
 			<StatusBadge tone={ahConnected ? 'success' : 'warning'} onDark>
 				{ahConnected ? m.shopping_ah_connected_short() : m.shopping_ah_offline_short()}
@@ -118,26 +125,26 @@
 		gap: 0.35rem;
 	}
 
-	.shopping-adjust-plan {
+	.shopping-setup-action {
 		min-height: 2.75rem;
 		padding-inline: 0.65rem;
 	}
 
-	.shopping-adjust-plan :global(svg) {
+	.shopping-setup-action :global(svg) {
 		width: 1rem;
 		height: 1rem;
 	}
 
-	.shopping-adjust-plan-short {
+	.shopping-setup-short {
 		display: none;
 	}
 
 	@media (max-width: 30rem) {
-		.shopping-adjust-plan-full {
+		.shopping-setup-full {
 			display: none;
 		}
 
-		.shopping-adjust-plan-short {
+		.shopping-setup-short {
 			display: inline;
 		}
 	}

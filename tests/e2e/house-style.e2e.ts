@@ -227,7 +227,7 @@ test('house-style roles hold across stable routes and target viewports', async (
 			page.locator('.kitchen-page-header-action').getByRole('button')
 		).toHaveCount(1);
 		await expect(
-			page.locator('.kitchen-page-header-action').getByRole('button', { name: 'Adjust plan' })
+			page.locator('.kitchen-page-header-action').getByRole('button', { name: 'Shopping setup' })
 		).toBeVisible();
 		await expect(
 			page.locator('.shopping-market-dock').getByRole('button', { name: 'Add item', exact: true })
@@ -469,7 +469,7 @@ test('Shopping hands one-off and plan setup into the inline weekly editor', asyn
 	await expect(page.getByRole('button', { name: 'Add weekly item', exact: true })).toBeFocused();
 
 	await page.getByRole('radio', { name: 'All', exact: true }).click();
-	await page.getByRole('button', { name: 'Adjust plan' }).click();
+	await page.getByRole('button', { name: 'Shopping setup' }).click();
 	const setupSheet = page.getByRole('dialog', { name: 'Shopping setup' });
 	await setupSheet.getByRole('button', { name: 'Manage weekly items' }).click();
 	await expect(setupSheet).toBeHidden();

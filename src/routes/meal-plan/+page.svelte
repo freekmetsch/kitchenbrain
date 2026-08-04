@@ -71,6 +71,13 @@
 		});
 	}
 
+	function headerContext(weekStartDate: string): string {
+		if (weekStartDate === controller.currentWeekStart) return m.mealplan_header_context();
+		return weekStartDate > controller.currentWeekStart
+			? m.mealplan_header_upcoming_context()
+			: m.mealplan_header_past_context();
+	}
+
 	function planHeaderMenuItems(weekStartDate: string): HeaderActionMenuItem[] {
 		const items: HeaderActionMenuItem[] = [];
 		if (data.hasPastWeeks || data.showPastWeeks) {
@@ -100,7 +107,12 @@
 
 <div class="meal-plan-page ui-grove-page">
 	<p class="sr-only" aria-live="polite">{controller.servingsStatus}</p>
-	<KitchenPageHeader eyebrow={m.mealplan_header_context()} title={m.mealplan_heading()}>
+	<KitchenPageHeader
+		eyebrow={controller.selectedWeek
+			? headerContext(controller.selectedWeek.weekStartDate)
+			: m.mealplan_header_context()}
+		title={m.mealplan_heading()}
+	>
 		{#snippet action()}
 			{#if controller.selectedWeek}
 				{@const headerWeek = controller.selectedWeek}

@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import Database from 'better-sqlite3';
 import { E2E_DATABASE } from './config';
 import { kitchenFixtureFor } from './fixtures';
+import { addDays } from '../../src/lib/week';
 
 async function expectSettledSourceControl(control: Locator) {
 	await expect
@@ -263,7 +264,7 @@ test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({
 	const fixture = kitchenFixtureFor(testInfo);
 	await page.goto(`/shopping?week=${fixture.weekStart}`);
 	await page.waitForLoadState('networkidle');
-	await page.getByRole('button', { name: 'Adjust plan' }).click();
+	await page.getByRole('button', { name: 'Shopping setup' }).click();
 	const setup = page.getByRole('dialog', { name: 'Shopping setup' });
 
 	const increase = setup.getByRole('button', {
@@ -273,6 +274,29 @@ test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({
 	const before = Number.parseInt((await shoppingCount.textContent()) ?? '', 10);
 	const recipeHref = await page.getByRole('link', { name: fixture.recipeTitle }).getAttribute('href');
 	expect(recipeHref).toMatch(/\?plan=\d+$/);
+	await expect(setup.getByText('Unplanned · Fresh meal', { exact: true }).first()).toBeVisible();
+
+	await page.route(
+		'**/api/meal-plan/*',
+		(route) =>
+			route.fulfill({
+				status: 500,
+				contentType: 'application/json',
+				body: '{"message":"intentional serving failure"}'
+			}),
+		{ times: 1 }
+	);
+	const failed = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PUT' && /\/api\/meal-plan\/\d+$/.test(response.url())
+	);
+	await increase.click();
+	expect((await failed).status()).toBe(500);
+	await expect(shoppingCount).toHaveText(`${before} portions`);
+	await expect(setup.getByRole('alert').filter({ hasText: 'Could not update the portions.' })).toBeVisible();
+	await expect(
+		page.getByRole('status').filter({ hasText: 'Local Shopping changed.' })
+	).toHaveCount(0);
 
 	const increased = page.waitForResponse(
 		(response) =>
@@ -293,7 +317,7 @@ test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({
 
 	await page.goto(`/shopping?week=${fixture.weekStart}`);
 	await expectAppHydrated(page);
-	await page.getByRole('button', { name: 'Adjust plan' }).click();
+	await page.getByRole('button', { name: 'Shopping setup' }).click();
 	const restoredSetup = page.getByRole('dialog', { name: 'Shopping setup' });
 	const decrease = restoredSetup.getByRole('button', {
 		name: `Decrease portions for ${fixture.recipeTitle}`
@@ -305,6 +329,99 @@ test('Shopping serving controls stay synced with Meal Plan and Recipe', async ({
 	await decrease.click();
 	expect((await restored).ok()).toBe(true);
 	await expect(decrease.locator('xpath=following-sibling::span[1]')).toHaveText(`${before} portions`);
+});
+
+test('Shopping keeps week context and exposes complete empty-week setup', async ({ page }, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	const nextWeek = addDays(fixture.weekStart, 7);
+	await page.setViewportSize({ width: 375, height: 812 });
+
+	await page.goto(`/meal-plan?week=${nextWeek}`);
+	await expectAppHydrated(page);
+	await expect(page.getByText('Upcoming week', { exact: true })).toBeVisible();
+	const primary = page.getByRole('navigation', { name: 'Primary' });
+	const shoppingTab = primary.getByRole('link', { name: 'Shopping' });
+	await expect(shoppingTab).toHaveAttribute('href', `/shopping?week=${nextWeek}`);
+	await shoppingTab.click();
+	await expect(page).toHaveURL(new RegExp(`/shopping\\?week=${nextWeek}$`));
+	await expect(page.getByText('Upcoming week', { exact: true })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Shopping setup' }).click();
+	const setup = page.getByRole('dialog', { name: 'Shopping setup' });
+	await expect(setup.getByRole('link', { name: 'Edit meal plan' })).toHaveAttribute(
+		'href',
+		`/meal-plan?week=${nextWeek}`
+	);
+	await expect(setup.getByRole('button', { name: 'Manage weekly items' })).toBeVisible();
+	await setup.getByRole('button', { name: 'Close' }).click();
+
+	const planMeals = page.getByRole('link', { name: 'Plan meals' });
+	await expect(planMeals).toHaveAttribute('href', `/meal-plan?week=${nextWeek}`);
+	await planMeals.click();
+	await expect(page).toHaveURL(new RegExp(`/meal-plan\\?week=${nextWeek}$`));
+});
+
+test('Shopping setup shows freezer shortfalls and keeps long meal controls reachable', async ({
+	page
+}, testInfo) => {
+	const fixture = kitchenFixtureFor(testInfo);
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await page.goto(`/meal-plan?week=${fixture.weekStart}`);
+	await expectAppHydrated(page);
+	await page.getByRole('button', { name: 'Add meal', exact: true }).click();
+	const addMeal = page.getByRole('dialog', { name: 'Add meal' });
+	await addMeal
+		.getByRole('searchbox', { name: 'Search recipes or type a custom dinner' })
+		.fill(fixture.portionRecipeTitle);
+	const planned = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/api/meal-plan')
+	);
+	await addMeal.getByRole('button', { name: 'Serve 6 from freezer', exact: true }).click();
+	const plannedResponse = await planned;
+	expect(plannedResponse.ok()).toBe(true);
+	const plannedMeal = (await plannedResponse.json()) as { id: number };
+
+	await page.goto(`/shopping?week=${fixture.weekStart}`);
+	await expectAppHydrated(page);
+	await page.getByRole('button', { name: 'Shopping setup' }).click();
+	const setup = page.getByRole('dialog', { name: 'Shopping setup' });
+	await expect(setup.getByText('Unplanned · From freezer', { exact: true })).toBeVisible();
+	const increase = setup.getByRole('button', {
+		name: `Increase portions for ${fixture.portionRecipeTitle}`
+	});
+	const increased = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PUT' && response.url().endsWith(`/api/meal-plan/${plannedMeal.id}`)
+	);
+	await increase.click();
+	expect((await increased).ok()).toBe(true);
+	await expect(setup.getByText('Frozen stock is 1 short', { exact: true })).toBeVisible();
+
+	const remove = setup.getByRole('button', {
+		name: `Remove ${fixture.portionRecipeTitle} from the meal plan`
+	});
+	const removeBox = await remove.boundingBox();
+	const setupBox = await setup.boundingBox();
+	expect(removeBox).not.toBeNull();
+	expect(setupBox).not.toBeNull();
+	expect(removeBox!.x + removeBox!.width).toBeLessThanOrEqual(setupBox!.x + setupBox!.width);
+	const removed = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'DELETE' && response.url().endsWith(`/api/meal-plan/${plannedMeal.id}`)
+	);
+	await remove.click();
+	expect((await removed).ok()).toBe(true);
+	const removalStatus = page.getByRole('status').filter({
+		hasText: `Removed ${fixture.portionRecipeTitle} from the meal plan. Items already sent to AH did not change.`
+	});
+	await expect(removalStatus).toBeVisible();
+	const restored = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/api/meal-plan')
+	);
+	await removalStatus.getByRole('button', { name: 'Undo' }).click();
+	expect((await restored).ok()).toBe(true);
 });
 
 test('Shopping removes any aggregate for one week and restores it with Undo', async ({ page }, testInfo) => {

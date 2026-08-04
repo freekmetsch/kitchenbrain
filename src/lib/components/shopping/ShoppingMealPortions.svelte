@@ -8,6 +8,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatDate } from '$lib/i18n';
 	import { batchServingTarget } from '$lib/meal_batch';
+	import { frozenPortionShortfall } from '$lib/meal_source_choice';
 	import ServingBatchPicker from '$lib/components/ServingBatchPicker.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 
@@ -17,6 +18,7 @@
 		recipeSlug: string;
 		servings: number;
 		baselineServings: number;
+		frozenPortions: number;
 		scalingMode: 'scalable' | 'fixed_batch';
 		status: 'planned' | 'cooked';
 		source: 'fresh' | 'freezer';
@@ -29,14 +31,18 @@
 		meals,
 		editable,
 		weekStart,
+		hasPriorPush,
+		active,
 		onpendingchange,
 		onservingssettled
 	}: {
 		meals: ShoppingPlannedMeal[];
 		editable: boolean;
 		weekStart: string;
+		hasPriorPush: boolean;
+		active: boolean;
 		onpendingchange?: (pending: boolean) => void;
-		onservingssettled?: (mealId: number) => void;
+		onservingssettled?: (mealId: number, saved: boolean) => void;
 	} = $props();
 
 	const registry = plannedServingsRegistryForScope();
@@ -46,6 +52,12 @@
 	const pendingBefore = new Set<number>();
 	const unsubscribers = new Map<number, () => void>();
 	let subscriptionRevision = $state(0);
+	let restoring = $state(false);
+	let feedback = $state<{
+		variant: 'error' | 'status';
+		message: string;
+		undoMeal?: ShoppingPlannedMeal;
+	} | null>(null);
 	let displayedMeals = $derived(
 		meals.filter((meal) => !removedMealIds.includes(meal.id)).map((meal) => ({
 			...meal,
@@ -63,7 +75,24 @@
 			if (snapshot.pending) {
 				pendingBefore.add(meal.id);
 			} else if (pendingBefore.delete(meal.id)) {
-				onservingssettled?.(meal.id);
+				const saved = snapshot.lastWriteSucceeded === true;
+				if (active) {
+					if (!saved) {
+						// A global toast sits outside the native dialog's top layer, so keep
+						// setup feedback inside the dialog where it remains perceivable.
+						toast.dismiss();
+						feedback = {
+							variant: 'error',
+							message: m.mealplan_toast_could_not_update_servings()
+						};
+					} else if (hasPriorPush) {
+						feedback = {
+							variant: 'status',
+							message: m.shopping_portions_changed_after_push()
+						};
+					}
+				}
+				onservingssettled?.(meal.id, saved);
 				void invalidateAll();
 			}
 		});
@@ -91,13 +120,18 @@
 		);
 	});
 
+	$effect(() => {
+		if (!active) feedback = null;
+	});
+
 	onDestroy(() => {
 		for (const unsubscribe of unsubscribers.values()) unsubscribe();
 		onpendingchange?.(false);
 	});
 
 	function mealDate(meal: ShoppingPlannedMeal): string {
-		return formatDate(`${meal.plannedDate ?? weekStart}T00:00:00`, {
+		if (!meal.plannedDate) return m.mealplan_day_unplanned();
+		return formatDate(`${meal.plannedDate}T00:00:00`, {
 			weekday: 'short',
 			day: 'numeric',
 			month: 'short'
@@ -118,20 +152,28 @@
 			const response = await fetch(`${base}/api/meal-plan/${meal.id}`, { method: 'DELETE' });
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			await invalidateAll();
-			toast.undo(m.mealplan_toast_removed({ dinner: meal.dinner }), () => void restoreMeal(meal));
+			feedback = {
+				variant: 'status',
+				message: hasPriorPush
+					? m.shopping_meal_removed_from_plan_after_push({ dinner: meal.dinner })
+					: m.shopping_meal_removed_from_plan({ dinner: meal.dinner }),
+				undoMeal: meal
+			};
 		} catch {
 			removedMealIds = removedMealIds.filter((id) => id !== meal.id);
 			unsubscribers.get(meal.id)?.();
 			unsubscribers.delete(meal.id);
 			pendingBefore.delete(meal.id);
 			subscriptionRevision += 1;
-			toast.error(m.mealplan_toast_could_not_remove());
+			feedback = { variant: 'error', message: m.mealplan_toast_could_not_remove() };
 		} finally {
 			removingMealIds = removingMealIds.filter((id) => id !== meal.id);
 		}
 	}
 
 	async function restoreMeal(meal: ShoppingPlannedMeal): Promise<void> {
+		if (restoring) return;
+		restoring = true;
 		try {
 			const response = await fetch(`${base}/api/meal-plan`, {
 				method: 'POST',
@@ -147,12 +189,40 @@
 				})
 			});
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			feedback = null;
 			await invalidateAll();
 		} catch {
-			toast.error(m.mealplan_toast_could_not_restore());
+			feedback = { variant: 'error', message: m.mealplan_toast_could_not_restore() };
+		} finally {
+			restoring = false;
 		}
 	}
+
+	function undoRemovedMeal(): void {
+		const meal = feedback?.undoMeal;
+		if (meal) void restoreMeal(meal);
+	}
 </script>
+
+{#if feedback}
+	<div
+		class:shopping-meal-feedback-error={feedback.variant === 'error'}
+		class="shopping-meal-feedback"
+		role={feedback.variant === 'error' ? 'alert' : 'status'}
+	>
+		<span>{feedback.message}</span>
+		{#if feedback.undoMeal}
+			<button
+				type="button"
+				class="ui-action ui-action-tertiary"
+				disabled={restoring}
+				onclick={undoRemovedMeal}
+			>
+				{m.inventory_action_undo()}
+			</button>
+		{/if}
+	</div>
+{/if}
 
 {#if meals.length}
 	<section class="shopping-meal-portions ui-list-group" aria-labelledby="shopping-meal-portions-title">
@@ -164,6 +234,9 @@
 		</header>
 		<ul>
 			{#each displayedMeals as meal (meal.id)}
+				{@const shortfall = meal.source === 'freezer'
+					? frozenPortionShortfall(meal.servings, meal.frozenPortions)
+					: 0}
 				<li>
 					<div class="shopping-meal-copy">
 						<a href={`${base}/recipes/${meal.recipeSlug}?plan=${meal.id}`}>{meal.dinner}</a>
@@ -176,6 +249,11 @@
 						</span>
 						{#if !meal.contributesActiveItems}
 							<span>{m.shopping_meal_no_active_items()}</span>
+						{/if}
+						{#if shortfall > 0}
+							<span class="shopping-meal-shortfall" role="status">
+								{m.meal_source_shortfall({ count: shortfall })}
+							</span>
 						{/if}
 					</div>
 					<div class="shopping-meal-actions">
@@ -208,7 +286,7 @@
 							type="button"
 							class="shopping-meal-remove ui-action ui-action-tertiary ui-action-icon"
 							disabled={!editable || meal.status === 'cooked' || removingMealIds.includes(meal.id)}
-							aria-label={m.mealplan_remove_meal_aria({ dinner: meal.dinner })}
+							aria-label={m.shopping_remove_meal_plan_aria({ dinner: meal.dinner })}
 							onclick={() => void removeMeal(meal)}
 						><Icon name="trash" /></button>
 					</div>
@@ -245,10 +323,9 @@
 	}
 
 	.shopping-meal-portions li {
-		display: flex;
+		display: grid;
 		min-height: 3rem;
-		align-items: center;
-		justify-content: space-between;
+		align-items: stretch;
 		gap: 0.6rem;
 		border-top: 1px solid var(--kitchen-line);
 		padding-top: 0.4rem;
@@ -266,6 +343,30 @@
 		white-space: nowrap;
 	}
 
+	.shopping-meal-feedback {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin-bottom: 0.75rem;
+		border: 1px solid var(--kitchen-line);
+		border-radius: 0.75rem;
+		background: var(--kitchen-paper);
+		padding: 0.6rem 0.75rem;
+		font-size: 0.78rem;
+		font-weight: 650;
+	}
+
+	.shopping-meal-feedback-error {
+		border-color: color-mix(in srgb, var(--color-error) 35%, var(--kitchen-line));
+		color: var(--color-error);
+	}
+
+	.shopping-meal-copy .shopping-meal-shortfall {
+		color: var(--color-warning);
+		font-weight: 750;
+	}
+
 	.shopping-meal-stepper {
 		display: inline-flex;
 		min-height: 2.75rem;
@@ -278,7 +379,10 @@
 	.shopping-meal-actions {
 		display: flex;
 		min-width: 0;
+		width: 100%;
 		align-items: center;
+		align-self: stretch;
+		flex-wrap: wrap;
 		gap: 0.3rem;
 	}
 
@@ -305,16 +409,4 @@
 		font-weight: 750;
 	}
 
-	@media (max-width: 28rem) {
-		.shopping-meal-portions li {
-			align-items: stretch;
-			flex-direction: column;
-		}
-
-		.shopping-meal-actions {
-			width: 100%;
-			align-self: stretch;
-			flex-wrap: wrap;
-		}
-	}
 </style>

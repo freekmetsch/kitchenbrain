@@ -24,6 +24,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	return {
 		weekStart: page.weekStart,
+		currentWeekStart: page.currentWeekStart,
 		prevWeek: page.prevWeek,
 		nextWeek: page.nextWeek,
 		isDefaultWeek: page.isDefaultWeek,
