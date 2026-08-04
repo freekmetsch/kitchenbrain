@@ -33,6 +33,7 @@ import {
 } from '$lib/server/ai/recipe_patch';
 import { PreconditionConflictError } from '$lib/server/domains/inventory/commands';
 import { ContractError } from '$lib/server/ai/turn_safety';
+import { reviewRecipeQuality } from '$lib/server/domains/recipes/quality';
 
 // Same app-db guard, for the auto-translate-on-import toggle (Phase 4) —
 // translateRecipe also reads the module-level app DB.
@@ -167,11 +168,12 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 			})
 			.parse(raw);
 
-		// Policy: an explicit needs_review from the agent carries its reason (or a
-		// sentinel when none is given); reviewFields encodes the column pairing.
-		const review = reviewFields(
-			input.needs_review ? (input.review_reason ?? 'flagged_by_ai') : null
-		);
+		const qualityWarnings = reviewRecipeQuality(input.ingredients, input.directions);
+		const reviewReasons = [
+			...(input.needs_review ? [input.review_reason ?? 'flagged_by_ai'] : []),
+			...qualityWarnings.map((warning) => warning.message)
+		];
+		const review = reviewFields(reviewReasons.length > 0 ? reviewReasons.join(' ') : null);
 		const recipe = createCanonicalRecipe(db, {
 			title: input.title,
 			slug: input.slug,
@@ -187,7 +189,14 @@ export const recipeExecutors: Record<string, ExecutorFn> = {
 		// Ordinary cooking steps are projected directly from the saved directions.
 		// Translation remains an optional non-blocking cache; cooking details are explicit.
 		if (getAutoTranslateOnImport()) kickTranslateIfAppDb(db, recipe.slug);
-		return { ok: true, slug: recipe.slug, title: recipe.title, needs_review: review.needsReview };
+		return {
+			ok: true,
+			slug: recipe.slug,
+			title: recipe.title,
+			needs_review: review.needsReview,
+			review_reason: review.reviewReason,
+			review_warnings: qualityWarnings
+		};
 	},
 
 	async add_recipe_from_url(raw, db) {

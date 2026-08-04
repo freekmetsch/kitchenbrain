@@ -55,7 +55,49 @@ export async function executeToolCall(
 		: undefined;
 	const failureKey = turnCtx ? failedCallKey(name, input) : null;
 	const memoized = failureKey ? safety?.failedCalls.get(failureKey) : undefined;
-	if (memoized !== undefined) return memoized;
+	if (memoized && memoized.writeRevision === safety?.committedWrites.length) {
+		if (!memoized.soft) return memoized.result;
+		const prior =
+			memoized.result && typeof memoized.result === 'object'
+				? (memoized.result as Record<string, unknown>)
+				: {};
+		return {
+			...prior,
+			ok: false,
+			duplicate_call: true,
+			error: `${typeof prior.error === 'string' ? prior.error : 'This call failed.'} The exact same call already failed this turn; choose a fallback instead of retrying it.`
+		};
+	}
+	if (memoized) safety?.failedCalls.delete(failureKey!);
+	const softFailures = safety?.softFailures.get(name);
+	if (softFailures && softFailures.writeRevision !== safety?.committedWrites.length) {
+		safety?.softFailures.delete(name);
+	} else if (name === 'add_recipe_from_url' && softFailures && softFailures.keys.size >= 2) {
+		return {
+			ok: false,
+			tool_failed_for_turn: true,
+			error: 'Recipe URL import already failed twice this turn; use the pasted recipe or another fallback.'
+		};
+	}
+	const rememberFailure = (result: unknown, soft = false) => {
+		if (!failureKey || !safety) return;
+		safety.failedCalls.set(failureKey, {
+			result,
+			writeRevision: safety.committedWrites.length,
+			soft
+		});
+		if (soft) {
+			const current = safety.softFailures.get(name);
+			if (current && current.writeRevision === safety.committedWrites.length) {
+				current.keys.add(failureKey);
+			} else {
+				safety.softFailures.set(name, {
+					keys: new Set([failureKey]),
+					writeRevision: safety.committedWrites.length
+				});
+			}
+		}
+	};
 
 	// Photo-derived recipes are review-biased (P5.4): vision hallucinates
 	// quantities, timings, and roles, so a recipe saved on a turn that carried an
@@ -91,7 +133,7 @@ export async function executeToolCall(
 				contract_error: err.code,
 				write_latched: true
 			};
-			if (failureKey) safety!.failedCalls.set(failureKey, result);
+			rememberFailure(result);
 			return result;
 		}
 		throw err;
@@ -130,6 +172,15 @@ export async function executeToolCall(
 			}
 			if (isPersistentTool(name)) safety!.committedWrites.push(name);
 		}
+		if (
+			turnCtx &&
+			name === 'add_recipe_from_url' &&
+			result &&
+			typeof result === 'object' &&
+			(result as { ok?: unknown }).ok === false
+		) {
+			rememberFailure(result, true);
+		}
 		if (turnCtx) observeToolResult(name, result, db, safety!);
 		return result;
 	} catch (err) {
@@ -142,7 +193,7 @@ export async function executeToolCall(
 				contract_error: err.code,
 				write_latched: true
 			};
-			if (failureKey) safety!.failedCalls.set(failureKey, result);
+			rememberFailure(result);
 			return result;
 		}
 		// A stale-approval conflict must reach the /confirm handler as a 409,
@@ -157,7 +208,7 @@ export async function executeToolCall(
 				contract_error: contract.code,
 				write_latched: true
 			};
-			if (failureKey) safety!.failedCalls.set(failureKey, result);
+			rememberFailure(result);
 			return result;
 		}
 		// ZodError.message is the raw JSON issues array — it ends up user-visible in
@@ -174,7 +225,7 @@ export async function executeToolCall(
 			};
 			if (turnCtx) {
 				safety!.writeLatched = true;
-				if (failureKey) safety!.failedCalls.set(failureKey, result);
+				rememberFailure(result);
 			}
 			return result;
 		}

@@ -185,7 +185,68 @@ function extractJsonLdRecipe(html: string): object | null {
 	return null;
 }
 
-function isoToMinutes(iso?: string): number | null {
+function firstScalarText(value: unknown): string | null {
+	const candidates = Array.isArray(value) ? value : [value];
+	for (const candidate of candidates) {
+		if (typeof candidate !== 'string' && typeof candidate !== 'number') continue;
+		const text = String(candidate).trim();
+		if (text) return text;
+	}
+	return null;
+}
+
+function scalarTextArray(value: unknown): string[] {
+	const candidates = Array.isArray(value) ? value : [value];
+	return candidates.flatMap((candidate) => {
+		const text = firstScalarText(candidate);
+		return text ? [text] : [];
+	});
+}
+
+function instructionTexts(value: unknown): string[] {
+	const candidates = Array.isArray(value) ? value : [value];
+	return candidates.flatMap((candidate) => {
+		const direct = firstScalarText(candidate);
+		if (direct) return [direct];
+		if (!candidate || typeof candidate !== 'object') return [];
+		const instruction = candidate as Record<string, unknown>;
+		const text = firstScalarText(instruction.text);
+		if (text) return [text];
+		return instructionTexts(instruction.itemListElement ?? []);
+	});
+}
+
+function firstImageUrl(value: unknown): string | null {
+	const candidates = Array.isArray(value) ? value : [value];
+	for (const candidate of candidates) {
+		const direct = firstScalarText(candidate);
+		if (direct) return direct;
+		if (!candidate || typeof candidate !== 'object') continue;
+		const image = candidate as Record<string, unknown>;
+		const nested = firstScalarText(image.url) ?? firstScalarText(image.contentUrl);
+		if (nested) return nested;
+	}
+	return null;
+}
+
+function firstNumber(value: unknown): number | null {
+	if (typeof value === 'number' && Number.isFinite(value)) return value;
+	const text = firstScalarText(value);
+	if (!text) return null;
+	const match = text.replace(',', '.').match(/\d+(?:\.\d+)?/);
+	if (!match) return null;
+	const parsed = Number(match[0]);
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function firstInteger(value: unknown): number | null {
+	const number = firstNumber(value);
+	if (number == null) return null;
+	const integer = Math.trunc(number);
+	return integer > 0 ? integer : null;
+}
+
+function isoToMinutes(iso?: string | null): number | null {
 	if (!iso) return null;
 	const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
 	if (!m) return null;
@@ -353,31 +414,26 @@ export async function enrichRecipeStructure(data: ScrapedRecipe): Promise<Scrape
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseJsonLd(ld: any, url: string): ScrapedRecipe {
-	const rawIngredients: string[] = (ld.recipeIngredient ?? []).map(String);
+	const rawIngredients = scalarTextArray(ld.recipeIngredient ?? []);
 	const ingredients: Ingredient[] = rawIngredients.map(parseRawIngredient);
-	const directions: string[] = (ld.recipeInstructions ?? [])
-		.map((s: string | { text?: string }) => (typeof s === 'string' ? s : (s.text ?? '')))
-		.filter(Boolean);
+	const directions = instructionTexts(ld.recipeInstructions ?? []);
 
 	return {
-		title: (ld.name ?? '') as string,
-		category: normalizeFoodCategory((ld.recipeCategory ?? null) as string | null),
-		servings: parseInt(ld.recipeYield) || null,
-		totalTimeMin: isoToMinutes(ld.totalTime ?? ld.cookTime),
+		title: firstScalarText(ld.name) ?? '',
+		category: normalizeFoodCategory(firstScalarText(ld.recipeCategory)),
+		servings: firstInteger(ld.recipeYield),
+		totalTimeMin: isoToMinutes(firstScalarText(ld.totalTime) ?? firstScalarText(ld.cookTime)),
 		sourceUrl: url,
-		imageUrl:
-			typeof ld.image === 'string'
-				? ld.image
-				: ((ld.image?.url ?? ld.image?.[0] ?? null) as string | null),
+		imageUrl: firstImageUrl(ld.image),
 		ingredients,
 		directions,
 		notes: null as string | null,
 		language: 'nl',
-		cuisine: (ld.recipeCuisine ?? null) as string | null
-		,rawIngredients
-		,structureVersion: 1
-		,structureDraft: null
-		,enrichmentReviewReason: null
+		cuisine: firstScalarText(ld.recipeCuisine),
+		rawIngredients,
+		structureVersion: 1,
+		structureDraft: null,
+		enrichmentReviewReason: null
 	};
 }
 
@@ -402,20 +458,20 @@ async function scrapeWithClaude(url: string, html: string): Promise<ScrapedRecip
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const raw = parseModelJson(text) as any;
 
-	const rawIngredients: string[] = (raw.ingredients_raw ?? []).map(String);
+	const rawIngredients = scalarTextArray(raw.ingredients_raw ?? []);
 	const ingredients: Ingredient[] = rawIngredients.map(parseRawIngredient);
 	return {
-		title: (raw.aliases?.[0] ?? raw.title ?? '') as string,
-		category: normalizeFoodCategory((raw.recipe_category ?? null) as string | null),
-		servings: (raw.servings ?? null) as number | null,
-		totalTimeMin: (raw.total_time_min ?? null) as number | null,
+		title: firstScalarText(raw.aliases) ?? firstScalarText(raw.title) ?? '',
+		category: normalizeFoodCategory(firstScalarText(raw.recipe_category)),
+		servings: firstInteger(raw.servings),
+		totalTimeMin: firstInteger(raw.total_time_min),
 		sourceUrl: url,
 		imageUrl: null as string | null,
 		ingredients,
-		directions: (raw.directions ?? []) as string[],
-		notes: (raw.notes ?? null) as string | null,
-		language: (raw.language ?? 'nl') as string,
-		cuisine: (raw.cuisine ?? null) as string | null,
+		directions: scalarTextArray(raw.directions ?? []),
+		notes: firstScalarText(raw.notes),
+		language: firstScalarText(raw.language) ?? 'nl',
+		cuisine: firstScalarText(raw.cuisine),
 		rawIngredients,
 		structureVersion: 1,
 		structureDraft: null,

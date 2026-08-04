@@ -1,6 +1,6 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - Phase 10 of 10 (R2 correction live; replacement drafts verified; R3 promotion blocked 2026-07-29)_
+_Status: In flight - BTL-13 implemented and locally verified 2026-08-04; production verification pending; replacement drafts verified; R3 promotion blocked_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -941,6 +941,209 @@ Replacement evidence:
 - **Rollback:** redeploy the previous known-good exact commit; use the rehearsed additive-schema
   forward/rollback strategy; never overwrite newer household data wholesale.
 - **Dependencies:** completed selected implementation tickets.
+
+## Latest-interaction corrective addendum — 2026-08-04
+
+### Problem framing
+
+The latest authenticated production exchange exposed two connected correctness paths:
+
+1. URL ingestion trusted string casts for untrusted Schema.org values. The source page returned
+   array-shaped category and yield fields; the category reached a string-only normalizer and
+   failed. The same soft failure was then called and rendered three times in one turn.
+2. The fallback pasted-recipe path wrote directly through `add_recipe`. Its executor validated
+   field shapes but trusted the model's optional review flag. It therefore persisted contradictory
+   scaled quantities and directions, returned `needs_review: false`, and gave the model no
+   server-owned reason not to claim the recipe was ready.
+
+The privacy-safe diagnostic record is
+`docs/known_issues/current/ISSUE_ASSISTANT_RECIPE_SAVE_FALSE_CONFIDENCE_20260804-1302.md`.
+
+### Scope
+
+**In:** robust scalar extraction for JSON-LD and AI scrape results; bounded same-turn handling of
+identical URL-import failures; narrow server-owned warnings for direct Assistant recipe creation;
+truthful review results; focused negative and positive fixtures; the full repository gate and
+ordinary production delivery.
+
+**Out:** automatically editing the already-saved household recipe; broad natural-language recipe
+understanding; a new recipe-proposal UI; schema or auth changes; migrations; new dependencies;
+background provider calls; paid live-model evaluation; changes to Dutch ingredient lookup fields.
+
+### Option comparison
+
+| Option | Benefit | Cost / rejection reason |
+| --- | --- | --- |
+| Prompt-only correction | Smallest code change | Rejected: the prompt already asks the model to flag uncertainty and report tool truth; the failure proves that is not an enforcement boundary. |
+| Review every direct recipe or add a new creation proposal | Strong blanket protection | Rejected for this repair: it makes the review flag routine noise or adds a new interaction when high-confidence server warnings can catch the observed defect. |
+| Normalize untrusted shapes, bound repeat failures, and add narrow executor warnings | Fixes both causal chains at existing server boundaries without schema/UI expansion | **Chosen.** False positives remain warnings, never automatic edits or rejected writes, and negative fixtures constrain each rule. |
+
+### Phase plan
+
+1. Make the failing URL shape a focused test, then normalize all scalar-like Schema.org/model
+   fields through one helper.
+2. Reuse the existing turn failure map for the URL importer only, preserving tool-result pairing
+   while hiding duplicate error cards.
+3. Add a pure recipe-quality warning function called only by `add_recipe`; merge its messages with
+   the model's reason and return structured warning codes.
+4. Run focused tests, `npm test`, deliver the task-only commit to `main`, supervise exact Railway
+   deployment truth, and run the authenticated non-provider canary.
+
+### BTL-13A — Accept real Schema.org scalar shapes
+
+**Status: Implemented and locally verified 2026-08-04.**
+
+- **Observable behavior:** a Recipe JSON-LD document whose category, yield, cuisine, image, or
+  equivalent scalar is a string or array imports without a type error and preserves the first
+  usable scalar. Unknown source categories keep the existing passthrough behavior rather than
+  being silently recategorized.
+- **Scope in:** one `firstScalar`-style parser used at every unchecked scalar cast in both JSON-LD
+  and AI scrape parsing; array/object image handling; Dutch decimal/text yield coverage.
+- **Scope out:** changing the recipe category taxonomy or source-page scaling behavior.
+- **Targets:** `src/lib/server/ai/recipe_ingest.ts`, `src/lib/server/ai/recipe_ingest.test.ts`.
+- **Risk:** R1 localized importer correctness.
+- **Verification:** drive `scrapeRecipeFromUrl` with a mocked JSON-LD page containing array category
+  and yield plus object-image shapes; assert title, servings, source category, image URL, and no
+  provider fallback.
+- **Rollback:** revert the parser helper and fixtures; no persisted data migration exists.
+
+### BTL-13B — Stop repeated identical URL-import failures
+
+**Status: Implemented and locally verified 2026-08-04.**
+
+- **Observable behavior:** the first failed URL import remains visible; an exact same-tool/input
+  retry in that turn does not fetch again or add another error card, and the model receives an
+  explicit `duplicate_call` result telling it to choose a fallback.
+- **Scope in:** soft-result memoization only for allowlisted `add_recipe_from_url` results with
+  `ok === false`; memo revision tied to the committed-write count; a two-distinct-failure cap for
+  that tool; unconditional provider tool-use/tool-result pairing; duplicate display suppression.
+- **Scope out:** negative reads such as `found: false`, no-op writes, confirmation cards, global
+  write latching, provider transport fallback, or broad memoization of heterogeneous tool results.
+- **Targets:** `src/lib/server/ai/turn_safety.ts`, `src/lib/server/ai/executors/index.ts`,
+  `src/routes/api/chat/+server.ts`, and focused turn-safety/chat tests.
+- **Risk:** R2 shared Assistant loop.
+- **Verification:** executor call-count test; state-change invalidation test; two distinct failures
+  cap only the importer; chat-loop test proves one visible error while every retained tool use has
+  one result; existing history replay tests stay green.
+- **Rollback:** remove the allowlisted memo population and duplicate display branch; the importer
+  returns to current repeated-error behavior without affecting data.
+- **Dependencies:** BTL-13A, so the production URL succeeds before retry policy becomes the only
+  visible change.
+
+### BTL-13C — Make direct recipe review server-owned
+
+**Status: Implemented and locally verified 2026-08-04.**
+
+- **Observable behavior:** direct Assistant recipe creation still saves on an explicit request,
+  but any high-confidence inconsistency forces `needs_review: true`, returns structured
+  `review_warnings`, and links to the existing recipe review action. The final answer can report
+  the exact issue instead of claiming the recipe is ready.
+- **Scope in:** a pure validator called from the `add_recipe` executor only; merge model and server
+  reasons; warn-only codes for (a) same-sentence ingredient quantity conflicts limited to
+  mass/volume units with partitive/ratio exemptions, (b) fractional whole-scaled items whose whole
+  part is at least two, and (c) exact duplicate closed-list utility ingredients only when unit,
+  component, preparation, and role also match; one short prompt rule for scaled-text consistency.
+- **Scope out:** changing values automatically; rejecting the save; calling the validator from UI
+  creation, restore, or URL-import paths; adding a warnings column; inferring whole items from a
+  product name; requiring every pasted recipe to enter review.
+- **Targets:** new pure code beside `src/lib/server/domains/recipes/create.ts`,
+  `src/lib/server/ai/executors/recipes.ts`, `src/lib/server/ai/prompts/system.md`, existing tool
+  display assertion, and focused recipe executor/quality tests. If tool-description bytes change,
+  update the measured Assistant budget deliberately.
+- **Risk:** R2 because model output crosses a persistent recipe write.
+- **Verification:** the red test mirrors the privacy-safe production shape and sets
+  `needs_review: false`; the server must return review warnings and persist a reason. Negative
+  fixtures cover split liquid additions, time/temperature/pan-size numbers, half an item, duplicate
+  salt/oil in distinct components, decimal commas, and recipes with zero warnings.
+- **Rollback:** remove the executor-only validator call; created recipes and the existing review
+  columns remain readable. Do not clear any legitimate review flags during rollback.
+- **Dependencies:** none on schema or UI; BTL-13A/B can ship first if detector tuning needs more
+  time, but BTL-13 is not complete until this ticket passes.
+
+### BTL-13D — Verify and deliver the corrected interaction
+
+**Status: In progress — local gate passed; exact-main deployment and canary pending.**
+
+- **Observable behavior:** the synthetic URL imports once, a privacy-safe pasted scaling mismatch
+  saves as review-needed with one precise reason, and ordinary clean recipes still save cleanly.
+- **Scope in:** focused Vitest loops, the existing tool-budget assertions, `npm test`, task-only
+  commit delivery, exact remote-main Railway success, and authenticated structural canary without
+  a provider turn or household mutation.
+- **Scope out:** replaying the production household prompt, retaining authenticated screenshots or
+  response bodies, or silently repairing the already-saved recipe.
+- **Targets:** relevant tests, this feature list, the current issue log, and the production delivery
+  evidence section after successful execution.
+- **Risk:** R2 delivery; no beta stage gate because there is no R3 work.
+- **Verification:** `npm run test:unit -- src/lib/server/ai/recipe_ingest.test.ts` plus the focused
+  new quality/turn tests, then `npm test`; deployment truth must name the exact remote `main` tip;
+  canary stays read-only and names no household contents.
+- **Rollback:** forward-fix first; if the task commit fails the production canary and an immediate
+  fix is not safer, revert only the BTL-13 task commit, supervise recovery deployment, and rerun the
+  canary.
+- **Dependencies:** BTL-13A through BTL-13C.
+
+### BTL-13 failure-mode critique
+
+| Failure mode | Trigger | Impact | Detectability | Mitigation | Residual risk |
+| --- | --- | --- | --- | --- | --- |
+| Scalar crash moves to another field | Only category arrays are patched | Imports still fail or silently lose yield/image data | JSON-LD fixture matrix | One scalar helper at every unchecked cast in both parsers | Low |
+| Unknown source course is silently misclassified | Array normalization also rewrites taxonomy | Recipe filters become misleading | Fixture asserts passthrough | Preserve existing category behavior in this repair | Low |
+| Failure memo hides a later success | A negative read or stale result survives an in-turn write | Model sees false failure | State-change and negative-read tests | Allowlist only `ok:false` importer results and bind memo to write revision | Low |
+| Tool history becomes invalid | Duplicate UI suppression drops only one side of the provider pair | Next turn fails to replay | History pairing test | Always send the result; suppress only the repeated display | Low |
+| Quantity warning fires on normal recipe prose | Detector reads times, temperatures, split additions, or ratios as contradictions | Review noise erodes trust | Required negative fixture suite | Same-sentence ingredient + mass/volume unit only; partitive/ratio exemptions; warn once | Low-medium |
+| Duplicate warning treats components as identical | Salt, water, or oil legitimately appears in two recipe parts | False review flag | Component fixture | Exact closed-list tuple only; distinct components skip | Low |
+| Validator spreads to unrelated writers | Shared creator is modified globally | UI creates/restores unexpectedly enter review | Caller test and scope diff | Invoke pure validator from `add_recipe` executor only | Low |
+| Model still overclaims a flagged save | Final prose ignores `needs_review` and warnings | User trusts unresolved recipe | Tool-result integration and bounded provider-free prompt contract | Structured warnings, existing truthful-outcome rule, one explicit scaled-text rule | Medium; live-model quality remains model-dependent |
+
+**Plan critique: GO after the narrowing above.** The strongest alternative is to flag every
+direct Assistant recipe or add a new creation proposal. That would eliminate false negatives but
+make review routine or add a new interaction. Narrow server warnings are preferable because they
+make the observed contradiction provable, preserve clean explicit saves, and never modify recipe
+content automatically.
+
+### BTL-13 risk and verification matrix
+
+| Boundary | Risk | Required proof |
+| --- | --- | --- |
+| Untrusted page/model shapes | R1 | String/array/object fixtures through the real scrape entry point; no unchecked scalar casts remain in the two parsers. |
+| Same-turn tool loop | R2 | Allowlist, stale-memo invalidation, per-tool cap, provider block pairing, and one visible error. |
+| LLM output to recipe write | R2 | Server-owned warn-only validator; positive and negative fixtures; model flag cannot clear a warning. |
+| Dutch AH lookup | R2 invariant | Ingredient names remain untouched Dutch source fields; no English field enters Shopping/AH paths. |
+| UI | Existing behavior only | Assert the existing `needs_review` entity action; no new rendered component or browser interaction. |
+| Privacy | R2 production evidence | No authenticated screenshot, response body, or household recipe/list contents retained publicly. |
+| Delivery | R2 | Focused tests, `npm test`, exact Railway revision success, authenticated read-only canary. |
+
+No stack, UI, UX, schema, auth, or migration audit is required: the repair reuses the existing
+SvelteKit, SQLite, executor, review-flag, and chat-history paths and adds no dependency or rendered
+state.
+
+### BTL-13 rollout and rollback
+
+- Ship A, B, and C in one task commit after the full gate; their dependency order remains visible
+  in the focused test history.
+- Existing recipes are not backfilled or silently changed. The observed household recipe remains a
+  separate explicit repair if requested.
+- Code rollback reverts the task commit. No schema or data rollback exists or is needed.
+- Production delivery follows the repository's automatic exact-main supervision and canary rules.
+
+### BTL-13 open questions and decisions
+
+No product decision remains. Architecture defaults are fixed: preserve unknown source categories,
+memoize only allowlisted importer failures, keep all semantic checks warn-only, and do not mutate
+the existing household recipe.
+
+### BTL-13 resume pack
+
+- **Goal:** make the latest URL-to-paste recipe interaction succeed once, surface real recipe
+  inconsistencies, and prevent false “ready” claims.
+- **Current state:** BTL-13A–C are implemented; focused tests, all 735 unit tests, 48 authenticated
+  primary browser scenarios, and the production build pass. No source household data changed.
+- **First command:** deliver the task-only commit to `main`.
+- **First files:** this feature list, the current issue file,
+  `src/lib/server/ai/recipe_ingest.test.ts`, and `src/lib/server/ai/recipe_ingest.ts`.
+- **Pending verification:** exact remote-main Railway success and the authenticated structural
+  canary.
+- **Open questions:** none.
 
 ### BTL-N1 — Protect Assistant capability selection
 

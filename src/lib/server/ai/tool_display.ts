@@ -27,6 +27,14 @@ import {
 
 type Result = Record<string, unknown>;
 
+export function shouldSuppressToolDisplay(raw: unknown): boolean {
+	const result = asObj(raw);
+	return (
+		result.ok === false &&
+		(result.duplicate_call === true || result.tool_failed_for_turn === true)
+	);
+}
+
 function asObj(raw: unknown): Record<string, unknown> {
 	return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
 }

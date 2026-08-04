@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { toolEntityHref } from '$lib/tool_display';
-import { buildToolDisplay } from './tool_display';
+import { buildToolDisplay, shouldSuppressToolDisplay } from './tool_display';
+
+describe('replayed tool failures', () => {
+	it('suppresses only a failure already shown earlier in the turn', () => {
+		expect(
+			shouldSuppressToolDisplay({ ok: false, error: 'Import failed', duplicate_call: true })
+		).toBe(true);
+		expect(shouldSuppressToolDisplay({ ok: false, error: 'Import failed' })).toBe(false);
+		expect(shouldSuppressToolDisplay({ ok: true, duplicate_call: true })).toBe(false);
+		expect(shouldSuppressToolDisplay({ ok: false, tool_failed_for_turn: true })).toBe(true);
+	});
+});
 
 describe('recipe tool display actions', () => {
 	it('links a recipe that needs review directly to its app view', () => {

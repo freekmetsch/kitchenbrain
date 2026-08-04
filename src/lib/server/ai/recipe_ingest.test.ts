@@ -13,7 +13,12 @@ vi.mock('$lib/server/ai/config', () => ({ getChatModel: () => ({ value: 'test' }
 vi.mock('$lib/server/ai/translate_recipe', () => ({ kickTranslateOnImport: vi.fn() }));
 vi.mock('$lib/server/recipes/prefs', () => ({ getAutoTranslateOnImport: () => false }));
 import { createTestDb } from '$lib/server/test_db';
-import { insertScrapedRecipe, preparationCoverageReview, validateRecipeEnrichment } from './recipe_ingest';
+import {
+	insertScrapedRecipe,
+	preparationCoverageReview,
+	scrapeRecipeFromUrl,
+	validateRecipeEnrichment
+} from './recipe_ingest';
 
 const sourceIngredient = (sourceIndex: number, overrides: Record<string, unknown> = {}) => ({
 	sourceIndex,
@@ -29,6 +34,36 @@ const sourceIngredient = (sourceIndex: number, overrides: Record<string, unknown
 });
 
 describe('recipe enrichment writer gate', () => {
+	it('accepts array-shaped JSON-LD scalar fields from recipe pages', async () => {
+		const fetchFn = vi.fn(async () =>
+			new Response(
+				`<script type="application/ld+json">${JSON.stringify({
+					'@type': 'Recipe',
+					name: 'Kofta',
+					recipeCategory: ['hoofdgerecht'],
+					recipeYield: ['4', '4 personen'],
+					recipeCuisine: ['Grieks'],
+					image: [{ url: 'https://images.example.test/kofta.jpg' }],
+					recipeIngredient: '1 ui',
+					recipeInstructions: [{ text: ['Snijd de ui.', 'ignored fallback'] }]
+				})}</script>`,
+				{ status: 200, headers: { 'Content-Type': 'text/html' } }
+			)
+		) as unknown as typeof fetch;
+
+		const result = await scrapeRecipeFromUrl('https://8.8.8.8/kofta', fetchFn);
+
+		expect(result).toMatchObject({
+			title: 'Kofta',
+			category: 'hoofdgerecht',
+			servings: 4,
+			cuisine: 'Grieks',
+			imageUrl: 'https://images.example.test/kofta.jpg',
+			directions: ['Snijd de ui.']
+		});
+		expect(result.ingredients).toHaveLength(1);
+	});
+
 	it('captures an immutable source snapshot and direction IDs on URL import', () => {
 		const db = createTestDb();
 		const saved = insertScrapedRecipe(db, {

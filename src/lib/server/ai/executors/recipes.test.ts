@@ -11,8 +11,15 @@ const backgroundSpies = vi.hoisted(() => ({
 	kickCookModeForDb: vi.fn(),
 	kickTranslationForDb: vi.fn()
 }));
+const recipeIngestSpies = vi.hoisted(() => ({
+	scrapeRecipeFromUrl: vi.fn()
+}));
 
 vi.mock('$lib/server/workflows/recipe-background', () => backgroundSpies);
+vi.mock('$lib/server/ai/recipe_ingest', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../recipe_ingest')>();
+	return { ...actual, scrapeRecipeFromUrl: recipeIngestSpies.scrapeRecipeFromUrl };
+});
 
 function turnCtx(): TurnExecutionContext {
 	return {
@@ -54,6 +61,71 @@ async function readRecipe(db: TestDb, slug: string, context = turnCtx()) {
 }
 
 describe('recipe agent writes', () => {
+	it('executes an identical failed URL import only once per turn', async () => {
+		const db = createTestDb();
+		const context = turnCtx();
+		recipeIngestSpies.scrapeRecipeFromUrl.mockReset();
+		recipeIngestSpies.scrapeRecipeFromUrl.mockRejectedValueOnce(
+			new Error('value.trim is not a function')
+		);
+
+		const first = await executeToolCall(
+			'add_recipe_from_url',
+			{ url: 'https://example.test/kofta' },
+			db,
+			1,
+			context
+		);
+		const second = await executeToolCall(
+			'add_recipe_from_url',
+			{ url: 'https://example.test/kofta' },
+			db,
+			1,
+			context
+		);
+
+		expect(first).toMatchObject({ ok: false, error: 'value.trim is not a function' });
+		expect(second).toMatchObject({
+			ok: false,
+			duplicate_call: true
+		});
+		expect(recipeIngestSpies.scrapeRecipeFromUrl).toHaveBeenCalledTimes(1);
+	});
+
+	it('stops URL imports after two distinct failures in one unchanged turn', async () => {
+		const db = createTestDb();
+		const context = turnCtx();
+		recipeIngestSpies.scrapeRecipeFromUrl.mockReset();
+		recipeIngestSpies.scrapeRecipeFromUrl.mockRejectedValue(new Error('Import unavailable'));
+
+		const first = await executeToolCall(
+			'add_recipe_from_url',
+			{ url: 'https://example.test/one' },
+			db,
+			1,
+			context
+		);
+		const second = await executeToolCall(
+			'add_recipe_from_url',
+			{ url: 'https://example.test/two' },
+			db,
+			1,
+			context
+		);
+		const third = await executeToolCall(
+			'add_recipe_from_url',
+			{ url: 'https://example.test/three' },
+			db,
+			1,
+			context
+		);
+
+		expect(first).toMatchObject({ ok: false, error: 'Import unavailable' });
+		expect(second).toMatchObject({ ok: false, error: 'Import unavailable' });
+		expect(third).toMatchObject({ ok: false, tool_failed_for_turn: true });
+		expect(recipeIngestSpies.scrapeRecipeFromUrl).toHaveBeenCalledTimes(2);
+	});
+
 	it('creates a recipe with server-minted stable ingredient IDs', async () => {
 		const db = createTestDb();
 		backgroundSpies.kickCookModeForDb.mockClear();
@@ -86,6 +158,45 @@ describe('recipe agent writes', () => {
 		expect((recipe.ingredients as Ingredient[])[0].id).toMatch(/^ing_/);
 		expect(recipe.directionIdsJson).toHaveLength(2);
 		expect(backgroundSpies.kickCookModeForDb).not.toHaveBeenCalled();
+	});
+
+	it('forces review when saved directions contradict an ingredient quantity', async () => {
+		const db = createTestDb();
+		const result = await executeToolCall(
+			'add_recipe',
+			{
+				title: 'Saus met water',
+				slug: 'saus-met-water',
+				servings: 4,
+				ingredients: [
+					{
+						name: 'water',
+						amount: '350',
+						unit: 'ml',
+						role: 'cook_in',
+						optional: false,
+						purchaseForm: 'any',
+						scale: 'linear',
+						origin: 'source'
+					}
+				],
+				directions: ['Add 100 ml water to the sauce.'],
+				needs_review: false
+			},
+			db,
+			1,
+			turnCtx()
+		);
+
+		expect(result).toMatchObject({
+			ok: true,
+			needs_review: true,
+			review_warnings: [expect.objectContaining({ code: 'quantity_conflict' })]
+		});
+		expect(recipeBySlug(db, 'saus-met-water')).toMatchObject({
+			needsReview: true,
+			reviewReason: expect.stringContaining('water')
+		});
 	});
 
 	it('creates a composed meal without requesting cooking details', async () => {

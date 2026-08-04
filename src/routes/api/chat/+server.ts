@@ -23,7 +23,7 @@ import { applyMessageCacheAnchors } from '$lib/server/ai/cache';
 import { executeToolCall } from '$lib/server/ai/executors';
 import { describeToolStart, type ToolDisplay } from '$lib/tool_display';
 import { looksLikeJsonArtifact, ARTIFACT_FALLBACK } from '$lib/chat_sanitize';
-import { buildToolDisplay } from '$lib/server/ai/tool_display';
+import { buildToolDisplay, shouldSuppressToolDisplay } from '$lib/server/ai/tool_display';
 import { getHouseholdPref, K_HOUSEHOLD_PROFILE } from '$lib/server/db/household_prefs';
 import type { TurnExecutionContext } from '$lib/server/ai/commit_risk';
 import { APP_TIME_ZONE } from '$lib/week';
@@ -361,9 +361,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 							})
 						);
 						const result = await executeToolCall(tool.name, tool.input, db, user.id, turnCtx);
-						const display = buildToolDisplay(db, tool.name, tool.input, result, locale);
+						const display = shouldSuppressToolDisplay(result)
+							? undefined
+							: buildToolDisplay(db, tool.name, tool.input, result, locale);
 						allToolCalls.push({ id: tool.id, name: tool.name, input: tool.input, result, display });
-						controller.enqueue(sse({ type: 'tool', id: tool.id, name: tool.name, result, display }));
+						controller.enqueue(
+							sse({
+								type: 'tool',
+								id: tool.id,
+								name: tool.name,
+								result,
+								...(display ? { display } : {})
+							})
+						);
 						toolResults.push({
 							type: 'tool_result',
 							tool_use_id: tool.id,

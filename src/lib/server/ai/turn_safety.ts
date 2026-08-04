@@ -51,6 +51,15 @@ export type AhSearchDisplayResult = {
 	available: boolean;
 	products: AhSearchDisplayProduct[];
 };
+export type FailedCallMemo = {
+	result: unknown;
+	writeRevision: number;
+	soft: boolean;
+};
+export type SoftFailureMemo = {
+	keys: Set<string>;
+	writeRevision: number;
+};
 
 export type TurnSafetyState = {
 	inventory: Map<number, ItemSnapshot>;
@@ -63,7 +72,8 @@ export type TurnSafetyState = {
 	ahSearchCache: Map<string, AhSearchDisplayResult>;
 	recipeChoiceReplacement?: { token: string; groupId: string };
 	writeLatched: boolean;
-	failedCalls: Map<string, unknown>;
+	failedCalls: Map<string, FailedCallMemo>;
+	softFailures: Map<string, SoftFailureMemo>;
 	committedWrites: string[];
 };
 
@@ -79,6 +89,7 @@ export function createTurnSafetyState(): TurnSafetyState {
 		ahSearchCache: new Map(),
 		writeLatched: false,
 		failedCalls: new Map(),
+		softFailures: new Map(),
 		committedWrites: []
 	};
 }
