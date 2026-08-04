@@ -1,6 +1,6 @@
 # The Household Butler: Assistant Capability Inventory and Product Roadmap
 
-_Status: In flight - BTL-13 implemented and locally verified 2026-08-04; production verification pending; replacement drafts verified; R3 promotion blocked_
+_Status: In flight - BTL-13 shipped 2026-08-04; replacement drafts verified; R3 promotion blocked_
 
 Closed baseline delivery:
 `docs/feature-lists/archive/FEATURE_LIST_ASSISTANT_RECIPE_OPTIONS_AND_CHAT_DENSITY.md`
@@ -1062,7 +1062,7 @@ background provider calls; paid live-model evaluation; changes to Dutch ingredie
 
 ### BTL-13D — Verify and deliver the corrected interaction
 
-**Status: In progress — local gate passed; exact-main deployment and canary pending.**
+**Status: Completed and production-verified 2026-08-04.**
 
 - **Observable behavior:** the synthetic URL imports once, a privacy-safe pasted scaling mismatch
   saves as review-needed with one precise reason, and ordinary clean recipes still save cleanly.
@@ -1136,13 +1136,12 @@ the existing household recipe.
 
 - **Goal:** make the latest URL-to-paste recipe interaction succeed once, surface real recipe
   inconsistencies, and prevent false “ready” claims.
-- **Current state:** BTL-13A–C are implemented; focused tests, all 735 unit tests, 48 authenticated
-  primary browser scenarios, and the production build pass. No source household data changed.
-- **First command:** deliver the task-only commit to `main`.
+- **Current state:** BTL-13A–D are shipped on exact remote `main` commit `14bbe8f`; the complete
+  latest-main gate and the authenticated production canary pass. No household data changed.
+- **First command:** select the next explicitly promoted Butler ticket; R3 drafts remain blocked.
 - **First files:** this feature list, the current issue file,
   `src/lib/server/ai/recipe_ingest.test.ts`, and `src/lib/server/ai/recipe_ingest.ts`.
-- **Pending verification:** exact remote-main Railway success and the authenticated structural
-  canary.
+- **Pending verification:** none for BTL-13.
 - **Open questions:** none.
 
 ### BTL-N1 — Protect Assistant capability selection

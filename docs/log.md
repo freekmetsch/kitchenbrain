@@ -1802,3 +1802,22 @@ and a production build. Railway deployed exact `main`; health, both guarded acco
 
 Touched: AH review components, token-bound search route/workflow, matching and connection state,
 bilingual copy, browser/unit regressions, archived implementation plan, issue record, deploy log
+
+## 2026-08-04 14:10 | run | Assistant recipe save correctness
+
+Shipped robust recipe-page scalar extraction, bounded repeated URL-import failures, and narrow
+server-owned review warnings for direct Assistant recipe saves. The uninterrupted latest-main gate
+passed with zero Svelte diagnostics, 123 Vitest files / 757 tests, 52 primary Chromium tests plus
+one intentional skip, and the production build. Railway deployed exact `main` commit `14bbe8f`;
+health, both guarded account checks, and logged-out Assistant/Recipes boundaries passed without
+errors or retained household content.
+
+Touched: Assistant recipe ingestion, executor turn safety, recipe review warnings, prompt contract,
+chat tool display, focused tests, Butler roadmap, solved issue, deploy log
+
+## [2026-08-04 14:10] archive-scan | 0 feature lists, 1 issue archived
+
+Moved the production-verified Assistant recipe-save issue into `docs/known_issues/solved`. The
+Household Butler roadmap remains in flight because its R3 replacement drafts are not promoted; no
+HTML decision workspace was linked, and the repository still has no shared
+`scripts/archive-scan.ps1`.
