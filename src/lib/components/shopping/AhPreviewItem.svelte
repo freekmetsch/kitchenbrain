@@ -8,6 +8,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
+	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import type { PreviewItem } from '$lib/shopping_ah';
 	import { slide } from 'svelte/transition';
@@ -21,12 +22,20 @@
 		/** Household-favorite product id for this item's term, if any. */
 		favoriteId: string | undefined;
 		expanded: boolean | undefined;
+		needsAttention?: boolean;
+		searchTerm?: string;
+		searching?: boolean;
+		searchError?: string;
+		searchEnabled?: boolean;
 		onToggleExclude: () => void;
 		onPickProduct: (idx: number) => void;
 		onQuantityChange: (qty: number) => void;
 		onQuantityConfirm: () => void;
 		onToggleFavorite: (cand: PreviewItem['candidates'][number], idx: number) => void;
 		onDemoteToText: () => void;
+		onConfirmReview?: () => void;
+		onSearchTermChange?: (term: string) => void;
+		onSearch?: () => void;
 		onToggleExpanded: () => void;
 		showFavorite?: boolean;
 		compact?: boolean;
@@ -36,12 +45,20 @@
 		dec,
 		favoriteId,
 		expanded,
+		needsAttention = false,
+		searchTerm = '',
+		searching = false,
+		searchError = '',
+		searchEnabled = false,
 		onToggleExclude,
 		onPickProduct,
 		onQuantityChange,
 		onQuantityConfirm,
 		onToggleFavorite,
 		onDemoteToText,
+		onConfirmReview = () => {},
+		onSearchTermChange = () => {},
+		onSearch = () => {},
 		onToggleExpanded,
 		showFavorite = true,
 		compact = false
@@ -53,9 +70,15 @@
 	const mode = $derived(dec?.mode);
 	const pick = $derived(dec?.pick ?? 0);
 	const sel = $derived(item.candidates[pick] ?? null);
+	const searchId = $derived(`ah-search-${item.ref.replace(/[^a-zA-Z0-9_-]/g, '-')}`);
 </script>
 
-<li class="ah-preview-item {compact ? 'ah-preview-item-compact' : ''} {mode === 'exclude' ? 'opacity-50' : ''}">
+<li
+	class="ah-preview-item focus:outline-none focus-visible:ring-2 focus-visible:ring-primary {compact ? 'ah-preview-item-compact' : ''} {mode === 'exclude' ? 'opacity-50' : ''}"
+	data-ah-review-item
+	data-ah-ref={item.ref}
+	tabindex="-1"
+>
 	{#if compact && !expanded}
 		<div class="ah-compact-row">
 			<div class="ah-compact-ingredient">
@@ -177,6 +200,16 @@
 		{#if item.lowConfidence}
 			<p class="mt-1.5 text-xs text-warning">{m.shopping_ah_low_confidence()}</p>
 		{/if}
+		{#if needsAttention}
+			<button
+				type="button"
+				class="ui-action ui-action-primary mt-2 w-full"
+				disabled={item.incompatibleQuantities && !dec?.quantityConfirmed}
+				onclick={onConfirmReview}
+			>
+				{m.shopping_ah_confirm_choice()}
+			</button>
+		{/if}
 		<div class="mt-1 flex items-center gap-3 text-xs">
 			{#if item.candidates.length > 1}
 				<button
@@ -203,6 +236,7 @@
 		{#if expanded}
 			<ul class="mt-2 max-h-64 space-y-1 overflow-y-auto border-t border-base-200 pt-2" transition:slide={{ duration: MOTION_MICRO_MS }}>
 				{#each item.candidates as cand, idx (cand.id)}
+					{#if idx !== pick}
 					<li class="flex items-center gap-1">
 						<button
 							type="button"
@@ -239,6 +273,7 @@
 							</button>
 						{/if}
 					</li>
+					{/if}
 				{/each}
 			</ul>
 		{/if}
@@ -279,14 +314,60 @@
 				: m.shopping_ah_status_no_match()}
 		</p>
 		{#if item.candidates.length}
-			<button
-				type="button"
-				class="mt-1 min-h-11 text-xs text-primary"
-				onclick={() => onPickProduct(0)}
-			>
-				{m.shopping_ah_use_product_instead()}
+			<div class="mt-2 grid max-h-64 gap-1.5 overflow-y-auto">
+				{#each item.candidates as candidate, index (candidate.id)}
+					<button
+						type="button"
+						class="min-h-11 rounded-lg border border-base-300 px-2 py-1.5 text-left text-sm hover:bg-base-200"
+						onclick={() => onPickProduct(index)}
+					>
+						<span class="block truncate">{candidate.name}</span>
+						<span class="block text-xs text-base-content/50">
+							{candidate.salesUnitSize ?? ''}{candidate.salesUnitSize && candidate.unitPrice ? ' · ' : ''}{candidate.unitPrice ?? ''}
+						</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
+		{#if needsAttention}
+			<button type="button" class="mt-1 min-h-11 text-xs text-base-content/60" onclick={onDemoteToText}>
+				{m.shopping_ah_send_as_text()}
 			</button>
 		{/if}
+	{/if}
+	{#if searchEnabled}
+	<form
+		class="mt-2 flex items-end gap-2 border-t border-base-200 pt-2"
+		onsubmit={(event) => {
+			event.preventDefault();
+			onSearch();
+		}}
+	>
+		<label class="min-w-0 flex-1" for={searchId}>
+			<span class="sr-only">{m.shopping_ah_search_label({ name: item.term })}</span>
+			<input
+				id={searchId}
+				class="input input-bordered h-11 min-h-11 w-full text-sm"
+				type="search"
+				maxlength="100"
+				placeholder={m.shopping_ah_search_placeholder()}
+				value={searchTerm}
+				disabled={searching}
+				oninput={(event) => onSearchTermChange(event.currentTarget.value)}
+			/>
+		</label>
+		<button
+			type="submit"
+			class="ui-action ui-action-secondary"
+			disabled={searching || !searchTerm.trim()}
+		>
+			{#if searching}<Spinner size="xs" />{/if}
+			{searching ? m.shopping_ah_searching_label() : m.shopping_ah_search_button()}
+		</button>
+	</form>
+	{#if searchError}
+		<p class="mt-1 text-xs text-warning" role="status">{searchError}</p>
+	{/if}
 	{/if}
 	{/if}
 </li>

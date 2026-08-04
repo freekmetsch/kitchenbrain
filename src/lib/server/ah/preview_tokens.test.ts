@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AhPushBodySchema, bindAhPushDecisions, claimAhPreviewToken, clearAhPreviewTokensForTest, createAhPreviewToken, isAhEligibleShoppingRow } from './preview_tokens';
+import {
+	AhPushBodySchema,
+	bindAhPushDecisions,
+	claimAhPreviewToken,
+	clearAhPreviewTokensForTest,
+	createAhPreviewToken,
+	isAhEligibleShoppingRow,
+	offerAhPreviewProducts,
+	peekAhPreviewToken
+} from './preview_tokens';
 
 const item = { ref: 'entries:1', entryIds: [1], entryRevisions: [2], term: 'pasta', amount: '400', unit: 'g', offeredProducts: [{ id: 'ah-1', name: 'AH Pasta' }] };
 
@@ -15,8 +24,46 @@ describe('AH preview tokens', () => {
 	it('rejects another user and an expired preview', () => {
 		const other = createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 100 });
 		expect(claimAhPreviewToken(other, 8, 101)).toBeNull();
+		expect(claimAhPreviewToken(other, 7, 101)).not.toBeNull();
 		const expired = createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 100, ttlMs: 1 });
 		expect(claimAhPreviewToken(expired, 7, 101)).toBeNull();
+	});
+
+	it('peeks without consuming and extends only the bound row for the owning user', () => {
+		const token = createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 100 });
+		expect(peekAhPreviewToken(token, 7, 101)?.items[0]).toEqual(item);
+		expect(offerAhPreviewProducts(token, 7, item.ref, [
+			{ id: 'ah-2', name: 'AH Spaghetti' },
+			{ id: 'ah-1', name: 'Renamed duplicate' }
+		], 102)).toEqual(['ah-2', 'ah-1']);
+		expect(claimAhPreviewToken(token, 7, 103)?.items[0].offeredProducts).toEqual([
+			{ id: 'ah-1', name: 'AH Pasta' },
+			{ id: 'ah-2', name: 'AH Spaghetti' }
+		]);
+	});
+
+	it('fails closed when extending another row, user, expired token, or replaced preview', () => {
+		const token = createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 100 });
+		const offered = [{ id: 'ah-2', name: 'AH Spaghetti' }];
+		expect(offerAhPreviewProducts(token, 7, 'entries:999', offered, 101)).toBeNull();
+		expect(offerAhPreviewProducts(token, 8, item.ref, offered, 101)).toBeNull();
+		const replacement = createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 102 });
+		expect(offerAhPreviewProducts(token, 7, item.ref, offered, 103)).toBeNull();
+		expect(offerAhPreviewProducts(replacement, 7, item.ref, offered, 103)).toEqual(['ah-2']);
+
+		const expired = createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 200, ttlMs: 1 });
+		expect(offerAhPreviewProducts(expired, 7, item.ref, offered, 201)).toBeNull();
+	});
+
+	it('bounds the products authorized for one row', () => {
+		const token = createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 100 });
+		const offered = Array.from({ length: 120 }, (_, index) => ({
+			id: `ah-${index + 2}`,
+			name: `AH Product ${index + 2}`
+		}));
+		const authorized = offerAhPreviewProducts(token, 7, item.ref, offered, 101);
+		expect(authorized).toHaveLength(99);
+		expect(peekAhPreviewToken(token, 7, 102)?.items[0].offeredProducts).toHaveLength(100);
 	});
 
 	it('revokes the older review when the same user opens a newer one for the week', () => {

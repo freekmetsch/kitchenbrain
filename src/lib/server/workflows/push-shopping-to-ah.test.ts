@@ -5,11 +5,14 @@ import { createTestDb, type TestDb } from '$lib/server/test_db';
 import {
 	claimAhPreviewToken,
 	clearAhPreviewTokensForTest,
-	createAhPreviewToken
+	createAhPreviewToken,
+	offerAhPreviewProducts,
+	peekAhPreviewToken
 } from '$lib/server/ah/preview_tokens';
 import {
 	previewShoppingForAh,
 	pushShoppingToAh,
+	searchShoppingForAh,
 	type ShoppingAhAdapter,
 	type ShoppingAhDependencies
 } from './push-shopping-to-ah';
@@ -74,6 +77,8 @@ function dependencies(
 		ah,
 		createPreviewToken: createAhPreviewToken,
 		claimPreviewToken: claimAhPreviewToken,
+		peekPreviewToken: peekAhPreviewToken,
+		offerPreviewProducts: offerAhPreviewProducts,
 		getWeekStartDay: () => 2,
 		now: () => NOW
 	};
@@ -191,6 +196,153 @@ describe('pushShoppingToAh', () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
+	});
+
+	it('authorizes products found by a manual row search without replacing the preview', async () => {
+		const db = createTestDb();
+		const entries = seedEntries(db);
+		const previewToken = tokenFor(1, entries);
+		const result = await searchShoppingForAh(
+			{
+				userId: 1,
+				previewToken,
+				ref: `entries:${entries.pasta.id}`,
+				query: 'volkoren penne'
+			},
+			dependencies(
+				db,
+				fakeAdapter({
+					searchProducts: async (term) => ({
+						ok: true,
+						products: [ahProduct('manual-result', `AH ${term}`)]
+					})
+				})
+			)
+		);
+
+		expect(result).toMatchObject({
+			ok: true,
+			candidates: [{ id: 'manual-result', name: 'AH volkoren penne' }]
+		});
+		expect(peekAhPreviewToken(previewToken, 1)?.items[0].offeredProducts).toContainEqual({
+			id: 'manual-result',
+			name: 'AH volkoren penne'
+		});
+	});
+
+	it('fails a manual search when the row is not bound or the preview was replaced during search', async () => {
+		const db = createTestDb();
+		const entries = seedEntries(db);
+		const missingRefToken = tokenFor(1, entries);
+		await expect(
+			searchShoppingForAh(
+				{ userId: 1, previewToken: missingRefToken, ref: 'entries:999', query: 'pasta' },
+				dependencies(db, fakeAdapter())
+			)
+		).rejects.toMatchObject({ status: 409 });
+
+		const racingToken = tokenFor(1, entries);
+		const deps = dependencies(
+			db,
+			fakeAdapter({
+				searchProducts: async () => {
+					tokenFor(1, entries);
+					return { ok: true, products: [ahProduct('late-result', 'AH Pasta')] };
+				}
+			})
+		);
+		await expect(
+			searchShoppingForAh(
+				{
+					userId: 1,
+					previewToken: racingToken,
+					ref: `entries:${entries.pasta.id}`,
+					query: 'pasta'
+				},
+				deps
+			)
+		).rejects.toMatchObject({ status: 409 });
+	});
+
+	it('distinguishes a full row authorization set from an empty AH result', async () => {
+		const db = createTestDb();
+		const previewToken = createAhPreviewToken({
+			userId: 1,
+			weekStart: WEEK,
+			items: [
+				{
+					ref: 'entries:1',
+					entryIds: [1],
+					entryRevisions: [1],
+					term: 'pasta',
+					amount: '400',
+					unit: 'g',
+					offeredProducts: Array.from({ length: 100 }, (_, index) => ({
+						id: `existing-${index}`,
+						name: `AH Existing ${index}`
+					}))
+				}
+			]
+		});
+		const full = await searchShoppingForAh(
+			{ userId: 1, previewToken, ref: 'entries:1', query: 'penne' },
+			dependencies(
+				db,
+				fakeAdapter({
+					searchProducts: async () => ({
+						ok: true,
+						products: [ahProduct('new-result', 'AH Penne')]
+					})
+				})
+			)
+		);
+		expect(full).toEqual({ ok: false, reason: 'max_products_reached' });
+	});
+
+	it('searches and ranks every complete either/or ingredient alternative', async () => {
+		const db = createTestDb();
+		const entry = db
+			.insert(schema.shoppingWeekEntries)
+			.values({
+				weekStartDate: WEEK,
+				sourceKey: 'manual:herbs',
+				sourceKind: 'manual',
+				name: 'munt of peterselie',
+				amount: '15',
+				unit: 'g',
+				approvedTerms: ['munt of peterselie'],
+				createdAt: NOW,
+				updatedAt: NOW
+			})
+			.returning()
+			.get();
+		const searches: string[] = [];
+		const peppermint = ahProduct('peppermint', 'AH Pepermunt');
+		peppermint.mainCategory = 'Snoep, koek';
+		const parsley = ahProduct('parsley', 'AH Platte peterselie');
+		parsley.mainCategory = 'Groente, fruit';
+
+		const preview = await previewShoppingForAh(
+			{ userId: 1, weekStart: WEEK, entryIds: [entry.id] },
+			dependencies(
+				db,
+				fakeAdapter({
+					searchProducts: async (term) => {
+						searches.push(term);
+						return {
+							ok: true,
+							products: term === 'munt' ? [peppermint] : [parsley]
+						};
+					}
+				})
+			)
+		);
+
+		expect(searches).toEqual(['munt', 'peterselie']);
+		expect(preview.items[0].candidates.map((candidate) => candidate.id)).toEqual([
+			'parsley',
+			'peppermint'
+		]);
 	});
 
 	it('pins a unanimous recipe preference and never leaks it to a neutral source', async () => {
@@ -545,6 +697,59 @@ describe('pushShoppingToAh', () => {
 			)
 		).rejects.toMatchObject({ status: 409 });
 		expect(writes).toBe(0);
+	});
+
+	it('keeps an open review valid when its household favorite changes', async () => {
+		const db = createTestDb();
+		const user = db
+			.insert(schema.users)
+			.values({ username: 'test', passwordHash: 'none', createdAt: NOW })
+			.returning()
+			.get();
+		const entries = seedEntries(db);
+		const product = ahProduct('pasta-product', 'AH Penne');
+		let writes = 0;
+		const deps = dependencies(
+			db,
+			fakeAdapter({
+				searchProducts: async () => ({ ok: true, products: [product] }),
+				addProductItems: async () => {
+					writes += 1;
+					return { ok: true, status: 200, uncertain: false };
+				}
+			})
+		);
+		const preview = await previewShoppingForAh(
+			{ userId: user.id, weekStart: WEEK, entryIds: [entries.pasta.id] },
+			deps
+		);
+		db.insert(schema.ahFavorites)
+			.values({
+				nameKey: 'pasta',
+				productId: product.id,
+				productName: product.name,
+				createdAt: NOW
+			})
+			.run();
+
+		await expect(
+			pushShoppingToAh(
+				{
+					userId: user.id,
+					previewToken: preview.previewToken,
+					decisions: [
+						{
+							ref: preview.items[0].ref,
+							mode: 'product',
+							productId: product.id,
+							qty: 1
+						}
+					]
+				},
+				deps
+			)
+		).resolves.toMatchObject({ ok: true });
+		expect(writes).toBe(1);
 	});
 
 	it('records pending before product-first dispatch and marks only definite successes bought', async () => {

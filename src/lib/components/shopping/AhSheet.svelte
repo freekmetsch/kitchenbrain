@@ -16,10 +16,10 @@
 	import KitchenNotice from '$lib/components/ui/KitchenNotice.svelte';
 	import { optimistic } from '$lib/optimistic';
 	import { m } from '$lib/paraglide/messages';
-	import type { PreviewItem } from '$lib/shopping_ah';
+	import type { PreviewItem, PreviewProduct } from '$lib/shopping_ah';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { fade } from 'svelte/transition';
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import AhPreviewItem from './AhPreviewItem.svelte';
 	import AhPushResult from './AhPushResult.svelte';
 	import { MOTION_MICRO_MS } from '$lib/motion';
@@ -43,6 +43,10 @@
 	let decisions = $state<Record<string, Decision>>({});
 	let expanded = $state<Record<string, boolean>>({});
 	let reviewed = $state<Record<string, boolean>>({});
+	let searchTerms = $state<Record<string, string>>({});
+	let searching = $state<Record<string, boolean>>({});
+	let searchErrors = $state<Record<string, string>>({});
+	let searchRuns = $state<Record<string, number>>({});
 	let previewToken = $state('');
 	let ahError = $state('');
 	let ahStale = $state(false);
@@ -64,6 +68,10 @@
 		decisions = {};
 		expanded = {};
 		reviewed = {};
+		searchTerms = {};
+		searching = {};
+		searchErrors = {};
+		searchRuns = {};
 		previewToken = '';
 		favorites = {};
 		ahError = '';
@@ -123,17 +131,28 @@
 		return { products, text, excluded, unconfirmed, unresolved };
 	});
 
+	function startsNeedingAttention(item: PreviewItem): boolean {
+		return Boolean(
+			item.requiresExplicitDecision ||
+			item.status !== 'product' ||
+			item.lowConfidence ||
+			item.incompatibleQuantities
+		);
+	}
+
 	function itemNeedsAttention(item: PreviewItem): boolean {
 		const decision = decisions[item.ref];
+		if (!reviewed[item.ref]) return true;
 		if (!decision) return Boolean(item.requiresExplicitDecision);
 		if (decision.mode !== 'product') return false;
 		if (!item.candidates[decision.pick]) return true;
 		if (item.incompatibleQuantities && !decision.quantityConfirmed) return true;
-		return item.lowConfidence && !reviewed[item.ref];
+		return false;
 	}
 
 	let attentionItems = $derived((ahItems ?? []).filter((item) => itemNeedsAttention(item)));
 	let confirmedItems = $derived((ahItems ?? []).filter((item) => !itemNeedsAttention(item)));
+	let anySearching = $derived(Object.values(searching).some(Boolean));
 
 	export async function openAhModal() {
 		const weekAtOpen = weekStart;
@@ -182,6 +201,8 @@
 			const nextDecisions: Record<string, Decision> = {};
 			const nextBonus: Record<string, boolean> = {};
 			const nextFavorites: Record<string, string> = {};
+			const nextReviewed: Record<string, boolean> = {};
+			const nextSearchTerms: Record<string, string> = {};
 			for (const it of previewItems) {
 				if (!it.requiresExplicitDecision) {
 					nextDecisions[it.ref] = {
@@ -194,8 +215,12 @@
 				if (it.status === 'product') nextBonus[it.sourceName] = it.candidates[0]?.isBonus ?? false;
 				const fav = it.candidates.find((c) => c.isFavorite);
 				if (fav) nextFavorites[it.term] = fav.id;
+				nextReviewed[it.ref] = !startsNeedingAttention(it);
+				nextSearchTerms[it.ref] = it.term;
 			}
 			decisions = nextDecisions;
+			reviewed = nextReviewed;
+			searchTerms = nextSearchTerms;
 			favorites = nextFavorites;
 			bonusByName = { ...bonusByName, ...nextBonus };
 			ahItems = previewItems;
@@ -219,8 +244,6 @@
 				quantityConfirmed: !item?.incompatibleQuantities
 			}
 		};
-		expanded = { ...expanded, [ref]: false };
-		reviewed = { ...reviewed, [ref]: true };
 	}
 
 	function setQuantity(ref: string, qty: number) {
@@ -228,14 +251,35 @@
 		if (!current) return;
 		const safe = Number.isFinite(qty) ? Math.max(1, Math.min(99, Math.round(qty))) : current.qty;
 		decisions = { ...decisions, [ref]: { ...current, qty: safe, quantityConfirmed: true } };
-		reviewed = { ...reviewed, [ref]: true };
 	}
 
 	function confirmQuantity(ref: string) {
 		const current = decisions[ref];
 		if (!current) return;
 		decisions = { ...decisions, [ref]: { ...current, quantityConfirmed: true } };
+	}
+
+	async function settleReview(ref: string) {
 		reviewed = { ...reviewed, [ref]: true };
+		expanded = { ...expanded, [ref]: false };
+		await tick();
+		const next = attentionItems[0];
+		const rows = [...document.querySelectorAll<HTMLElement>('[data-ah-review-item]')];
+		const target = next
+			? rows.find((row) => row.dataset.ahRef === next.ref)
+			: document.querySelector<HTMLElement>('[data-ah-send]');
+		target?.focus();
+	}
+
+	function confirmReview(ref: string) {
+		const item = ahItems?.find((entry) => entry.ref === ref);
+		const decision = decisions[ref];
+		if (!item || !decision) return;
+		if (decision.mode === 'product') {
+			if (!item.candidates[decision.pick]) return;
+			if (item.incompatibleQuantities && !decision.quantityConfirmed) return;
+		}
+		void settleReview(ref);
 	}
 
 	/**
@@ -251,7 +295,6 @@
 			favorites = rest;
 		} else {
 			favorites = { ...favorites, [item.term]: cand.id };
-			reviewed = { ...reviewed, [item.ref]: true };
 			decisions = {
 				...decisions,
 				[item.ref]: {
@@ -280,8 +323,7 @@
 
 	function demoteToText(ref: string) {
 		decisions = { ...decisions, [ref]: { mode: 'freetext', pick: 0, qty: 1, quantityConfirmed: true } };
-		expanded = { ...expanded, [ref]: false };
-		reviewed = { ...reviewed, [ref]: true };
+		void settleReview(ref);
 	}
 
 	function toggleExclude(ref: string, item: PreviewItem) {
@@ -289,6 +331,7 @@
 		if (item.requiresExplicitDecision && cur?.mode === 'exclude') {
 			const { [ref]: _removed, ...remaining } = decisions;
 			decisions = remaining;
+			reviewed = { ...reviewed, [ref]: false };
 			return;
 		}
 		const back: Decision =
@@ -306,7 +349,90 @@
 				? back
 				: { mode: 'exclude', pick: cur?.pick ?? 0, qty: cur?.qty ?? 1, quantityConfirmed: true }
 		};
-		reviewed = { ...reviewed, [ref]: true };
+		if (cur?.mode === 'exclude') {
+			reviewed = { ...reviewed, [ref]: false };
+		} else {
+			void settleReview(ref);
+		}
+	}
+
+	async function searchAh(item: PreviewItem) {
+		const query = (searchTerms[item.ref] ?? '').trim();
+		if (!query || !previewToken) return;
+		const run = (searchRuns[item.ref] ?? 0) + 1;
+		const tokenAtSearch = previewToken;
+		searchRuns = { ...searchRuns, [item.ref]: run };
+		searching = { ...searching, [item.ref]: true };
+		searchErrors = { ...searchErrors, [item.ref]: '' };
+		try {
+			const response = await fetch(`${base}/api/shopping/ah-search`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ previewToken: tokenAtSearch, ref: item.ref, query })
+			});
+			if (searchRuns[item.ref] !== run || previewToken !== tokenAtSearch) return;
+			if (response.status === 409) {
+				ahStale = true;
+				ahItems = null;
+				return;
+			}
+			if (!response.ok) throw new Error('search_failed');
+			const body = await response.json();
+			if (!body.ok) {
+				if (body.reason === 'max_products_reached') {
+					searchErrors = {
+						...searchErrors,
+						[item.ref]: m.shopping_ah_search_limit_reached()
+					};
+					return;
+				}
+				throw new Error(body.reason ?? 'search_failed');
+			}
+			const incoming = Array.isArray(body.candidates)
+				? (body.candidates as PreviewProduct[])
+				: [];
+			if (!incoming.length) {
+				searchErrors = {
+					...searchErrors,
+					[item.ref]: m.shopping_toast_ah_no_products({ term: query })
+				};
+				return;
+			}
+			const current = ahItems?.find((entry) => entry.ref === item.ref);
+			if (!current) return;
+			const decision = decisions[item.ref];
+			const selectedId = decision?.mode === 'product'
+				? current.candidates[decision.pick]?.id
+				: undefined;
+			const seen = new Set<string>();
+			const candidates = [...incoming, ...current.candidates].filter((candidate) => {
+				if (seen.has(candidate.id)) return false;
+				seen.add(candidate.id);
+				return true;
+			});
+			ahItems = (ahItems ?? []).map((entry) =>
+				entry.ref === item.ref
+					? {
+							...entry,
+							status: 'product',
+							candidates,
+							lowConfidence: body.lowConfidence === true
+						}
+					: entry
+			);
+			if (decision?.mode === 'product' && selectedId) {
+				const pick = candidates.findIndex((candidate) => candidate.id === selectedId);
+				if (pick >= 0) decisions = { ...decisions, [item.ref]: { ...decision, pick } };
+			}
+			expanded = { ...expanded, [item.ref]: true };
+		} catch {
+			if (searchRuns[item.ref] !== run || previewToken !== tokenAtSearch) return;
+			searchErrors = { ...searchErrors, [item.ref]: m.shopping_toast_ah_search_failed() };
+		} finally {
+			if (searchRuns[item.ref] === run && previewToken === tokenAtSearch) {
+				searching = { ...searching, [item.ref]: false };
+			}
+		}
 	}
 
 	async function confirmPush() {
@@ -417,12 +543,20 @@
 		dec={decisions[item.ref]}
 		favoriteId={favorites[item.term]}
 		expanded={expanded[item.ref]}
+		needsAttention={itemNeedsAttention(item)}
+		searchTerm={searchTerms[item.ref] ?? ''}
+		searching={searching[item.ref] ?? false}
+		searchError={searchErrors[item.ref] ?? ''}
+		searchEnabled
 		onToggleExclude={() => toggleExclude(item.ref, item)}
 		onPickProduct={(idx) => pickProduct(item.ref, idx)}
 		onQuantityChange={(qty) => setQuantity(item.ref, qty)}
 		onQuantityConfirm={() => confirmQuantity(item.ref)}
 		onToggleFavorite={(cand, idx) => void toggleFavorite(item, cand, idx)}
 		onDemoteToText={() => demoteToText(item.ref)}
+		onConfirmReview={() => confirmReview(item.ref)}
+		onSearchTermChange={(term) => (searchTerms = { ...searchTerms, [item.ref]: term })}
+		onSearch={() => void searchAh(item)}
 		onToggleExpanded={() => (expanded = { ...expanded, [item.ref]: !expanded[item.ref] })}
 	/>
 {/snippet}
@@ -430,7 +564,7 @@
 <BottomSheet
 	bind:open={ahOpen}
 	title={ahPushing ? m.shopping_ah_sending_title() : m.shopping_review_ah_order()}
-	desktopSide
+	desktopCentered
 	dismissible={!ahPushing}
 >
 	{#if ahLoading}
@@ -550,8 +684,9 @@
 					<button
 						type="button"
 						class="ui-action ui-action-primary"
+						data-ah-send
 						onclick={confirmPush}
-						disabled={ahPushing || pushSummary.unconfirmed > 0 || pushSummary.unresolved > 0 || (pushSummary.products === 0 && pushSummary.text === 0)}
+						disabled={ahPushing || anySearching || attentionItems.length > 0 || pushSummary.unconfirmed > 0 || pushSummary.unresolved > 0 || (pushSummary.products === 0 && pushSummary.text === 0)}
 					>
 						{m.shopping_send_to_ah_button()}
 					</button>
