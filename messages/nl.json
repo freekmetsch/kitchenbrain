@@ -609,6 +609,7 @@
 	"shopping_ah_search_label": "Zoek AH-producten voor {name}",
 	"shopping_ah_searching_label": "Zoeken...",
 	"shopping_ah_search_button": "Zoeken",
+	"shopping_ah_search_limit_reached": "Dit item heeft al 100 productopties. Kies er één of start een nieuwe controle.",
 	"shopping_ah_confirm_choice": "Deze keuze bevestigen",
 	"shopping_ah_undo_button": "Ongedaan maken",
 	"shopping_ah_skip_button": "Overslaan",

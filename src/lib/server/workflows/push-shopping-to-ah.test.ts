@@ -264,6 +264,41 @@ describe('pushShoppingToAh', () => {
 		).rejects.toMatchObject({ status: 409 });
 	});
 
+	it('distinguishes a full row authorization set from an empty AH result', async () => {
+		const db = createTestDb();
+		const previewToken = createAhPreviewToken({
+			userId: 1,
+			weekStart: WEEK,
+			items: [
+				{
+					ref: 'entries:1',
+					entryIds: [1],
+					entryRevisions: [1],
+					term: 'pasta',
+					amount: '400',
+					unit: 'g',
+					offeredProducts: Array.from({ length: 100 }, (_, index) => ({
+						id: `existing-${index}`,
+						name: `AH Existing ${index}`
+					}))
+				}
+			]
+		});
+		const full = await searchShoppingForAh(
+			{ userId: 1, previewToken, ref: 'entries:1', query: 'penne' },
+			dependencies(
+				db,
+				fakeAdapter({
+					searchProducts: async () => ({
+						ok: true,
+						products: [ahProduct('new-result', 'AH Penne')]
+					})
+				})
+			)
+		);
+		expect(full).toEqual({ ok: false, reason: 'max_products_reached' });
+	});
+
 	it('searches and ranks every complete either/or ingredient alternative', async () => {
 		const db = createTestDb();
 		const entry = db

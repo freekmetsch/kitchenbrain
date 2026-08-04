@@ -1,4 +1,6 @@
 import { expect, test, type Locator, type Page, type Request, type Route } from '@playwright/test';
+import { rm, writeFile } from 'node:fs/promises';
+import { E2E_SERVER_ENV } from './config';
 import { kitchenFixtureFor } from './fixtures';
 
 const VIEWPORTS = [
@@ -344,10 +346,28 @@ test('Shopping connected dock keeps Review contextual without contacting AH', as
 	expect(ahRequests).toBe(0);
 });
 
-test('AH review keeps row control, supports bound search, and opens centered on desktop', async ({
-	page
-}) => {
-	test.skip(process.env.E2E_AH_CONNECTED !== '1', 'Runs in the opt-in connected-AH fixture.');
+test.describe('mock-connected AH review', () => {
+	test.beforeEach(async () => {
+		await writeFile(
+			E2E_SERVER_ENV.AH_TOKEN_FILE,
+			JSON.stringify({
+				v: 2,
+				member: true,
+				access_token: 'e2e-connected-access-not-a-secret',
+				refresh_token: 'e2e-connected-refresh-not-a-secret',
+				member_name: 'E2E household'
+			}),
+			'utf8'
+		);
+	});
+
+	test.afterEach(async () => {
+		await rm(E2E_SERVER_ENV.AH_TOKEN_FILE, { force: true });
+	});
+
+	test('AH review keeps row control, supports bound search, and opens centered on desktop', async ({
+		page
+	}) => {
 	const product = (id: string, name: string) => ({
 		id,
 		name,
@@ -463,7 +483,12 @@ test('AH review keeps row control, supports bound search, and opens centered on 
 	const review = page.getByRole('dialog', { name: 'Review AH order' });
 	const herbs = review.locator('[data-ah-ref="entries:501"]');
 	await expect(herbs).toBeVisible();
-	await herbs.getByRole('button', { name: 'Other options (1)' }).click();
+	await herbs.getByRole('button', { name: 'Skip' }).click();
+	await expect(review.locator('.ah-review-attention [data-ah-ref="entries:501"]')).toHaveCount(0);
+	await herbs.getByRole('button', { name: 'Details' }).click();
+	await herbs.getByRole('button', { name: 'Undo' }).click();
+	await expect(review.locator('.ah-review-attention [data-ah-ref="entries:501"]')).toBeVisible();
+	await expect(herbs.getByRole('button', { name: /^○ AH Muntplant/ })).toBeVisible();
 	await herbs.getByRole('button', { name: /^○ AH Muntplant/ }).click();
 	await expect(herbs.getByRole('button', { name: 'Confirm this choice' })).toBeVisible();
 	await expect(review.getByRole('heading', { name: 'Needs a look' }).locator('..')).toContainText('2');
@@ -527,6 +552,7 @@ test('AH review keeps row control, supports bound search, and opens centered on 
 	expect(
 		await enlargedReview.evaluate((element) => element.scrollWidth <= element.clientWidth)
 	).toBe(true);
+	});
 });
 
 for (const viewport of VIEWPORTS) {

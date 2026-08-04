@@ -92,4 +92,18 @@ describe('AH row search', () => {
 		await expect(search(previewToken, 'entries:999')).rejects.toMatchObject({ status: 409 });
 		await expect(search(previewToken, 'entries:1', '   ')).rejects.toMatchObject({ status: 400 });
 	});
+
+	it('rejects an unauthenticated request', async () => {
+		const previewToken = tokenFor(7);
+		await expect(
+			POST({
+				request: new Request('http://localhost/api/shopping/ah-search', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ previewToken, ref: 'entries:1', query: 'penne' })
+				}),
+				locals: {}
+			} as never)
+		).rejects.toMatchObject({ status: 401 });
+	});
 });

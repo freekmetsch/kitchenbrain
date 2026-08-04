@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync } from 'fs';
 import { dirname } from 'path';
 
 const BASE_URL = 'https://api.ah.nl';
@@ -55,7 +55,14 @@ let _refreshing: Promise<MemberTokens> | null = null;
 let _anonToken: string | null = null;
 
 function loadMemberTokens(): MemberTokens | null {
-	if (_member !== undefined) return _member;
+	if (_member !== undefined) {
+		// The file is the durable source of truth. If an operator or isolated test
+		// adds or removes it, do not keep serving stale connection state.
+		const tokenFileExists = existsSync(TOKEN_FILE);
+		if (_member !== null && !tokenFileExists) _member = null;
+		if (_member === null && tokenFileExists) _member = undefined;
+		if (_member !== undefined) return _member;
+	}
 	try {
 		const raw = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'));
 		if (raw?.v === 2 && raw?.member === true && typeof raw.refresh_token === 'string' && raw.refresh_token) {

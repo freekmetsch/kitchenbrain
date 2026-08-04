@@ -349,7 +349,11 @@
 				? back
 				: { mode: 'exclude', pick: cur?.pick ?? 0, qty: cur?.qty ?? 1, quantityConfirmed: true }
 		};
-		if (cur?.mode !== 'exclude') void settleReview(ref);
+		if (cur?.mode === 'exclude') {
+			reviewed = { ...reviewed, [ref]: false };
+		} else {
+			void settleReview(ref);
+		}
 	}
 
 	async function searchAh(item: PreviewItem) {
@@ -374,7 +378,16 @@
 			}
 			if (!response.ok) throw new Error('search_failed');
 			const body = await response.json();
-			if (!body.ok) throw new Error(body.reason ?? 'search_failed');
+			if (!body.ok) {
+				if (body.reason === 'max_products_reached') {
+					searchErrors = {
+						...searchErrors,
+						[item.ref]: m.shopping_ah_search_limit_reached()
+					};
+					return;
+				}
+				throw new Error(body.reason ?? 'search_failed');
+			}
 			const incoming = Array.isArray(body.candidates)
 				? (body.candidates as PreviewProduct[])
 				: [];
@@ -416,7 +429,9 @@
 			if (searchRuns[item.ref] !== run || previewToken !== tokenAtSearch) return;
 			searchErrors = { ...searchErrors, [item.ref]: m.shopping_toast_ah_search_failed() };
 		} finally {
-			if (searchRuns[item.ref] === run) searching = { ...searching, [item.ref]: false };
+			if (searchRuns[item.ref] === run && previewToken === tokenAtSearch) {
+				searching = { ...searching, [item.ref]: false };
+			}
 		}
 	}
 

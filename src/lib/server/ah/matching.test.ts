@@ -73,6 +73,7 @@ describe('toSearchTerm', () => {
 			'koriander'
 		]);
 		expect(toSearchTerms('zonnebloem- of koolzaadolie')).toEqual(['koolzaadolie']);
+		expect(toSearchTerms('zonnebloem- of koolzaadolie of olijfolie')).toEqual(['koolzaadolie', 'olijfolie']);
 	});
 
 	it('strips prep words and leaf-form compound tails', () => {

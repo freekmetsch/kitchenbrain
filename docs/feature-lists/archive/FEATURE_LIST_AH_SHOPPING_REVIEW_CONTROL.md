@@ -112,7 +112,7 @@ patterns; no external framework or AH API behavior assumption changes.
 - **Out:** synonym dictionaries or AI calls.
 - **Targets:** `src/lib/server/ah/matching.ts`, `matching.test.ts`,
   `src/lib/server/workflows/push-shopping-to-ah.ts` and focused workflow tests.
-- **Risk:** R2; impact 5; effort M; confidence high.
+- **Risk:** R3; impact 5; effort M; confidence high.
 - **Verification:** failing regression first; exact/compound/dangling/duplicate/empty/failure cases;
   focused Vitest.
 - **Rollback:** revert matching/workflow commit; no persisted data changes.
@@ -207,14 +207,16 @@ mitigated; no compounding caller, rename, migration, or deferred follow-up remai
 | Area | Risk | Required evidence |
 |---|---|---|
 | Matching | R2 | Focused Vitest for alternative parsing, scoring, dedupe, fallbacks, and call counts |
-| Preview authorization | R2 | Token/workflow/route tests for identity, expiry, mutation race, cap, and push binding |
+| Preview authorization | R3 | Token/workflow/route tests for identity, expiry, mutation race, cap, and push binding |
 | Review interaction | R1 | Isolated Playwright at 375 and 1280; success/failure/no-result/stale/focus paths |
 | Responsive/accessibility | R1 | 320/375/768/1280, 200% text, keyboard submit/confirm/close/focus restore |
-| Repository closure | R2 | `npm test` passes: Svelte diagnostics, Vitest, authenticated Playwright, production build |
-| Production | R2 | Task commits only on `main`; Railway `SUCCESS` at remote-main commit; authenticated canary with no retained household contents |
+| Repository closure | R3 | `npm test` passes: Svelte diagnostics, Vitest, authenticated Playwright, production build |
+| Production | R3 | Task commits only on `main`; Railway `SUCCESS` at remote-main commit; authenticated canary with no retained household contents |
 
 Audit records: UX audit run (six findings above); security/integrity critique run for token mutation;
-stack audit skipped (no dependency/service); schema/auth stage gate skipped (code-only R2).
+stack audit skipped (no dependency/service); beta authentication gate completed for the new route:
+existing session identity is reused, unauthenticated and wrong-user access fail closed, the change is
+reversible, and the explicit `/run` authorized ordinary PR delivery without household-data mutation.
 
 ## Rollout and Rollback
 
@@ -228,7 +230,6 @@ redeploy, and repeat the canary. No database backup is required because no persi
 
 > **Q: Should selecting a candidate immediately advance?** — Default: no; require **Confirm choice**.
 > Reason: selection is exploration, while confirmation is the deliberate queue-advance action.
-
 > **Q: Should favorite changes stale the current review?** — Default: no; explicit current-review
 > decisions win, while recipe preference and shopping-row changes remain stale checks. Reason: a
 > default for future reviews should not invalidate work in this review.
@@ -236,13 +237,18 @@ redeploy, and repeat the canary. No database backup is required because no persi
 ## Completion Evidence
 
 - AH-1 through AH-6 are implemented without schema, dependency, or real AH data changes.
-- Focused server/component set: 65 tests passed.
-- Opt-in AH browser scenario passed at 320, 375, 768, and 1280 px, including 200% text,
+- Focused server/component set: 67 tests passed.
+- AH browser scenario passed in the standard gate at 320, 375, 768, and 1280 px, including 200% text,
   successful/manual/empty/failed search, favorite persistence, stable selection, explicit focus
   advance, final push, and centered desktop geometry.
-- Full `npm test`: Svelte diagnostics clean; 121 Vitest files and 736 tests passed; 48 standard
-  Chromium tests passed with two connected-AH tests intentionally skipped; production build passed.
-- Context7 exception: internal-only change; no external API behavior changed.
+- Full `npm test`: Svelte diagnostics clean; 121 Vitest files and 738 tests passed; 49 Chromium
+  tests passed with one opt-in connected-dock test intentionally skipped; production build passed.
+- CodeRabbit review findings were applied for undo, stale search completion, authorization-cap
+  feedback, alternative parsing, authentication coverage, preview concurrency, and E2E isolation.
+  Plan status follows the `$run` archive lifecycle; a new per-user rate limiter was not introduced
+  because search already requires an authenticated explicit submit, a row-bound ten-minute token,
+  disabled duplicate submission, bounded preview concurrency, and a 100-product authorization cap.
+- Context7 exception: repository-internal workflow and route; no third-party SDK contract changed.
 
 ## Resume Pack
 

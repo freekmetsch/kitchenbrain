@@ -609,6 +609,7 @@
 	"shopping_ah_search_label": "Search AH products for {name}",
 	"shopping_ah_searching_label": "Searching...",
 	"shopping_ah_search_button": "Search",
+	"shopping_ah_search_limit_reached": "This item already has 100 product options. Choose one or start a new review.",
 	"shopping_ah_confirm_choice": "Confirm this choice",
 	"shopping_ah_undo_button": "Undo",
 	"shopping_ah_skip_button": "Skip",

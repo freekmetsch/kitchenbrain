@@ -53,6 +53,7 @@ import {
 
 const SEARCH_POOL = 24;
 const DEFAULT_CANDIDATES = 10;
+const PREVIEW_ROW_CONCURRENCY = 6;
 
 export { AH_NOT_CONNECTED };
 
@@ -222,7 +223,10 @@ async function searchWithFallback(
 			usedDutchTerms: searches.map((search) => search.usedDutchTerm)
 		};
 	}
-	return { outcome: { ok: false }, usedDutchTerms: toSearchTerms(dutchName) };
+	return {
+		outcome: { ok: false },
+		usedDutchTerms: searches.map((search) => search.usedDutchTerm)
+	};
 }
 
 export async function searchShoppingForAh(
@@ -230,7 +234,10 @@ export async function searchShoppingForAh(
 	dependencies: ShoppingAhDependencies = defaultDependencies()
 ): Promise<
 	| { ok: true; candidates: PreviewProduct[]; lowConfidence: boolean }
-	| { ok: false; reason: typeof AH_NOT_CONNECTED | 'search_failed' }
+	| {
+			ok: false;
+			reason: typeof AH_NOT_CONNECTED | 'search_failed' | 'max_products_reached';
+	  }
 > {
 	const preview = dependencies.peekPreviewToken(input.previewToken, input.userId);
 	const binding = preview?.items.find((item) => item.ref === input.ref);
@@ -278,11 +285,35 @@ export async function searchShoppingForAh(
 		throw new ShoppingAhWorkflowError(409, 'This AH review expired or changed');
 	}
 	const authorized = new Set(authorizedIds);
+	if (products.length > 0 && authorized.size === 0) {
+		return { ok: false, reason: 'max_products_reached' };
+	}
 	return {
 		ok: true,
 		candidates: products.filter((product) => authorized.has(product.id)),
 		lowConfidence
 	};
+}
+
+async function mapWithConcurrency<T, Result>(
+	values: T[],
+	limit: number,
+	map: (value: T) => Promise<Result>
+): Promise<Result[]> {
+	const results = new Array<Result>(values.length);
+	let cursor = 0;
+	const workers = Array.from(
+		{ length: Math.min(limit, values.length) },
+		async () => {
+			while (cursor < values.length) {
+				const index = cursor;
+				cursor += 1;
+				results[index] = await map(values[index]);
+			}
+		}
+	);
+	await Promise.all(workers);
+	return results;
 }
 
 type RowPreference =
@@ -378,8 +409,10 @@ export async function previewShoppingForAh(
 		throw new ShoppingAhWorkflowError(409, 'The shopping list changed; review it again');
 	}
 
-	const items: PreviewItem[] = await Promise.all(
-		rows.map(async (row): Promise<PreviewItem> => {
+	const items: PreviewItem[] = await mapWithConcurrency(
+		rows,
+		PREVIEW_ROW_CONCURRENCY,
+		async (row): Promise<PreviewItem> => {
 			const ref = `entries:${[...row.entryIds].sort((a, b) => a - b).join(',')}`;
 			const rowPreference = rowPreferences.get(ref) ?? { kind: 'none' as const };
 			const purchaseForm = row.sources.find((source) => source.purchaseForm)?.purchaseForm;
@@ -475,7 +508,7 @@ export async function previewShoppingForAh(
 							}
 						: {})
 			};
-		})
+		}
 	);
 
 	const missingPins: Array<{

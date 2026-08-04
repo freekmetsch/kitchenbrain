@@ -181,14 +181,16 @@ function cleanSearchTerm(name: string): string {
  */
 export function toSearchTerms(name: string): string[] {
 	const source = name.trim();
+	const splitAlternatives = (value: string) =>
+		value
+			.split(/\s+of\s+/i)
+			.map((part) => part.trim())
+			.filter(Boolean)
+			.slice(0, 3);
 	const dangling = source.match(/^(.+?)-\s*of\s+(.+)$/i);
 	const alternatives = dangling
-		? [dangling[2].trim()]
-		: source
-				.split(/\s+of\s+/i)
-				.map((part) => part.trim())
-				.filter(Boolean)
-				.slice(0, 3);
+		? splitAlternatives(dangling[2])
+		: splitAlternatives(source);
 	const cleaned = (alternatives.length ? alternatives : [source]).map(cleanSearchTerm);
 	return cleaned.filter(
 		(term, index) => cleaned.findIndex((candidate) => normalize(candidate) === normalize(term)) === index
