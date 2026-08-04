@@ -382,7 +382,7 @@ test.describe('mock-connected AH review', () => {
 		qty: 1,
 		pricePerCount: null
 	});
-	const previewItems = () => [
+	const previewItems = (includeParsley = false) => [
 		{
 			ref: 'entries:501',
 			sourceName: 'munt of peterselie',
@@ -394,7 +394,8 @@ test.describe('mock-connected AH review', () => {
 			status: 'product',
 			candidates: [
 				product('peppermint', 'AH Pepermunt'),
-				product('mint', 'AH Muntplant')
+				product('mint', 'AH Muntplant'),
+				...(includeParsley ? [product('parsley', 'AH Platte peterselie')] : [])
 			],
 			lowConfidence: true
 		},
@@ -425,11 +426,23 @@ test.describe('mock-connected AH review', () => {
 	];
 	let searchBody: Record<string, unknown> | null = null;
 	let pushBody: Record<string, unknown> | null = null;
+	let previewRequests = 0;
+	let refreshRequests = 0;
 	await page.route('**/api/shopping/ah-preview', async (route) => {
+		if (route.request().method() === 'PATCH') {
+			refreshRequests++;
+			await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+			return;
+		}
+		previewRequests++;
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
-			body: JSON.stringify({ ok: true, previewToken: 'e2e-preview-token-123456', items: previewItems() })
+			body: JSON.stringify({
+				ok: true,
+				previewToken: `e2e-preview-token-${previewRequests}-123456`,
+				items: previewItems(previewRequests > 1)
+			})
 		});
 	});
 	await page.route('**/api/shopping/ah-search', async (route) => {
@@ -444,6 +457,10 @@ test.describe('mock-connected AH review', () => {
 		}
 		if (searchBody?.query === 'broken search') {
 			await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+			return;
+		}
+		if (searchBody?.query === 'stale review') {
+			await route.fulfill({ status: 409, contentType: 'application/json', body: '{}' });
 			return;
 		}
 		await route.fulfill({
@@ -483,46 +500,70 @@ test.describe('mock-connected AH review', () => {
 	const review = page.getByRole('dialog', { name: 'Review AH order' });
 	const herbs = review.locator('[data-ah-ref="entries:501"]');
 	await expect(herbs).toBeVisible();
-	await herbs.getByRole('button', { name: 'Skip' }).click();
+	await expect(review.getByText('2 items still need review')).toBeVisible();
+	await review.getByRole('button', { name: 'Review next' }).click();
+	await expect(herbs).toBeFocused();
+	await herbs.getByRole('button', { name: "Don't send this item" }).click();
 	await expect(review.locator('.ah-review-attention [data-ah-ref="entries:501"]')).toHaveCount(0);
-	await herbs.getByRole('button', { name: 'Details' }).click();
 	await herbs.getByRole('button', { name: 'Undo' }).click();
 	await expect(review.locator('.ah-review-attention [data-ah-ref="entries:501"]')).toBeVisible();
+	await herbs.getByRole('button', { name: 'Other options (1)' }).click();
 	await expect(herbs.getByRole('button', { name: /^○ AH Muntplant/ })).toBeVisible();
 	await herbs.getByRole('button', { name: /^○ AH Muntplant/ }).click();
 	await expect(herbs.getByRole('button', { name: 'Confirm this choice' })).toBeVisible();
 	await expect(review.getByRole('heading', { name: 'Needs a look' }).locator('..')).toContainText('2');
+	await page.keyboard.press('Escape');
+	await expect(review).toBeHidden();
+	await page.getByRole('button', { name: 'Review AH order' }).click();
+	await expect(review).toBeVisible();
+	expect(previewRequests).toBe(1);
+	await expect.poll(() => refreshRequests).toBe(1);
+	await expect(herbs.getByText('AH Muntplant', { exact: true })).toBeVisible();
+	await expect(herbs.getByText(/Default remembers this product/)).toBeVisible();
 
 	const search = herbs.getByRole('searchbox', { name: 'Search AH products for munt of peterselie' });
 	await search.fill('platte peterselie');
 	await herbs.getByRole('button', { name: 'Search', exact: true }).click();
 	await expect(herbs.getByRole('button', { name: /^○ AH Platte peterselie/ })).toBeVisible();
+	await expect(search).toBeFocused();
 	expect(searchBody).toMatchObject({
-		previewToken: 'e2e-preview-token-123456',
+		previewToken: 'e2e-preview-token-1-123456',
 		ref: 'entries:501',
 		query: 'platte peterselie'
 	});
 	await search.fill('missing herb');
 	await herbs.getByRole('button', { name: 'Search', exact: true }).click();
 	await expect(herbs.getByText('No AH products for "missing herb".')).toBeVisible();
+	await expect(search).toBeFocused();
 	await expect(herbs.getByRole('button', { name: /^○ AH Platte peterselie/ })).toBeVisible();
 	await search.fill('broken search');
 	await herbs.getByRole('button', { name: 'Search', exact: true }).click();
 	await expect(herbs.getByText('AH search failed.')).toBeVisible();
+	await expect(search).toBeFocused();
 	await expect(herbs.getByRole('button', { name: /^○ AH Platte peterselie/ })).toBeVisible();
 	await herbs.getByRole('button', { name: /^○ AH Platte peterselie/ }).click();
-	await herbs.getByRole('button', { name: 'Pin AH Platte peterselie as favorite' }).click();
+	await herbs.getByRole('button', { name: 'Make AH Platte peterselie the household default' }).click();
 	await herbs.getByRole('button', { name: 'Confirm this choice' }).click();
 	await expect
 		.poll(() => page.evaluate(() => document.activeElement?.closest<HTMLElement>('[data-ah-review-item]')?.dataset.ahRef))
 		.toBe('entries:502');
 
-	const coriander = review.locator('[data-ah-ref="entries:502"]');
+	let coriander = review.locator('[data-ah-ref="entries:502"]');
+	await expect(coriander.getByText('Could not search AH. Confirm as text or search again.')).toBeVisible();
+	await coriander.getByRole('searchbox').fill('stale review');
+	await coriander.getByRole('button', { name: 'Search', exact: true }).click();
+	const refreshMatches = review.getByRole('button', { name: 'Refresh matches' });
+	await expect(refreshMatches).toBeFocused();
+	await refreshMatches.click();
+	await expect(review.locator('.ah-review-confirmed [data-ah-ref="entries:501"]')).toContainText('AH Platte peterselie');
+	await expect(review.getByText('1 item still needs review')).toBeVisible();
+	coriander = review.locator('[data-ah-ref="entries:502"]');
 	await coriander.getByRole('button', { name: 'Send as text' }).click();
 	await expect(review.getByRole('button', { name: 'Send to AH' })).toBeFocused();
 	await review.getByRole('button', { name: 'Send to AH' }).click();
 	await expect(review.getByText(/3 items added/)).toBeVisible();
-	expect(pushBody).toMatchObject({ previewToken: 'e2e-preview-token-123456' });
+	expect(pushBody).toMatchObject({ previewToken: 'e2e-preview-token-2-123456' });
+	await expect(review.locator('[data-ah-status-focus]')).toBeFocused();
 
 	await page.setViewportSize({ width: 1280, height: 800 });
 	await page.reload();
@@ -552,6 +593,70 @@ test.describe('mock-connected AH review', () => {
 	expect(
 		await enlargedReview.evaluate((element) => element.scrollWidth <= element.clientWidth)
 	).toBe(true);
+	});
+
+	test('AH review retries preview failures and names pack controls for their item', async ({ page }) => {
+		let previewAttempts = 0;
+		await page.route('**/api/shopping/ah-preview', async (route) => {
+			previewAttempts++;
+			if (previewAttempts === 1) {
+				await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+				return;
+			}
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					ok: true,
+					previewToken: 'e2e-retry-preview-token-123456',
+					items: [{
+						ref: 'entries:701',
+						sourceName: 'tomaten',
+						term: 'tomaten',
+						amount: null,
+						unit: null,
+						incompatibleQuantities: true,
+						quantitySources: [
+							{ name: 'tomaten', amount: '2', unit: 'stuks', recipeTitle: 'Soep' },
+							{ name: 'tomaten', amount: '1', unit: 'blik', recipeTitle: 'Saus' }
+						],
+						status: 'product',
+						candidates: [{
+							id: 'tomatoes',
+							name: 'AH Tomaten',
+							price: 2.49,
+							regularPrice: 2.49,
+							isBonus: false,
+							bonusMechanism: null,
+							salesUnitSize: '500 g',
+							unitPrice: '€4.98/kg',
+							imageUrl: null,
+							isPreviouslyBought: false,
+							qty: 1,
+							pricePerCount: null
+						}],
+						lowConfidence: false
+					}]
+				})
+			});
+		});
+
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/shopping');
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Review AH order' }).click();
+		const review = page.getByRole('dialog', { name: 'Review AH order' });
+		const retry = review.getByRole('button', { name: 'Retry' });
+		await expect(retry).toBeFocused();
+		await retry.click();
+
+		const tomatoes = review.locator('[data-ah-ref="entries:701"]');
+		await expect(tomatoes.getByRole('group', { name: 'Packs for tomaten' })).toBeVisible();
+		await expect(tomatoes.getByRole('spinbutton', { name: 'Packs for tomaten' })).toHaveValue('1');
+		await expect(tomatoes.getByRole('button', { name: 'Decrease packs for tomaten' })).toBeDisabled();
+		await expect(tomatoes.getByRole('button', { name: 'Increase packs for tomaten' })).toBeEnabled();
+		await tomatoes.getByRole('button', { name: 'Confirm pack count: 1' }).click();
+		await expect(tomatoes.getByRole('button', { name: 'Confirm this choice' })).toBeFocused();
 	});
 });
 

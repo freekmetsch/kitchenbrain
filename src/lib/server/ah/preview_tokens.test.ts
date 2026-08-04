@@ -7,7 +7,8 @@ import {
 	createAhPreviewToken,
 	isAhEligibleShoppingRow,
 	offerAhPreviewProducts,
-	peekAhPreviewToken
+	peekAhPreviewToken,
+	refreshAhPreviewToken
 } from './preview_tokens';
 
 const item = { ref: 'entries:1', entryIds: [1], entryRevisions: [2], term: 'pasta', amount: '400', unit: 'g', offeredProducts: [{ id: 'ah-1', name: 'AH Pasta' }] };
@@ -27,6 +28,28 @@ describe('AH preview tokens', () => {
 		expect(claimAhPreviewToken(other, 7, 101)).not.toBeNull();
 		const expired = createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 100, ttlMs: 1 });
 		expect(claimAhPreviewToken(expired, 7, 101)).toBeNull();
+	});
+
+	it('renews an active preview for the owning user without replacing or consuming it', () => {
+		const token = createAhPreviewToken(
+			{ userId: 7, weekStart: '2026-07-22', items: [item] },
+			{ now: 100, ttlMs: 10 }
+		);
+		expect(refreshAhPreviewToken(token, 8, 105)).toBe(false);
+		expect(refreshAhPreviewToken(token, 7, 105)).toBe(true);
+		expect(claimAhPreviewToken(token, 7, 116)).not.toBeNull();
+	});
+
+	it('does not revive an expired or replaced preview', () => {
+		const expired = createAhPreviewToken(
+			{ userId: 7, weekStart: '2026-07-22', items: [item] },
+			{ now: 100, ttlMs: 1 }
+		);
+		expect(refreshAhPreviewToken(expired, 7, 101)).toBe(false);
+
+		const replaced = createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 200 });
+		createAhPreviewToken({ userId: 7, weekStart: '2026-07-22', items: [item] }, { now: 201 });
+		expect(refreshAhPreviewToken(replaced, 7, 202)).toBe(false);
 	});
 
 	it('peeks without consuming and extends only the bound row for the owning user', () => {

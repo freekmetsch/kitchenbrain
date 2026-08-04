@@ -24,6 +24,9 @@
 	import AhPushResult from './AhPushResult.svelte';
 	import { MOTION_MICRO_MS } from '$lib/motion';
 	import type { AhPushOutcome, Decision, ShoppingListItem } from './types';
+	import { reconcileAhReview, type AhReviewDraft } from './ah_review_state';
+
+	const AH_PREVIEW_REFRESH_MS = 4 * 60 * 1000;
 
 	type Props = {
 		weekStart: string;
@@ -49,6 +52,7 @@
 	let searchRuns = $state<Record<string, number>>({});
 	let previewToken = $state('');
 	let ahError = $state('');
+	let ahRetryablePreview = $state(false);
 	let ahStale = $state(false);
 	let ahNotConnected = $state(false);
 	let ahPushing = $state(false);
@@ -75,6 +79,7 @@
 		previewToken = '';
 		favorites = {};
 		ahError = '';
+		ahRetryablePreview = false;
 		ahStale = false;
 		ahNotConnected = false;
 		ahResult = null;
@@ -91,6 +96,21 @@
 		ahPushing = false;
 		bonusByName = {};
 		resetAhPreview();
+	});
+
+	$effect(() => {
+		if (!ahOpen || !ahItems || !previewToken || ahLoading || ahPushing) return;
+		const token = previewToken;
+		const refresh = () => void refreshAhPreview(token);
+		const interval = window.setInterval(refresh, AH_PREVIEW_REFRESH_MS);
+		const handleVisibility = () => {
+			if (document.visibilityState === 'visible') refresh();
+		};
+		document.addEventListener('visibilitychange', handleVisibility);
+		return () => {
+			window.clearInterval(interval);
+			document.removeEventListener('visibilitychange', handleVisibility);
+		};
 	});
 
 	$effect(() => {
@@ -131,13 +151,14 @@
 		return { products, text, excluded, unconfirmed, unresolved };
 	});
 
-	function startsNeedingAttention(item: PreviewItem): boolean {
-		return Boolean(
-			item.requiresExplicitDecision ||
-			item.status !== 'product' ||
-			item.lowConfidence ||
-			item.incompatibleQuantities
-		);
+	function currentDraft(): AhReviewDraft | undefined {
+		if (!ahItems) return undefined;
+		return {
+			items: ahItems,
+			decisions,
+			reviewed,
+			searchTerms
+		};
 	}
 
 	function itemNeedsAttention(item: PreviewItem): boolean {
@@ -154,7 +175,38 @@
 	let confirmedItems = $derived((ahItems ?? []).filter((item) => !itemNeedsAttention(item)));
 	let anySearching = $derived(Object.values(searching).some(Boolean));
 
-	export async function openAhModal() {
+	async function focusStatus() {
+		await tick();
+		document.querySelector<HTMLElement>('[data-ah-status-focus]')?.focus();
+	}
+
+	function markReviewStale() {
+		ahStale = true;
+		void focusStatus();
+	}
+
+	async function refreshAhPreview(tokenAtRefresh = previewToken) {
+		if (!tokenAtRefresh) return;
+		try {
+			const response = await fetch(`${base}/api/shopping/ah-preview`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ previewToken: tokenAtRefresh })
+			});
+			if (previewToken !== tokenAtRefresh) return;
+			if (response.status === 409) markReviewStale();
+		} catch {
+			// Keep the draft usable; the next heartbeat or final push revalidates it.
+		}
+	}
+
+	export async function openAhModal(options: { preserveDraft?: boolean } = {}) {
+		if (ahItems && previewToken && !ahStale && !ahError && !ahNotConnected && !ahResult) {
+			ahOpen = true;
+			void refreshAhPreview();
+			return;
+		}
+		const draft = options.preserveDraft ? currentDraft() : undefined;
 		const weekAtOpen = weekStart;
 		resetAhPreview();
 		const run = ++previewRun;
@@ -184,6 +236,7 @@
 			if (stale()) return;
 			if (!r.ok) {
 				ahError = m.shopping_ah_error_connection_failed();
+				ahRetryablePreview = true;
 				toast.error(m.shopping_toast_ah_matches_failed());
 				return;
 			}
@@ -191,45 +244,40 @@
 			if (stale()) return;
 			if (!d.ok) {
 				if (d.reason === 'not_connected') ahNotConnected = true;
-				else ahError = d.reason ?? m.shopping_ah_error_connection_failed();
+				else {
+					ahError = d.reason ?? m.shopping_ah_error_connection_failed();
+					ahRetryablePreview = true;
+				}
 				return;
 			}
 
 			const previewItems = Array.isArray(d.items) ? (d.items as PreviewItem[]) : null;
 			if (!previewItems || typeof d.previewToken !== 'string') throw new Error('Invalid AH preview response');
 			previewToken = d.previewToken;
-			const nextDecisions: Record<string, Decision> = {};
 			const nextBonus: Record<string, boolean> = {};
 			const nextFavorites: Record<string, string> = {};
-			const nextReviewed: Record<string, boolean> = {};
-			const nextSearchTerms: Record<string, string> = {};
 			for (const it of previewItems) {
-				if (!it.requiresExplicitDecision) {
-					nextDecisions[it.ref] = {
-						mode: it.status === 'product' ? 'product' : 'freetext',
-						pick: 0,
-						qty: it.candidates[0]?.qty ?? 1,
-						quantityConfirmed: !it.incompatibleQuantities
-					};
-				}
 				if (it.status === 'product') nextBonus[it.sourceName] = it.candidates[0]?.isBonus ?? false;
 				const fav = it.candidates.find((c) => c.isFavorite);
 				if (fav) nextFavorites[it.term] = fav.id;
-				nextReviewed[it.ref] = !startsNeedingAttention(it);
-				nextSearchTerms[it.ref] = it.term;
 			}
-			decisions = nextDecisions;
-			reviewed = nextReviewed;
-			searchTerms = nextSearchTerms;
+			const reviewState = reconcileAhReview(previewItems, draft);
+			decisions = reviewState.decisions;
+			reviewed = reviewState.reviewed;
+			searchTerms = reviewState.searchTerms;
 			favorites = nextFavorites;
 			bonusByName = { ...bonusByName, ...nextBonus };
 			ahItems = previewItems;
 		} catch {
 			if (stale()) return;
 			ahError = m.shopping_ah_error_connection_failed();
+			ahRetryablePreview = true;
 			toast.error(m.shopping_toast_ah_matches_failed());
 		} finally {
-			if (!stale()) ahLoading = false;
+			if (!stale()) {
+				ahLoading = false;
+				if (ahError || ahNotConnected) void focusStatus();
+			}
 		}
 	}
 
@@ -253,15 +301,17 @@
 		decisions = { ...decisions, [ref]: { ...current, qty: safe, quantityConfirmed: true } };
 	}
 
-	function confirmQuantity(ref: string) {
+	async function confirmQuantity(ref: string) {
 		const current = decisions[ref];
 		if (!current) return;
 		decisions = { ...decisions, [ref]: { ...current, quantityConfirmed: true } };
+		await tick();
+		const row = [...document.querySelectorAll<HTMLElement>('[data-ah-review-item]')]
+			.find((candidate) => candidate.dataset.ahRef === ref);
+		row?.querySelector<HTMLElement>('[data-ah-confirm-choice]')?.focus();
 	}
 
-	async function settleReview(ref: string) {
-		reviewed = { ...reviewed, [ref]: true };
-		expanded = { ...expanded, [ref]: false };
+	async function focusNextAttention() {
 		await tick();
 		const next = attentionItems[0];
 		const rows = [...document.querySelectorAll<HTMLElement>('[data-ah-review-item]')];
@@ -269,6 +319,13 @@
 			? rows.find((row) => row.dataset.ahRef === next.ref)
 			: document.querySelector<HTMLElement>('[data-ah-send]');
 		target?.focus();
+		target?.scrollIntoView({ block: 'nearest' });
+	}
+
+	async function settleReview(ref: string) {
+		reviewed = { ...reviewed, [ref]: true };
+		expanded = { ...expanded, [ref]: false };
+		await focusNextAttention();
 	}
 
 	function confirmReview(ref: string) {
@@ -372,8 +429,7 @@
 			});
 			if (searchRuns[item.ref] !== run || previewToken !== tokenAtSearch) return;
 			if (response.status === 409) {
-				ahStale = true;
-				ahItems = null;
+				markReviewStale();
 				return;
 			}
 			if (!response.ok) throw new Error('search_failed');
@@ -431,6 +487,12 @@
 		} finally {
 			if (searchRuns[item.ref] === run && previewToken === tokenAtSearch) {
 				searching = { ...searching, [item.ref]: false };
+				if (!ahStale) {
+					await tick();
+					const row = [...document.querySelectorAll<HTMLElement>('[data-ah-review-item]')]
+						.find((candidate) => candidate.dataset.ahRef === item.ref);
+					row?.querySelector<HTMLInputElement>('[data-ah-search-input]')?.focus();
+				}
 			}
 		}
 	}
@@ -473,8 +535,7 @@
 			// after a week switch so the wrong week's rows are never reconciled.
 			if (weekStart !== weekAtPush) return;
 			if (r.status === 409) {
-				ahStale = true;
-				ahItems = null;
+				markReviewStale();
 				return;
 			}
 			if (!r.ok) {
@@ -490,6 +551,7 @@
 					reason: m.shopping_ah_error_push_failed()
 				};
 				ahItems = null;
+				void focusStatus();
 				return;
 			}
 			const d = await r.json();
@@ -499,6 +561,7 @@
 			if (d.reason === 'not_connected' && pushed === 0 && markedRefs.size === 0) {
 				ahNotConnected = true;
 				ahItems = null;
+				void focusStatus();
 				return;
 			}
 			if (d.ok || d.uncertain || pushed > 0) {
@@ -513,6 +576,7 @@
 					reason: d.reason
 				};
 				ahItems = null;
+				void focusStatus();
 			} else {
 				ahError = d.reason ?? m.shopping_ah_error_push_failed_generic();
 			}
@@ -530,6 +594,7 @@
 				reason: m.shopping_ah_error_connection_failed()
 			};
 			ahItems = null;
+			void focusStatus();
 		} finally {
 			if (weekStart === weekAtPush) ahPushing = false;
 		}
@@ -551,7 +616,7 @@
 		onToggleExclude={() => toggleExclude(item.ref, item)}
 		onPickProduct={(idx) => pickProduct(item.ref, idx)}
 		onQuantityChange={(qty) => setQuantity(item.ref, qty)}
-		onQuantityConfirm={() => confirmQuantity(item.ref)}
+		onQuantityConfirm={() => void confirmQuantity(item.ref)}
 		onToggleFavorite={(cand, idx) => void toggleFavorite(item, cand, idx)}
 		onDemoteToText={() => demoteToText(item.ref)}
 		onConfirmReview={() => confirmReview(item.ref)}
@@ -610,16 +675,18 @@
 		</p>
 		<div class="mt-4 flex justify-end gap-2">
 			<button type="button" class="ui-action ui-action-tertiary" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
-			<a href="{base}/settings/connections" class="ui-action ui-action-primary">{m.shopping_open_settings_button()}</a>
+			<a href="{base}/settings/connections" class="ui-action ui-action-primary" data-ah-status-focus>{m.shopping_open_settings_button()}</a>
 		</div>
 	{:else if ahResult}
-		<AhPushResult
-			result={ahResult}
-			onClose={() => {
-				ahOpen = false;
-				ahResult = null;
-			}}
-		/>
+		<div tabindex="-1" data-ah-status-focus>
+			<AhPushResult
+				result={ahResult}
+				onClose={() => {
+					ahOpen = false;
+					ahResult = null;
+				}}
+			/>
+		</div>
 	{:else if ahStale}
 		<KitchenNotice tone="warning" role="alert">
 			<div class="flex gap-2.5">
@@ -629,7 +696,7 @@
 		</KitchenNotice>
 		<div class="mt-4 flex justify-end gap-2">
 			<button type="button" class="ui-action ui-action-secondary" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
-			<button type="button" class="ui-action ui-action-primary" onclick={() => void openAhModal()}>{m.shopping_ah_review_again()}</button>
+			<button type="button" class="ui-action ui-action-primary" data-ah-status-focus onclick={() => void openAhModal({ preserveDraft: true })}>{m.shopping_ah_review_again()}</button>
 		</div>
 	{:else if ahError}
 		<KitchenNotice tone="error" role="alert">
@@ -638,8 +705,11 @@
 				<p class="text-sm leading-relaxed">{ahError}</p>
 			</div>
 		</KitchenNotice>
-		<div class="mt-4 flex justify-end">
-			<button type="button" class="ui-action ui-action-secondary" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
+		<div class="mt-4 flex justify-end gap-2">
+			<button type="button" class="ui-action ui-action-secondary" data-ah-status-focus={!ahRetryablePreview ? '' : undefined} onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
+			{#if ahRetryablePreview}
+				<button type="button" class="ui-action ui-action-primary" data-ah-status-focus onclick={() => void openAhModal({ preserveDraft: true })}>{m.shopping_ah_retry_button()}</button>
+			{/if}
 		</div>
 	{:else if ahItems}
 		<div class="ah-review-shell" in:fade={{ duration: MOTION_MICRO_MS }}>
@@ -674,13 +744,20 @@
 			</div>
 
 			<div class="ah-review-footer">
-				<div class="ah-review-summary">
-					{pushSummary.products === 1
-						? m.shopping_ah_summary_products_singular({ count: pushSummary.products })
-						: m.shopping_ah_summary_products_plural({ count: pushSummary.products })}, {m.shopping_ah_summary_as_text({ count: pushSummary.text })}{#if pushSummary.excluded}, {m.shopping_ah_summary_skipped({ count: pushSummary.excluded })}{/if}
+				<div class:ah-review-summary-unresolved={attentionItems.length > 0} class="ah-review-summary" aria-live="polite">
+					{#if attentionItems.length > 0}
+						<span>{attentionItems.length === 1
+							? m.shopping_ah_remaining_singular({ count: attentionItems.length })
+							: m.shopping_ah_remaining_plural({ count: attentionItems.length })}</span>
+						<button type="button" class="min-h-11 text-left font-semibold text-primary" onclick={() => void focusNextAttention()}>{m.shopping_ah_review_next()}</button>
+					{:else}
+						<span>{pushSummary.products === 1
+							? m.shopping_ah_summary_products_singular({ count: pushSummary.products })
+							: m.shopping_ah_summary_products_plural({ count: pushSummary.products })}, {m.shopping_ah_summary_as_text({ count: pushSummary.text })}{#if pushSummary.excluded}, {m.shopping_ah_summary_skipped({ count: pushSummary.excluded })}{/if}</span>
+					{/if}
 				</div>
 				<div class="ah-review-actions">
-					<button type="button" class="ui-action ui-action-tertiary" onclick={() => (ahOpen = false)}>{m.shopping_cancel_button()}</button>
+					<button type="button" class="ui-action ui-action-tertiary" onclick={() => (ahOpen = false)}>{m.ui_bottomsheet_close()}</button>
 					<button
 						type="button"
 						class="ui-action ui-action-primary"
@@ -780,8 +857,14 @@
 	}
 
 	.ah-review-summary {
+		display: grid;
+		gap: 0.1rem;
 		color: color-mix(in oklab, var(--color-base-content) 58%, transparent);
 		font-size: 0.72rem;
+	}
+
+	.ah-review-summary-unresolved {
+		color: var(--kitchen-honey-ink);
 	}
 
 	.ah-review-actions {

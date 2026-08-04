@@ -95,14 +95,20 @@
 			{#if mode === 'product' && sel}
 				<span class="ah-compact-price">×{dec?.qty ?? 1} · {formatPrice(sel.price)}</span>
 			{/if}
-			<button
-				type="button"
-				class="ui-action ui-action-tertiary"
-				aria-expanded="false"
-				onclick={() => onToggleExpanded()}
-			>
-				{m.shopping_ah_review_details()}
-			</button>
+			{#if mode === 'exclude'}
+				<button type="button" class="ui-action ui-action-tertiary" onclick={() => onToggleExclude()}>
+					{m.shopping_ah_undo_button()}
+				</button>
+			{:else}
+				<button
+					type="button"
+					class="ui-action ui-action-tertiary"
+					aria-expanded="false"
+					onclick={() => onToggleExpanded()}
+				>
+					{m.shopping_ah_review_details()}
+				</button>
+			{/if}
 		</div>
 	{:else}
 	<div class="flex items-start justify-between gap-2">
@@ -183,10 +189,10 @@
 		{/if}
 		<div class="mt-2 flex items-center justify-between gap-3 rounded-xl bg-base-200/60 px-2 py-1.5">
 			<span class="text-xs text-base-content/60">{m.shopping_ah_pack_quantity()}</span>
-			<div class="join" role="group" aria-label={m.shopping_ah_pack_quantity()}>
-				<button type="button" class="btn join-item h-11 min-h-11 w-11 p-0" disabled={(dec?.qty ?? 1) <= 1} onclick={() => onQuantityChange((dec?.qty ?? 1) - 1)}>−</button>
-				<input class="input join-item h-11 min-h-11 w-14 text-center tabular-nums" type="number" min="1" max="99" value={dec?.qty ?? 1} onchange={(event) => onQuantityChange(Number(event.currentTarget.value))} />
-				<button type="button" class="btn join-item h-11 min-h-11 w-11 p-0" disabled={(dec?.qty ?? 1) >= 99} onclick={() => onQuantityChange((dec?.qty ?? 1) + 1)}>+</button>
+			<div class="join" role="group" aria-label={m.shopping_ah_pack_quantity_for({ name: item.term })}>
+				<button type="button" class="btn join-item h-11 min-h-11 w-11 p-0" aria-label={m.shopping_ah_decrease_packs_aria({ name: item.term })} disabled={(dec?.qty ?? 1) <= 1} onclick={() => onQuantityChange((dec?.qty ?? 1) - 1)}>−</button>
+				<input class="input join-item h-11 min-h-11 w-14 text-center tabular-nums" aria-label={m.shopping_ah_pack_quantity_for({ name: item.term })} type="number" min="1" max="99" value={dec?.qty ?? 1} onchange={(event) => onQuantityChange(Number(event.currentTarget.value))} />
+				<button type="button" class="btn join-item h-11 min-h-11 w-11 p-0" aria-label={m.shopping_ah_increase_packs_aria({ name: item.term })} disabled={(dec?.qty ?? 1) >= 99} onclick={() => onQuantityChange((dec?.qty ?? 1) + 1)}>+</button>
 			</div>
 		</div>
 		{#if item.incompatibleQuantities && !dec?.quantityConfirmed}
@@ -204,13 +210,14 @@
 			<button
 				type="button"
 				class="ui-action ui-action-primary mt-2 w-full"
+				data-ah-confirm-choice
 				disabled={item.incompatibleQuantities && !dec?.quantityConfirmed}
 				onclick={onConfirmReview}
 			>
 				{m.shopping_ah_confirm_choice()}
 			</button>
 		{/if}
-		<div class="mt-1 flex items-center gap-3 text-xs">
+		<div class="mt-1 flex flex-wrap items-center gap-3 text-xs">
 			{#if item.candidates.length > 1}
 				<button
 					type="button"
@@ -233,6 +240,9 @@
 			{/if}
 			<button type="button" class="min-h-11 text-base-content/50" onclick={() => onDemoteToText()}>{m.shopping_ah_send_as_text()}</button>
 		</div>
+		{#if showFavorite}
+			<p class="text-xs leading-relaxed text-base-content/50">{m.shopping_ah_household_default_help()}</p>
+		{/if}
 		{#if expanded}
 			<ul class="mt-2 max-h-64 space-y-1 overflow-y-auto border-t border-base-200 pt-2" transition:slide={{ duration: MOTION_MICRO_MS }}>
 				{#each item.candidates as cand, idx (cand.id)}
@@ -352,7 +362,8 @@
 				maxlength="100"
 				placeholder={m.shopping_ah_search_placeholder()}
 				value={searchTerm}
-				disabled={searching}
+				data-ah-search-input
+				aria-busy={searching}
 				oninput={(event) => onSearchTermChange(event.currentTarget.value)}
 			/>
 		</label>
