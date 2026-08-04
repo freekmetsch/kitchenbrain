@@ -17,6 +17,8 @@ import {
 	claimAhPreviewToken,
 	createAhPreviewToken,
 	isAhEligibleShoppingRow,
+	offerAhPreviewProducts,
+	peekAhPreviewToken,
 	type AhPreviewBinding,
 	type AhPushDecision,
 	type AhPreviewToken
@@ -28,7 +30,7 @@ import {
 	normalize,
 	pricePerCount,
 	rankProducts,
-	toSearchTerm
+	toSearchTerms
 } from '$lib/server/ah/matching';
 import { db as appDb } from '$lib/server/db/index';
 import type { Db } from '$lib/server/db/types';
@@ -79,6 +81,8 @@ export type ShoppingAhDependencies = {
 	ah: ShoppingAhAdapter;
 	createPreviewToken: typeof createAhPreviewToken;
 	claimPreviewToken: typeof claimAhPreviewToken;
+	peekPreviewToken: typeof peekAhPreviewToken;
+	offerPreviewProducts: typeof offerAhPreviewProducts;
 	getWeekStartDay(db: Db): number;
 	now(): Date;
 };
@@ -105,6 +109,13 @@ export type PushShoppingToAhInput = {
 	decisions: AhPushDecision[];
 };
 
+export type SearchShoppingForAhInput = {
+	userId: number;
+	previewToken: string;
+	ref: string;
+	query: string;
+};
+
 function defaultDependencies(): ShoppingAhDependencies {
 	return {
 		db: appDb,
@@ -121,6 +132,8 @@ function defaultDependencies(): ShoppingAhDependencies {
 		},
 		createPreviewToken: createAhPreviewToken,
 		claimPreviewToken: claimAhPreviewToken,
+		peekPreviewToken: peekAhPreviewToken,
+		offerPreviewProducts: offerAhPreviewProducts,
 		getWeekStartDay,
 		now: () => new Date()
 	};
@@ -175,19 +188,101 @@ function quantitySummary(row: ShoppingBuyRow): string | null {
 async function searchWithFallback(
 	adapter: ShoppingAhAdapter,
 	dutchName: string
-): Promise<{ outcome: SearchOutcome; usedDutchTerm: string }> {
-	const cleanedDutchTerm = toSearchTerm(dutchName);
-	const outcome = await adapter.searchProducts(cleanedDutchTerm, SEARCH_POOL);
-	if (outcome.ok && !outcome.products.length) {
-		const fallbackDutchTerm = fallbackTerm(cleanedDutchTerm);
-		if (fallbackDutchTerm) {
-			const second = await adapter.searchProducts(fallbackDutchTerm, SEARCH_POOL);
-			if (second.ok && second.products.length) {
-				return { outcome: second, usedDutchTerm: fallbackDutchTerm };
+): Promise<{ outcome: SearchOutcome; usedDutchTerms: string[] }> {
+	const searchOne = async (cleanedDutchTerm: string) => {
+		const outcome = await adapter.searchProducts(cleanedDutchTerm, SEARCH_POOL);
+		if (outcome.ok && !outcome.products.length) {
+			const fallbackDutchTerm = fallbackTerm(cleanedDutchTerm);
+			if (fallbackDutchTerm) {
+				const second = await adapter.searchProducts(fallbackDutchTerm, SEARCH_POOL);
+				if (second.ok && second.products.length) {
+					return { outcome: second, usedDutchTerm: fallbackDutchTerm };
+				}
 			}
 		}
+		return { outcome, usedDutchTerm: cleanedDutchTerm };
+	};
+	const searches = await Promise.all(toSearchTerms(dutchName).map(searchOne));
+	const products: AHProduct[] = [];
+	const seen = new Set<string>();
+	const usedDutchTerms: string[] = [];
+	for (const search of searches) {
+		if (!search.outcome.ok || !search.outcome.products.length) continue;
+		usedDutchTerms.push(search.usedDutchTerm);
+		for (const product of search.outcome.products) {
+			if (seen.has(product.id)) continue;
+			seen.add(product.id);
+			products.push(product);
+		}
 	}
-	return { outcome, usedDutchTerm: cleanedDutchTerm };
+	if (products.length) return { outcome: { ok: true, products }, usedDutchTerms };
+	if (searches.every((search) => search.outcome.ok)) {
+		return {
+			outcome: { ok: true, products: [] },
+			usedDutchTerms: searches.map((search) => search.usedDutchTerm)
+		};
+	}
+	return { outcome: { ok: false }, usedDutchTerms: toSearchTerms(dutchName) };
+}
+
+export async function searchShoppingForAh(
+	input: SearchShoppingForAhInput,
+	dependencies: ShoppingAhDependencies = defaultDependencies()
+): Promise<
+	| { ok: true; candidates: PreviewProduct[]; lowConfidence: boolean }
+	| { ok: false; reason: typeof AH_NOT_CONNECTED | 'search_failed' }
+> {
+	const preview = dependencies.peekPreviewToken(input.previewToken, input.userId);
+	const binding = preview?.items.find((item) => item.ref === input.ref);
+	if (!preview || !binding) {
+		throw new ShoppingAhWorkflowError(409, 'This AH review expired or changed');
+	}
+	if (!dependencies.ah.getStatus().connected) {
+		return { ok: false, reason: AH_NOT_CONNECTED };
+	}
+	const { outcome, usedDutchTerms } = await searchWithFallback(
+		dependencies.ah,
+		input.query
+	);
+	if (!outcome.ok) {
+		if (
+			!dependencies.offerPreviewProducts(
+				input.previewToken,
+				input.userId,
+				input.ref,
+				[]
+			)
+		) {
+			throw new ShoppingAhWorkflowError(409, 'This AH review expired or changed');
+		}
+		return { ok: false, reason: 'search_failed' };
+	}
+	const { ranked, lowConfidence } = rankProducts(usedDutchTerms, outcome.products);
+	const products = ranked
+		.slice(0, DEFAULT_CANDIDATES)
+		.map((product) =>
+			toPreviewProduct(
+				product,
+				binding.amount,
+				binding.unit,
+				binding.incompatibleQuantities ?? false
+			)
+		);
+	const authorizedIds = dependencies.offerPreviewProducts(
+		input.previewToken,
+		input.userId,
+		input.ref,
+		products.map(({ id, name }) => ({ id, name }))
+	);
+	if (!authorizedIds) {
+		throw new ShoppingAhWorkflowError(409, 'This AH review expired or changed');
+	}
+	const authorized = new Set(authorizedIds);
+	return {
+		ok: true,
+		candidates: products.filter((product) => authorized.has(product.id)),
+		lowConfidence
+	};
 }
 
 type RowPreference =
@@ -227,12 +322,13 @@ function resolveRowPreference(
 }
 
 function preferenceSignature(
-	resolution: RowPreference,
-	globalFavoriteId: string | undefined
+	row: ShoppingBuyRow,
+	preferences: Map<string, RecipeAhPreference>
 ): string {
+	const resolution = resolveRowPreference(row, preferences, undefined);
 	if (resolution.kind === 'recipe') return `recipe:${resolution.preference.productId}`;
 	if (resolution.kind === 'unresolved') return 'unresolved';
-	return `global:${globalFavoriteId ?? ''}`;
+	return 'none';
 }
 
 export async function previewShoppingForAh(
@@ -274,9 +370,9 @@ export async function previewShoppingForAh(
 				] as const;
 			})
 		);
-		return { rows, favorites, rowPreferences };
+		return { rows, favorites, recipePreferences, rowPreferences };
 	});
-	const { rows, favorites, rowPreferences } = prepared;
+	const { rows, favorites, recipePreferences, rowPreferences } = prepared;
 	const represented = new Set(rows.flatMap((row) => row.entryIds));
 	if ([...requested].some((id) => !represented.has(id))) {
 		throw new ShoppingAhWorkflowError(409, 'The shopping list changed; review it again');
@@ -287,7 +383,7 @@ export async function previewShoppingForAh(
 			const ref = `entries:${[...row.entryIds].sort((a, b) => a - b).join(',')}`;
 			const rowPreference = rowPreferences.get(ref) ?? { kind: 'none' as const };
 			const purchaseForm = row.sources.find((source) => source.purchaseForm)?.purchaseForm;
-			const { outcome, usedDutchTerm } = await searchWithFallback(ah, row.name);
+			const { outcome, usedDutchTerms } = await searchWithFallback(ah, row.name);
 			const sourceAmounts = quantitySources(row);
 			if (!outcome.ok) {
 				return {
@@ -342,7 +438,7 @@ export async function previewShoppingForAh(
 				};
 			}
 			const { ranked, lowConfidence } = rankProducts(
-				usedDutchTerm,
+				usedDutchTerms,
 				outcome.products,
 				purchaseForm
 			);
@@ -485,8 +581,8 @@ export async function previewShoppingForAh(
 				incompatibleQuantities: item.incompatibleQuantities,
 				quantitySummary: quantitySummary(row),
 				preferenceSignature: preferenceSignature(
-					rowPreferences.get(item.ref) ?? { kind: 'none' },
-					favorites.get(normalize(row.name))?.productId
+					row,
+					recipePreferences
 				),
 				offeredProducts: item.candidates.map((candidate) => ({
 					id: candidate.id,
@@ -521,9 +617,6 @@ function assertCurrentPreview(
 				`entries:${[...row.entryIds].sort((a, b) => a - b).join(',')}`,
 				row
 			])
-	);
-	const favorites = new Map(
-		listAhFavorites(db).map((favorite) => [favorite.nameKey, favorite])
 	);
 	const recipePreferences = new Map(
 		listRecipeAhPreferencesForSources(
@@ -570,12 +663,8 @@ function assertCurrentPreview(
 			);
 		}
 		const currentPreferenceSignature = preferenceSignature(
-			resolveRowPreference(
-				row,
-				recipePreferences,
-				favorites.get(normalize(row.name))?.productId
-			),
-			favorites.get(normalize(row.name))?.productId
+			row,
+			recipePreferences
 		);
 		if (
 			binding.preferenceSignature !== undefined &&

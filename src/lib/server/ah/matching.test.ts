@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveQuantity, effectiveUnitPrice, pricePerCount, rankProducts, toSearchTerm, fallbackTerm } from './matching';
+import { deriveQuantity, effectiveUnitPrice, pricePerCount, rankProducts, toSearchTerm, toSearchTerms, fallbackTerm } from './matching';
 import type { AHProduct } from './client';
 
 function product(overrides: Partial<AHProduct> & { name: string }): AHProduct {
@@ -65,6 +65,16 @@ describe('toSearchTerm', () => {
 		expect(toSearchTerm('zonnebloem- of koolzaadolie')).toBe('koolzaadolie');
 	});
 
+	it('keeps every complete either/or alternative for AH search', () => {
+		expect(toSearchTerms('munt of peterselie')).toEqual(['munt', 'peterselie']);
+		expect(toSearchTerms('munt of peterselie of koriander')).toEqual([
+			'munt',
+			'peterselie',
+			'koriander'
+		]);
+		expect(toSearchTerms('zonnebloem- of koolzaadolie')).toEqual(['koolzaadolie']);
+	});
+
 	it('strips prep words and leaf-form compound tails', () => {
 		expect(toSearchTerm('vers gehakte korianderblaadjes')).toBe('koriander');
 		expect(toSearchTerm('grote ui')).toBe('ui');
@@ -81,6 +91,25 @@ describe('toSearchTerm', () => {
 
 	it('falls back to the input when cleanup would empty the query', () => {
 		expect(toSearchTerm('verse')).toBe('verse');
+	});
+});
+
+describe('alternative-aware ranking', () => {
+	it('prefers an exact alternative over a compound-only false friend', () => {
+		const peppermint = product({ id: 'peppermint', name: 'AH Pepermunt', mainCategory: 'Snoep, koek' });
+		const parsley = product({ id: 'parsley', name: 'AH Platte peterselie', mainCategory: 'Groente, fruit' });
+
+		expect(rankProducts(['munt', 'peterselie'], [peppermint, parsley]).ranked.map((item) => item.id)).toEqual([
+			'parsley',
+			'peppermint'
+		]);
+	});
+
+	it('still ranks a valid head-final compound above an unrelated product', () => {
+		const salt = product({ id: 'salt', name: 'AH Tafelzout' });
+		const sugar = product({ id: 'sugar', name: 'AH Kristalsuiker' });
+
+		expect(rankProducts('zout', [sugar, salt]).ranked[0]?.id).toBe('salt');
 	});
 });
 

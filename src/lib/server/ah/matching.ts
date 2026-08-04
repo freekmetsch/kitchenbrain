@@ -89,9 +89,12 @@ function partMatch(part: string, pToks: Set<string>): boolean {
  *       "ui" never claims every ui- word),
  *  0    no relation.
  */
-function tokenScore(termTok: string, pToks: Set<string>): number {
+function tokenScore(termTok: string, pToks: Set<string>, compoundScore = 1): number {
 	if (pToks.has(termTok)) return 1;
-	for (const t of pToks) if (t.length > termTok.length && t.endsWith(termTok)) return 1;
+	// A head-final compound is relevant, but a literal product token is the
+	// stronger meaning signal when choosing across explicit alternatives. A
+	// single query keeps the historical full compound score.
+	for (const t of pToks) if (t.length > termTok.length && t.endsWith(termTok)) return compoundScore;
 	if (termTok.length >= 8) {
 		for (let i = 4; i <= termTok.length - 4; i++) {
 			if (partMatch(termTok.slice(0, i), pToks) && partMatch(termTok.slice(i), pToks)) return 1;
@@ -104,10 +107,10 @@ function tokenScore(termTok: string, pToks: Set<string>): number {
 	return 0;
 }
 
-function coverage(termTokens: Set<string>, pToks: Set<string>): number {
+function coverage(termTokens: Set<string>, pToks: Set<string>, compoundScore = 1): number {
 	if (!termTokens.size) return 0;
 	let sum = 0;
-	for (const tok of termTokens) sum += tokenScore(tok, pToks);
+	for (const tok of termTokens) sum += tokenScore(tok, pToks, compoundScore);
 	return sum / termTokens.size;
 }
 
@@ -146,15 +149,8 @@ const PREP_WORDS = new Set([
  *  - leaf-form compound tails cut: "korianderblaadjes" → "koriander".
  * Falls back to the input whenever a rewrite would leave nothing.
  */
-export function toSearchTerm(name: string): string {
-	let s = name.trim();
-	const dangling = s.match(/^(.+?)-\s*of\s+(.+)$/i);
-	if (dangling) s = dangling[2].trim();
-	else {
-		const either = s.match(/^(.+?)\s+of\s+(.+)$/i);
-		if (either) s = either[1].trim();
-	}
-
+function cleanSearchTerm(name: string): string {
+	const s = name.trim();
 	const words = s.split(/\s+/);
 	const kept = words.filter((w, i) => i === words.length - 1 || !PREP_WORDS.has(normalize(w)));
 	const cleaned = kept
@@ -175,6 +171,33 @@ export function toSearchTerm(name: string): string {
 
 	const result = cleaned.join(' ').trim();
 	return result || name.trim();
+}
+
+/**
+ * Preserve up to three complete alternatives so AH can find whichever form
+ * has the plausible grocery result. A dangling first half ("zonnebloem- of
+ * koolzaadolie") is not a usable product query and keeps only the complete
+ * right-hand alternative.
+ */
+export function toSearchTerms(name: string): string[] {
+	const source = name.trim();
+	const dangling = source.match(/^(.+?)-\s*of\s+(.+)$/i);
+	const alternatives = dangling
+		? [dangling[2].trim()]
+		: source
+				.split(/\s+of\s+/i)
+				.map((part) => part.trim())
+				.filter(Boolean)
+				.slice(0, 3);
+	const cleaned = (alternatives.length ? alternatives : [source]).map(cleanSearchTerm);
+	return cleaned.filter(
+		(term, index) => cleaned.findIndex((candidate) => normalize(candidate) === normalize(term)) === index
+	);
+}
+
+/** Compatibility helper for callers that deliberately need one primary term. */
+export function toSearchTerm(name: string): string {
+	return toSearchTerms(name)[0] ?? name.trim();
 }
 
 /** Zero-result fallback: retry with just the longest word ("verse koriander los" → "koriander"). */
@@ -338,15 +361,19 @@ const NONFOOD_CATEGORIES = new Set(['drogisterij', 'huishouden', 'baby en kind',
  * shares no word with the term (AH resolved a pure synonym) — the UI flags it.
  */
 export function rankProducts(
-	term: string,
+	term: string | string[],
 	products: AHProduct[],
 	purchaseForm?: IngredientPurchaseForm | null
 ): { ranked: AHProduct[]; lowConfidence: boolean } {
-	const termTokens = stemmedTokens(term); // tokenize the invariant term once, not per product
+	const terms = Array.isArray(term) ? term : [term];
+	const termTokenSets = (terms.length ? terms : ['']).map(stemmedTokens);
+	const compoundScore = termTokenSets.length > 1 ? 0.9 : 1;
 	const scored = products.map((p, i) => ({
 		p,
 		i,
-		score: coverage(termTokens, productTokens(p.name)),
+		score: Math.max(
+			...termTokenSets.map((tokens) => coverage(tokens, productTokens(p.name), compoundScore))
+		),
 		up: effectiveUnitPrice(p),
 		form: formPenalty(p, purchaseForm),
 		nonfood: p.mainCategory != null && NONFOOD_CATEGORIES.has(normalize(p.mainCategory))
