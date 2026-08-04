@@ -8,7 +8,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatDate } from '$lib/i18n';
 	import { batchServingTarget } from '$lib/meal_batch';
-	import { frozenPortionShortfall } from '$lib/meal_source_choice';
+	import { allocateFrozenPortions, frozenPortionShortfall } from '$lib/meal_source_choice';
 	import ServingBatchPicker from '$lib/components/ServingBatchPicker.svelte';
 	import Icon from '$lib/components/ui/icons/Icon.svelte';
 
@@ -58,13 +58,18 @@
 		message: string;
 		undoMeal?: ShoppingPlannedMeal;
 	} | null>(null);
-	let displayedMeals = $derived(
-		meals.filter((meal) => !removedMealIds.includes(meal.id)).map((meal) => ({
+	let displayedMeals = $derived.by(() => {
+		const projectedMeals = meals.filter((meal) => !removedMealIds.includes(meal.id)).map((meal) => ({
 			...meal,
 			servings: snapshots[meal.id]?.desired ?? meal.servings,
 			pending: snapshots[meal.id]?.pending ?? false
-		}))
-	);
+		}));
+		const allocations = allocateFrozenPortions(projectedMeals);
+		return projectedMeals.map((meal, index) => ({
+			...meal,
+			allocatedFrozenPortions: allocations[index] ?? 0
+		}));
+	});
 
 	function subscribeToMeal(meal: ShoppingPlannedMeal): void {
 		unsubscribers.get(meal.id)?.();
@@ -235,7 +240,7 @@
 		<ul>
 			{#each displayedMeals as meal (meal.id)}
 				{@const shortfall = meal.source === 'freezer'
-					? frozenPortionShortfall(meal.servings, meal.frozenPortions)
+					? frozenPortionShortfall(meal.servings, meal.allocatedFrozenPortions)
 					: 0}
 				<li>
 					<div class="shopping-meal-copy">

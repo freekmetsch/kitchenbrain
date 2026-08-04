@@ -22,6 +22,8 @@ and the effect of edits, with truthful failure recovery at phone and desktop wid
    message warns when previously sent AH items remain unchanged.
 8. The shared portion registry exposes successful and failed settlement outcomes so callers never
    report a failed write as saved.
+9. Post-review hardening allocates shared freezer stock once across repeated recipe meals, isolates
+   listener-started portion writes, and removes the Meal Plan link while a save is pending.
 
 ## Delivery
 
@@ -33,11 +35,11 @@ and the effect of edits, with truthful failure recovery at phone and desktop wid
 ## Verification
 
 - `npm run check`: 0 errors and 0 warnings.
-- Focused unit checks: 15/15 passed.
+- Focused unit checks: 23/23 passed, including repeated-recipe stock and listener-started writes.
 - Focused Shopping and house-style browser checks: 6/6 passed at phone and desktop widths.
-- Repository unit gate: 744/744 passed.
-- Repository browser gate: 50 passed, 1 skipped; two unrelated load flakes passed immediately in
-  focused retry (4/4), and a later Stock/Recipe retry passed 3/3.
+- Repository unit gate: 746/746 passed.
+- Repository browser gate: 51 passed, 1 skipped; one unrelated AH-review load timeout passed in
+  focused retry (2/2 including authentication setup).
 - `npm run build`: production adapter build passed.
 
 ## Resume pack

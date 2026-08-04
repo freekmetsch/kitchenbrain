@@ -148,8 +148,11 @@ export class PlannedServingsRegistry {
 				entry.pending = false;
 				entry.lastWriteSucceeded = ok;
 				entry.running = null;
+				const waiters = entry.waiters.splice(0);
 				this.#notify(entry);
-				for (const resolve of entry.waiters.splice(0)) resolve(ok);
+				const current =
+					this.#entries.get(entry.mealId) === entry && entry.generation === generation;
+				for (const resolve of waiters) resolve(current ? ok : false);
 			}
 		}
 		return ok;
