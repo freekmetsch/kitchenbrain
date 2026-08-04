@@ -1791,3 +1791,14 @@ test configuration, unit coverage, and isolated browser fixtures
 Moved the shipped Shopping and Meal Plan completion plan into its archive lane. No HTML decision
 workspace was linked to this plan; the repository has no shared `scripts/archive-scan.ps1`, so this
 pass used the documented inline fallback.
+
+## 2026-08-04 05:49 | run | AH shopping review control
+
+Shipped secure row-bound AH search, alternative-aware matching, explicit per-item confirmation,
+stable undo and favorite behavior, and a centered desktop review through PR #69. The complete gate
+passed with 738 unit tests, 49 Chromium tests plus one intentional skip, zero Svelte diagnostics,
+and a production build. Railway deployed exact `main`; health, both guarded account checks, and the
+320/1280 px logged-out Shopping boundary passed without errors or retained household content.
+
+Touched: AH review components, token-bound search route/workflow, matching and connection state,
+bilingual copy, browser/unit regressions, archived implementation plan, issue record, deploy log
